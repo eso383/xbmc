@@ -83,18 +83,18 @@ public:
   virtual bool GetTemperature(CTemperature& temperature) = 0;
 
   bool HasCoreId(int coreId) const;
-  const CoreInfo GetCoreInfo(int coreId);
+  const CoreInfo GetCoreInfo(int coreId) const;
   std::string GetCoresUsageString();
   std::string GetCoresUsageAltString();
 
   unsigned int GetCPUFeatures() const { return m_cpuFeatures; }
   int GetCPUCount() const { return m_cpuCount; }
-  const std::string& GetCPUModel() const { return m_cpuModel; }
-  const std::string& GetCPUBogoMips() const { return m_cpuBogoMips; }
-  const std::string& GetCPUSoC() const { return m_cpuSoC; }
-  const std::string& GetCPUHardware() const { return m_cpuHardware; }
-  const std::string& GetCPURevision() const { return m_cpuRevision; }
-  const std::string& GetCPUSerial() const { return m_cpuSerial; }
+  std::string GetCPUModel() { return m_cpuModel; }
+  std::string GetCPUBogoMips() { return m_cpuBogoMips; }
+  std::string GetCPUSoC() { return m_cpuSoC; }
+  std::string GetCPUHardware() { return m_cpuHardware; }
+  std::string GetCPURevision() { return m_cpuRevision; }
+  std::string GetCPUSerial() { return m_cpuSerial; }
 
 protected:
   CCPUInfo() = default;

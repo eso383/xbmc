@@ -1,15 +1,14 @@
 set(SOURCES TestDirectory.cpp
-            TestDirectoryCache.cpp
             TestFile.cpp
             TestFileFactory.cpp
             TestZipFile.cpp
             TestZipManager.cpp)
 
-if(TARGET ${APP_NAME_LC}::MicroHttpd)
+if(MICROHTTPD_FOUND)
   list(APPEND SOURCES TestHTTPDirectory.cpp)
 endif()
 
-if(TARGET ${APP_NAME_LC}::NFS)
+if(TARGET libnfs::nfs)
   list(APPEND SOURCES TestNfsFile.cpp)
 endif()
 

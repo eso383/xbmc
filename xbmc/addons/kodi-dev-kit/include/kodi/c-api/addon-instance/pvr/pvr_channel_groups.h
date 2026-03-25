@@ -29,7 +29,7 @@ extern "C"
    */
   typedef struct PVR_CHANNEL_GROUP
   {
-    const char* strGroupName;
+    char strGroupName[PVR_ADDON_NAME_STRING_LENGTH];
     bool bIsRadio;
     unsigned int iPosition;
   } PVR_CHANNEL_GROUP;
@@ -43,7 +43,7 @@ extern "C"
    */
   typedef struct PVR_CHANNEL_GROUP_MEMBER
   {
-    const char* strGroupName;
+    char strGroupName[PVR_ADDON_NAME_STRING_LENGTH];
     unsigned int iChannelUniqueId;
     unsigned int iChannelNumber;
     unsigned int iSubChannelNumber;

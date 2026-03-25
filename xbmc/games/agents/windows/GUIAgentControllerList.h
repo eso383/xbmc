@@ -9,6 +9,7 @@
 #pragma once
 
 #include "IAgentControllerList.h"
+#include "addons/AddonEvents.h"
 #include "games/GameTypes.h"
 #include "games/controllers/ControllerTypes.h"
 #include "utils/Observer.h"
@@ -54,9 +55,12 @@ public:
   void Notify(const Observable& obs, const ObservableMessage msg) override;
 
 private:
+  // Add-on API
+  void OnEvent(const ADDON::AddonEvent& event);
+
   // GUI functions
-  void AddItem(const CAgentController& agentController);
-  void CleanupItems();
+  void AddItem(const CAgentController& agentController) const;
+  void CleanupItems() const;
   void OnItemFocus(unsigned int itemIndex);
   void OnControllerFocus(const std::string& focusedAgent);
   void OnItemSelect(unsigned int itemIndex);

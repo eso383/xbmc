@@ -82,9 +82,10 @@ bool CPVREpgTagsCache::Refresh()
   m_nowActiveTag.reset();
   m_nextStartingTag.reset();
 
-  const auto it = std::ranges::find_if(
-      m_changedTags, [&activeTime](const auto& tag)
-      { return tag.second->StartAsUTC() <= activeTime && tag.second->EndAsUTC() > activeTime; });
+  const auto it =
+      std::find_if(m_changedTags.cbegin(), m_changedTags.cend(), [&activeTime](const auto& tag) {
+        return tag.second->StartAsUTC() <= activeTime && tag.second->EndAsUTC() > activeTime;
+      });
 
   if (it != m_changedTags.cend())
   {
@@ -142,13 +143,15 @@ void CPVREpgTagsCache::RefreshLastEndedTag(const CDateTime& activeTime)
       m_lastEndedTag->SetChannelData(m_channelData);
   }
 
-  for (auto it = m_changedTags.crbegin(); it != m_changedTags.crend(); ++it)
+  for (auto it = m_changedTags.rbegin(); it != m_changedTags.rend(); ++it)
   {
-    if (it->second->WasActive() &&
-        (!m_lastEndedTag || m_lastEndedTag->EndAsUTC() < it->second->EndAsUTC()))
+    if (it->second->WasActive())
     {
-      m_lastEndedTag = it->second;
-      break;
+      if (!m_lastEndedTag || m_lastEndedTag->EndAsUTC() < it->second->EndAsUTC())
+      {
+        m_lastEndedTag = it->second;
+        break;
+      }
     }
   }
 }
@@ -162,13 +165,15 @@ void CPVREpgTagsCache::RefreshNextStartingTag(const CDateTime& activeTime)
       m_nextStartingTag->SetChannelData(m_channelData);
   }
 
-  for (const auto& [_, tag] : m_changedTags)
+  for (const auto& tag : m_changedTags)
   {
-    if (tag->IsUpcoming() &&
-        (!m_nextStartingTag || m_nextStartingTag->StartAsUTC() > tag->StartAsUTC()))
+    if (tag.second->IsUpcoming())
     {
-      m_nextStartingTag = tag;
-      break;
+      if (!m_nextStartingTag || m_nextStartingTag->StartAsUTC() > tag.second->StartAsUTC())
+      {
+        m_nextStartingTag = tag.second;
+        break;
+      }
     }
   }
 }

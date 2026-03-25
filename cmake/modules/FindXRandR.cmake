@@ -5,26 +5,37 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::XRandR   - The XRANDR library
+#   XRandR::XRandR   - The XRANDR library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
+if(NOT TARGET XRandR::XRandR)
 
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+  find_package(PkgConfig)
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC xrandr)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_XRANDR xrandr QUIET)
+  endif()
 
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  find_path(XRANDR_INCLUDE_DIR NAMES X11/extensions/Xrandr.h
+                               PATHS ${PC_XRANDR_INCLUDEDIR}
+                               NO_CACHE)
+  find_library(XRANDR_LIBRARY NAMES Xrandr
+                              PATHS ${PC_XRANDR_LIBDIR}
+                              NO_CACHE)
 
-  SETUP_BUILD_VARS()
+  set(XRANDR_VERSION ${PC_XRANDR_VERSION})
 
-  SETUP_FIND_SPECS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(XRandR
+                                    REQUIRED_VARS XRANDR_LIBRARY XRANDR_INCLUDE_DIR
+                                    VERSION_VAR XRANDR_VERSION)
 
-  SEARCH_EXISTING_PACKAGES()
+  if(XRANDR_FOUND)
+    add_library(XRandR::XRandR UNKNOWN IMPORTED)
+    set_target_properties(XRandR::XRandR PROPERTIES
+                                         IMPORTED_LOCATION "${XRANDR_LIBRARY}"
+                                         INTERFACE_INCLUDE_DIRECTORIES "${XRANDR_INCLUDE_DIR}"
+                                         INTERFACE_COMPILE_DEFINITIONS HAVE_LIBXRANDR=1)
 
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAVE_LIBXRANDR)
-    ADD_TARGET_COMPILE_DEFINITION()
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP XRandR::XRandR)
   endif()
 endif()

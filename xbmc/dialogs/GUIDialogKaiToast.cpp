@@ -13,7 +13,6 @@
 #include "guilib/GUIMessage.h"
 #include "peripherals/Peripherals.h"
 #include "utils/TimeUtils.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 
@@ -72,7 +71,7 @@ void CGUIDialogKaiToast::QueueNotification(const std::string& aImageFile, const 
 
 void CGUIDialogKaiToast::AddToQueue(const std::string& aImageFile, const eMessageType eType, const std::string& aCaption, const std::string& aDescription, unsigned int displayTime /*= TOAST_DISPLAY_TIME*/, bool withSound /*= true*/, unsigned int messageTime /*= TOAST_MESSAGE_TIME*/)
 {
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
 
   if (!m_notifications.empty())
   {
@@ -103,7 +102,7 @@ bool CGUIDialogKaiToast::DoWork()
   {
     // if we have a fade label control for the text to display, ensure the whole text was shown
     // (scrolled to the end) before we move on to the next message
-    const CGUIFadeLabelControl* notificationText =
+    auto notificationText =
         dynamic_cast<const CGUIFadeLabelControl*>(GetControl(POPUP_NOTIFICATION_BUTTON));
     if (notificationText && !notificationText->AllLabelsShown())
       return false;
@@ -115,7 +114,7 @@ bool CGUIDialogKaiToast::DoWork()
     m_toastDisplayTime = toast.displayTime;
     m_toastMessageTime = toast.messageTime;
 
-    std::unique_lock lock2(CServiceBroker::GetWinSystem()->GetGfxContext());
+    std::lock_guard lock2(CServiceBroker::GetWinSystem()->GetGfxContext());
 
     if(!Initialize())
       return false;
@@ -171,11 +170,12 @@ void CGUIDialogKaiToast::FrameMove()
 
     // if we have a fade label control for the text to display, ensure the whole text was shown
     // (scrolled to the end) before we're closing the toast dialog
-    const CGUIFadeLabelControl* notificationText =
+    auto notificationText =
         dynamic_cast<const CGUIFadeLabelControl*>(GetControl(POPUP_NOTIFICATION_BUTTON));
     if (notificationText)
     {
-      std::unique_lock lock(m_critical);
+      std::lock_guard lock(m_critical);
+
       bClose = notificationText->AllLabelsShown() && m_notifications.empty();
     }
 

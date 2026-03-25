@@ -182,7 +182,6 @@ struct RendererDetail
   AEDeviceType eDeviceType;
   unsigned int nChannels;
   unsigned int uiChannelMask;
-  unsigned long m_samplesPerSec; //!< Sample rate of the system default format
   bool bDefault;
 };
 
@@ -191,19 +190,16 @@ struct IAEWASAPIDevice
   std::string deviceId;
   virtual int Release() = 0;
   virtual HRESULT Activate(IAudioClient** ppAudioClient) = 0;
+  virtual bool IsUSBDevice() = 0;
 };
 
 class CAESinkFactoryWin
 {
 public:
   /*
-    Gets list of available audio renderers - using MMDevice
+    Gets list of audio renderers available on platform
   */
   static std::vector<RendererDetail> GetRendererDetails();
-  /*
-    Gets list of available audio renderers - using WinRT
-  */
-  static std::vector<RendererDetail> GetRendererDetailsWinRT();
   /*
     Gets default device id
   */

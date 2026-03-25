@@ -9,11 +9,9 @@
 #include "VideoLibraryMarkWatchedJob.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "Util.h"
 #include "filesystem/Directory.h"
-#include "messaging/ApplicationMessenger.h"
 #ifdef HAS_UPNP
 #include "network/upnp/UPnP.h"
 #endif
@@ -34,13 +32,13 @@ CVideoLibraryMarkWatchedJob::CVideoLibraryMarkWatchedJob(const std::shared_ptr<C
 
 CVideoLibraryMarkWatchedJob::~CVideoLibraryMarkWatchedJob() = default;
 
-bool CVideoLibraryMarkWatchedJob::Equals(const CJob* job) const
+bool CVideoLibraryMarkWatchedJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CVideoLibraryMarkWatchedJob* markJob = dynamic_cast<const CVideoLibraryMarkWatchedJob*>(job);
-  if (markJob == NULL)
+  auto markJob = dynamic_cast<const CVideoLibraryMarkWatchedJob*>(job);
+  if (markJob == nullptr)
     return false;
 
   return m_item->IsSamePath(markJob->m_item.get()) && markJob->m_mark == m_mark;
@@ -56,7 +54,7 @@ bool CVideoLibraryMarkWatchedJob::Work(CVideoDatabase &db)
   CFileItemList items;
   items.Add(std::make_shared<CFileItem>(*m_item));
 
-  if (m_item->IsFolder())
+  if (m_item->m_bIsFolder)
     CUtil::GetRecursiveListing(m_item->GetPath(), items, "", XFILE::DIR_FLAG_NO_FILE_INFO);
 
   std::vector<CFileItemPtr> markItems;
@@ -71,8 +69,8 @@ bool CVideoLibraryMarkWatchedJob::Work(CVideoDatabase &db)
       continue;
 #endif
 
-    if (item->IsPVRRecording() && CServiceBroker::GetPVRManager().Recordings()->MarkWatched(
-                                      item->GetPVRRecordingInfoTag(), m_mark))
+    if (item->HasPVRRecordingInfoTag() &&
+        CServiceBroker::GetPVRManager().Recordings()->MarkWatched(item->GetPVRRecordingInfoTag(), m_mark))
     {
       CDateTime newLastPlayed;
       if (m_mark)
@@ -82,14 +80,6 @@ bool CVideoLibraryMarkWatchedJob::Work(CVideoDatabase &db)
 
       if (newLastPlayed.IsValid())
         item->GetVideoInfoTag()->m_lastPlayed = newLastPlayed;
-
-      if (m_mark)
-      {
-        auto file{std::make_unique<CFileItem>(*item)};
-        file->SetProperty("playcount_incremented", CVariant{true});
-        CServiceBroker::GetAppMessenger()->SendMsg(TMSG_PROCESS_DELETE_AFTER_WATCH, -1, -1,
-                                                   static_cast<void*>(file.release()));
-      }
 
       continue;
     }

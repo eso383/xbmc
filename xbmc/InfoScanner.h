@@ -10,6 +10,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 class CGUIDialogProgressBarHandle;
 
@@ -19,29 +20,29 @@ public:
   /*!
     \brief Return values from the information lookup functions.
    */
-  enum class InfoRet
+  enum INFO_RET
   {
-    CANCELLED,
-    INFO_ERROR, // ERROR clashes with windows macro
-    NOT_NEEDED,
-    HAVE_ALREADY,
-    NOT_FOUND,
-    ADDED
+    INFO_CANCELLED,
+    INFO_ERROR,
+    INFO_NOT_NEEDED,
+    INFO_HAVE_ALREADY,
+    INFO_NOT_FOUND,
+    INFO_ADDED
   };
 
   /*
    \brief Type of information returned from tag readers.
   */
 
-  enum class InfoType
+  enum INFO_TYPE
   {
-    NONE = 0, //!< No info found
-    FULL = 1, //!< Full info specified
-    URL = 2, //!< A URL to grab info from was found
-    OVERRIDE = 3, //!< Override info was found
-    COMBINED = 4, //!< A URL to grab info from + override info was found
-    ERROR_NFO = 5, //!< Error processing info
-    TITLE = 6, //!< At least Title was read (and optionally the Year)
+    NO_NFO       = 0, //!< No info found
+    FULL_NFO     = 1, //!< Full info specified
+    URL_NFO      = 2, //!< A URL to grab info from was found
+    OVERRIDE_NFO = 3, //!< Override info was found
+    COMBINED_NFO = 4, //!< A URL to grab info from + override info was found
+    ERROR_NFO    = 5, //!< Error processing info
+    TITLE_NFO    = 6  //!< At least Title was read (and optionally the Year)
   };
 
   //! \brief Empty destructor.
@@ -53,7 +54,7 @@ public:
    \param strDirectory Directory to scan
    \return true if there is a .nomedia file
    */
-  static bool HasNoMedia(const std::string& strDirectory);
+  bool HasNoMedia(const std::string& strDirectory) const;
 
   //! \brief Set whether or not to show a progress dialog.
   void ShowDialog(bool show) { m_showDialog = show; }
@@ -65,7 +66,7 @@ protected:
   //! \brief Protected constructor to only allow subclass instances.
   CInfoScanner() = default;
 
-  std::set<std::string, std::less<>> m_pathsToScan; //!< Set of paths to scan
+  std::set<std::string> m_pathsToScan; //!< Set of paths to scan
   bool m_showDialog = false; //!< Whether or not to show progress bar dialog
   CGUIDialogProgressBarHandle* m_handle = nullptr; //!< Progress bar handle
   bool m_bRunning = false; //!< Whether or not scanner is running

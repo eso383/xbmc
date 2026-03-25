@@ -9,18 +9,14 @@
 #include "GroupUtils.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "filesystem/MultiPathDirectory.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "video/VideoDbUrl.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoInfoTag.h"
 
 #include <map>
 #include <set>
-
-using namespace KODI;
 
 using SetMap = std::map<int, std::set<CFileItemPtr> >;
 
@@ -46,11 +42,11 @@ bool GroupUtils::Group(GroupBy groupBy, const std::string &baseDir, const CFileI
     const CFileItemPtr item = items.Get(index);
 
     // group by sets
-    if ((groupBy & GroupBySet) && item->HasVideoInfoTag() &&
-        item->GetVideoInfoTag()->m_set.GetID() > 0)
+    if ((groupBy & GroupBySet) &&
+      item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_set.id > 0)
     {
       ungrouped = false;
-      setMap[item->GetVideoInfoTag()->m_set.GetID()].insert(item);
+      setMap[item->GetVideoInfoTag()->m_set.id].insert(item);
     }
 
     if (ungrouped)
@@ -72,8 +68,7 @@ bool GroupUtils::Group(GroupBy groupBy, const std::string &baseDir, const CFileI
         continue;
       }
 
-      CFileItemPtr pItem(
-          new CFileItem((*set->second.begin())->GetVideoInfoTag()->m_set.GetTitle()));
+      CFileItemPtr pItem(new CFileItem((*set->second.begin())->GetVideoInfoTag()->m_set.title));
       pItem->GetVideoInfoTag()->m_iDbId = set->first;
       pItem->GetVideoInfoTag()->m_type = MediaTypeVideoCollection;
 
@@ -86,19 +81,19 @@ bool GroupUtils::Group(GroupBy groupBy, const std::string &baseDir, const CFileI
         videoUrl.AddOptions((*set->second.begin())->GetURL().GetOptions());
         pItem->SetPath(videoUrl.ToString());
       }
-      pItem->SetFolder(true);
+      pItem->m_bIsFolder = true;
 
       CVideoInfoTag* setInfo = pItem->GetVideoInfoTag();
       setInfo->m_strPath = pItem->GetPath();
       setInfo->m_strTitle = pItem->GetLabel();
-      setInfo->m_strPlot = (*set->second.begin())->GetVideoInfoTag()->m_set.GetOverview();
+      setInfo->m_strPlot = (*set->second.begin())->GetVideoInfoTag()->m_set.overview;
 
       int ratings = 0;
       float totalRatings = 0;
       int iWatched = 0; // have all the movies been played at least once?
       int inProgress = 0;
       std::set<std::string> pathSet;
-      for (std::set<CFileItemPtr>::const_iterator movie = set->second.begin(); movie != set->second.end(); ++movie)
+      for (auto movie = set->second.begin(); movie != set->second.end(); ++movie)
       {
         CVideoInfoTag* movieInfo = (*movie)->GetVideoInfoTag();
         // handle rating
@@ -126,12 +121,13 @@ bool GroupUtils::Group(GroupBy groupBy, const std::string &baseDir, const CFileI
           iWatched++;
 
         // handle resume points
-        if (movieInfo->GetResumePoint().IsPartWay())
+        CBookmark bookmark = movieInfo->GetResumePoint();
+        if (bookmark.IsSet())
           inProgress++;
 
         //accumulate the path for a multipath construction
         CFileItem video(movieInfo->m_basePath, false);
-        if (VIDEO::IsVideo(video))
+        if (video.IsVideo())
           pathSet.insert(URIUtils::GetParentPath(movieInfo->m_basePath));
         else
           pathSet.insert(movieInfo->m_basePath);

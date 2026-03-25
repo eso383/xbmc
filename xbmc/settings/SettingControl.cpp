@@ -16,12 +16,9 @@
 
 #include <vector>
 
-namespace
-{
-constexpr const char* SHOW_ADDONS_ALL = "all";
-constexpr const char* SHOW_ADDONS_INSTALLED = "installed";
-constexpr const char* SHOW_ADDONS_INSTALLABLE = "installable";
-} // unnamed namespace
+auto SHOW_ADDONS_ALL = "all";
+auto SHOW_ADDONS_INSTALLED = "installed";
+auto SHOW_ADDONS_INSTALLABLE = "installable";
 
 std::shared_ptr<ISettingControl> CSettingControlCreator::CreateControl(const std::string &controlType) const
 {
@@ -64,20 +61,20 @@ bool CSettingControlFormattedRange::Deserialize(const TiXmlNode *node, bool upda
     XMLUtils::GetInt(node, SETTING_XML_ELM_CONTROL_FORMATLABEL, m_formatLabel);
 
     // get the minimum label from <setting><constraints><minimum label="X" />
-    const TiXmlNode* settingNode = node->Parent();
-    if (settingNode)
+    auto settingNode = node->Parent();
+    if (settingNode != nullptr)
     {
-      const TiXmlNode* constraintsNode = settingNode->FirstChild(SETTING_XML_ELM_CONSTRAINTS);
-      if (constraintsNode)
+      auto constraintsNode = settingNode->FirstChild(SETTING_XML_ELM_CONSTRAINTS);
+      if (constraintsNode != nullptr)
       {
-        const TiXmlNode* minimumNode = constraintsNode->FirstChild(SETTING_XML_ELM_MINIMUM);
-        if (minimumNode)
+        auto minimumNode = constraintsNode->FirstChild(SETTING_XML_ELM_MINIMUM);
+        if (minimumNode != nullptr)
         {
-          const TiXmlElement* minimumElem = minimumNode->ToElement();
-          if (minimumElem && minimumElem->QueryIntAttribute(SETTING_XML_ATTR_LABEL,
-                                                            &m_minimumLabel) != TIXML_SUCCESS)
+          auto minimumElem = minimumNode->ToElement();
+          if (minimumElem != nullptr)
           {
-            m_minimumLabel = -1;
+            if (minimumElem->QueryIntAttribute(SETTING_XML_ATTR_LABEL, &m_minimumLabel) != TIXML_SUCCESS)
+              m_minimumLabel = -1;
           }
         }
       }
@@ -175,11 +172,11 @@ bool CSettingControlButton::Deserialize(const TiXmlNode *node, bool update /* = 
       else
         CLog::Log(LOGWARNING, "CSettingControlButton: invalid <show>");
 
-      const TiXmlElement* show = node->FirstChildElement("show");
-      if (show)
+      auto show = node->FirstChildElement("show");
+      if (show != nullptr)
       {
-        const char* strShowDetails = show->Attribute(SETTING_XML_ATTR_SHOW_DETAILS);
-        if (strShowDetails)
+        const char *strShowDetails = nullptr;
+        if ((strShowDetails = show->Attribute(SETTING_XML_ATTR_SHOW_DETAILS)) != nullptr)
         {
           if (StringUtils::EqualsNoCase(strShowDetails, "false") || StringUtils::EqualsNoCase(strShowDetails, "true"))
             m_showAddonDetails = StringUtils::EqualsNoCase(strShowDetails, "true");
@@ -189,8 +186,8 @@ bool CSettingControlButton::Deserialize(const TiXmlNode *node, bool update /* = 
 
         if (!m_showInstallableAddons)
         {
-          const char* strShowMore = show->Attribute(SETTING_XML_ATTR_SHOW_MORE);
-          if (strShowMore)
+          const char *strShowMore = nullptr;
+          if ((strShowMore = show->Attribute(SETTING_XML_ATTR_SHOW_MORE)) != nullptr)
           {
             if (StringUtils::EqualsNoCase(strShowMore, "false") || StringUtils::EqualsNoCase(strShowMore, "true"))
               m_showMoreAddons = StringUtils::EqualsNoCase(strShowMore, "true");
@@ -307,15 +304,15 @@ bool CSettingControlRange::Deserialize(const TiXmlNode *node, bool update /* = f
   if (!ISettingControl::Deserialize(node, update))
     return false;
 
-  const TiXmlElement* formatLabel = node->FirstChildElement(SETTING_XML_ELM_CONTROL_FORMATLABEL);
-  if (formatLabel)
+  auto formatLabel = node->FirstChildElement(SETTING_XML_ELM_CONTROL_FORMATLABEL);
+  if (formatLabel != nullptr)
   {
     XMLUtils::GetInt(node, SETTING_XML_ELM_CONTROL_FORMATLABEL, m_formatLabel);
     if (m_formatLabel < 0)
       return false;
 
-    const char* formatValue = formatLabel->Attribute(SETTING_XML_ELM_CONTROL_FORMATVALUE);
-    if (formatValue)
+    auto formatValue = formatLabel->Attribute(SETTING_XML_ELM_CONTROL_FORMATVALUE);
+    if (formatValue != nullptr)
     {
       if (StringUtils::IsInteger(formatValue))
         m_valueFormatLabel = (int)strtol(formatValue, nullptr, 0);

@@ -300,7 +300,7 @@ bool CAAudioUnitSink::deactivate()
     AudioUnitReset(m_audioUnit, kAudioUnitScope_Global, 0);
 
     // this is a delayed call, the OS will block here
-    // until the audio unit actually is stopped.
+    // until the autio unit actually is stopped.
     AudioOutputUnitStop(m_audioUnit);
 
     // detach the render callback on the unit
@@ -362,7 +362,8 @@ unsigned int CAAudioUnitSink::write(uint8_t* data, unsigned int frames, unsigned
   // CAAudioUnitSink owns them.
   if (m_buffer->GetWriteSize() < frames * framesize)
   { // no space to write - wait for a bit
-    std::unique_lock lock(mutex);
+    std::lock_guard lock(mutex);
+
     auto timeout = std::chrono::milliseconds(900 * frames / m_sampleRate);
     if (!m_started)
       timeout = 4500ms;
@@ -394,7 +395,8 @@ void CAAudioUnitSink::drain()
 
   while (bytes && maxNumTimeouts > 0)
   {
-    std::unique_lock lock(mutex);
+    std::lock_guard lock(mutex);
+    
     XbmcThreads::EndTime<> timer(timeout);
     condVar.wait(mutex, timeout);
 
@@ -784,15 +786,15 @@ bool CAESinkDARWINTVOS::Initialize(AEAudioFormat& format, std::string& device)
   switch (format.m_streamInfo.m_type)
   {
     case CAEStreamInfo::STREAM_TYPE_AC3:
-      if (!format.m_streamInfo.m_frameSize)
-        format.m_streamInfo.m_frameSize = 1536;
-      format.m_frames = format.m_streamInfo.m_frameSize;
+      if (!format.m_streamInfo.m_ac3FrameSize)
+        format.m_streamInfo.m_ac3FrameSize = 1536;
+      format.m_frames = format.m_streamInfo.m_ac3FrameSize;
       buffer_size = format.m_frames * 8;
       break;
     case CAEStreamInfo::STREAM_TYPE_EAC3:
-      if (!format.m_streamInfo.m_frameSize)
-        format.m_streamInfo.m_frameSize = 1536;
-      format.m_frames = format.m_streamInfo.m_frameSize;
+      if (!format.m_streamInfo.m_ac3FrameSize)
+        format.m_streamInfo.m_ac3FrameSize = 1536;
+      format.m_frames = format.m_streamInfo.m_ac3FrameSize;
       buffer_size = format.m_frames * 8;
       break;
     case CAEStreamInfo::STREAM_TYPE_DTS_512:

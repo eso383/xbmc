@@ -15,7 +15,7 @@ class CFileItemList;
 class CGUIViewStateFavourites : public CGUIViewState
 {
 public:
-  explicit CGUIViewStateFavourites(const CFileItemList& items);
+  CGUIViewStateFavourites(const CFileItemList& items);
   ~CGUIViewStateFavourites() override = default;
 
 protected:

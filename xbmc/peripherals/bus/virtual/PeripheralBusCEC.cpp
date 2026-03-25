@@ -22,16 +22,13 @@ CPeripheralBusCEC::CPeripheralBusCEC(CPeripherals& manager)
 CPeripheralBusCEC::~CPeripheralBusCEC(void)
 {
   if (m_cecAdapter)
-  {
-    m_cecAdapter->Close();
     CECDestroy(m_cecAdapter);
-  }
 }
 
 bool CPeripheralBusCEC::PerformDeviceScan(PeripheralScanResults& results)
 {
   cec_adapter_descriptor deviceList[10];
-  int8_t iFound = m_cecAdapter->DetectAdapters(deviceList, 10, NULL, true);
+  int8_t iFound = m_cecAdapter->DetectAdapters(deviceList, 10, nullptr, true);
 
   for (uint8_t iDevicePtr = 0; iDevicePtr < iFound; iDevicePtr++)
   {

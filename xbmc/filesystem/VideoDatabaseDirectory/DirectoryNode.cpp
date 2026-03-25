@@ -11,8 +11,6 @@
 #include "DirectoryNodeEpisodes.h"
 #include "DirectoryNodeGrouped.h"
 #include "DirectoryNodeInProgressTvShows.h"
-#include "DirectoryNodeMovieAssetTypes.h"
-#include "DirectoryNodeMovieAssets.h"
 #include "DirectoryNodeMoviesOverview.h"
 #include "DirectoryNodeMusicVideosOverview.h"
 #include "DirectoryNodeOverview.h"
@@ -26,7 +24,6 @@
 #include "DirectoryNodeTitleTvShows.h"
 #include "DirectoryNodeTvShowsOverview.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "QueryParams.h"
 #include "URL.h"
 #include "utils/StringUtils.h"
@@ -35,10 +32,10 @@
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
 //  Constructor is protected use ParseURL()
-CDirectoryNode::CDirectoryNode(NodeType Type, const std::string& strName, CDirectoryNode* pParent)
-  : m_strName(strName)
+CDirectoryNode::CDirectoryNode(NODE_TYPE Type, const std::string& strName, CDirectoryNode* pParent)
 {
   m_Type = Type;
+  m_strName = strName;
   m_pParent = pParent;
 }
 
@@ -61,13 +58,13 @@ CDirectoryNode* CDirectoryNode::ParseURL(const std::string& strPath)
 
   CDirectoryNode *pNode = nullptr;
   CDirectoryNode *pParent = nullptr;
-  NodeType nodeType = NodeType::ROOT;
+  NODE_TYPE NodeType = NODE_TYPE_ROOT;
   // loop down the dir path, creating a node with a parent.
   // if we hit a child type of NODE_TYPE_NONE, then we are done.
-  for (size_t i = 0; i < Path.size() && nodeType != NodeType::NONE; ++i)
+  for (size_t i = 0; i < Path.size() && NodeType != NODE_TYPE_NONE; ++i)
   {
-    pNode = CDirectoryNode::CreateNode(nodeType, Path[i], pParent);
-    nodeType = pNode ? pNode->GetChildType() : NodeType::NONE;
+    pNode = CDirectoryNode::CreateNode(NodeType, Path[i], pParent);
+    NodeType = pNode ? pNode->GetChildType() : NODE_TYPE_NONE;
     pParent = pNode;
   }
 
@@ -90,59 +87,51 @@ void CDirectoryNode::GetDatabaseInfo(const std::string& strPath, CQueryParams& p
 }
 
 //  Create a node object
-CDirectoryNode* CDirectoryNode::CreateNode(NodeType Type,
-                                           const std::string& strName,
-                                           CDirectoryNode* pParent)
+CDirectoryNode* CDirectoryNode::CreateNode(NODE_TYPE Type, const std::string& strName, CDirectoryNode* pParent)
 {
   switch (Type)
   {
-    case NodeType::ROOT:
-      return new CDirectoryNodeRoot(strName, pParent);
-    case NodeType::OVERVIEW:
-      return new CDirectoryNodeOverview(strName, pParent);
-    case NodeType::GENRE:
-    case NodeType::COUNTRY:
-    case NodeType::SETS:
-    case NodeType::TAGS:
-    case NodeType::VIDEOVERSIONS:
-    case NodeType::YEAR:
-    case NodeType::ACTOR:
-    case NodeType::DIRECTOR:
-    case NodeType::STUDIO:
-    case NodeType::MUSICVIDEOS_ALBUM:
-      return new CDirectoryNodeGrouped(Type, strName, pParent);
-    case NodeType::TITLE_MOVIES:
-      return new CDirectoryNodeTitleMovies(strName, pParent);
-    case NodeType::TITLE_TVSHOWS:
-      return new CDirectoryNodeTitleTvShows(strName, pParent);
-    case NodeType::MOVIES_OVERVIEW:
-      return new CDirectoryNodeMoviesOverview(strName, pParent);
-    case NodeType::TVSHOWS_OVERVIEW:
-      return new CDirectoryNodeTvShowsOverview(strName, pParent);
-    case NodeType::SEASONS:
-      return new CDirectoryNodeSeasons(strName, pParent);
-    case NodeType::EPISODES:
-      return new CDirectoryNodeEpisodes(strName, pParent);
-    case NodeType::RECENTLY_ADDED_MOVIES:
-      return new CDirectoryNodeRecentlyAddedMovies(strName, pParent);
-    case NodeType::RECENTLY_ADDED_EPISODES:
-      return new CDirectoryNodeRecentlyAddedEpisodes(strName, pParent);
-    case NodeType::MUSICVIDEOS_OVERVIEW:
-      return new CDirectoryNodeMusicVideosOverview(strName, pParent);
-    case NodeType::RECENTLY_ADDED_MUSICVIDEOS:
-      return new CDirectoryNodeRecentlyAddedMusicVideos(strName, pParent);
-    case NodeType::INPROGRESS_TVSHOWS:
-      return new CDirectoryNodeInProgressTvShows(strName, pParent);
-    case NodeType::TITLE_MUSICVIDEOS:
-      return new CDirectoryNodeTitleMusicVideos(strName, pParent);
-    case NodeType::MOVIE_ASSET_TYPES:
-      return new CDirectoryNodeMovieAssetTypes(strName, pParent);
-    case NodeType::MOVIE_ASSETS:
-    case NodeType::MOVIE_ASSETS_VERSIONS:
-    case NodeType::MOVIE_ASSETS_EXTRAS:
-      return new CDirectoryNodeMovieAssets(strName, pParent);
-    default:
-      break;
+  case NODE_TYPE_ROOT:
+    return new CDirectoryNodeRoot(strName, pParent);
+  case NODE_TYPE_OVERVIEW:
+    return new CDirectoryNodeOverview(strName, pParent);
+  case NODE_TYPE_GENRE:
+  case NODE_TYPE_COUNTRY:
+  case NODE_TYPE_SETS:
+  case NODE_TYPE_TAGS:
+  case NODE_TYPE_VIDEOVERSIONS:
+  case NODE_TYPE_YEAR:
+  case NODE_TYPE_ACTOR:
+  case NODE_TYPE_DIRECTOR:
+  case NODE_TYPE_STUDIO:
+  case NODE_TYPE_MUSICVIDEOS_ALBUM:
+    return new CDirectoryNodeGrouped(Type, strName, pParent);
+  case NODE_TYPE_TITLE_MOVIES:
+    return new CDirectoryNodeTitleMovies(strName, pParent);
+  case NODE_TYPE_TITLE_TVSHOWS:
+    return new CDirectoryNodeTitleTvShows(strName, pParent);
+  case NODE_TYPE_MOVIES_OVERVIEW:
+    return new CDirectoryNodeMoviesOverview(strName, pParent);
+  case NODE_TYPE_TVSHOWS_OVERVIEW:
+    return new CDirectoryNodeTvShowsOverview(strName, pParent);
+  case NODE_TYPE_SEASONS:
+    return new CDirectoryNodeSeasons(strName, pParent);
+  case NODE_TYPE_EPISODES:
+    return new CDirectoryNodeEpisodes(strName, pParent);
+  case NODE_TYPE_RECENTLY_ADDED_MOVIES:
+    return new CDirectoryNodeRecentlyAddedMovies(strName,pParent);
+  case NODE_TYPE_RECENTLY_ADDED_EPISODES:
+    return new CDirectoryNodeRecentlyAddedEpisodes(strName,pParent);
+  case NODE_TYPE_MUSICVIDEOS_OVERVIEW:
+    return new CDirectoryNodeMusicVideosOverview(strName,pParent);
+  case NODE_TYPE_RECENTLY_ADDED_MUSICVIDEOS:
+    return new CDirectoryNodeRecentlyAddedMusicVideos(strName,pParent);
+  case NODE_TYPE_INPROGRESS_TVSHOWS:
+    return new CDirectoryNodeInProgressTvShows(strName,pParent);
+  case NODE_TYPE_TITLE_MUSICVIDEOS:
+    return new CDirectoryNodeTitleMusicVideos(strName,pParent);
+  default:
+    break;
   }
 
   return nullptr;
@@ -165,7 +154,7 @@ std::string CDirectoryNode::GetLocalizedName() const
 }
 
 //  Current node type
-NodeType CDirectoryNode::GetType() const
+NODE_TYPE CDirectoryNode::GetType() const
 {
   return m_Type;
 }
@@ -243,9 +232,9 @@ void CDirectoryNode::CollectQueryParams(CQueryParams& params) const
 
 //  Should be overloaded by a derived class.
 //  Returns the NODE_TYPE of the child nodes.
-NodeType CDirectoryNode::GetChildType() const
+NODE_TYPE CDirectoryNode::GetChildType() const
 {
-  return NodeType::NONE;
+  return NODE_TYPE_NONE;
 }
 
 //  Get the child fileitems of this node
@@ -264,7 +253,7 @@ bool CDirectoryNode::GetChilds(CFileItemList& items)
     if (bSuccess)
     {
       if (CanCache())
-        items.SetCacheToDisc(CFileItemList::CacheType::ALWAYS);
+        items.SetCacheToDisc(CFileItemList::CACHE_ALWAYS);
     }
     else
       items.Clear();

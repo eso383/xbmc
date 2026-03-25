@@ -1,5 +1,6 @@
 include ../../Makefile.include LIBDOVI-VERSION ../../download-files.include
-DEPS = ../../Makefile.include Makefile LIBDOVI-VERSION ../../download-files.include
+DEPS = ../../Makefile.include Makefile LIBDOVI-VERSION ../../download-files.include \
+                                       dolby_vision-Cargo.lock
 
 LIBDYLIB=$(PLATFORM)/target/$(HOST)/release/$(BYPRODUCT)
 
@@ -9,13 +10,7 @@ CARGO = $(CARGO_ENV_VARS) $(NATIVEPREFIX)/bin/cargo
 
 CARGO_BASE_OPTS = --manifest-path $(PLATFORM)/dolby_vision/Cargo.toml
 ifeq ($(CROSS_COMPILING),yes)
-  ifeq ($(TARGET_PLATFORM),webos)
-    RUST_TARGET = armv7-unknown-linux-gnueabi
-  else
-    RUST_TARGET = $(HOST)
-  endif
-
-  CARGO_BASE_OPTS += --target $(RUST_TARGET)
+  CARGO_BASE_OPTS += --target $(HOST)
 endif
 
 CARGO_BUILD_OPTS = --locked \
@@ -29,6 +24,7 @@ all: .installed-$(PLATFORM)
 $(PLATFORM): $(DEPS) | $(TARBALLS_LOCATION)/$(ARCHIVE).$(HASH_TYPE)
 	rm -rf $(PLATFORM)/*; mkdir -p $(PLATFORM)
 	cd $(PLATFORM); $(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
+	cp dolby_vision-Cargo.lock $(PLATFORM)/dolby_vision/Cargo.lock
 	$(CARGO) fetch  --locked $(CARGO_BASE_OPTS)
 
 $(LIBDYLIB): $(PLATFORM)

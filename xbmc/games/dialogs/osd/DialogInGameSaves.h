@@ -10,7 +10,6 @@
 
 #include "DialogGameVideoSelect.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "guilib/GUIListItem.h"
 
 #include <string>
@@ -49,7 +48,7 @@ protected:
   void OnLoad(CFileItem& focusedItem);
   void OnOverwrite(CFileItem& focusedItem);
   void OnRename(CFileItem& focusedItem);
-  void OnDelete(const CFileItem& focusedItem);
+  void OnDelete(CFileItem& focusedItem);
 
 private:
   void InitSavedGames();
@@ -77,7 +76,7 @@ private:
 
   CFileItemList m_savestateItems;
   const CFileItemPtr m_newSaveItem;
-  unsigned int m_focusedItemIndex{0};
+  unsigned int m_focusedItemIndex = false;
 };
 } // namespace GAME
 } // namespace KODI

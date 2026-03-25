@@ -175,7 +175,7 @@ public:
   bool IsVisibleFromSkin() const { return m_visibleFromSkinCondition; }
   virtual bool IsDisabled() const;
   virtual void SetPosition(float posX, float posY);
-  virtual void SetHitRect(const CRect& rect, const KODI::UTILS::COLOR::Color& color);
+  virtual void SetHitRect(const CRect& rect, const UTILS::COLOR::Color& color);
   virtual void SetCamera(const CPoint &camera);
   virtual void SetStereoFactor(const float &factor);
   bool SetColorDiffuse(const KODI::GUILIB::GUIINFO::CGUIInfoColor &color);
@@ -226,7 +226,7 @@ public:
   virtual void SetHeight(float height);
   virtual void SetVisible(bool bVisible, bool setVisState = false);
   void SetVisibleCondition(const std::string &expression, const std::string &allowHiddenFocus = "");
-  bool HasVisibleCondition() const { return m_visibleCondition != NULL; }
+  bool HasVisibleCondition() const { return m_visibleCondition != nullptr; }
   void SetEnableCondition(const std::string &expression);
   virtual void UpdateVisibility(const CGUIListItem *item);
   virtual void SetInitialVisibility();
@@ -247,7 +247,7 @@ public:
   virtual void ResetAnimations();
 
   // push information updates
-  virtual void UpdateInfo(const CGUIListItem* item = NULL) {}
+  virtual void UpdateInfo(const CGUIListItem* item = nullptr) {}
   virtual void SetPushUpdates(bool pushUpdates) { m_pushedUpdates = pushUpdates; }
 
   virtual bool IsGroup() const { return false; }
@@ -354,7 +354,7 @@ protected:
   float m_height;
   float m_width;
   CRect m_hitRect;
-  KODI::UTILS::COLOR::Color m_hitColor = 0xffffffff;
+  UTILS::COLOR::Color m_hitColor = 0xffffffff;
   KODI::GUILIB::GUIINFO::CGUIInfoColor m_diffuseColor;
   int m_controlID;
   int m_parentID;

@@ -17,6 +17,8 @@
 #include <vector>
 
 // forward references
+
+class TiXmlElement;
 class CFileItem;
 class CPlayerCoreConfig;
 class CPlayerSelectionRule;
@@ -51,7 +53,7 @@ public:
   std::string SelectPlayerDialog(const std::vector<std::string>&players, float posX = 0, float posY = 0) const;
   std::string SelectPlayerDialog(float posX, float posY) const;
   void OnPlayerDiscovered(const std::string& id, const std::string& name);
-  void OnPlayerRemoved(const std::string& id);
+  void OnPlayerRemoved(const std::string& id) const;
 
 private:
   // Construction parameters

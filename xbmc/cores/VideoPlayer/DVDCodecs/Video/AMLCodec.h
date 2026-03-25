@@ -208,7 +208,6 @@ typedef struct am_private_t
   unsigned int      video_ratio64;
   unsigned int      video_rate;
   unsigned int      video_rotation_degree;
-  int               extrasize;
   FFmpegExtraData   extradata;
   DllLibAmCodec     *m_dll;
 
@@ -247,6 +246,7 @@ struct pq_ctrl_s {
 };
 
 #define VE_CM  'C'
+#define _VE_CM  'C'
 #define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x69, struct vpp_pq_ctrl_s)
 #define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x6a, struct vpp_pq_ctrl_s)
 
@@ -260,36 +260,32 @@ public:
   void          CloseDecoder(bool restart);
   void          Reset();
 
+  bool          Enable_vadj1();
+
   bool          AddData(uint8_t *pData, size_t size, double dts, double pts);
   CDVDVideoCodec::VCReturn GetPicture(VideoPicture& videoPicture);
 
   void          SetSpeed(int speed);
   void          SetDrain(bool drain);
-  void          SetVideoRect(const CRect &DestRect);
+  void          SetVideoRect(const CRect &SrcRect, const CRect &DestRect);
+  void          SetVideoRate(int videoRate) const;
   uint64_t      GetOMXPts() const { return m_cur_pts; }
+  double        GetPts() const { return static_cast<double>(m_cur_pts); }
   uint32_t      GetBufferIndex() const { return m_bufferIndex; };
+  static float  OMXPtsToSeconds(int omxpts);
+  static int    OMXDurationToNs(int duration);
   int           GetAmlDuration() const;
   int           ReleaseFrame(const uint32_t index, bool bDrop = false);
-
-  bool          IsDecStreamTypeFrame() const { return (am_private->gcodec.dec_mode == STREAM_TYPE_FRAME); }
-  bool          IsDecStreamTypeStream() const { return (am_private->gcodec.dec_mode == STREAM_TYPE_STREAM); }
-  bool          IsDecStreamTypeSingle() const { return (am_private->gcodec.dec_mode == STREAM_TYPE_SINGLE); }
-
-  bool          IsH264() const { return (am_private->video_format == VFORMAT_H264); }
-
-  std::string   GetDecStreamTypeName() const
-  {
-		if      (IsDecStreamTypeFrame())  return "Frame";
-		else if (IsDecStreamTypeStream()) return "Stream";
-		else if (IsDecStreamTypeSingle()) return "Single";
-	  else                              return "Unknown";
-  }
 
   static int    PollFrame();
   static void   SetPollDevice(int device);
 
 private:
   void          ShowMainVideo(const bool show);
+  void          SetVideoZoom(const float zoom);
+  void          SetVideoContrast(const int contrast);
+  void          SetVideoBrightness(const int brightness);
+  void          SetVideoSaturation(const int saturation);
   bool          OpenAmlVideo();
   void          CloseAmlVideo();
   std::string   GetVfmMap(const std::string &name) const;
@@ -302,13 +298,11 @@ private:
 
   unsigned int  GetDecoderVideoRate() const;
   std::string   GetHDRStaticMetadata() const;
-  std::string   QueryDecoderName() const;
 
   std::string   IntToFourCCString(unsigned int value) const;
   std::string   GetDoViCodecFourCC(unsigned int codec_tag) const;
   void          SetProcessInfoVideoDetails();
   void          ResetFrameTimeoutClock();
-
 
   DllLibAmCodec   *m_dll;
   bool             m_opened;
@@ -319,39 +313,41 @@ private:
   uint64_t         m_cur_pts;
   uint64_t         m_last_pts;
   uint32_t         m_bufferIndex;
-  std::string      m_vdecName;
 
   CRect            m_dst_rect;
   CRect            m_display_rect;
 
   int              m_view_mode = -1;
-  RenderStereoMode m_guiStereoMode = RenderStereoMode::OFF;
-  RenderStereoView m_guiStereoView = RenderStereoView::OFF;
+  RENDER_STEREO_MODE m_guiStereoMode = RENDER_STEREO_MODE_OFF;
+  RENDER_STEREO_VIEW m_guiStereoView = RENDER_STEREO_VIEW_OFF;
   float            m_zoom = -1.0f;
   int              m_contrast = -1;
   int              m_brightness = -1;
   bool             m_vadj1_enabled = false;
   RESOLUTION       m_video_res = RES_INVALID;
 
-  static const unsigned int STATE_HASPTS = 2;
+  static const unsigned int STATE_PREFILLED  = 1;
+  static const unsigned int STATE_HASPTS     = 2;
 
   unsigned int     m_state;
 
   PosixFilePtr     m_amlVideoFile;
   std::string      m_defaultVfmMap;
 
+  static           std::atomic_flag  m_pollSync;
   static int       m_pollDevice;
+  static double    m_ttd;
 
   CDVDStreamInfo  &m_hints;         // Reference as values can change.
   CProcessInfo    &m_processInfo;
   CDataCacheCore  &m_dataCacheCore;
 
   int              m_decoder_timeout;
+  bool             m_decoder_bypass_buffer_ready;
   float            m_decoder_buffer;
   float            m_decoder_stream_buffer;
   float            m_decoder_minimum_buffer;
   float            m_decoder_minimum_stream_buffer;
-  int64_t          m_decoder_h264_offset;
 
   std::chrono::time_point<std::chrono::system_clock> m_tp_last_frame;
   float            m_last_drain_buffer_level{0.0f};

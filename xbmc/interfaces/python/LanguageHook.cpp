@@ -55,14 +55,15 @@ namespace XBMCAddon
     void PythonLanguageHook::RegisterMe()
     {
       XBMC_TRACE;
-      std::unique_lock lock(hooksMutex);
+      std::lock_guard lock(hooksMutex);
+
       hooks[m_interp] = AddonClass::Ref<PythonLanguageHook>(this);
     }
 
-    void PythonLanguageHook::UnregisterMe()
-    {
+    void PythonLanguageHook::UnregisterMe() const {
       XBMC_TRACE;
-      std::unique_lock lock(hooksMutex);
+      std::lock_guard lock(hooksMutex);
+
       hooks.erase(m_interp);
     }
 
@@ -76,8 +77,9 @@ namespace XBMCAddon
     AddonClass::Ref<PythonLanguageHook> PythonLanguageHook::GetIfExists(PyInterpreterState* interp)
     {
       XBMC_TRACE;
-      std::unique_lock lock(hooksMutex);
-      std::map<PyInterpreterState*,AddonClass::Ref<PythonLanguageHook> >::iterator iter = hooks.find(interp);
+      std::lock_guard lock(hooksMutex);
+
+      auto iter = hooks.find(interp);
       if (iter != hooks.end())
         return iter->second;
 
@@ -208,7 +210,8 @@ namespace XBMCAddon
     void PythonLanguageHook::RegisterAddonClassInstance(AddonClass* obj)
     {
       XBMC_TRACE;
-      std::unique_lock l(*this);
+      std::lock_guard l(*this);
+
       obj->Acquire();
       currentObjects.insert(obj);
     }
@@ -216,7 +219,8 @@ namespace XBMCAddon
     void PythonLanguageHook::UnregisterAddonClassInstance(AddonClass* obj)
     {
       XBMC_TRACE;
-      std::unique_lock l(*this);
+      std::lock_guard l(*this);
+
       if (currentObjects.erase(obj) > 0)
         obj->Release();
     }
@@ -224,8 +228,9 @@ namespace XBMCAddon
     bool PythonLanguageHook::HasRegisteredAddonClassInstance(AddonClass* obj)
     {
       XBMC_TRACE;
-      std::unique_lock l(*this);
-      return currentObjects.contains(obj);
+      std::lock_guard l(*this);
+
+      return currentObjects.find(obj) != currentObjects.end();
     }
   }
 }

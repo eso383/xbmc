@@ -9,7 +9,7 @@
 #include "JNIXBMCTextureCache.h"
 
 #include "CompileInfo.h"
-#include "imagefiles/ImageFileURL.h"
+#include "TextureCache.h"
 
 #include <androidjni/Context.h>
 #include <androidjni/jutils-details.hpp>
@@ -35,7 +35,7 @@ void CJNIXBMCTextureCache::RegisterNatives(JNIEnv* env)
 jstring CJNIXBMCTextureCache::_unwrapImageURL(JNIEnv* env, jobject thiz, jstring image)
 {
   std::string strImage = jcast<std::string>(jhstring::fromJNI(image));
-  std::string responseData = IMAGE_FILES::ToCacheKey(strImage);
+  std::string responseData = CTextureUtils::UnwrapImageURL(strImage);
 
   jstring jres = env->NewStringUTF(responseData.c_str());
   return jres;

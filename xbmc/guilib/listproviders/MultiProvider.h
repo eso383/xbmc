@@ -14,7 +14,7 @@
 #include <map>
 #include <vector>
 
-class TiXmlNode;
+typedef std::unique_ptr<IListProvider> IListProviderPtr;
 
 /*!
  \ingroup listproviders
@@ -23,7 +23,7 @@ class TiXmlNode;
 class CMultiProvider : public IListProvider
 {
 public:
-  CMultiProvider(const TiXmlNode* first, int parentID);
+  CMultiProvider(const TiXmlNode *first, int parentID);
   explicit CMultiProvider(const CMultiProvider& other);
 
   // Implementation of IListProvider
@@ -37,9 +37,9 @@ public:
   bool OnContextMenu(const std::shared_ptr<CGUIListItem>& item) override;
 
 protected:
-  using item_key_type = size_t;
-  static size_t GetItemKey(std::shared_ptr<CGUIListItem> const& item);
-  std::vector<std::unique_ptr<IListProvider>> m_providers;
+  typedef size_t item_key_type;
+  static item_key_type GetItemKey(std::shared_ptr<CGUIListItem> const& item);
+  std::vector<IListProviderPtr> m_providers;
   std::map<item_key_type, IListProvider*> m_itemMap;
   CCriticalSection m_section; // protects m_itemMap
 };

@@ -28,7 +28,7 @@ namespace XFILE
     bool Exists(const CURL& url) override;
     bool AllowAll() const override { return true; }
     bool ContainsFiles(const CURL& url) override;
-    CacheType GetCacheType(const CURL& url) const override { return CacheType::ONCE; }
+    DIR_CACHE_TYPE GetCacheType(const CURL& url) const override { return DIR_CACHE_ONCE; }
 
   protected:
     // key is path, value is cache invalidation date

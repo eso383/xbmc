@@ -46,33 +46,23 @@ CRenderContext::CRenderContext(CRenderSystemBase* rendering,
 {
 }
 
-void CRenderContext::SetViewPort(const CRect& viewPort)
-{
+void CRenderContext::SetViewPort(const CRect& viewPort) const {
   m_rendering->SetViewPort(viewPort);
 }
 
-void CRenderContext::GetViewPort(CRect& viewPort)
-{
+void CRenderContext::GetViewPort(CRect& viewPort) const {
   m_rendering->GetViewPort(viewPort);
 }
 
-void CRenderContext::SetScissors(const CRect& rect)
-{
+void CRenderContext::SetScissors(const CRect& rect) const {
   m_rendering->SetScissors(rect);
 }
 
-void CRenderContext::CaptureStateBlock()
-{
-  m_rendering->CaptureStateBlock();
-}
-
-void CRenderContext::ApplyStateBlock()
-{
+void CRenderContext::ApplyStateBlock() const {
   m_rendering->ApplyStateBlock();
 }
 
-bool CRenderContext::IsExtSupported(const char* extension)
-{
+bool CRenderContext::IsExtSupported(const char* extension) const {
   return m_rendering->IsExtSupported(extension);
 }
 
@@ -118,40 +108,37 @@ static ShaderMethodGLES TranslateShaderMethodGLES(GL_SHADER_METHOD method)
 } // namespace
 #endif
 
-void CRenderContext::EnableGUIShader(GL_SHADER_METHOD method)
-{
+void CRenderContext::EnableGUIShader(GL_SHADER_METHOD method) {
 #if defined(HAS_GL)
   CRenderSystemGL* rendering = dynamic_cast<CRenderSystemGL*>(m_rendering);
   if (rendering != nullptr)
     rendering->EnableShader(TranslateShaderMethodGL(method));
 #elif HAS_GLES >= 2
-  CRenderSystemGLES* renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
+  auto renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
   if (renderingGLES != nullptr)
     renderingGLES->EnableGUIShader(TranslateShaderMethodGLES(method));
 #endif
 }
 
-void CRenderContext::DisableGUIShader()
-{
+void CRenderContext::DisableGUIShader() {
 #if defined(HAS_GL)
   CRenderSystemGL* renderingGL = dynamic_cast<CRenderSystemGL*>(m_rendering);
   if (renderingGL != nullptr)
     renderingGL->DisableShader();
 #elif HAS_GLES >= 2
-  CRenderSystemGLES* renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
+  auto renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
   if (renderingGLES != nullptr)
     renderingGLES->DisableGUIShader();
 #endif
 }
 
-int CRenderContext::GUIShaderGetPos()
-{
+int CRenderContext::GUIShaderGetPos() {
 #if defined(HAS_GL)
   CRenderSystemGL* renderingGL = dynamic_cast<CRenderSystemGL*>(m_rendering);
   if (renderingGL != nullptr)
     return static_cast<int>(renderingGL->ShaderGetPos());
 #elif HAS_GLES >= 2
-  CRenderSystemGLES* renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
+  auto renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
   if (renderingGLES != nullptr)
     return static_cast<int>(renderingGLES->GUIShaderGetPos());
 #endif
@@ -159,14 +146,13 @@ int CRenderContext::GUIShaderGetPos()
   return -1;
 }
 
-int CRenderContext::GUIShaderGetCoord0()
-{
+int CRenderContext::GUIShaderGetCoord0() {
 #if defined(HAS_GL)
   CRenderSystemGL* renderingGL = dynamic_cast<CRenderSystemGL*>(m_rendering);
   if (renderingGL != nullptr)
     return static_cast<int>(renderingGL->ShaderGetCoord0());
 #elif HAS_GLES >= 2
-  CRenderSystemGLES* renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
+  auto renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
   if (renderingGLES != nullptr)
     return static_cast<int>(renderingGLES->GUIShaderGetCoord0());
 #endif
@@ -174,14 +160,13 @@ int CRenderContext::GUIShaderGetCoord0()
   return -1;
 }
 
-int CRenderContext::GUIShaderGetUniCol()
-{
+int CRenderContext::GUIShaderGetUniCol() {
 #if defined(HAS_GL)
   CRenderSystemGL* renderingGL = dynamic_cast<CRenderSystemGL*>(m_rendering);
   if (renderingGL != nullptr)
     return static_cast<int>(renderingGL->ShaderGetUniCol());
 #elif HAS_GLES >= 2
-  CRenderSystemGLES* renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
+  auto renderingGLES = dynamic_cast<CRenderSystemGLES*>(m_rendering);
   if (renderingGLES != nullptr)
     return static_cast<int>(renderingGLES->GUIShaderGetUniCol());
 #endif
@@ -215,117 +200,102 @@ CGUIShaderDX* CRenderContext::GetGUIShader()
   return nullptr;
 }
 
-bool CRenderContext::UseLimitedColor()
-{
+bool CRenderContext::UseLimitedColor() const {
   return m_windowing->UseLimitedColor();
 }
 
-int CRenderContext::GetScreenWidth()
-{
+bool CRenderContext::DisplayHardwareScalingEnabled() const {
+  return m_windowing->DisplayHardwareScalingEnabled();
+}
+
+void CRenderContext::UpdateDisplayHardwareScaling(const RESOLUTION_INFO& resInfo) const {
+  return m_windowing->UpdateDisplayHardwareScaling(resInfo);
+}
+
+int CRenderContext::GetScreenWidth() const {
   return m_graphicsContext.GetWidth();
 }
 
-int CRenderContext::GetScreenHeight()
-{
+int CRenderContext::GetScreenHeight() const {
   return m_graphicsContext.GetHeight();
 }
 
-const CRect& CRenderContext::GetScissors()
-{
+const CRect& CRenderContext::GetScissors() const {
   return m_graphicsContext.GetScissors();
 }
 
-CRect CRenderContext::GetViewWindow()
-{
+CRect CRenderContext::GetViewWindow() const {
   return m_graphicsContext.GetViewWindow();
 }
 
-void CRenderContext::SetViewWindow(float left, float top, float right, float bottom)
-{
+void CRenderContext::SetViewWindow(float left, float top, float right, float bottom) const {
   m_graphicsContext.SetViewWindow(left, top, right, bottom);
 }
 
-void CRenderContext::SetFullScreenVideo(bool bOnOff)
-{
+void CRenderContext::SetFullScreenVideo(bool bOnOff) const {
   m_graphicsContext.SetFullScreenVideo(bOnOff);
 }
 
-bool CRenderContext::IsFullScreenVideo()
-{
+bool CRenderContext::IsFullScreenVideo() const {
   return m_graphicsContext.IsFullScreenVideo();
 }
 
-bool CRenderContext::IsCalibrating()
-{
+bool CRenderContext::IsCalibrating() const {
   return m_graphicsContext.IsCalibrating();
 }
 
-RESOLUTION CRenderContext::GetVideoResolution()
-{
+RESOLUTION CRenderContext::GetVideoResolution() const {
   return m_graphicsContext.GetVideoResolution();
 }
 
-void CRenderContext::Clear(UTILS::COLOR::Color color)
-{
+void CRenderContext::Clear(UTILS::COLOR::Color color) const {
   m_graphicsContext.Clear(color);
 }
 
-RESOLUTION_INFO CRenderContext::GetResInfo()
-{
+RESOLUTION_INFO CRenderContext::GetResInfo() const {
   return m_graphicsContext.GetResInfo();
 }
 
-void CRenderContext::SetRenderingResolution(const RESOLUTION_INFO& res, bool needsScaling)
-{
+void CRenderContext::SetRenderingResolution(const RESOLUTION_INFO& res, bool needsScaling) const {
   m_graphicsContext.SetRenderingResolution(res, needsScaling);
 }
 
-UTILS::COLOR::Color CRenderContext::MergeAlpha(UTILS::COLOR::Color color)
-{
+UTILS::COLOR::Color CRenderContext::MergeAlpha(UTILS::COLOR::Color color) const {
   return m_graphicsContext.MergeAlpha(color);
 }
 
-void CRenderContext::SetTransform(const TransformMatrix& matrix, float scaleX, float scaleY)
-{
+void CRenderContext::SetTransform(const TransformMatrix& matrix, float scaleX, float scaleY) const {
   m_graphicsContext.SetTransform(matrix, scaleX, scaleY);
 }
 
-void CRenderContext::RemoveTransform()
-{
+void CRenderContext::RemoveTransform() const {
   m_graphicsContext.RemoveTransform();
 }
 
-CRect CRenderContext::StereoCorrection(const CRect& rect)
-{
+CRect CRenderContext::StereoCorrection(const CRect& rect) const {
   return m_graphicsContext.StereoCorrection(rect);
 }
 
-CCriticalSection& CRenderContext::GraphicsMutex()
-{
+CCriticalSection& CRenderContext::GraphicsMutex() const {
   return m_graphicsContext;
 }
 
-RESOLUTION_INFO& CRenderContext::GetResolutionInfo(RESOLUTION resolution)
-{
+RESOLUTION_INFO& CRenderContext::GetResolutionInfo(RESOLUTION resolution) const {
   return m_displaySettings.GetResolutionInfo(resolution);
 }
 
-::CGameSettings& CRenderContext::GetGameSettings()
-{
+::CGameSettings& CRenderContext::GetGameSettings() const {
   return m_mediaSettings.GetCurrentGameSettings();
 }
 
-::CGameSettings& CRenderContext::GetDefaultGameSettings()
-{
+::CGameSettings& CRenderContext::GetDefaultGameSettings() const {
   return m_mediaSettings.GetDefaultGameSettings();
 }
 
-void CRenderContext::StartAgentInput(GAME::GameClientPtr gameClient)
-{
+void CRenderContext::StartAgentInput(GAME::GameClientPtr gameClient) const {
   m_gameServices.AgentInput().Start(std::move(gameClient));
 }
 
-void CRenderContext::StopAgentInput()
-{
+void CRenderContext::StopAgentInput() const {
   m_gameServices.AgentInput().Stop();
 }

@@ -16,8 +16,7 @@
 CHotKeyController::CHotKeyController()
 {
   m_mediaKeytap = [CMediaKeyTap new];
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this,
-                                                         ANNOUNCEMENT::GUI | ANNOUNCEMENT::Player);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 }
 
 CHotKeyController::~CHotKeyController()

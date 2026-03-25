@@ -26,13 +26,11 @@
 #include "messaging/ApplicationMessenger.h"
 #include "playlists/PlayListTypes.h"
 #include "settings/SkinSettings.h"
-#include "utils/ArtUtils.h"
 #include "utils/CharsetConverter.h"
 #include "utils/FileUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 #include <algorithm>
 #include <array>
@@ -43,18 +41,47 @@
 #include <memory>
 #include <mutex>
 
-using namespace KODI;
 using namespace KODI::GUILIB;
 using namespace KODI::GUILIB::GUIINFO;
 using namespace INFO;
 
-namespace
+bool InfoBoolComparator(const InfoPtr &right, const InfoPtr &left)
 {
-struct InfoMap
+  return *right < *left;
+}
+
+CGUIInfoManager::CGUIInfoManager(void)
+: m_currentFile(new CFileItem),
+  m_bools(&InfoBoolComparator)
 {
-  std::string_view str{};
-  int val{0};
-};
+}
+
+CGUIInfoManager::~CGUIInfoManager(void)
+{
+  delete m_currentFile;
+}
+
+void CGUIInfoManager::Initialize()
+{
+  CServiceBroker::GetAppMessenger()->RegisterReceiver(this);
+}
+
+/// \brief Translates a string as given by the skin into an int that we use for more
+/// efficient retrieval of data. Can handle combined strings on the form
+/// Player.Caching + VideoPlayer.IsFullscreen (Logical and)
+/// Player.HasVideo | Player.HasAudio (Logical or)
+int CGUIInfoManager::TranslateString(const std::string &condition)
+{
+  // translate $LOCALIZE as required
+  std::string strCondition(CGUIInfoLabel::ReplaceLocalize(condition));
+  return TranslateSingleString(strCondition);
+}
+
+typedef struct
+{
+  const char *str;
+  int  val;
+} infomap;
 
 /// \page modules__infolabels_boolean_conditions Infolabels and Boolean conditions
 /// \tableofcontents
@@ -150,13 +177,11 @@ struct InfoMap
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 3> addons = {{
-    {"settingstr",  ADDON_SETTING_STRING},
+const infomap addons[] = {
+    {"settingstr", ADDON_SETTING_STRING},
     {"settingbool", ADDON_SETTING_BOOL},
-    {"settingint",  ADDON_SETTING_INT},
-}};
-// clang-format on
+    {"settingint", ADDON_SETTING_INT},
+};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_String String
@@ -234,15 +259,13 @@ constexpr std::array<InfoMap, 3> addons = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 5> string_bools = {{
-    {"isempty",     STRING_IS_EMPTY},
-    {"isequal",     STRING_IS_EQUAL},
-    {"startswith",  STRING_STARTS_WITH},
-    {"endswith",    STRING_ENDS_WITH},
-    {"contains",    STRING_CONTAINS},
-}};
-// clang-format on
+
+
+const infomap string_bools[] =   {{ "isempty",          STRING_IS_EMPTY },
+                                  { "isequal",          STRING_IS_EQUAL },
+                                  { "startswith",       STRING_STARTS_WITH },
+                                  { "endswith",         STRING_ENDS_WITH },
+                                  { "contains",         STRING_CONTAINS }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Integer Integer
@@ -349,17 +372,14 @@ constexpr std::array<InfoMap, 5> string_bools = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 7> integer_bools = {{
-    {"isequal",           INTEGER_IS_EQUAL},
-    {"isgreater",         INTEGER_GREATER_THAN},
-    {"isgreaterorequal",  INTEGER_GREATER_OR_EQUAL},
-    {"isless",            INTEGER_LESS_THAN},
-    {"islessorequal",     INTEGER_LESS_OR_EQUAL},
-    {"iseven",            INTEGER_EVEN},
-    {"isodd",             INTEGER_ODD},
-}};
-// clang-format on
+
+const infomap integer_bools[] =  {{ "isequal",          INTEGER_IS_EQUAL },
+                                  { "isgreater",        INTEGER_GREATER_THAN },
+                                  { "isgreaterorequal", INTEGER_GREATER_OR_EQUAL },
+                                  { "isless",           INTEGER_LESS_THAN },
+                                  { "islessorequal",    INTEGER_LESS_OR_EQUAL },
+                                  { "iseven",           INTEGER_EVEN },
+                                  { "isodd",            INTEGER_ODD }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Player Player
@@ -773,12 +793,24 @@ constexpr std::array<InfoMap, 7> integer_bools = {{
 ///     @skinning_v18 **[New Infolabel]** \link Player_Icon `Player.Icon`\endlink
 ///     <p>
 ///   }
+///   \table_row3{   <b>`Player.Cutlist`</b>,
+///                  \anchor Player_Cutlist
+///                  _string_,
+///     @return The cutlist of the currently playing item as csv in the format start1\,end1\,start2\,end2\,...
+///     Tokens must have values in the range from 0.0 to 100.0. end token must be less or equal than start token.
+///     <p>
+///     @deprecated \link Player_Cutlist `Player.Cutlist`\endlink is deprecated and will be removed in the next version.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link Player_Cutlist `Player.Cutlist`\endlink
+///     @skinning_v20 \link Player_Cutlist `Player.Cutlist`\endlink is deprecated\, use \link Player_Cuts `Player.Cuts`\endlink instead
+///     <p>
+///   }
 ///   \table_row3{   <b>`Player.Editlist`</b>,
 ///                  \anchor Player_Editlist
 ///                  _string_,
 ///     @return The editlist of the currently playing item as csv in the format start1\,end1\,start2\,end2\,...
 ///     Tokens must have values in the range from 0.0 to 100.0. end token must be less or equal than start token.
-///     @note This infolabel does not contain EDL cuts. Edits start and end times are adjusted according to cuts
+///     @note This infolabel does not contain EDL cuts. Edits start and end times are ajusted according to cuts
 ///     defined for the media item.
 ///     <p><hr>
 ///     @skinning_v20 **[New Infolabel]** \link Player_Editlist `Player.Editlist`\endlink
@@ -835,76 +867,64 @@ constexpr std::array<InfoMap, 7> integer_bools = {{
 ///     @skinning_v21 **[New Boolean Condition]** \link Player_IsRemote `Player.IsRemote`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`Player.IsLive`</b>,
-///                  \anchor Player_IsLive
-///                  _boolean_,
-///     @return **True** if the inputstream of the player is a live stream (a.k.a. real time stream)\, **False** otherwise
-///     <p><hr>
-///     @skinning_v22 **[New Boolean Condition]** \link Player_IsLive `Player.IsLive`\endlink
-///     <p>
-///   }
-// clang-format off
-constexpr std::array<InfoMap, 58> player_labels = {{
-    {"hasmedia",              PLAYER_HAS_MEDIA},
-    {"hasaudio",              PLAYER_HAS_AUDIO},
-    {"hasvideo",              PLAYER_HAS_VIDEO},
-    {"hasgame",               PLAYER_HAS_GAME},
-    {"isexternal",            PLAYER_IS_EXTERNAL},
-    {"isremote",              PLAYER_IS_REMOTE},
-    {"islive",                PLAYER_IS_LIVE},
-    {"playing",               PLAYER_PLAYING},
-    {"paused",                PLAYER_PAUSED},
-    {"rewinding",             PLAYER_REWINDING},
-    {"forwarding",            PLAYER_FORWARDING},
-    {"rewinding2x",           PLAYER_REWINDING_2x},
-    {"rewinding4x",           PLAYER_REWINDING_4x},
-    {"rewinding8x",           PLAYER_REWINDING_8x},
-    {"rewinding16x",          PLAYER_REWINDING_16x},
-    {"rewinding32x",          PLAYER_REWINDING_32x},
-    {"forwarding2x",          PLAYER_FORWARDING_2x},
-    {"forwarding4x",          PLAYER_FORWARDING_4x},
-    {"forwarding8x",          PLAYER_FORWARDING_8x},
-    {"forwarding16x",         PLAYER_FORWARDING_16x},
-    {"forwarding32x",         PLAYER_FORWARDING_32x},
-    {"caching",               PLAYER_CACHING},
-    {"seekbar",               PLAYER_SEEKBAR},
-    {"seeking",               PLAYER_SEEKING},
-    {"showtime",              PLAYER_SHOWTIME},
-    {"showinfo",              PLAYER_SHOWINFO},
-    {"muted",                 PLAYER_MUTED},
-    {"hasduration",           PLAYER_HASDURATION},
-    {"passthrough",           PLAYER_PASSTHROUGH},
-    {"cachelevel",            PLAYER_CACHELEVEL},
-    {"title",                 PLAYER_TITLE},
-    {"progress",              PLAYER_PROGRESS},
-    {"progresscache",         PLAYER_PROGRESS_CACHE},
-    {"volume",                PLAYER_VOLUME},
-    {"subtitledelay",         PLAYER_SUBTITLE_DELAY},
-    {"audiodelay",            PLAYER_AUDIO_DELAY},
-    {"chapter",               PLAYER_CHAPTER},
-    {"chaptercount",          PLAYER_CHAPTERCOUNT},
-    {"chaptername",           PLAYER_CHAPTERNAME},
-    {"folderpath",            PLAYER_PATH},
-    {"filenameandpath",       PLAYER_FILEPATH},
-    {"filename",              PLAYER_FILENAME},
-    {"isinternetstream",      PLAYER_ISINTERNETSTREAM},
-    {"pauseenabled",          PLAYER_CAN_PAUSE},
-    {"seekenabled",           PLAYER_CAN_SEEK},
-    {"channelpreviewactive",  PLAYER_IS_CHANNEL_PREVIEW_ACTIVE},
-    {"tempoenabled",          PLAYER_SUPPORTS_TEMPO},
-    {"istempo",               PLAYER_IS_TEMPO},
-    {"playspeed",             PLAYER_PLAYSPEED},
-    {"hasprograms",           PLAYER_HAS_PROGRAMS},
-    {"hasresolutions",        PLAYER_HAS_RESOLUTIONS},
-    {"frameadvance",          PLAYER_FRAMEADVANCE},
-    {"icon",                  PLAYER_ICON},
-    {"editlist",              PLAYER_EDITLIST},
-    {"cuts",                  PLAYER_CUTS},
-    {"scenemarkers",          PLAYER_SCENE_MARKERS},
-    {"hasscenemarkers",       PLAYER_HAS_SCENE_MARKERS},
-    {"chapters",              PLAYER_CHAPTERS},
-}};
-// clang-format on
+const infomap player_labels[] = {{"hasmedia", PLAYER_HAS_MEDIA},
+                                 {"hasaudio", PLAYER_HAS_AUDIO},
+                                 {"hasvideo", PLAYER_HAS_VIDEO},
+                                 {"hasgame", PLAYER_HAS_GAME},
+                                 {"isexternal", PLAYER_IS_EXTERNAL},
+                                 {"isremote", PLAYER_IS_REMOTE},
+                                 {"playing", PLAYER_PLAYING},
+                                 {"paused", PLAYER_PAUSED},
+                                 {"rewinding", PLAYER_REWINDING},
+                                 {"forwarding", PLAYER_FORWARDING},
+                                 {"rewinding2x", PLAYER_REWINDING_2x},
+                                 {"rewinding4x", PLAYER_REWINDING_4x},
+                                 {"rewinding8x", PLAYER_REWINDING_8x},
+                                 {"rewinding16x", PLAYER_REWINDING_16x},
+                                 {"rewinding32x", PLAYER_REWINDING_32x},
+                                 {"forwarding2x", PLAYER_FORWARDING_2x},
+                                 {"forwarding4x", PLAYER_FORWARDING_4x},
+                                 {"forwarding8x", PLAYER_FORWARDING_8x},
+                                 {"forwarding16x", PLAYER_FORWARDING_16x},
+                                 {"forwarding32x", PLAYER_FORWARDING_32x},
+                                 {"caching", PLAYER_CACHING},
+                                 {"seekbar", PLAYER_SEEKBAR},
+                                 {"seeking", PLAYER_SEEKING},
+                                 {"showtime", PLAYER_SHOWTIME},
+                                 {"showinfo", PLAYER_SHOWINFO},
+                                 {"muted", PLAYER_MUTED},
+                                 {"hasduration", PLAYER_HASDURATION},
+                                 {"passthrough", PLAYER_PASSTHROUGH},
+                                 {"cachelevel", PLAYER_CACHELEVEL},
+                                 {"title", PLAYER_TITLE},
+                                 {"progress", PLAYER_PROGRESS},
+                                 {"progresscache", PLAYER_PROGRESS_CACHE},
+                                 {"volume", PLAYER_VOLUME},
+                                 {"subtitledelay", PLAYER_SUBTITLE_DELAY},
+                                 {"audiodelay", PLAYER_AUDIO_DELAY},
+                                 {"chapter", PLAYER_CHAPTER},
+                                 {"chaptercount", PLAYER_CHAPTERCOUNT},
+                                 {"chaptername", PLAYER_CHAPTERNAME},
+                                 {"folderpath", PLAYER_PATH},
+                                 {"filenameandpath", PLAYER_FILEPATH},
+                                 {"filename", PLAYER_FILENAME},
+                                 {"isinternetstream", PLAYER_ISINTERNETSTREAM},
+                                 {"pauseenabled", PLAYER_CAN_PAUSE},
+                                 {"seekenabled", PLAYER_CAN_SEEK},
+                                 {"channelpreviewactive", PLAYER_IS_CHANNEL_PREVIEW_ACTIVE},
+                                 {"tempoenabled", PLAYER_SUPPORTS_TEMPO},
+                                 {"istempo", PLAYER_IS_TEMPO},
+                                 {"playspeed", PLAYER_PLAYSPEED},
+                                 {"hasprograms", PLAYER_HAS_PROGRAMS},
+                                 {"hasresolutions", PLAYER_HAS_RESOLUTIONS},
+                                 {"frameadvance", PLAYER_FRAMEADVANCE},
+                                 {"icon", PLAYER_ICON},
+                                 {"cutlist", PLAYER_CUTLIST},
+                                 {"editlist", PLAYER_EDITLIST},
+                                 {"cuts", PLAYER_CUTS},
+                                 {"scenemarkers", PLAYER_SCENE_MARKERS},
+                                 {"hasscenemarkers", PLAYER_HAS_SCENE_MARKERS},
+                                 {"chapters", PLAYER_CHAPTERS}};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Player.Art(type)`</b>,
@@ -934,12 +954,9 @@ constexpr std::array<InfoMap, 58> player_labels = {{
 ///     @skinning_v20 **[New Boolean Condition]** \link Player_HasPerformedSeek `Player.HasPerformedSeek(interval)`\endlink
 ///     <p>
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 2> player_param = {{
-    {"art",               PLAYER_ITEM_ART},
-    {"hasperformedseek",  PLAYER_HASPERFORMEDSEEK},
-}};
-// clang-format on
+
+const infomap player_param[] = {{"art", PLAYER_ITEM_ART},
+                                {"hasperformedseek", PLAYER_HASPERFORMEDSEEK}};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Player.SeekTime`</b>,
@@ -1021,20 +1038,17 @@ constexpr std::array<InfoMap, 2> player_param = {{
 ///     See \ref TIME_FORMAT for the list of possible values.
 ///     <p>
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 10> player_times = {{
-    {"seektime",      PLAYER_SEEKTIME},
-    {"seekoffset",    PLAYER_SEEKOFFSET},
-    {"seekstepsize",  PLAYER_SEEKSTEPSIZE},
-    {"timeremaining", PLAYER_TIME_REMAINING},
-    {"timespeed",     PLAYER_TIME_SPEED},
-    {"time",          PLAYER_TIME},
-    {"duration",      PLAYER_DURATION},
-    {"finishtime",    PLAYER_FINISH_TIME},
-    {"starttime",     PLAYER_START_TIME},
-    {"seeknumeric",   PLAYER_SEEKNUMERIC},
-}};
-// clang-format on
+const infomap player_times[] =   {{ "seektime",         PLAYER_SEEKTIME },
+                                  { "seekoffset",       PLAYER_SEEKOFFSET },
+                                  { "seekstepsize",     PLAYER_SEEKSTEPSIZE },
+                                  { "timeremaining",    PLAYER_TIME_REMAINING },
+                                  { "timespeed",        PLAYER_TIME_SPEED },
+                                  { "time",             PLAYER_TIME },
+                                  { "duration",         PLAYER_DURATION },
+                                  { "finishtime",       PLAYER_FINISH_TIME },
+                                  { "starttime",        PLAYER_START_TIME },
+                                  { "seeknumeric",      PLAYER_SEEKNUMERIC } };
+
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Player.Process(videohwdecoder)`</b>,
@@ -1165,129 +1179,159 @@ constexpr std::array<InfoMap, 10> player_times = {{
 ///     @skinning_v17 **[New Infolabel]** \link Player_Process_aml_eoft_gamut `Player.Process(amlogic.eoft_gamut)`\endlink
 ///     <p>
 ///   }
+///   \table_row3{   <b>`Player.Process(videobitdepth)`</b>,
+///                  \anchor Player_Process_videobitdepth
+///                  _string_,
+///     @return Bit depth of the currently playing video.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_videobitdepth `Player.Process(videobitdepth)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Process(videohdrtype)`</b>,
+///                  \anchor Player_Process_videohdrtype
+///                  _string_,
+///     @return HDR type of the currently playing video.
+///     <p><hr>
+///     @skinning_v17 **[New Infolabel]** \link Player_Process_videohdrtype `Player.Process(videohdrtype)`\endlink
+///     <p>
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 116> player_process = {{
-    {"videodecoder",        PLAYER_PROCESS_VIDEODECODER},
-    {"deintmethod",         PLAYER_PROCESS_DEINTMETHOD},
-    {"pixformat",           PLAYER_PROCESS_PIXELFORMAT},
-    {"videowidth",          PLAYER_PROCESS_VIDEOWIDTH},
-    {"videoheight",         PLAYER_PROCESS_VIDEOHEIGHT},
-    {"videofps",            PLAYER_PROCESS_VIDEOFPS},
-    {"videodar",            PLAYER_PROCESS_VIDEODAR},
-    {"videohwdecoder",      PLAYER_PROCESS_VIDEOHWDECODER},
-    {"audiodecoder",        PLAYER_PROCESS_AUDIODECODER},
-    {"audiochannels",       PLAYER_PROCESS_AUDIOCHANNELS},
-    {"audiosamplerate",     PLAYER_PROCESS_AUDIOSAMPLERATE},
-    {"audiobitspersample",  PLAYER_PROCESS_AUDIOBITSPERSAMPLE},
-    {"videoscantype",       PLAYER_PROCESS_VIDEOSCANTYPE},
-    {"amlogic.pixformat",   PLAYER_PROCESS_AML_PIXELFORMAT},
-    {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE},
-    {"amlogic.eoft_gamut",  PLAYER_PROCESS_AML_EOFT_GAMUT},
-    {"audiochannelssink",   PLAYER_PROCESS_AUDIOCHANNELS_SINK},
-    {"audio.speaker.fl",    PLAYER_PROCESS_AUDIO_SPK_FL},
-    {"audio.speaker.fr",    PLAYER_PROCESS_AUDIO_SPK_FR},
-    {"audio.speaker.fc",    PLAYER_PROCESS_AUDIO_SPK_FC},
-    {"audio.speaker.lfe",   PLAYER_PROCESS_AUDIO_SPK_LFE},
-    {"audio.speaker.sl",    PLAYER_PROCESS_AUDIO_SPK_SL},
-    {"audio.speaker.sr",    PLAYER_PROCESS_AUDIO_SPK_SR},
-    {"audio.speaker.bl",    PLAYER_PROCESS_AUDIO_SPK_BL},
-    {"audio.speaker.br",    PLAYER_PROCESS_AUDIO_SPK_BR},
-    {"audio.speaker.tfl",   PLAYER_PROCESS_AUDIO_SPK_TFL},
-    {"audio.speaker.tfr",   PLAYER_PROCESS_AUDIO_SPK_TFR},
-    {"audio.speaker.tbl",   PLAYER_PROCESS_AUDIO_SPK_TBL},
-    {"audio.speaker.tbr",   PLAYER_PROCESS_AUDIO_SPK_TBR},
-    {"audio.speaker.sink.fl",  PLAYER_PROCESS_AUDIO_SPK_SINK_FL},
-    {"audio.speaker.sink.fr",  PLAYER_PROCESS_AUDIO_SPK_SINK_FR},
-    {"audio.speaker.sink.fc",  PLAYER_PROCESS_AUDIO_SPK_SINK_FC},
-    {"audio.speaker.sink.lfe", PLAYER_PROCESS_AUDIO_SPK_SINK_LFE},
-    {"audio.speaker.sink.sl",  PLAYER_PROCESS_AUDIO_SPK_SINK_SL},
-    {"audio.speaker.sink.sr",  PLAYER_PROCESS_AUDIO_SPK_SINK_SR},
-    {"audio.speaker.sink.bl",  PLAYER_PROCESS_AUDIO_SPK_SINK_BL},
-    {"audio.speaker.sink.br",  PLAYER_PROCESS_AUDIO_SPK_SINK_BR},
-    {"audio.speaker.sink.tfl", PLAYER_PROCESS_AUDIO_SPK_SINK_TFL},
-    {"audio.speaker.sink.tfr", PLAYER_PROCESS_AUDIO_SPK_SINK_TFR},
-    {"audio.speaker.sink.tbl", PLAYER_PROCESS_AUDIO_SPK_SINK_TBL},
-    {"audio.speaker.sink.tbr", PLAYER_PROCESS_AUDIO_SPK_SINK_TBR},
-    {"audio.sample.rate", PLAYER_PROCESS_AUDIO_SAMPLE_RATE},
-    {"audio.live.bit.rate", PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE},
-    {"audio.live.kibit.rate", PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE},
-    {"audio.live.mibit.rate", PLAYER_PROCESS_AUDIO_LIVE_MIBIT_RATE},
-    {"audio.queue.level", PLAYER_PROCESS_AUDIO_QUEUE_LEVEL},
-    {"audio.queue.data.level", PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL},
-    {"video.live.bit.rate", PLAYER_PROCESS_VIDEO_LIVE_BIT_RATE},
-    {"video.live.kibit.rate", PLAYER_PROCESS_VIDEO_LIVE_KIBIT_RATE},
-    {"video.live.mibit.rate", PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE},
-    {"video.queue.level", PLAYER_PROCESS_VIDEO_QUEUE_LEVEL},
-    {"video.queue.data.level", PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL},
-    {"video.bit.depth", PLAYER_PROCESS_VIDEO_BIT_DEPTH},
-    {"video.hdr.type", PLAYER_PROCESS_VIDEO_HDR_TYPE},
-    {"video.hdr.type.raw", PLAYER_PROCESS_VIDEO_HDR_TYPE_RAW},
-    {"video.source.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE},
-    {"video.source.hdr.type.raw", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW},
-    {"video.source.additional.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE},
-    {"video.source.additional.hdr.type.raw", PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE_RAW},
-    {"video.width.raw", PLAYER_PROCESS_VIDEO_WIDTH_RAW},
-    {"video.height.raw", PLAYER_PROCESS_VIDEO_HEIGHT_RAW},
-    {"video.color.space", PLAYER_PROCESS_VIDEO_COLOR_SPACE},
-    {"video.color.range", PLAYER_PROCESS_VIDEO_COLOR_RANGE},
-    {"video.color.primaries", PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES},
-    {"video.color.transfer.characteristic", PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC},
-    {"video.dovi.has.config", PLAYER_PROCESS_VIDEO_DOVI_HAS_CONFIG},
-    {"video.dovi.version.major", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR},
-    {"video.dovi.version.minor", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR},
-    {"video.dovi.profile", PLAYER_PROCESS_VIDEO_DOVI_PROFILE},
-    {"video.dovi.level", PLAYER_PROCESS_VIDEO_DOVI_LEVEL},
-    {"video.dovi.rpu.present", PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT},
-    {"video.dovi.el.present", PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT},
-    {"video.dovi.bl.present", PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT},
-    {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY},
-    {"video.source.dovi.profile", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_PROFILE},
-    {"video.source.dovi.el.present", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_PRESENT},
-    {"video.source.dovi.el.type", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE},
-    {"video.source.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_BL_SIGNAL_COMPATIBILITY},
-    {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC},
-    {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING},
-    {"video.dovi.el.type", PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE},
-    {"video.dovi.meta.version", PLAYER_PROCESS_VIDEO_DOVI_META_VERSION},
-    {"video.dovi.has.header", PLAYER_PROCESS_VIDEO_DOVI_HAS_HEADER},
-    {"video.dovi.l1.min.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_PQ},
-    {"video.dovi.l1.max.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_PQ},
-    {"video.dovi.l1.avg.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_PQ},
-    {"video.dovi.l1.min.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_NITS},
-    {"video.dovi.l1.max.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_NITS},
-    {"video.dovi.l1.avg.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_NITS},
-    {"video.dovi.has.l5", PLAYER_PROCESS_VIDEO_DOVI_HAS_L5},
-    {"video.dovi.l5.left.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_LEFT_OFFSET},
-    {"video.dovi.l5.right.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_RIGHT_OFFSET},
-    {"video.dovi.l5.top.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_TOP_OFFSET},
-    {"video.dovi.l5.bottom.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_BOTTOM_OFFSET},
-    {"video.dovi.source.min.pq", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_PQ},
-    {"video.dovi.source.max.pq", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_PQ},
-    {"video.dovi.source.min.nits", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_NITS},
-    {"video.dovi.source.max.nits", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_NITS},
-    {"video.dovi.has.l6",   PLAYER_PROCESS_VIDEO_DOVI_HAS_L6},
-    {"video.dovi.l6.max.cll", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_CLL},
-    {"video.dovi.l6.max.fall", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_FALL},
-    {"video.dovi.l6.min.lum", PLAYER_PROCESS_VIDEO_DOVI_L6_MIN_LUM},
-    {"video.dovi.l6.max.lum", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM},
-    {"video.hdr.has.cll", PLAYER_PROCESS_VIDEO_HDR_HAS_CLL},
-    {"video.hdr.max.cll", PLAYER_PROCESS_VIDEO_HDR_MAX_CLL},
-    {"video.hdr.max.fall", PLAYER_PROCESS_VIDEO_HDR_MAX_FALL},
-    {"video.hdr.has.mdcv", PLAYER_PROCESS_VIDEO_HDR_HAS_MDCV},
-    {"video.hdr.min.lum", PLAYER_PROCESS_VIDEO_HDR_MIN_LUM},
-    {"video.hdr.max.lum", PLAYER_PROCESS_VIDEO_HDR_MAX_LUM},
-    {"video.hdr.colour.primaries", PLAYER_PROCESS_VIDEO_HDR_COLOUR_PRIMARIES},
-    {"render.pts", PLAYER_PROCESS_RENDER_PTS},
-    {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE},
-    {"amlogic.vs10.mode.raw", PLAYER_PROCESS_AML_VS10_MODE_RAW},
-    {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO},
-    {"amlogic.video.fps.drop", PLAYER_PROCESS_AML_VIDEO_FPS_DROP},
-    {"av.change", PLAYER_PROCESS_AV_CHANGE},
-}};
-// clang-format on
+
+const infomap player_process[] = {{"videodecoder", PLAYER_PROCESS_VIDEODECODER},
+                                  {"deintmethod", PLAYER_PROCESS_DEINTMETHOD},
+                                  {"pixformat", PLAYER_PROCESS_PIXELFORMAT},
+                                  {"videowidth", PLAYER_PROCESS_VIDEOWIDTH},
+                                  {"videoheight", PLAYER_PROCESS_VIDEOHEIGHT},
+                                  {"videofps", PLAYER_PROCESS_VIDEOFPS},
+                                  {"videodar", PLAYER_PROCESS_VIDEODAR},
+                                  {"videohwdecoder", PLAYER_PROCESS_VIDEOHWDECODER},
+                                  {"audiodecoder", PLAYER_PROCESS_AUDIODECODER},
+                                  {"audiochannels", PLAYER_PROCESS_AUDIOCHANNELS},
+                                  {"audiosamplerate", PLAYER_PROCESS_AUDIOSAMPLERATE},
+                                  {"audio.sample.rate", PLAYER_PROCESS_AUDIO_SAMPLE_RATE},
+                                  {"audiobitspersample", PLAYER_PROCESS_AUDIOBITSPERSAMPLE},
+                                  {"audio.live.bit.rate", PLAYER_PROCESS_AUDIO_LIVE_BIT_RATE},
+                                  {"audio.live.kibit.rate", PLAYER_PROCESS_AUDIO_LIVE_KIBIT_RATE},
+                                  {"audio.live.mibit.rate", PLAYER_PROCESS_AUDIO_LIVE_MIBIT_RATE},
+                                  {"audio.queue.level", PLAYER_PROCESS_AUDIO_QUEUE_LEVEL},
+                                  {"audio.queue.data.level", PLAYER_PROCESS_AUDIO_QUEUE_DATA_LEVEL},
+                                  {"video.live.bit.rate", PLAYER_PROCESS_VIDEO_LIVE_BIT_RATE},
+                                  {"video.live.kibit.rate", PLAYER_PROCESS_VIDEO_LIVE_KIBIT_RATE},
+                                  {"video.live.mibit.rate", PLAYER_PROCESS_VIDEO_LIVE_MIBIT_RATE},
+                                  {"video.queue.level", PLAYER_PROCESS_VIDEO_QUEUE_LEVEL},
+                                  {"video.queue.data.level", PLAYER_PROCESS_VIDEO_QUEUE_DATA_LEVEL},
+                                  {"videoscantype", PLAYER_PROCESS_VIDEOSCANTYPE},
+                                  {"video.bit.depth", PLAYER_PROCESS_VIDEO_BIT_DEPTH },
+                                  
+                                  {"video.hdr.type", PLAYER_PROCESS_VIDEO_HDR_TYPE },
+                                  {"video.hdr.type.raw", PLAYER_PROCESS_VIDEO_HDR_TYPE_RAW },
+                                  {"video.source.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE },
+                                  {"video.source.hdr.type.raw", PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW },
+                                  {"video.source.additional.hdr.type", PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE },
+                                  {"video.source.additional.hdr.type.raw", PLAYER_PROCESS_VIDEO_SOURCE_ADDITIONAL_HDR_TYPE_RAW },
+                                  
+                                  {"video.width.raw", PLAYER_PROCESS_VIDEO_WIDTH_RAW},
+                                  {"video.height.raw", PLAYER_PROCESS_VIDEO_HEIGHT_RAW},
+                                  {"video.color.space", PLAYER_PROCESS_VIDEO_COLOR_SPACE },
+                                  {"video.color.range", PLAYER_PROCESS_VIDEO_COLOR_RANGE },
+                                  {"video.color.primaries", PLAYER_PROCESS_VIDEO_COLOR_PRIMARIES },
+                                  {"video.color.transfer.characteristic", PLAYER_PROCESS_VIDEO_COLOR_TRANSFER_CHARACTERISTIC },
+                                  
+                                  {"video.dovi.has.config", PLAYER_PROCESS_VIDEO_DOVI_HAS_CONFIG },
+
+                                  {"video.dovi.version.major", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MAJOR },
+                                  {"video.dovi.version.minor", PLAYER_PROCESS_VIDEO_DOVI_VERSION_MINOR },
+                                  {"video.dovi.profile", PLAYER_PROCESS_VIDEO_DOVI_PROFILE },
+                                  {"video.dovi.level", PLAYER_PROCESS_VIDEO_DOVI_LEVEL },
+                                  {"video.dovi.rpu.present", PLAYER_PROCESS_VIDEO_DOVI_RPU_PRESENT },
+                                  {"video.dovi.el.present", PLAYER_PROCESS_VIDEO_DOVI_EL_PRESENT },                                  
+                                  {"video.dovi.bl.present", PLAYER_PROCESS_VIDEO_DOVI_BL_PRESENT },
+                                  {"video.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_DOVI_BL_SIGNAL_COMPATIBILITY },
+
+                                  {"video.source.dovi.profile", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_PROFILE },
+                                  {"video.source.dovi.el.present", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_PRESENT },
+                                  {"video.source.dovi.el.type", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_EL_TYPE },
+                                  {"video.source.dovi.bl.signal.compatibility", PLAYER_PROCESS_VIDEO_SOURCE_DOVI_BL_SIGNAL_COMPATIBILITY },
+
+                                  {"video.dovi.codec.fourcc", PLAYER_PROCESS_VIDEO_DOVI_CODEC_FOURCC },
+                                  {"video.dovi.codec.string", PLAYER_PROCESS_VIDEO_DOVI_CODEC_STRING },
+
+                                  {"video.dovi.el.type", PLAYER_PROCESS_VIDEO_DOVI_EL_TYPE },
+                                  {"video.dovi.meta.version", PLAYER_PROCESS_VIDEO_DOVI_META_VERSION },
+
+                                  {"video.dovi.has.header", PLAYER_PROCESS_VIDEO_DOVI_HAS_HEADER },
+
+                                  {"video.dovi.l1.min.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_PQ },
+                                  {"video.dovi.l1.max.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_PQ },
+                                  {"video.dovi.l1.avg.pq", PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_PQ },
+
+                                  {"video.dovi.l1.min.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_MIN_NITS },
+                                  {"video.dovi.l1.max.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_MAX_NITS },
+                                  {"video.dovi.l1.avg.nits", PLAYER_PROCESS_VIDEO_DOVI_L1_AVG_NITS },
+
+                                  {"video.dovi.has.l5", PLAYER_PROCESS_VIDEO_DOVI_HAS_L5 },
+                                  {"video.dovi.l5.left.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_LEFT_OFFSET },
+                                  {"video.dovi.l5.right.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_RIGHT_OFFSET },
+                                  {"video.dovi.l5.top.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_TOP_OFFSET },
+                                  {"video.dovi.l5.bottom.offset", PLAYER_PROCESS_VIDEO_DOVI_L5_BOTTOM_OFFSET },
+
+                                  {"video.dovi.source.min.pq", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_PQ },
+                                  {"video.dovi.source.max.pq", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_PQ },
+                                  {"video.dovi.source.min.nits", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MIN_NITS },
+                                  {"video.dovi.source.max.nits", PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_NITS },
+
+                                  {"video.dovi.has.l6", PLAYER_PROCESS_VIDEO_DOVI_HAS_L6 },
+                                  {"video.dovi.l6.max.cll", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_CLL },
+                                  {"video.dovi.l6.max.fall", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_FALL },
+                                  {"video.dovi.l6.min.lum", PLAYER_PROCESS_VIDEO_DOVI_L6_MIN_LUM },
+                                  {"video.dovi.l6.max.lum", PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM },
+
+                                  {"video.hdr.has.cll", PLAYER_PROCESS_VIDEO_HDR_HAS_CLL },
+                                  {"video.hdr.max.cll", PLAYER_PROCESS_VIDEO_HDR_MAX_CLL },
+                                  {"video.hdr.max.fall", PLAYER_PROCESS_VIDEO_HDR_MAX_FALL },
+                                  {"video.hdr.has.mdcv", PLAYER_PROCESS_VIDEO_HDR_HAS_MDCV },
+                                  {"video.hdr.min.lum", PLAYER_PROCESS_VIDEO_HDR_MIN_LUM },
+                                  {"video.hdr.max.lum", PLAYER_PROCESS_VIDEO_HDR_MAX_LUM },
+                                  {"video.hdr.colour.primaries", PLAYER_PROCESS_VIDEO_HDR_COLOUR_PRIMARIES },
+
+                                  {"amlogic.pixformat", PLAYER_PROCESS_AML_PIXELFORMAT },
+                                  {"amlogic.displaymode", PLAYER_PROCESS_AML_DISPLAYMODE },
+                                  {"amlogic.eoft_gamut", PLAYER_PROCESS_AML_EOFT_GAMUT },
+                                  {"amlogic.vs10.mode", PLAYER_PROCESS_AML_VS10_MODE },
+                                  {"amlogic.vs10.mode.raw", PLAYER_PROCESS_AML_VS10_MODE_RAW },
+                                  {"amlogic.video.fps.info", PLAYER_PROCESS_AML_VIDEO_FPS_INFO },
+                                  {"amlogic.video.fps.drop", PLAYER_PROCESS_AML_VIDEO_FPS_DROP },
+                                  
+                                  {"av.change", PLAYER_PROCESS_AV_CHANGE },
+                                
+                                  {"audiochannelssink", PLAYER_PROCESS_AUDIOCHANNELS_SINK},
+
+                                  {"audio.speaker.fl",    PLAYER_PROCESS_AUDIO_SPK_FL},
+                                  {"audio.speaker.fr",    PLAYER_PROCESS_AUDIO_SPK_FR},
+                                  {"audio.speaker.fc",    PLAYER_PROCESS_AUDIO_SPK_FC},
+                                  {"audio.speaker.lfe",   PLAYER_PROCESS_AUDIO_SPK_LFE},
+                                  {"audio.speaker.sl",    PLAYER_PROCESS_AUDIO_SPK_SL},
+                                  {"audio.speaker.sr",    PLAYER_PROCESS_AUDIO_SPK_SR},
+                                  {"audio.speaker.bl",    PLAYER_PROCESS_AUDIO_SPK_BL},
+                                  {"audio.speaker.br",    PLAYER_PROCESS_AUDIO_SPK_BR},
+                                  {"audio.speaker.tfl",   PLAYER_PROCESS_AUDIO_SPK_TFL},
+                                  {"audio.speaker.tfr",   PLAYER_PROCESS_AUDIO_SPK_TFR},
+                                  {"audio.speaker.tbl",   PLAYER_PROCESS_AUDIO_SPK_TBL},
+                                  {"audio.speaker.tbr",   PLAYER_PROCESS_AUDIO_SPK_TBR},
+                                  {"audio.speaker.sink.fl",  PLAYER_PROCESS_AUDIO_SPK_SINK_FL},
+                                  {"audio.speaker.sink.fr",  PLAYER_PROCESS_AUDIO_SPK_SINK_FR},
+                                  {"audio.speaker.sink.fc",  PLAYER_PROCESS_AUDIO_SPK_SINK_FC},
+                                  {"audio.speaker.sink.lfe", PLAYER_PROCESS_AUDIO_SPK_SINK_LFE},
+                                  {"audio.speaker.sink.sl",  PLAYER_PROCESS_AUDIO_SPK_SINK_SL},
+                                  {"audio.speaker.sink.sr",  PLAYER_PROCESS_AUDIO_SPK_SINK_SR},
+                                  {"audio.speaker.sink.bl",  PLAYER_PROCESS_AUDIO_SPK_SINK_BL},
+                                  {"audio.speaker.sink.br",  PLAYER_PROCESS_AUDIO_SPK_SINK_BR},
+                                  {"audio.speaker.sink.tfl", PLAYER_PROCESS_AUDIO_SPK_SINK_TFL},
+                                  {"audio.speaker.sink.tfr", PLAYER_PROCESS_AUDIO_SPK_SINK_TFR},
+                                  {"audio.speaker.sink.tbl", PLAYER_PROCESS_AUDIO_SPK_SINK_TBL},
+                                  {"audio.speaker.sink.tbr", PLAYER_PROCESS_AUDIO_SPK_SINK_TBR}};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Weather Weather
@@ -1299,37 +1343,18 @@ constexpr std::array<InfoMap, 116> player_process = {{
 ///     @return **True** if the weather data has been downloaded.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`Weather.IsUpdating`</b>,
-///                  \anchor Weather_IsUpdating
-///                  _boolean_,
-///     @return **True** if weather data are currently updating.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link Weather_IsUpdating `Weather.IsUpdating`\endlink
-///   }
-///   \table_row3{   <b>`Weather.LastUpdated`</b>,
-///                  \anchor Weather_LastUpdated
-///                  _string_,
-///     @return The localized date and time weather data were last updated\, empty string if not available.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link Weather_LastUpdated `Weather.LastUpdated`\endlink
-///   }
-///   \table_row3{   <b>`Weather.Data(property)`</b>,
-///                  \anchor Weather_Data
-///                  _string_,
-///     @return Weather data, as specified by the parameter.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link Weather_Data `Weather.Data(property)`\endlink
-///   }
 ///   \table_row3{   <b>`Weather.Conditions`</b>,
 ///                  \anchor Weather_Conditions
 ///                  _string_,
 ///     @return The current weather conditions as textual description.
+///     @note This is looked up in a background process.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`Weather.ConditionsIcon`</b>,
 ///                  \anchor Weather_ConditionsIcon
 ///                  _string_,
 ///     @return The current weather conditions as an icon.
+///     @note This is looked up in a background process.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`Weather.Temperature`</b>,
@@ -1359,23 +1384,17 @@ constexpr std::array<InfoMap, 116> player_process = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 10> weather = {{
-    {"isfetched",       WEATHER_IS_FETCHED},
-    {"isupdating",      WEATHER_IS_UPDATING},
-    {"lastupdated",     WEATHER_LAST_UPDATED}, // labels from here
-    {"data",            WEATHER_DATA},
-    {"conditions",      WEATHER_CONDITIONS_TEXT},
-    {"temperature",     WEATHER_TEMPERATURE},
-    {"location",        WEATHER_LOCATION},
-    {"fanartcode",      WEATHER_FANART_CODE},
-    {"plugin",          WEATHER_PLUGIN},
-    {"conditionsicon",  WEATHER_CONDITIONS_ICON},
-}};
-// clang-format on
+const infomap weather[] =        {{ "isfetched",        WEATHER_IS_FETCHED },
+                                  { "conditions",       WEATHER_CONDITIONS_TEXT },         // labels from here
+                                  { "temperature",      WEATHER_TEMPERATURE },
+                                  { "location",         WEATHER_LOCATION },
+                                  { "fanartcode",       WEATHER_FANART_CODE },
+                                  { "plugin",           WEATHER_PLUGIN },
+                                  { "conditionsicon",   WEATHER_CONDITIONS_ICON }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_System System
+/// @todo some values are hardcoded in the middle of the code  - refactor to make it easier to track
 /// \table_start
 ///   \table_h3{ Labels, Type, Description }
 ///   \table_row3{   <b>`System.AlarmLessOrEqual(alarmname\,seconds)`</b>,
@@ -1411,15 +1430,6 @@ constexpr std::array<InfoMap, 10> weather = {{
 ///   <p><hr>
 ///   @skinning_v18 **[New Boolean Condition]** \link System_HasMediaAudioCD
 ///   `System.HasMediaAudioCD` \endlink <p>
-///   }
-///   \table_row3{   <b>`System.HasMediaBlurayPlaylist`</b>,
-///                  \anchor System_HasMediaBlurayPlaylist
-///                  _boolean_,
-///     @return **True** if there is a bluray in the drive that has been played before.
-///     **False** if no drive available\, empty drive\, other medium or new bluray.
-///   <p><hr>
-///   @skinning_v18 **[New Boolean Condition]** \link System_HasMediaBlurayPlaylist
-///   `System.System_HasMediaBlurayPlaylist` \endlink <p>
 ///   }
 ///   \table_row3{   <b>`System.DVDReady`</b>,
 ///                  \anchor System_DVDReady
@@ -1921,13 +1931,12 @@ constexpr std::array<InfoMap, 10> weather = {{
 ///                  _string_,
 ///     @return Locale-specific information depending on the requested type.
 ///     @param type - Can be one of the following:
+///       - <b>timezonecountry</b> The country name for the current time zone.
+///       - <b>timezone</b> The full timezone name with country and optional region.
 ///       - <b>region</b> The currently selected region name within the selected language ( \link System_Language `System.Language` \endlink).
 ///       - <b>iso</b> The country code of the currently selected region as specified in <a href="https://kodi.wiki/view/Language_support#What_is_langinfo.xml">langinfo.xml</a>.
 ///     <p><hr>
 ///     @skinning_v21 **[New Infolabel]** \link System_Locale
-///     `System.Locale(type)`\endlink
-///     <p>
-///     @skinning_v22 **[Removed options]** `timezonecountry` and `timezone` from \link System_Locale
 ///     `System.Locale(type)`\endlink
 ///     <p>
 ///   }
@@ -2070,86 +2079,83 @@ constexpr std::array<InfoMap, 10> weather = {{
 ///     @return **True** when screensaver on idle is disabled.
 ///     <p>
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 77> system_labels = {{
-    {"hasnetwork",              SYSTEM_ETHERNET_LINK_ACTIVE},
-    {"hasmediadvd",             SYSTEM_MEDIA_DVD},
-    {"hasmediaaudiocd",         SYSTEM_MEDIA_AUDIO_CD},
-    {"hasmediablurayplaylist",  SYSTEM_MEDIA_BLURAY_PLAYLIST},
-    {"dvdready",                SYSTEM_DVDREADY},
-    {"trayopen",                SYSTEM_TRAYOPEN},
-    {"haslocks",                SYSTEM_HASLOCKS},
-    {"hashiddeninput",          SYSTEM_HAS_INPUT_HIDDEN},
-    {"hasloginscreen",          SYSTEM_HAS_LOGINSCREEN},
-    {"hasactivemodaldialog",    SYSTEM_HAS_ACTIVE_MODAL_DIALOG},
-    {"hasvisiblemodaldialog",   SYSTEM_HAS_VISIBLE_MODAL_DIALOG},
-    {"ismaster",                SYSTEM_ISMASTER},
-    {"isfullscreen",            SYSTEM_ISFULLSCREEN},
-    {"isstandalone",            SYSTEM_ISSTANDALONE},
-    {"loggedon",                SYSTEM_LOGGEDON},
-    {"showexitbutton",          SYSTEM_SHOW_EXIT_BUTTON},
-    {"canpowerdown",            SYSTEM_CAN_POWERDOWN},
-    {"cansuspend",              SYSTEM_CAN_SUSPEND},
-    {"canhibernate",            SYSTEM_CAN_HIBERNATE},
-    {"canreboot",               SYSTEM_CAN_REBOOT},
-    {"screensaveractive",       SYSTEM_SCREENSAVER_ACTIVE},
-    {"dpmsactive",              SYSTEM_DPMS_ACTIVE},
-    {"cputemperature",          SYSTEM_CPU_TEMPERATURE}, // labels from here
-    {"cpuusage",                SYSTEM_CPU_USAGE},
-    {"gputemperature",          SYSTEM_GPU_TEMPERATURE},
-    {"fanspeed",                SYSTEM_FAN_SPEED},
-    {"freespace",               SYSTEM_FREE_SPACE},
-    {"usedspace",               SYSTEM_USED_SPACE},
-    {"totalspace",              SYSTEM_TOTAL_SPACE},
-    {"usedspacepercent",        SYSTEM_USED_SPACE_PERCENT},
-    {"freespacepercent",        SYSTEM_FREE_SPACE_PERCENT},
-    {"buildversion",            SYSTEM_BUILD_VERSION},
-    {"buildversionshort",       SYSTEM_BUILD_VERSION_SHORT},
-    {"buildversioncode",        SYSTEM_BUILD_VERSION_CODE},
-    {"buildversiongit",         SYSTEM_BUILD_VERSION_GIT},
-    {"builddate",               SYSTEM_BUILD_DATE},
-    {"fps",                     SYSTEM_FPS},
-    {"freememory",              SYSTEM_FREE_MEMORY},
-    {"language",                SYSTEM_LANGUAGE},
-    {"temperatureunits",        SYSTEM_TEMPERATURE_UNITS},
-    {"screenmode",              SYSTEM_SCREEN_MODE},
-    {"screenwidth",             SYSTEM_SCREEN_WIDTH},
-    {"screenheight",            SYSTEM_SCREEN_HEIGHT},
-    {"currentwindow",           SYSTEM_CURRENT_WINDOW},
-    {"currentcontrol",          SYSTEM_CURRENT_CONTROL},
-    {"currentcontrolid",        SYSTEM_CURRENT_CONTROL_ID},
-    {"dvdlabel",                SYSTEM_DVD_LABEL},
-    {"osversioninfo",           SYSTEM_OS_VERSION_INFO},
-    {"kernelversion",           SYSTEM_OS_VERSION_INFO}, // old, not correct name
-    {"uptime",                  SYSTEM_UPTIME},
-    {"totaluptime",             SYSTEM_TOTALUPTIME},
-    {"cpufrequency",            SYSTEM_CPUFREQUENCY},
-    {"screenresolution",        SYSTEM_SCREEN_RESOLUTION},
-    {"videoencoderinfo",        SYSTEM_VIDEO_ENCODER_INFO},
-    {"profilename",             SYSTEM_PROFILENAME},
-    {"profilethumb",            SYSTEM_PROFILETHUMB},
-    {"profilecount",            SYSTEM_PROFILECOUNT},
-    {"profileautologin",        SYSTEM_PROFILEAUTOLOGIN},
-    {"progressbar",             SYSTEM_PROGRESS_BAR},
-    {"linuxver",                SYSTEM_LINUX_VER},
-    {"friendlyname",            SYSTEM_FRIENDLY_NAME},
-    {"alarmpos",                SYSTEM_ALARM_POS},
-    {"isinhibit",               SYSTEM_IDLE_SHUTDOWN_INHIBITED}, //! @deprecated, replaced by "idleshutdowninhibited"
-    {"idleshutdowninhibited",   SYSTEM_IDLE_SHUTDOWN_INHIBITED},
-    {"hasshutdown",             SYSTEM_HAS_SHUTDOWN},
-    {"haspvr",                  SYSTEM_HAS_PVR},
-    {"startupwindow",           SYSTEM_STARTUP_WINDOW},
-    {"stereoscopicmode",        SYSTEM_STEREOSCOPIC_MODE},
-    {"hascms",                  SYSTEM_HAS_CMS},
-    {"privacypolicy",           SYSTEM_PRIVACY_POLICY},
-    {"haspvraddon",             SYSTEM_HAS_PVR_ADDON},
-    {"addonupdatecount",        SYSTEM_ADDON_UPDATE_COUNT},
-    {"supportscpuusage",        SYSTEM_SUPPORTS_CPU_USAGE},
-    {"supportedhdrtypes",       SYSTEM_SUPPORTED_HDR_TYPES},
-    {"isscreensaverinhibited",  SYSTEM_IS_SCREENSAVER_INHIBITED},
-    {"cpualtusage",             SYSTEM_CPU_ALT_USAGE},
-}};
-// clang-format on
+const infomap system_labels[] = {
+    {"hasnetwork", SYSTEM_ETHERNET_LINK_ACTIVE},
+    {"hasmediadvd", SYSTEM_MEDIA_DVD},
+    {"hasmediaaudiocd", SYSTEM_MEDIA_AUDIO_CD},
+    {"dvdready", SYSTEM_DVDREADY},
+    {"trayopen", SYSTEM_TRAYOPEN},
+    {"haslocks", SYSTEM_HASLOCKS},
+    {"hashiddeninput", SYSTEM_HAS_INPUT_HIDDEN},
+    {"hasloginscreen", SYSTEM_HAS_LOGINSCREEN},
+    {"hasactivemodaldialog", SYSTEM_HAS_ACTIVE_MODAL_DIALOG},
+    {"hasvisiblemodaldialog", SYSTEM_HAS_VISIBLE_MODAL_DIALOG},
+    {"ismaster", SYSTEM_ISMASTER},
+    {"isfullscreen", SYSTEM_ISFULLSCREEN},
+    {"isstandalone", SYSTEM_ISSTANDALONE},
+    {"loggedon", SYSTEM_LOGGEDON},
+    {"showexitbutton", SYSTEM_SHOW_EXIT_BUTTON},
+    {"canpowerdown", SYSTEM_CAN_POWERDOWN},
+    {"cansuspend", SYSTEM_CAN_SUSPEND},
+    {"canhibernate", SYSTEM_CAN_HIBERNATE},
+    {"canreboot", SYSTEM_CAN_REBOOT},
+    {"screensaveractive", SYSTEM_SCREENSAVER_ACTIVE},
+    {"dpmsactive", SYSTEM_DPMS_ACTIVE},
+    {"cputemperature", SYSTEM_CPU_TEMPERATURE}, // labels from here
+    {"cpuusage", SYSTEM_CPU_USAGE},
+    {"cpualtusage", SYSTEM_CPU_ALT_USAGE},
+    {"gputemperature", SYSTEM_GPU_TEMPERATURE},
+    {"fanspeed", SYSTEM_FAN_SPEED},
+    {"freespace", SYSTEM_FREE_SPACE},
+    {"usedspace", SYSTEM_USED_SPACE},
+    {"totalspace", SYSTEM_TOTAL_SPACE},
+    {"usedspacepercent", SYSTEM_USED_SPACE_PERCENT},
+    {"freespacepercent", SYSTEM_FREE_SPACE_PERCENT},
+    {"buildversion", SYSTEM_BUILD_VERSION},
+    {"buildversionshort", SYSTEM_BUILD_VERSION_SHORT},
+    {"buildversioncode", SYSTEM_BUILD_VERSION_CODE},
+    {"buildversiongit", SYSTEM_BUILD_VERSION_GIT},
+    {"builddate", SYSTEM_BUILD_DATE},
+    {"fps", SYSTEM_FPS},
+    {"freememory", SYSTEM_FREE_MEMORY},
+    {"language", SYSTEM_LANGUAGE},
+    {"temperatureunits", SYSTEM_TEMPERATURE_UNITS},
+    {"screenmode", SYSTEM_SCREEN_MODE},
+    {"screenwidth", SYSTEM_SCREEN_WIDTH},
+    {"screenheight", SYSTEM_SCREEN_HEIGHT},
+    {"currentwindow", SYSTEM_CURRENT_WINDOW},
+    {"currentcontrol", SYSTEM_CURRENT_CONTROL},
+    {"currentcontrolid", SYSTEM_CURRENT_CONTROL_ID},
+    {"dvdlabel", SYSTEM_DVD_LABEL},
+    {"osversioninfo", SYSTEM_OS_VERSION_INFO},
+    {"kernelversion", SYSTEM_OS_VERSION_INFO}, // old, not correct name
+    {"uptime", SYSTEM_UPTIME},
+    {"totaluptime", SYSTEM_TOTALUPTIME},
+    {"cpufrequency", SYSTEM_CPUFREQUENCY},
+    {"screenresolution", SYSTEM_SCREEN_RESOLUTION},
+    {"videoencoderinfo", SYSTEM_VIDEO_ENCODER_INFO},
+    {"profilename", SYSTEM_PROFILENAME},
+    {"profilethumb", SYSTEM_PROFILETHUMB},
+    {"profilecount", SYSTEM_PROFILECOUNT},
+    {"profileautologin", SYSTEM_PROFILEAUTOLOGIN},
+    {"progressbar", SYSTEM_PROGRESS_BAR},
+    {"linuxver", SYSTEM_LINUX_VER},
+    {"friendlyname", SYSTEM_FRIENDLY_NAME},
+    {"alarmpos", SYSTEM_ALARM_POS},
+    {"isinhibit",
+     SYSTEM_IDLE_SHUTDOWN_INHIBITED}, // Deprecated, replaced by "idleshutdowninhibited"
+    {"idleshutdowninhibited", SYSTEM_IDLE_SHUTDOWN_INHIBITED},
+    {"hasshutdown", SYSTEM_HAS_SHUTDOWN},
+    {"haspvr", SYSTEM_HAS_PVR},
+    {"startupwindow", SYSTEM_STARTUP_WINDOW},
+    {"stereoscopicmode", SYSTEM_STEREOSCOPIC_MODE},
+    {"hascms", SYSTEM_HAS_CMS},
+    {"privacypolicy", SYSTEM_PRIVACY_POLICY},
+    {"haspvraddon", SYSTEM_HAS_PVR_ADDON},
+    {"addonupdatecount", SYSTEM_ADDON_UPDATE_COUNT},
+    {"supportscpuusage", SYSTEM_SUPPORTS_CPU_USAGE},
+    {"supportedhdrtypes", SYSTEM_SUPPORTED_HDR_TYPES},
+    {"isscreensaverinhibited", SYSTEM_IS_SCREENSAVER_INHIBITED}};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`System.HasAddon(id)`</b>,
@@ -2205,19 +2211,14 @@ constexpr std::array<InfoMap, 77> system_labels = {{
 ///     <p>
 ///   }
 /// \table_end
-/// @todo Some values are hardcoded in the middle of the code  - refactor to make it easier to track
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 6> system_param = {{
-    {"hasalarm",        SYSTEM_HAS_ALARM},
-    {"hascoreid",       SYSTEM_HAS_CORE_ID},
-    {"setting",         SYSTEM_SETTING},
-    {"hasaddon",        SYSTEM_HAS_ADDON},
-    {"addonisenabled",  SYSTEM_ADDON_IS_ENABLED},
-    {"coreusage",       SYSTEM_GET_CORE_USAGE},
-}};
-// clang-format on
+const infomap system_param[] =   {{ "hasalarm",         SYSTEM_HAS_ALARM },
+                                  { "hascoreid",        SYSTEM_HAS_CORE_ID },
+                                  { "setting",          SYSTEM_SETTING },
+                                  { "hasaddon",         SYSTEM_HAS_ADDON },
+                                  { "addonisenabled",   SYSTEM_ADDON_IS_ENABLED },
+                                  { "coreusage",        SYSTEM_GET_CORE_USAGE }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Network Network
@@ -2276,16 +2277,16 @@ constexpr std::array<InfoMap, 6> system_param = {{
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 8> network_labels = {{
+const infomap network_labels[] = {
     {"isdhcp", NETWORK_IS_DHCP},
-    {"ipaddress",       NETWORK_IP_ADDRESS}, //labels from here
-    {"linkstate",       NETWORK_LINK_STATE},
-    {"macaddress",      NETWORK_MAC_ADDRESS},
-    {"subnetmask",      NETWORK_SUBNET_MASK},
-    {"gatewayaddress",  NETWORK_GATEWAY_ADDRESS},
-    {"dns1address",     NETWORK_DNS1_ADDRESS},
-    {"dns2address",     NETWORK_DNS2_ADDRESS},
-}};
+    {"ipaddress", NETWORK_IP_ADDRESS}, //labels from here
+    {"linkstate", NETWORK_LINK_STATE},
+    {"macaddress", NETWORK_MAC_ADDRESS},
+    {"subnetmask", NETWORK_SUBNET_MASK},
+    {"gatewayaddress", NETWORK_GATEWAY_ADDRESS},
+    {"dns1address", NETWORK_DNS1_ADDRESS},
+    {"dns2address", NETWORK_DNS2_ADDRESS}
+};
 // clang-format on
 
 /// \page modules__infolabels_boolean_conditions
@@ -2337,17 +2338,13 @@ constexpr std::array<InfoMap, 8> network_labels = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 7> musicpartymode = {{
-    {"enabled",             MUSICPM_ENABLED},
-    {"songsplayed",         MUSICPM_SONGSPLAYED},
-    {"matchingsongs",       MUSICPM_MATCHINGSONGS},
-    {"matchingsongspicked", MUSICPM_MATCHINGSONGSPICKED},
-    {"matchingsongsleft",   MUSICPM_MATCHINGSONGSLEFT},
-    {"relaxedsongspicked",  MUSICPM_RELAXEDSONGSPICKED},
-    {"randomsongspicked",   MUSICPM_RANDOMSONGSPICKED},
-}};
-// clang-format on
+const infomap musicpartymode[] = {{ "enabled",           MUSICPM_ENABLED },
+                                  { "songsplayed",       MUSICPM_SONGSPLAYED },
+                                  { "matchingsongs",     MUSICPM_MATCHINGSONGS },
+                                  { "matchingsongspicked", MUSICPM_MATCHINGSONGSPICKED },
+                                  { "matchingsongsleft", MUSICPM_MATCHINGSONGSLEFT },
+                                  { "relaxedsongspicked", MUSICPM_RELAXEDSONGSPICKED },
+                                  { "randomsongspicked", MUSICPM_RANDOMSONGSPICKED }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_MusicPlayer Music player
@@ -2671,16 +2668,6 @@ constexpr std::array<InfoMap, 7> musicpartymode = {{
 ///     @return The genre(s) of current song.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`MusicPlayer.Genre(separator)`</b>,
-///                  \anchor MusicPlayer_Genre_separator
-///                  _string_,
-///     @return A list of genres of current song\, separated by given separator\, or if no
-///     separator was given separated by the advanced settings value \“itemseparator\” for music.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link MusicPlayer_Genre_separator `MusicPlayer.Genre(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`MusicPlayer.offset(number).Genre`</b>,
 ///                  \anchor MusicPlayer_OffSet_Genre
 ///                  _string_,
@@ -2936,16 +2923,10 @@ constexpr std::array<InfoMap, 7> musicpartymode = {{
 ///     @return The bitrate of current song.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`MusicPlayer.Channels(format)`</b>,
+///   \table_row3{   <b>`MusicPlayer.Channels`</b>,
 ///                  \anchor MusicPlayer_Channels
 ///                  _string_,
-///     @param[in] format (optional) format of the infolabel.
-///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
-///     @return The channel information of the current song\, formatted in the optional format.
-///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
-///     <p><hr>
-///     @skinning_v22 **[Infolabel Updated]** \link MusicPlayer_Channels `MusicPlayer.Channels`\endlink
-///     added optional format parameter
+///     @return The number of channels of current song.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`MusicPlayer.BitsPerSample`</b>,
@@ -2982,14 +2963,6 @@ constexpr std::array<InfoMap, 7> musicpartymode = {{
 ///                  \anchor MusicPlayer_ChannelName
 ///                  _string_,
 ///     @return The channel name of the radio programme that's currently playing (PVR).
-///     <p>
-///   }
-///   \table_row3{   <b>`MusicPlayer.ChannelLogo`</b>,
-///                  \anchor MusicPlayer_ChannelLogo
-///                  _string_,
-///     @return The path for the logo of the currently playing radio channel\, if available (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link MusicPlayer_ChannelLogo `MusicPlayer.ChannelLogo`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`MusicPlayer.ChannelNumberLabel`</b>,
@@ -3078,67 +3051,54 @@ constexpr std::array<InfoMap, 7> musicpartymode = {{
 ///     @skinning_v19 **[New Infolabel]** \link MusicPlayer_Station `MusicPlayer.Station`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`MusicPlayer.MediaProviders`</b>,
-///                  \anchor MusicPlayer_MediaProviders
-///                  _string_,
-///     @return string containing the names of the providers of the currently playing media\, separated by commas if multiple are present.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link MusicPlayer_MediaProviders `MusicPlayer.MediaProviders`\endlink
-///     <p>
-///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 46> musicplayer = {{
-    {"title",               MUSICPLAYER_TITLE},
-    {"album",               MUSICPLAYER_ALBUM},
-    {"artist",              MUSICPLAYER_ARTIST},
-    {"albumartist",         MUSICPLAYER_ALBUM_ARTIST},
-    {"year",                MUSICPLAYER_YEAR},
-    {"genre",               MUSICPLAYER_GENRE},
-    {"duration",            MUSICPLAYER_DURATION},
-    {"tracknumber",         MUSICPLAYER_TRACK_NUMBER},
-    {"cover",               MUSICPLAYER_COVER},
-    {"bitrate",             MUSICPLAYER_BITRATE},
-    {"playlistlength",      MUSICPLAYER_PLAYLISTLEN},
-    {"playlistposition",    MUSICPLAYER_PLAYLISTPOS},
-    {"channels",            MUSICPLAYER_CHANNELS},
-    {"bitspersample",       MUSICPLAYER_BITSPERSAMPLE},
-    {"samplerate",          MUSICPLAYER_SAMPLERATE},
-    {"codec",               MUSICPLAYER_CODEC},
-    {"discnumber",          MUSICPLAYER_DISC_NUMBER},
-    {"disctitle",           MUSICPLAYER_DISC_TITLE},
-    {"rating",              MUSICPLAYER_RATING},
-    {"ratingandvotes",      MUSICPLAYER_RATING_AND_VOTES},
-    {"userrating",          MUSICPLAYER_USER_RATING},
-    {"votes",               MUSICPLAYER_VOTES},
-    {"comment",             MUSICPLAYER_COMMENT},
-    {"mood",                MUSICPLAYER_MOOD},
-    {"contributors",        MUSICPLAYER_CONTRIBUTORS},
-    {"contributorandrole",  MUSICPLAYER_CONTRIBUTOR_AND_ROLE},
-    {"lyrics",              MUSICPLAYER_LYRICS},
-    {"playlistplaying",     MUSICPLAYER_PLAYLISTPLAYING},
-    {"exists",              MUSICPLAYER_EXISTS},
-    {"hasprevious",         MUSICPLAYER_HASPREVIOUS},
-    {"hasnext",             MUSICPLAYER_HASNEXT},
-    {"playcount",           MUSICPLAYER_PLAYCOUNT},
-    {"lastplayed",          MUSICPLAYER_LASTPLAYED},
-    {"channelname",         MUSICPLAYER_CHANNEL_NAME},
-    {"channellogo",         MUSICPLAYER_CHANNEL_LOGO},
-    {"channelnumberlabel",  MUSICPLAYER_CHANNEL_NUMBER},
-    {"channelgroup",        MUSICPLAYER_CHANNEL_GROUP},
-    {"dbid",                MUSICPLAYER_DBID},
-    {"property",            MUSICPLAYER_PROPERTY},
-    {"releasedate",         MUSICPLAYER_RELEASEDATE},
-    {"originaldate",        MUSICPLAYER_ORIGINALDATE},
-    {"bpm",                 MUSICPLAYER_BPM},
-    {"ismultidisc",         MUSICPLAYER_ISMULTIDISC},
-    {"totaldiscs",          MUSICPLAYER_TOTALDISCS},
-    {"station",             MUSICPLAYER_STATIONNAME},
-    {"mediaproviders",      MUSICPLAYER_MEDIAPROVIDERS},
-}};
-// clang-format on
+const infomap musicplayer[] =    {{ "title",            MUSICPLAYER_TITLE },
+                                  { "album",            MUSICPLAYER_ALBUM },
+                                  { "artist",           MUSICPLAYER_ARTIST },
+                                  { "albumartist",      MUSICPLAYER_ALBUM_ARTIST },
+                                  { "year",             MUSICPLAYER_YEAR },
+                                  { "genre",            MUSICPLAYER_GENRE },
+                                  { "duration",         MUSICPLAYER_DURATION },
+                                  { "tracknumber",      MUSICPLAYER_TRACK_NUMBER },
+                                  { "cover",            MUSICPLAYER_COVER },
+                                  { "bitrate",          MUSICPLAYER_BITRATE },
+                                  { "playlistlength",   MUSICPLAYER_PLAYLISTLEN },
+                                  { "playlistposition", MUSICPLAYER_PLAYLISTPOS },
+                                  { "channels",         MUSICPLAYER_CHANNELS },
+                                  { "bitspersample",    MUSICPLAYER_BITSPERSAMPLE },
+                                  { "samplerate",       MUSICPLAYER_SAMPLERATE },
+                                  { "codec",            MUSICPLAYER_CODEC },
+                                  { "discnumber",       MUSICPLAYER_DISC_NUMBER },
+                                  { "disctitle",        MUSICPLAYER_DISC_TITLE },
+                                  { "rating",           MUSICPLAYER_RATING },
+                                  { "ratingandvotes",   MUSICPLAYER_RATING_AND_VOTES },
+                                  { "userrating",       MUSICPLAYER_USER_RATING },
+                                  { "votes",            MUSICPLAYER_VOTES },
+                                  { "comment",          MUSICPLAYER_COMMENT },
+                                  { "mood",             MUSICPLAYER_MOOD },
+                                  { "contributors",     MUSICPLAYER_CONTRIBUTORS },
+                                  { "contributorandrole", MUSICPLAYER_CONTRIBUTOR_AND_ROLE },
+                                  { "lyrics",           MUSICPLAYER_LYRICS },
+                                  { "playlistplaying",  MUSICPLAYER_PLAYLISTPLAYING },
+                                  { "exists",           MUSICPLAYER_EXISTS },
+                                  { "hasprevious",      MUSICPLAYER_HASPREVIOUS },
+                                  { "hasnext",          MUSICPLAYER_HASNEXT },
+                                  { "playcount",        MUSICPLAYER_PLAYCOUNT },
+                                  { "lastplayed",       MUSICPLAYER_LASTPLAYED },
+                                  { "channelname",      MUSICPLAYER_CHANNEL_NAME },
+                                  { "channelnumberlabel", MUSICPLAYER_CHANNEL_NUMBER },
+                                  { "channelgroup",     MUSICPLAYER_CHANNEL_GROUP },
+                                  { "dbid",             MUSICPLAYER_DBID },
+                                  { "property",         MUSICPLAYER_PROPERTY },
+                                  { "releasedate",      MUSICPLAYER_RELEASEDATE },
+                                  { "originaldate",     MUSICPLAYER_ORIGINALDATE },
+                                  { "bpm",              MUSICPLAYER_BPM },
+                                  { "ismultidisc",      MUSICPLAYER_ISMULTIDISC },
+                                  { "totaldiscs",       MUSICPLAYER_TOTALDISCS },
+                                  { "station",          MUSICPLAYER_STATIONNAME }
+};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Videoplayer Video player
@@ -3357,16 +3317,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     @return The genre(s) of current movie\, if it's in the database.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.Genre(separator)`</b>,
-///                  \anchor VideoPlayer_Genre_separator
-///                  _string_,
-///     @return A list of genres of current movie\, separated by given separator\, or if no
-///     separator was given separated by the advanced settings value \“itemseparator\” for videos.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_Genre_separator `VideoPlayer.Genre(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`VideoPlayer.offset(number).Genre`</b>,
 ///                  \anchor VideoPlayer_Offset_Genre
 ///                  _string_,
@@ -3390,17 +3340,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link VideoPlayer_Director `VideoPlayer.Director`\endlink
 ///     also supports EPG.
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.Director(separator)`</b>,
-///                  \anchor VideoPlayer_Director_separator
-///                  _string_,
-///     @return A list of directors of the currently playing video\, separated by given separator\,
-///     or if no separator was given separated by the advanced settings value \“itemseparator\” for
-///     video items.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_Director_separator `VideoPlayer.Director(separator)`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`VideoPlayer.offset(number).Director`</b>,
@@ -3698,37 +3637,18 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///   \table_row3{   <b>`VideoPlayer.Cast`</b>,
 ///                  \anchor VideoPlayer_Cast
 ///                  _string_,
-///     @return A list of cast members\, separated by carriage returns.
+///     @return A concatenated string of cast members of the current movie\, if it's in
+///     the database.
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link VideoPlayer_Cast `VideoPlayer.Cast`\endlink
 ///     also supports EPG.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.Cast(separator)`</b>,
-///                  \anchor VideoPlayer_Cast_separator
-///                  _string_,
-///     @return A list of cast members of the currently playing video\, separated by given
-///     separator\, or if no separator was given separated by carriage returns.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_Cast_separator `VideoPlayer.Cast(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`VideoPlayer.CastAndRole`</b>,
 ///                  \anchor VideoPlayer_CastAndRole
 ///                  _string_,
-///     @return A list of cast members and roles\, separated by carriage
-///     returns. Every cast/role combination is formatted 'cast' as 'role' where 'as' is localised.
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.CastAndRole(separator)`</b>,
-///                  \anchor VideoPlayer_CastAndRole_separator
-///                  _string_,
-///     @return A list of cast members and roles of the currently playing video\, pairs separated by
-///     given separator\, or if no separator was given separated by carriage returns.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_CastAndRole_separator `VideoPlayer.CastAndRole(separator)`\endlink
+///     @return A concatenated string of cast members and roles of the current movie\,
+///     if it's in the database.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`VideoPlayer.Album`</b>,
@@ -3804,17 +3724,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link VideoPlayer_Writer `VideoPlayer.Writer`\endlink
 ///     also supports EPG.
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.Writer(separator)`</b>,
-///                  \anchor VideoPlayer_Writer_separator
-///                  _string_,
-///     @return A list of writers of the currently playing video\, separated by given separator\,
-///     or if no separator was given separated by the advanced settings value \“itemseparator\” for
-///     video items.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_Writer_separator `VideoPlayer.Writer(separator)`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`VideoPlayer.offset(number).Writer`</b>,
@@ -4018,20 +3927,15 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     \ref ListItem_AudioCodec "ListItem.AudioCodec").
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.AudioChannels(format)`</b>,
+///   \table_row3{   <b>`VideoPlayer.AudioChannels`</b>,
 ///                  \anchor VideoPlayer_AudioChannels
 ///                  _string_,
-///     @param[in] format (optional) format of the infolabel.
-///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
-///     @return The audio channel information of the currently playing video\, formatted in the optional format
+///     @return The number of audio channels of the currently playing video
 ///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
 ///     <p><hr>
 ///     @skinning_v16 **[Infolabel Updated]** \link VideoPlayer_AudioChannels `VideoPlayer.AudioChannels`\endlink
 ///     if a video contains no audio\, these infolabels will now return empty.
 ///     (they used to return 0)
-///
-///     @skinning_v22 **[Infolabel Updated]** \link VideoPlayer_AudioChannels `VideoPlayer.AudioChannels`\endlink
-///     added optional format parameter
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`VideoPlayer.AudioLanguage`</b>,
@@ -4087,17 +3991,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     @return The genre of the programme that will be played next (PVR).
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.NextGenre(separator)`</b>,
-///                  \anchor VideoPlayer_NextGenre_separator
-///                  _string_,
-///     @return A list of genres of the programme that will be played next (PVR)\, separated by
-///     given separator\, or if no separator was given separated by the advanced settings value
-///     \“itemseparator\” for videos.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_NextGenre_separator `VideoPlayer.NextGenre(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`VideoPlayer.NextPlot`</b>,
 ///                  \anchor VideoPlayer_NextPlot
 ///                  _string_,
@@ -4134,14 +4027,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     @return The name of the currently tuned channel (PVR).
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.ChannelLogo`</b>,
-///                  \anchor VideoPlayer_ChannelLogo
-///                  _string_,
-///     @return The path for the logo of the currently playing TV channel\, if available (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_ChannelLogo `VideoPlayer.ChannelLogo`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`VideoPlayer.ChannelNumberLabel`</b>,
 ///                  \anchor VideoPlayer_ChannelNumberLabel
 ///                  _string_,
@@ -4160,33 +4045,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///                  \anchor VideoPlayer_ParentalRating
 ///                  _string_,
 ///     @return The parental rating of the currently playing programme (PVR).
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.ParentalRatingCode`</b>,
-///                  \anchor VideoPlayer_ParentalRatingCode
-///                  _string_,
-///     @return The parental rating code (eg: 'PG'\, etc) of the currently playing programme (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_ParentalRatingCode `VideoPlayer.ParentalRatingCode`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.ParentalRatingIcon`</b>,
-///                  \anchor VideoPlayer_ParentalRatingIcon
-///                  _string_,
-///     @return The parental rating icon path of the currently playing programme (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_ParentalRatingIcon `VideoPlayer.ParentalRatingIcon`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.ParentalRatingSource`</b>,
-///                  \anchor VideoPlayer_ParentalRatingSource
-///                  _string_,
-///     @return The source used to determine the parental rating of the currently playing programme (PVR).
-///     Values could include the Country alpha-3 code or the name/abbreviation
-///     of the authority issuing the rating code.  Can be used with
-///     the \link VideoPlayer_ParentalRatingCode `ParentalRatingCode`\endlink for skin-derived icons if required.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_ParentalRatingSource `VideoPlayer.ParentalRatingSource`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`VideoPlayer.DBID`</b>,
@@ -4239,14 +4097,6 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///     @skinning_v20 **[New Infolabel]** \link VideoPlayer_AudioStreamCount `VideoPlayer.AudioStreamCount`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`VideoPlayer.VideoStreamCount`</b>,
-///                  \anchor VideoPlayer_VideoStreamCount
-///                  _integer_,
-///     @return The number of video streams of the currently playing video.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_VideoStreamCount `VideoPlayer.VideoStreamCount`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`VideoPlayer.HdrType`</b>,
 ///                  \anchor VideoPlayer_HdrType
 ///                  _string_,
@@ -4258,134 +4108,99 @@ constexpr std::array<InfoMap, 46> musicplayer = {{
 ///   \table_row3{   <b>`VideoPlayer.VideoVersionName`</b>,
 ///                  \anchor VideoPlayer_VideoVersionName
 ///                  _string_,
-///     @return String containing the version name of the currently playing video (movie) - empty if not a movie\, version name is not set or not a version
+///     @return String containing the version name of the currently playing video (movie) - empty if not a movie, version name is not set or not a version
 ///     <p><hr>
 ///     @skinning_v21 **[New Infolabel]** \link VideoPlayer_VideoVersionName `VideoPlayer.VideoVersionName`\endlink
-///   }
-///   \table_row3{   <b>`VideoPlayer.EpisodePart`</b>,
-///                  \anchor VideoPlayer_EpisodePart
-///                  _string_,
-///     @return string containing the number of parts of a single episode - empty if no data provided
-///     <p><hr>
-///     @skinning_v22 **[Infolabel Updated]** \link VideoPlayer_EpisodePart `VideoPlayer.EpisodePart`\endlink
-///     also supports EPG.
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.MediaProviders`</b>,
-///                  \anchor VideoPlayer_MediaProviders
-///                  _string_,
-///     @return string containing the names of the providers of the currently playing media\, separated by commas if multiple are present.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_MediaProviders `VideoPlayer.MediaProviders`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`VideoPlayer.TitleExtraInfo`</b>,
-///                  \anchor VideoPlayer_TitleExtraInfo
-///                  _string_,
-///     @return string containing extra information\, enriching the title of the currently playing media\, if any.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link VideoPlayer_TitleExtraInfo `VideoPlayer.TitleExtraInfo`\endlink
-///     <p>
 ///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 93> videoplayer = {{
-    {"title",                 VIDEOPLAYER_TITLE},
-    {"genre",                 VIDEOPLAYER_GENRE},
-    {"country",               VIDEOPLAYER_COUNTRY},
-    {"originaltitle",         VIDEOPLAYER_ORIGINALTITLE},
-    {"director",              VIDEOPLAYER_DIRECTOR},
-    {"year",                  VIDEOPLAYER_YEAR},
-    {"cover",                 VIDEOPLAYER_COVER},
-    {"usingoverlays",         VIDEOPLAYER_USING_OVERLAYS},
-    {"isfullscreen",          VIDEOPLAYER_ISFULLSCREEN},
-    {"hasmenu",               VIDEOPLAYER_HASMENU},
-    {"playlistlength",        VIDEOPLAYER_PLAYLISTLEN},
-    {"playlistposition",      VIDEOPLAYER_PLAYLISTPOS},
-    {"plot",                  VIDEOPLAYER_PLOT},
-    {"plotoutline",           VIDEOPLAYER_PLOT_OUTLINE},
-    {"episode",               VIDEOPLAYER_EPISODE},
-    {"season",                VIDEOPLAYER_SEASON},
-    {"rating",                VIDEOPLAYER_RATING},
-    {"ratingandvotes",        VIDEOPLAYER_RATING_AND_VOTES},
-    {"userrating",            VIDEOPLAYER_USER_RATING},
-    {"votes",                 VIDEOPLAYER_VOTES},
-    {"tvshowtitle",           VIDEOPLAYER_TVSHOW},
-    {"premiered",             VIDEOPLAYER_PREMIERED},
-    {"studio",                VIDEOPLAYER_STUDIO},
-    {"mpaa",                  VIDEOPLAYER_MPAA},
-    {"top250",                VIDEOPLAYER_TOP250},
-    {"cast",                  VIDEOPLAYER_CAST},
-    {"castandrole",           VIDEOPLAYER_CAST_AND_ROLE},
-    {"artist",                VIDEOPLAYER_ARTIST},
-    {"album",                 VIDEOPLAYER_ALBUM},
-    {"writer",                VIDEOPLAYER_WRITER},
-    {"tagline",               VIDEOPLAYER_TAGLINE},
-    {"hasinfo",               VIDEOPLAYER_HAS_INFO},
-    {"trailer",               VIDEOPLAYER_TRAILER},
-    {"videocodec",            VIDEOPLAYER_VIDEO_CODEC},
-    {"videoresolution",       VIDEOPLAYER_VIDEO_RESOLUTION},
-    {"videoaspect",           VIDEOPLAYER_VIDEO_ASPECT},
-    {"videobitrate",          VIDEOPLAYER_VIDEO_BITRATE},
-    {"audiocodec",            VIDEOPLAYER_AUDIO_CODEC},
-    {"audiochannels",         VIDEOPLAYER_AUDIO_CHANNELS},
-    {"audiobitrate",          VIDEOPLAYER_AUDIO_BITRATE},
-    {"audiolanguage",         VIDEOPLAYER_AUDIO_LANG},
-    {"hasteletext",           VIDEOPLAYER_HASTELETEXT},
-    {"lastplayed",            VIDEOPLAYER_LASTPLAYED},
-    {"playcount",             VIDEOPLAYER_PLAYCOUNT},
-    {"hassubtitles",          VIDEOPLAYER_HASSUBTITLES},
-    {"subtitlesenabled",      VIDEOPLAYER_SUBTITLESENABLED},
-    {"subtitleslanguage",     VIDEOPLAYER_SUBTITLES_LANG},
-    {"starttime",             VIDEOPLAYER_STARTTIME},
-    {"endtime",               VIDEOPLAYER_ENDTIME},
-    {"nexttitle",             VIDEOPLAYER_NEXT_TITLE},
-    {"nextgenre",             VIDEOPLAYER_NEXT_GENRE},
-    {"nextplot",              VIDEOPLAYER_NEXT_PLOT},
-    {"nextplotoutline",       VIDEOPLAYER_NEXT_PLOT_OUTLINE},
-    {"nextstarttime",         VIDEOPLAYER_NEXT_STARTTIME},
-    {"nextendtime",           VIDEOPLAYER_NEXT_ENDTIME},
-    {"nextduration",          VIDEOPLAYER_NEXT_DURATION},
-    {"channelname",           VIDEOPLAYER_CHANNEL_NAME},
-    {"channellogo",           VIDEOPLAYER_CHANNEL_LOGO},
-    {"channelnumberlabel",    VIDEOPLAYER_CHANNEL_NUMBER},
-    {"channelgroup",          VIDEOPLAYER_CHANNEL_GROUP},
-    {"hasepg",                VIDEOPLAYER_HAS_EPG},
-    {"parentalrating",        VIDEOPLAYER_PARENTAL_RATING},
-    {"parentalratingcode",    VIDEOPLAYER_PARENTAL_RATING_CODE},
-    {"parentalratingicon",    VIDEOPLAYER_PARENTAL_RATING_ICON},
-    {"parentalratingsource",  VIDEOPLAYER_PARENTAL_RATING_SOURCE},
-    {"isstereoscopic",        VIDEOPLAYER_IS_STEREOSCOPIC},
-    {"stereoscopicmode",      VIDEOPLAYER_STEREOSCOPIC_MODE},
-    {"canresumelivetv",       VIDEOPLAYER_CAN_RESUME_LIVE_TV},
-    {"imdbnumber",            VIDEOPLAYER_IMDBNUMBER},
-    {"episodename",           VIDEOPLAYER_EPISODENAME},
-    {"dbid",                  VIDEOPLAYER_DBID},
-    {"uniqueid",              VIDEOPLAYER_UNIQUEID},
-    {"tvshowdbid",            VIDEOPLAYER_TVSHOWDBID},
-    {"audiostreamcount",      VIDEOPLAYER_AUDIOSTREAMCOUNT},
-    {"videostreamcount",      VIDEOPLAYER_VIDEOSTREAMCOUNT},
-    {"hdrtype",               VIDEOPLAYER_HDR_TYPE},
-    {"art",                   VIDEOPLAYER_ART},
-    {"videoversionname",      VIDEOPLAYER_VIDEOVERSION_NAME},
-    {"hasvideoversions",      VIDEOPLAYER_HAS_VIDEOVERSIONS},
-    {"episodepart",           VIDEOPLAYER_EPISODEPART},
-    {"mediaproviders",        VIDEOPLAYER_MEDIAPROVIDERS},
-    {"titleextrainfo",        VIDEOPLAYER_TITLE_EXTRAINFO},
-    {"hdrdetail",             VIDEOPLAYER_HDR_DETAIL},
-    {"videoaltbitrate",       VIDEOPLAYER_VIDEO_BIT_RATE},
-    {"videokibitrate",        VIDEOPLAYER_VIDEO_KIBIT_RATE},
-    {"videomibitrate",        VIDEOPLAYER_VIDEO_MIBIT_RATE},
-    {"audioaltbitrate",       VIDEOPLAYER_AUDIO_BIT_RATE},
-    {"audiokibitrate",        VIDEOPLAYER_AUDIO_KIBIT_RATE},
-    {"audiomibitrate",        VIDEOPLAYER_AUDIO_MIBIT_RATE},
-    {"audiolanguageex",       VIDEOPLAYER_AUDIO_LANG_EX},
-    {"audioname",             VIDEOPLAYER_AUDIO_NAME},
-    {"subtitleslangex",       VIDEOPLAYER_SUBTITLES_LANG_EX},
-    {"subtitlesname",         VIDEOPLAYER_SUBTITLES_NAME},
-}};
+const infomap videoplayer[] =    {{ "title",            VIDEOPLAYER_TITLE },
+                                  { "genre",            VIDEOPLAYER_GENRE },
+                                  { "country",          VIDEOPLAYER_COUNTRY },
+                                  { "originaltitle",    VIDEOPLAYER_ORIGINALTITLE },
+                                  { "director",         VIDEOPLAYER_DIRECTOR },
+                                  { "year",             VIDEOPLAYER_YEAR },
+                                  { "cover",            VIDEOPLAYER_COVER },
+                                  { "usingoverlays",    VIDEOPLAYER_USING_OVERLAYS },
+                                  { "isfullscreen",     VIDEOPLAYER_ISFULLSCREEN },
+                                  { "hasmenu",          VIDEOPLAYER_HASMENU },
+                                  { "playlistlength",   VIDEOPLAYER_PLAYLISTLEN },
+                                  { "playlistposition", VIDEOPLAYER_PLAYLISTPOS },
+                                  { "plot",             VIDEOPLAYER_PLOT },
+                                  { "plotoutline",      VIDEOPLAYER_PLOT_OUTLINE },
+                                  { "episode",          VIDEOPLAYER_EPISODE },
+                                  { "season",           VIDEOPLAYER_SEASON },
+                                  { "rating",           VIDEOPLAYER_RATING },
+                                  { "ratingandvotes",   VIDEOPLAYER_RATING_AND_VOTES },
+                                  { "userrating",       VIDEOPLAYER_USER_RATING },
+                                  { "votes",            VIDEOPLAYER_VOTES },
+                                  { "tvshowtitle",      VIDEOPLAYER_TVSHOW },
+                                  { "premiered",        VIDEOPLAYER_PREMIERED },
+                                  { "studio",           VIDEOPLAYER_STUDIO },
+                                  { "mpaa",             VIDEOPLAYER_MPAA },
+                                  { "top250",           VIDEOPLAYER_TOP250 },
+                                  { "cast",             VIDEOPLAYER_CAST },
+                                  { "castandrole",      VIDEOPLAYER_CAST_AND_ROLE },
+                                  { "artist",           VIDEOPLAYER_ARTIST },
+                                  { "album",            VIDEOPLAYER_ALBUM },
+                                  { "writer",           VIDEOPLAYER_WRITER },
+                                  { "tagline",          VIDEOPLAYER_TAGLINE },
+                                  { "hasinfo",          VIDEOPLAYER_HAS_INFO },
+                                  { "trailer",          VIDEOPLAYER_TRAILER },
+                                  { "videocodec",       VIDEOPLAYER_VIDEO_CODEC },
+                                  { "videoresolution",  VIDEOPLAYER_VIDEO_RESOLUTION },
+                                  { "videoaspect",      VIDEOPLAYER_VIDEO_ASPECT },
+                                  { "videobitrate",     VIDEOPLAYER_VIDEO_BITRATE },
+                                  { "videoaltbitrate",  VIDEOPLAYER_VIDEO_BIT_RATE },
+                                  { "videokibitrate",   VIDEOPLAYER_VIDEO_KIBIT_RATE },
+                                  { "videomibitrate",   VIDEOPLAYER_VIDEO_MIBIT_RATE },
+                                  { "audiocodec",       VIDEOPLAYER_AUDIO_CODEC },
+                                  { "audiochannels",    VIDEOPLAYER_AUDIO_CHANNELS },
+                                  { "audiobitrate",     VIDEOPLAYER_AUDIO_BITRATE },
+                                  { "audioaltbitrate",  VIDEOPLAYER_AUDIO_BIT_RATE },
+                                  { "audiokibitrate",   VIDEOPLAYER_AUDIO_KIBIT_RATE },
+                                  { "audiomibitrate",   VIDEOPLAYER_AUDIO_MIBIT_RATE },                                  
+                                  { "audiolanguage",    VIDEOPLAYER_AUDIO_LANG },
+                                  { "audiolanguageex",  VIDEOPLAYER_AUDIO_LANG_EX },
+                                  { "audioname",        VIDEOPLAYER_AUDIO_NAME },
+                                  { "hasteletext",      VIDEOPLAYER_HASTELETEXT },
+                                  { "lastplayed",       VIDEOPLAYER_LASTPLAYED },
+                                  { "playcount",        VIDEOPLAYER_PLAYCOUNT },
+                                  { "hassubtitles",     VIDEOPLAYER_HASSUBTITLES },
+                                  { "subtitlesenabled", VIDEOPLAYER_SUBTITLESENABLED },
+                                  { "subtitleslanguage",VIDEOPLAYER_SUBTITLES_LANG },
+                                  { "subtitleslangex",  VIDEOPLAYER_SUBTITLES_LANG_EX },
+                                  { "subtitlesname",    VIDEOPLAYER_SUBTITLES_NAME },
+                                  { "starttime",        VIDEOPLAYER_STARTTIME },
+                                  { "endtime",          VIDEOPLAYER_ENDTIME },
+                                  { "nexttitle",        VIDEOPLAYER_NEXT_TITLE },
+                                  { "nextgenre",        VIDEOPLAYER_NEXT_GENRE },
+                                  { "nextplot",         VIDEOPLAYER_NEXT_PLOT },
+                                  { "nextplotoutline",  VIDEOPLAYER_NEXT_PLOT_OUTLINE },
+                                  { "nextstarttime",    VIDEOPLAYER_NEXT_STARTTIME },
+                                  { "nextendtime",      VIDEOPLAYER_NEXT_ENDTIME },
+                                  { "nextduration",     VIDEOPLAYER_NEXT_DURATION },
+                                  { "channelname",      VIDEOPLAYER_CHANNEL_NAME },
+                                  { "channelnumberlabel", VIDEOPLAYER_CHANNEL_NUMBER },
+                                  { "channelgroup",     VIDEOPLAYER_CHANNEL_GROUP },
+                                  { "hasepg",           VIDEOPLAYER_HAS_EPG },
+                                  { "parentalrating",   VIDEOPLAYER_PARENTAL_RATING },
+                                  { "isstereoscopic",   VIDEOPLAYER_IS_STEREOSCOPIC },
+                                  { "stereoscopicmode", VIDEOPLAYER_STEREOSCOPIC_MODE },
+                                  { "canresumelivetv",  VIDEOPLAYER_CAN_RESUME_LIVE_TV },
+                                  { "imdbnumber",       VIDEOPLAYER_IMDBNUMBER },
+                                  { "episodename",      VIDEOPLAYER_EPISODENAME },
+                                  { "dbid",             VIDEOPLAYER_DBID },
+                                  { "uniqueid",         VIDEOPLAYER_UNIQUEID },
+                                  { "tvshowdbid",       VIDEOPLAYER_TVSHOWDBID },
+                                  { "audiostreamcount", VIDEOPLAYER_AUDIOSTREAMCOUNT },
+                                  { "hdrtype",          VIDEOPLAYER_HDR_TYPE },
+                                  { "art",              VIDEOPLAYER_ART},
+                                  { "videoversionname", VIDEOPLAYER_VIDEOVERSION_NAME},
+                                  { "hasvideoversions", VIDEOPLAYER_HAS_VIDEOVERSIONS}
+};
 // clang-format on
 
 /// \page modules__infolabels_boolean_conditions
@@ -4433,13 +4248,12 @@ constexpr std::array<InfoMap, 93> videoplayer = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 3> retroplayer = {{
-    {"videofilter",   RETROPLAYER_VIDEO_FILTER},
-    {"stretchmode",   RETROPLAYER_STRETCH_MODE},
-    {"videorotation", RETROPLAYER_VIDEO_ROTATION},
-}};
-// clang-format on
+const infomap retroplayer[] =
+{
+  { "videofilter",            RETROPLAYER_VIDEO_FILTER},
+  { "stretchmode",            RETROPLAYER_STRETCH_MODE},
+  { "videorotation",          RETROPLAYER_VIDEO_ROTATION},
+};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Container Container
@@ -4576,29 +4390,25 @@ constexpr std::array<InfoMap, 3> retroplayer = {{
 ///     @skinning_v17 **[New Infolabel]** \link Container_ShowTitle `Container.ShowTitle`\endlink
 ///     <p>
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 19> mediacontainer = {{
-    {"hasfiles",          CONTAINER_HASFILES},
-    {"hasfolders",        CONTAINER_HASFOLDERS},
-    {"isstacked",         CONTAINER_STACKED},
-    {"folderpath",        CONTAINER_FOLDERPATH},
-    {"foldername",        CONTAINER_FOLDERNAME},
-    {"pluginname",        CONTAINER_PLUGINNAME},
-    {"plugincategory",    CONTAINER_PLUGINCATEGORY},
-    {"viewmode",          CONTAINER_VIEWMODE},
-    {"viewcount",         CONTAINER_VIEWCOUNT},
-    {"totaltime",         CONTAINER_TOTALTIME},
-    {"totalwatched",      CONTAINER_TOTALWATCHED},
-    {"totalunwatched",    CONTAINER_TOTALUNWATCHED},
-    {"hasthumb",          CONTAINER_HAS_THUMB},
-    {"sortorder",         CONTAINER_SORT_ORDER},
-    {"canfilter",         CONTAINER_CAN_FILTER},
-    {"canfilteradvanced", CONTAINER_CAN_FILTERADVANCED},
-    {"filtered",          CONTAINER_FILTERED},
-    {"showplot",          CONTAINER_SHOWPLOT},
-    {"showtitle",         CONTAINER_SHOWTITLE},
-}};
-// clang-format on
+const infomap mediacontainer[] = {{ "hasfiles",         CONTAINER_HASFILES },
+                                  { "hasfolders",       CONTAINER_HASFOLDERS },
+                                  { "isstacked",        CONTAINER_STACKED },
+                                  { "folderpath",       CONTAINER_FOLDERPATH },
+                                  { "foldername",       CONTAINER_FOLDERNAME },
+                                  { "pluginname",       CONTAINER_PLUGINNAME },
+                                  { "plugincategory",   CONTAINER_PLUGINCATEGORY },
+                                  { "viewmode",         CONTAINER_VIEWMODE },
+                                  { "viewcount",        CONTAINER_VIEWCOUNT },
+                                  { "totaltime",        CONTAINER_TOTALTIME },
+                                  { "totalwatched",     CONTAINER_TOTALWATCHED },
+                                  { "totalunwatched",   CONTAINER_TOTALUNWATCHED },
+                                  { "hasthumb",         CONTAINER_HAS_THUMB },
+                                  { "sortorder",        CONTAINER_SORT_ORDER },
+                                  { "canfilter",        CONTAINER_CAN_FILTER },
+                                  { "canfilteradvanced",CONTAINER_CAN_FILTERADVANCED },
+                                  { "filtered",         CONTAINER_FILTERED },
+                                  { "showplot",         CONTAINER_SHOWPLOT },
+                                  { "showtitle",        CONTAINER_SHOWTITLE }};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Container(id).OnNext`</b>,
@@ -4719,25 +4529,21 @@ constexpr std::array<InfoMap, 19> mediacontainer = {{
 ///                  _boolean_,
 ///     @return **True** if the container with dynamic list content is currently updating.
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 15> container_bools = {{
-    {"onnext",            CONTAINER_MOVE_NEXT},
-    {"onprevious",        CONTAINER_MOVE_PREVIOUS},
-    {"onscrollnext",      CONTAINER_SCROLL_NEXT},
-    {"onscrollprevious",  CONTAINER_SCROLL_PREVIOUS},
-    {"numpages",          CONTAINER_NUM_PAGES},
-    {"numitems",          CONTAINER_NUM_ITEMS},
-    {"numnonfolderitems", CONTAINER_NUM_NONFOLDER_ITEMS},
-    {"numallitems",       CONTAINER_NUM_ALL_ITEMS},
-    {"currentpage",       CONTAINER_CURRENT_PAGE},
-    {"currentitem",       CONTAINER_CURRENT_ITEM},
-    {"scrolling",         CONTAINER_SCROLLING},
-    {"hasnext",           CONTAINER_HAS_NEXT},
-    {"hasparent",         CONTAINER_HAS_PARENT_ITEM},
-    {"hasprevious",       CONTAINER_HAS_PREVIOUS},
-    {"isupdating",        CONTAINER_ISUPDATING},
-}};
-// clang-format on
+const infomap container_bools[] ={{ "onnext",           CONTAINER_MOVE_NEXT },
+                                  { "onprevious",       CONTAINER_MOVE_PREVIOUS },
+                                  { "onscrollnext",     CONTAINER_SCROLL_NEXT },
+                                  { "onscrollprevious", CONTAINER_SCROLL_PREVIOUS },
+                                  { "numpages",         CONTAINER_NUM_PAGES },
+                                  { "numitems",         CONTAINER_NUM_ITEMS },
+                                  { "numnonfolderitems", CONTAINER_NUM_NONFOLDER_ITEMS },
+                                  { "numallitems",      CONTAINER_NUM_ALL_ITEMS },
+                                  { "currentpage",      CONTAINER_CURRENT_PAGE },
+                                  { "currentitem",      CONTAINER_CURRENT_ITEM },
+                                  { "scrolling",        CONTAINER_SCROLLING },
+                                  { "hasnext",          CONTAINER_HAS_NEXT },
+                                  { "hasparent",        CONTAINER_HAS_PARENT_ITEM },
+                                  { "hasprevious",      CONTAINER_HAS_PREVIOUS },
+                                  { "isupdating",       CONTAINER_ISUPDATING }};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Container(id).Row`</b>,
@@ -4811,16 +4617,13 @@ constexpr std::array<InfoMap, 15> container_bools = {{
 ///     @return **True** if the current sort method matches the specified SortID (see \ref List_of_sort_methods "SortUtils").
 ///     <p>
 ///   }
-// clang-format off
-constexpr std::array<InfoMap, 6> container_ints = {{
-    {"row",         CONTAINER_ROW},
-    {"column",      CONTAINER_COLUMN},
-    {"position",    CONTAINER_POSITION},
-    {"subitem",     CONTAINER_SUBITEM},
-    {"hasfocus",    CONTAINER_HAS_FOCUS},
-    {"sortmethod",  CONTAINER_SORT_METHOD},
-}};
-// clang-format on
+const infomap container_ints[] = {{ "row",              CONTAINER_ROW },
+                                  { "column",           CONTAINER_COLUMN },
+                                  { "position",         CONTAINER_POSITION },
+                                  { "subitem",          CONTAINER_SUBITEM },
+                                  { "hasfocus",         CONTAINER_HAS_FOCUS },
+                                  { "sortmethod",       CONTAINER_SORT_METHOD },
+};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Container.Property(addoncategory)`</b>,
@@ -4904,9 +4707,6 @@ constexpr std::array<InfoMap, 6> container_ints = {{
 ///       - <b>directors</b>
 ///       - <b>sets</b>
 ///       - <b>tags</b>
-///       - <b>videoversions</b>
-///       - <b>videoassets</b>
-///       - <b>videoextras</b>
 ///     @note These currently only work in the Video and Music
 ///     Library or unless a Plugin has set the value) also available are
 ///     Addons true when a list of add-ons is shown LiveTV true when a
@@ -4926,13 +4726,9 @@ constexpr std::array<InfoMap, 6> container_ints = {{
 ///     <p>
 ///   }
 ///
-// clang-format off
-constexpr std::array<InfoMap, 3> container_str = {{
-    {"property",  CONTAINER_PROPERTY},
-    {"content",   CONTAINER_CONTENT},
-    {"art",       CONTAINER_ART},
-}};
-// clang-format on
+const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
+                                  { "content",          CONTAINER_CONTENT },
+                                  { "art",              CONTAINER_ART }};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Container.SortDirection(direction)`</b>,
@@ -5401,16 +5197,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     container.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.Genre(separator)`</b>,
-///                  \anchor ListItem_Genre_separator
-///                  _string_,
-///     @return A list of genres\, separated by given separator\, or if no separator was given
-///     separated by the advanced settings value \“itemseparator\” for videos or music.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_Genre_separator `ListItem.Genre(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`ListItem.Contributors`</b>,
 ///                  \anchor ListItem_Contributors
 ///                  _string_,
@@ -5434,16 +5220,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link ListItem_Director `ListItem.Director`\endlink
 ///     also supports EPG.
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.Director(separator)`</b>,
-///                  \anchor ListItem_Director_separator
-///                  _string_,
-///     @return A list of directors\, separated by given separator\, or if no separator was given
-///     separated by the advanced settings value \“itemseparator\” for video items.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_Director_separator `ListItem.Director(separator)`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.Country`</b>,
@@ -6069,15 +5845,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     movie in a container.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.DecodedFileNameAndPath`</b>,
-///                  \anchor ListItem_DecodedFileNameAndPath
-///                  _string_,
-///     @return The full path with filename of the currently selected song or
-///     movie in a container decoded - made more human readable.
-///     For example bluray://smb%3A%2F%2Fsomepath%2Fmovie.iso/BDMV/PLAYLIST/00000.mpls
-///     becomes bluray://smb://somepath/movie.iso/BDMV/PLAYLIST/00000.mpls
-///     <p>
-///   }
 ///   \table_row3{   <b>`ListItem.FileExtension`</b>,
 ///                  \anchor ListItem_FileExtension
 ///                  _string_,
@@ -6284,37 +6051,18 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///   \table_row3{   <b>`ListItem.Cast`</b>,
 ///                  \anchor ListItem_Cast
 ///                  _string_,
-///     @return A list of cast members\, separated by carriage returns.
+///     @return A concatenated string of cast members of the currently selected
+///     movie\, for use in dialogvideoinfo.xml.
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link ListItem_Cast `ListItem.Cast`\endlink
 ///     also supports EPG.
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.Cast(separator)`</b>,
-///                  \anchor ListItem_Cast_separator
-///                  _string_,
-///     @return A list of cast members\, separated by given separator\, or if no separator was
-///     given separated by carriage returns.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_Cast_separator `ListItem.Cast(separator)`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`ListItem.CastAndRole`</b>,
 ///                  \anchor ListItem_CastAndRole
 ///                  _string_,
-///     @return A list of cast members and roles\, separated by carriage
-///     returns. Every cast/role combination is formatted 'cast' as 'role' where 'as' is localised.
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.CastAndRole(separator)`</b>,
-///                  \anchor ListItem_CastAndRole_separator
-///                  _string_,
-///     @return A list of cast members and roles\, separated by given separator\, or if no separator
-///     was given separated by carriage returns.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_CastAndRole_separator `ListItem.CastAndRole(separator)`\endlink
+///     @return A concatenated string of cast members and roles of the currently
+///     selected movie\, for use in dialogvideoinfo.xml.
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.Studio`</b>,
@@ -6344,16 +6092,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     <p><hr>
 ///     @skinning_v15 **[Infolabel Updated]** \link ListItem_Writer `ListItem.Writer`\endlink
 ///     also supports EPG.
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.Writer(separator)`</b>,
-///                  \anchor ListItem_Writer_separator
-///                  _string_,
-///     @return A list of writers\, separated by given separator\, or if no separator was given
-///     separated by the advanced settings value \“itemseparator\” for video items.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_Writer_separator `ListItem.Writer(separator)`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.Tag`</b>,
@@ -6421,14 +6159,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///                  \anchor ListItem_ChannelName
 ///                  _string_,
 ///     @return The name of current selected TV channel in a container.
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.ChannelLogo`</b>,
-///                  \anchor ListItem_ChannelLogo
-///                  _string_,
-///     @return The path for the logo of the currently selected radio or TV channel\, if available (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_ChannelLogo `ListItem.ChannelLogo`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.VideoCodec`</b>,
@@ -6534,17 +6264,10 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///       - <b>wmav2</b>
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.AudioChannels(format)`</b>,
+///   \table_row3{   <b>`ListItem.AudioChannels`</b>,
 ///                  \anchor ListItem_AudioChannels
 ///                  _string_,
-///     @param format (optional) format of the infolabel. Possible values for the format:
-///       - <b>(blank)</b> no format value: count of channels
-///       - <b>defaultlayout</b> return a default channel layout in the format x.y.z for the
-///         channel count (x=listener level speakers\, y=lfe channels\, z=overhead channels).
-///         If a default layout is not defined for the channel count then the text "x channels" is
-///         returned, with x replaced by the channel count and "channels" localized to the user language.
-///     @return The audio channel information of the currently selected video. Possible values
-///       for the default format:
+///     @return The number of audio channels of the currently selected video. Possible values:
 ///       - <b>1</b>
 ///       - <b>2</b>
 ///       - <b>4</b>
@@ -6552,23 +6275,10 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///       - <b>6</b>
 ///       - <b>8</b>
 ///       - <b>10</b>
-///
-///     Possible values for format "defaultlayout":
-///       - <b>1.0</b>
-///       - <b>2.0</b>
-///       - <b>5.1</b>
-///       - <b>6.1</b>
-///       - <b>7.1</b>
-///       - <b>9 channels</b>
-///       - <b>9.1.6</b>
-///
 ///     <p><hr>
 ///     @skinning_v16 **[Infolabel Updated]** \link ListItem_AudioChannels `ListItem.AudioChannels`\endlink
 ///     if a video contains no audio\, these infolabels will now return empty.
 ///     (they used to return 0)
-///
-///     @skinning_v22 **[Infolabel Updated]** \link ListItem_AudioChannels `ListItem.AudioChannels`\endlink
-///     added optional format parameter
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.AudioLanguage`</b>,
@@ -6696,17 +6406,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///                  \anchor ListItem_NextGenre
 ///                  _string_,
 ///     @return The genre of the next item (PVR).
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.NextGenre(separator)`</b>,
-///                  \anchor ListItem_NextGenre_separator
-///                  _string_,
-///     @return A list of genres of the the next item (PVR)\, separated by given separator\, or if
-///     no separator was given separated by the advanced settings value \“itemseparator\” for
-///     videos.
-///     Possible values for separator: comma\, pipe\, slash\, cr\, dash\, colon\, semicolon\, fullstop
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_NextGenre_separator `ListItem.NextGenre(separator)`\endlink
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.NextPlot`</b>,
@@ -6975,10 +6674,11 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///                  _string_,
 ///     @return From addon defined message text when it is marked as special condition inside repository.
 ///     <p><hr>
-///     @skinning_v19 **[New Infolabel]** \link ListItem_AddonLifecycleDesc `ListItem.AddonLifecycleDesc`\endlink
+///     @skinning_v19 **[New Infolabel]** \link ListItem_AddonLifecycleDesc `ListItem.AddonLifecycleDesc``\endlink
 ///     replaces `ListItem.AddonBroken`.
 ///     <p>
 ///   }
+
 ///   \table_row3{   <b>`ListItem.AddonType`</b>,
 ///                  \anchor ListItem_AddonType
 ///                  _string_,
@@ -7264,25 +6964,6 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     @skinning_v21 **[New Infolabel]** \link ListItem_ParentalRatingCode `ListItem.ParentalRatingCode`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.ParentalRatingIcon`</b>,
-///                  \anchor ListItem_ParentalRatingIcon
-///                  _string_,
-///     @return The parental rating icon path of the list item (PVR).
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_ParentalRatingIcon `ListItem.ParentalRatingIcon`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.ParentalRatingSource`</b>,
-///                  \anchor ListItem_ParentalRatingSource
-///                  _string_,
-///     @return The source used to determine the parental rating of the list item (PVR).
-///     Values could include the Country alpha-3 code or the name/abbreviation
-///     of the authority issuing the rating code.  Can be used with
-///     the \link ListItem_ParentalRatingCode `ParentalRatingCode`\endlink for skin-derived icons if required.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_ParentalRatingSource `ListItem.ParentalRatingSource`\endlink
-///     <p>
-///   }
 ///   \table_row3{   <b>`ListItem.CurrentItem`</b>,
 ///                  \anchor ListItem_CurrentItem
 ///                  _string_,
@@ -7397,18 +7078,12 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     @skinning_v19 **[New Infolabel]** \link ListItem_SampleRate `ListItem.SampleRate`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`ListItem.MusicChannels(format)`</b>,
+///   \table_row3{   <b>`ListItem.MusicChannels`</b>,
 ///                  \anchor ListItem_MusicChannels
 ///                  _string_,
-///     @param[in] format (optional) format of the infolabel.
-///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
 ///     @return The number of audio channels of a song.
-///     (possible values: see \ref ListItem_AudioChannels "ListItem.AudioChannels").
 ///     <p><hr>
 ///     @skinning_v19 **[New Infolabel]** \link ListItem_No_Of_Channels `ListItem.NoOfChannels`\endlink
-///
-///     @skinning_v22 **[Infolabel Updated]** \link ListItem_MusicChannels `ListItem.MusicChannels`\endlink
-///     added optional format parameter
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`ListItem.TvShowDBID`</b>,
@@ -7422,7 +7097,7 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///   \table_row3{   <b>`ListItem.AlbumStatus`</b>,
 ///                  \anchor ListItem_AlbumStatus
 ///                  _string_,
-///     @return The Musicbrainz release status of the album (official\, bootleg\, promotion etc)
+///     @return The Musicbrainz release status of the album (official, bootleg, promotion etc)
 ///     <p><hr>
 ///     @skinning_v19 **[New Infolabel]** \link ListItem_AlbumStatus `ListItem.AlbumStatus`\endlink
 ///   }
@@ -7482,292 +7157,228 @@ constexpr std::array<InfoMap, 3> container_str = {{
 ///     <p><hr>
 ///     @skinning_v21 **[New Infolabel]** \link ListItem_HasVideoExtras `ListItem.HasVideoExtras`\endlink
 ///   }
-///   \table_row3{   <b>`ListItem.PVRClientName`</b>,
-///                  \anchor ListItem_PVRClientName
-///                  _string_,
-///     @return If selected item is of type PVR (recording\, timer\, EPG)\, the name of the PVR client
-///     add-on\, as specified by the add-on developer. Empty if the item is not of type PVR.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_PVRClientName `ListItem.PVRClientName`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.PVRInstanceName`</b>,
-///                  \anchor ListItem_PVRInstanceName
-///                  _string_,
-///     @return If selected item is of type PVR (recording\, timer\, EPG)\, the name of the instance
-///     of the PVR client add-on\, as specified by the user in the add-on settings. Empty if the
-///     PVR client add-on does not support multiple instances or item is not of type PVR.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_PVRInstanceName `ListItem.PVRInstanceName`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.PVRGroupOrigin`</b>,
-///                  \anchor ListItem_PVRGroupOrigin
-///                  _string_,
-///     @return If selected item is of type PVR channel group\, the creator (user\, system\, client) of
-///     the group.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_PVRGroupOrigin `ListItem.PVRGroupOrigin`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.EpisodePart`</b>,
-///                  \anchor ListItem_EpisodePart
-///                  _string_,
-///     @return string containing the number of parts of a single episode - empty if no data provided
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_EpisodePart `ListItem.EpisodePart`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.MediaProviders`</b>,
-///                  \anchor ListItem_MediaProviders
-///                  _string_,
-///     @return string containing the names of the media providers of the item\, separated by commas if multiple are present.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_MediaProviders `ListItem.MediaProviders`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`ListItem.TitleExtraInfo`</b>,
-///                  \anchor ListItem_TitleExtraInfo
-///                  _string_,
-///     @return string containing extra information\, enriching the title of the item.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link ListItem_TitleExtraInfo `ListItem.TitleExtraInfo`\endlink
-///     <p>
-///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
 // clang-format off
-constexpr std::array<InfoMap, 228> listitem_labels = {{
-    {"thumb",                         LISTITEM_THUMB},
-    {"icon",                          LISTITEM_ICON},
-    {"actualicon",                    LISTITEM_ACTUAL_ICON},
-    {"overlay",                       LISTITEM_OVERLAY},
-    {"label",                         LISTITEM_LABEL},
-    {"label2",                        LISTITEM_LABEL2},
-    {"title",                         LISTITEM_TITLE},
-    {"tracknumber",                   LISTITEM_TRACKNUMBER},
-    {"artist",                        LISTITEM_ARTIST},
-    {"album",                         LISTITEM_ALBUM},
-    {"albumartist",                   LISTITEM_ALBUM_ARTIST},
-    {"year",                          LISTITEM_YEAR},
-    {"genre",                         LISTITEM_GENRE},
-    {"contributors",                  LISTITEM_CONTRIBUTORS},
-    {"contributorandrole",            LISTITEM_CONTRIBUTOR_AND_ROLE},
-    {"director",                      LISTITEM_DIRECTOR},
-    {"disctitle",                     LISTITEM_DISC_TITLE},
-    {"filename",                      LISTITEM_FILENAME},
-    {"filenameandpath",               LISTITEM_FILENAME_AND_PATH},
-    {"decodedfilenameandpath",        LISTITEM_DECODED_FILENAME_AND_PATH},
-    {"fileextension",                 LISTITEM_FILE_EXTENSION},
-    {"filenamenoextension",           LISTITEM_FILENAME_NO_EXTENSION},
-    {"date",                          LISTITEM_DATE},
-    {"datetime",                      LISTITEM_DATETIME},
-    {"size",                          LISTITEM_SIZE},
-    {"rating",                        LISTITEM_RATING},
-    {"ratingandvotes",                LISTITEM_RATING_AND_VOTES},
-    {"userrating",                    LISTITEM_USER_RATING},
-    {"votes",                         LISTITEM_VOTES},
-    {"mood",                          LISTITEM_MOOD},
-    {"programcount",                  LISTITEM_PROGRAM_COUNT},
-    {"duration",                      LISTITEM_DURATION},
-    {"isselected",                    LISTITEM_ISSELECTED},
-    {"isplaying",                     LISTITEM_ISPLAYING},
-    {"plot",                          LISTITEM_PLOT},
-    {"plotoutline",                   LISTITEM_PLOT_OUTLINE},
-    {"episode",                       LISTITEM_EPISODE},
-    {"season",                        LISTITEM_SEASON},
-    {"tvshowtitle",                   LISTITEM_TVSHOW},
-    {"premiered",                     LISTITEM_PREMIERED},
-    {"comment",                       LISTITEM_COMMENT},
-    {"path",                          LISTITEM_PATH},
-    {"foldername",                    LISTITEM_FOLDERNAME},
-    {"folderpath",                    LISTITEM_FOLDERPATH},
-    {"picturepath",                   LISTITEM_PICTURE_PATH},
-    {"pictureresolution",             LISTITEM_PICTURE_RESOLUTION},
-    {"picturedatetime",               LISTITEM_PICTURE_DATETIME},
-    {"picturedate",                   LISTITEM_PICTURE_DATE},
-    {"picturelongdatetime",           LISTITEM_PICTURE_LONGDATETIME},
-    {"picturelongdate",               LISTITEM_PICTURE_LONGDATE},
-    {"picturecomment",                LISTITEM_PICTURE_COMMENT},
-    {"picturecaption",                LISTITEM_PICTURE_CAPTION},
-    {"picturedesc",                   LISTITEM_PICTURE_DESC},
-    {"picturekeywords",               LISTITEM_PICTURE_KEYWORDS},
-    {"picturecammake",                LISTITEM_PICTURE_CAM_MAKE},
-    {"picturecammodel",               LISTITEM_PICTURE_CAM_MODEL},
-    {"pictureaperture",               LISTITEM_PICTURE_APERTURE},
-    {"picturefocallen",               LISTITEM_PICTURE_FOCAL_LEN},
-    {"picturefocusdist",              LISTITEM_PICTURE_FOCUS_DIST},
-    {"pictureexpmode",                LISTITEM_PICTURE_EXP_MODE},
-    {"pictureexptime",                LISTITEM_PICTURE_EXP_TIME},
-    {"pictureiso",                    LISTITEM_PICTURE_ISO},
-    {"pictureauthor",                 LISTITEM_PICTURE_AUTHOR},
-    {"picturebyline",                 LISTITEM_PICTURE_BYLINE},
-    {"picturebylinetitle",            LISTITEM_PICTURE_BYLINE_TITLE},
-    {"picturecategory",               LISTITEM_PICTURE_CATEGORY},
-    {"pictureccdwidth",               LISTITEM_PICTURE_CCD_WIDTH},
-    {"picturecity",                   LISTITEM_PICTURE_CITY},
-    {"pictureurgency",                LISTITEM_PICTURE_URGENCY},
-    {"picturecopyrightnotice",        LISTITEM_PICTURE_COPYRIGHT_NOTICE},
-    {"picturecountry",                LISTITEM_PICTURE_COUNTRY},
-    {"picturecountrycode",            LISTITEM_PICTURE_COUNTRY_CODE},
-    {"picturecredit",                 LISTITEM_PICTURE_CREDIT},
-    {"pictureiptcdate",               LISTITEM_PICTURE_IPTCDATE},
-    {"picturedigitalzoom",            LISTITEM_PICTURE_DIGITAL_ZOOM},
-    {"pictureexposure",               LISTITEM_PICTURE_EXPOSURE},
-    {"pictureexposurebias",           LISTITEM_PICTURE_EXPOSURE_BIAS},
-    {"pictureflashused",              LISTITEM_PICTURE_FLASH_USED},
-    {"pictureheadline",               LISTITEM_PICTURE_HEADLINE},
-    {"picturecolour",                 LISTITEM_PICTURE_COLOUR},
-    {"picturelightsource",            LISTITEM_PICTURE_LIGHT_SOURCE},
-    {"picturemeteringmode",           LISTITEM_PICTURE_METERING_MODE},
-    {"pictureobjectname",             LISTITEM_PICTURE_OBJECT_NAME},
-    {"pictureorientation",            LISTITEM_PICTURE_ORIENTATION},
-    {"pictureprocess",                LISTITEM_PICTURE_PROCESS},
-    {"picturereferenceservice",       LISTITEM_PICTURE_REF_SERVICE},
-    {"picturesource",                 LISTITEM_PICTURE_SOURCE},
-    {"picturespecialinstructions",    LISTITEM_PICTURE_SPEC_INSTR},
-    {"picturestate",                  LISTITEM_PICTURE_STATE},
-    {"picturesupplementalcategories", LISTITEM_PICTURE_SUP_CATEGORIES},
-    {"picturetransmissionreference",  LISTITEM_PICTURE_TX_REFERENCE},
-    {"picturewhitebalance",           LISTITEM_PICTURE_WHITE_BALANCE},
-    {"pictureimagetype",              LISTITEM_PICTURE_IMAGETYPE},
-    {"picturesublocation",            LISTITEM_PICTURE_SUBLOCATION},
-    {"pictureiptctime",               LISTITEM_PICTURE_TIMECREATED},
-    {"picturegpslat",                 LISTITEM_PICTURE_GPS_LAT},
-    {"picturegpslon",                 LISTITEM_PICTURE_GPS_LON},
-    {"picturegpsalt",                 LISTITEM_PICTURE_GPS_ALT},
-    {"studio",                        LISTITEM_STUDIO},
-    {"country",                       LISTITEM_COUNTRY},
-    {"mpaa",                          LISTITEM_MPAA},
-    {"cast",                          LISTITEM_CAST},
-    {"castandrole",                   LISTITEM_CAST_AND_ROLE},
-    {"writer",                        LISTITEM_WRITER},
-    {"tagline",                       LISTITEM_TAGLINE},
-    {"status",                        LISTITEM_STATUS},
-    {"top250",                        LISTITEM_TOP250},
-    {"trailer",                       LISTITEM_TRAILER},
-    {"sortletter",                    LISTITEM_SORT_LETTER},
-    {"tag",                           LISTITEM_TAG},
-    {"set",                           LISTITEM_SET},
-    {"setid",                         LISTITEM_SETID},
-    {"videocodec",                    LISTITEM_VIDEO_CODEC},
-    {"videoresolution",               LISTITEM_VIDEO_RESOLUTION},
-    {"videowidth",                    LISTITEM_VIDEO_WIDTH},
-    {"videoheight",                   LISTITEM_VIDEO_HEIGHT},
-    {"videoaspect",                   LISTITEM_VIDEO_ASPECT},
-    {"audiocodec",                    LISTITEM_AUDIO_CODEC},
-    {"audiochannels",                 LISTITEM_AUDIO_CHANNELS},
-    {"audiolanguage",                 LISTITEM_AUDIO_LANGUAGE},
-    {"subtitlelanguage",              LISTITEM_SUBTITLE_LANGUAGE},
-    {"isresumable",                   LISTITEM_IS_RESUMABLE},
-    {"percentplayed",                 LISTITEM_PERCENT_PLAYED},
-    {"isfolder",                      LISTITEM_IS_FOLDER},
-    {"isparentfolder",                LISTITEM_IS_PARENTFOLDER},
-    {"iscollection",                  LISTITEM_IS_COLLECTION},
-    {"originaltitle",                 LISTITEM_ORIGINALTITLE},
-    {"lastplayed",                    LISTITEM_LASTPLAYED},
-    {"playcount",                     LISTITEM_PLAYCOUNT},
-    {"discnumber",                    LISTITEM_DISC_NUMBER},
-    {"starttime",                     LISTITEM_STARTTIME},
-    {"endtime",                       LISTITEM_ENDTIME},
-    {"endtimeresume",                 LISTITEM_ENDTIME_RESUME},
-    {"startdate",                     LISTITEM_STARTDATE},
-    {"enddate",                       LISTITEM_ENDDATE},
-    {"nexttitle",                     LISTITEM_NEXT_TITLE},
-    {"nextgenre",                     LISTITEM_NEXT_GENRE},
-    {"nextplot",                      LISTITEM_NEXT_PLOT},
-    {"nextplotoutline",               LISTITEM_NEXT_PLOT_OUTLINE},
-    {"nextstarttime",                 LISTITEM_NEXT_STARTTIME},
-    {"nextendtime",                   LISTITEM_NEXT_ENDTIME},
-    {"nextstartdate",                 LISTITEM_NEXT_STARTDATE},
-    {"nextenddate",                   LISTITEM_NEXT_ENDDATE},
-    {"nextduration",                  LISTITEM_NEXT_DURATION},
-    {"channelname",                   LISTITEM_CHANNEL_NAME},
-    {"channellogo",                   LISTITEM_CHANNEL_LOGO},
-    {"channelnumberlabel",            LISTITEM_CHANNEL_NUMBER},
-    {"channelgroup",                  LISTITEM_CHANNEL_GROUP},
-    {"hasepg",                        LISTITEM_HAS_EPG},
-    {"hastimer",                      LISTITEM_HASTIMER},
-    {"hastimerschedule",              LISTITEM_HASTIMERSCHEDULE},
-    {"hasreminder",                   LISTITEM_HASREMINDER},
-    {"hasreminderrule",               LISTITEM_HASREMINDERRULE},
-    {"hasrecording",                  LISTITEM_HASRECORDING},
-    {"isrecording",                   LISTITEM_ISRECORDING},
-    {"isplayable",                    LISTITEM_ISPLAYABLE},
-    {"hasarchive",                    LISTITEM_HASARCHIVE},
-    {"inprogress",                    LISTITEM_INPROGRESS},
-    {"isencrypted",                   LISTITEM_ISENCRYPTED},
-    {"progress",                      LISTITEM_PROGRESS},
-    {"dateadded",                     LISTITEM_DATE_ADDED},
-    {"dbtype",                        LISTITEM_DBTYPE},
-    {"dbid",                          LISTITEM_DBID},
-    {"appearances",                   LISTITEM_APPEARANCES},
-    {"stereoscopicmode",              LISTITEM_STEREOSCOPIC_MODE},
-    {"isstereoscopic",                LISTITEM_IS_STEREOSCOPIC},
-    {"imdbnumber",                    LISTITEM_IMDBNUMBER},
-    {"episodename",                   LISTITEM_EPISODENAME},
-    {"timertype",                     LISTITEM_TIMERTYPE},
-    {"epgeventtitle",                 LISTITEM_EPG_EVENT_TITLE},
-    {"epgeventicon",                  LISTITEM_EPG_EVENT_ICON},
-    {"timerisactive",                 LISTITEM_TIMERISACTIVE},
-    {"timerhaserror",                 LISTITEM_TIMERHASERROR},
-    {"timerhasconflict",              LISTITEM_TIMERHASCONFLICT},
-    {"addonname",                     LISTITEM_ADDON_NAME},
-    {"addonversion",                  LISTITEM_ADDON_VERSION},
-    {"addoncreator",                  LISTITEM_ADDON_CREATOR},
-    {"addonsummary",                  LISTITEM_ADDON_SUMMARY},
-    {"addondescription",              LISTITEM_ADDON_DESCRIPTION},
-    {"addondisclaimer",               LISTITEM_ADDON_DISCLAIMER},
-    {"addonnews",                     LISTITEM_ADDON_NEWS},
-    {"addonbroken",                   LISTITEM_ADDON_BROKEN},
-    {"addonlifecycletype",            LISTITEM_ADDON_LIFECYCLE_TYPE},
-    {"addonlifecycledesc",            LISTITEM_ADDON_LIFECYCLE_DESC},
-    {"addontype",                     LISTITEM_ADDON_TYPE},
-    {"addoninstalldate",              LISTITEM_ADDON_INSTALL_DATE},
-    {"addonlastupdated",              LISTITEM_ADDON_LAST_UPDATED},
-    {"addonlastused",                 LISTITEM_ADDON_LAST_USED},
-    {"addonorigin",                   LISTITEM_ADDON_ORIGIN},
-    {"addonsize",                     LISTITEM_ADDON_SIZE},
-    {"expirationdate",                LISTITEM_EXPIRATION_DATE},
-    {"expirationtime",                LISTITEM_EXPIRATION_TIME},
-    {"art",                           LISTITEM_ART},
-    {"property",                      LISTITEM_PROPERTY},
-    {"parentalrating",                LISTITEM_PARENTAL_RATING},
-    {"parentalratingcode",            LISTITEM_PARENTAL_RATING_CODE},
-    {"parentalratingicon",            LISTITEM_PARENTAL_RATING_ICON},
-    {"parentalratingsource",          LISTITEM_PARENTAL_RATING_SOURCE},
-    {"currentitem",                   LISTITEM_CURRENTITEM},
-    {"isnew",                         LISTITEM_IS_NEW},
-    {"isboxset",                      LISTITEM_IS_BOXSET},
-    {"totaldiscs",                    LISTITEM_TOTALDISCS},
-    {"releasedate",                   LISTITEM_RELEASEDATE},
-    {"originaldate",                  LISTITEM_ORIGINALDATE},
-    {"bpm",                           LISTITEM_BPM},
-    {"uniqueid",                      LISTITEM_UNIQUEID},
-    {"bitrate",                       LISTITEM_BITRATE},
-    {"samplerate",                    LISTITEM_SAMPLERATE},
-    {"musicchannels",                 LISTITEM_MUSICCHANNELS},
-    {"ispremiere",                    LISTITEM_IS_PREMIERE},
-    {"isfinale",                      LISTITEM_IS_FINALE},
-    {"islive",                        LISTITEM_IS_LIVE},
-    {"tvshowdbid",                    LISTITEM_TVSHOWDBID},
-    {"albumstatus",                   LISTITEM_ALBUMSTATUS},
-    {"isautoupdateable",              LISTITEM_ISAUTOUPDATEABLE},
-    {"hdrtype",                       LISTITEM_VIDEO_HDR_TYPE},
-    {"songvideourl",                  LISTITEM_SONG_VIDEO_URL},
-    {"hasvideoversions",              LISTITEM_HASVIDEOVERSIONS},
-    {"isvideoextra",                  LISTITEM_ISVIDEOEXTRA},
-    {"videoversionname",              LISTITEM_VIDEOVERSION_NAME},
-    {"hasvideoextras",                LISTITEM_HASVIDEOEXTRAS},
-    {"pvrclientname",                 LISTITEM_PVR_CLIENT_NAME},
-    {"pvrinstancename",               LISTITEM_PVR_INSTANCE_NAME},
-    {"pvrgrouporigin",                LISTITEM_PVR_GROUP_ORIGIN},
-    {"episodepart",                   LISTITEM_EPISODEPART},
-    {"mediaproviders",                LISTITEM_MEDIAPROVIDERS},
-    {"titleextrainfo",                LISTITEM_TITLE_EXTRAINFO},
-    {"hdrdetail",                     LISTITEM_VIDEO_HDR_DETAIL},
-}};
+const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
+                                  { "icon",             LISTITEM_ICON },
+                                  { "actualicon",       LISTITEM_ACTUAL_ICON },
+                                  { "overlay",          LISTITEM_OVERLAY },
+                                  { "label",            LISTITEM_LABEL },
+                                  { "label2",           LISTITEM_LABEL2 },
+                                  { "title",            LISTITEM_TITLE },
+                                  { "tracknumber",      LISTITEM_TRACKNUMBER },
+                                  { "artist",           LISTITEM_ARTIST },
+                                  { "album",            LISTITEM_ALBUM },
+                                  { "albumartist",      LISTITEM_ALBUM_ARTIST },
+                                  { "year",             LISTITEM_YEAR },
+                                  { "genre",            LISTITEM_GENRE },
+                                  { "contributors",     LISTITEM_CONTRIBUTORS },
+                                  { "contributorandrole", LISTITEM_CONTRIBUTOR_AND_ROLE },
+                                  { "director",         LISTITEM_DIRECTOR },
+                                  { "disctitle",        LISTITEM_DISC_TITLE },
+                                  { "filename",         LISTITEM_FILENAME },
+                                  { "filenameandpath",  LISTITEM_FILENAME_AND_PATH },
+                                  { "fileextension",    LISTITEM_FILE_EXTENSION },
+                                  { "filenamenoextension",  LISTITEM_FILENAME_NO_EXTENSION },
+                                  { "date",             LISTITEM_DATE },
+                                  { "datetime",         LISTITEM_DATETIME },
+                                  { "size",             LISTITEM_SIZE },
+                                  { "rating",           LISTITEM_RATING },
+                                  { "ratingandvotes",   LISTITEM_RATING_AND_VOTES },
+                                  { "userrating",       LISTITEM_USER_RATING },
+                                  { "votes",            LISTITEM_VOTES },
+                                  { "mood",             LISTITEM_MOOD },
+                                  { "programcount",     LISTITEM_PROGRAM_COUNT },
+                                  { "duration",         LISTITEM_DURATION },
+                                  { "isselected",       LISTITEM_ISSELECTED },
+                                  { "isplaying",        LISTITEM_ISPLAYING },
+                                  { "plot",             LISTITEM_PLOT },
+                                  { "plotoutline",      LISTITEM_PLOT_OUTLINE },
+                                  { "episode",          LISTITEM_EPISODE },
+                                  { "season",           LISTITEM_SEASON },
+                                  { "tvshowtitle",      LISTITEM_TVSHOW },
+                                  { "premiered",        LISTITEM_PREMIERED },
+                                  { "comment",          LISTITEM_COMMENT },
+                                  { "path",             LISTITEM_PATH },
+                                  { "foldername",       LISTITEM_FOLDERNAME },
+                                  { "folderpath",       LISTITEM_FOLDERPATH },
+                                  { "picturepath",      LISTITEM_PICTURE_PATH },
+                                  { "pictureresolution",LISTITEM_PICTURE_RESOLUTION },
+                                  { "picturedatetime",  LISTITEM_PICTURE_DATETIME },
+                                  { "picturedate",      LISTITEM_PICTURE_DATE },
+                                  { "picturelongdatetime",LISTITEM_PICTURE_LONGDATETIME },
+                                  { "picturelongdate",  LISTITEM_PICTURE_LONGDATE },
+                                  { "picturecomment",   LISTITEM_PICTURE_COMMENT },
+                                  { "picturecaption",   LISTITEM_PICTURE_CAPTION },
+                                  { "picturedesc",      LISTITEM_PICTURE_DESC },
+                                  { "picturekeywords",  LISTITEM_PICTURE_KEYWORDS },
+                                  { "picturecammake",   LISTITEM_PICTURE_CAM_MAKE },
+                                  { "picturecammodel",  LISTITEM_PICTURE_CAM_MODEL },
+                                  { "pictureaperture",  LISTITEM_PICTURE_APERTURE },
+                                  { "picturefocallen",  LISTITEM_PICTURE_FOCAL_LEN },
+                                  { "picturefocusdist", LISTITEM_PICTURE_FOCUS_DIST },
+                                  { "pictureexpmode",   LISTITEM_PICTURE_EXP_MODE },
+                                  { "pictureexptime",   LISTITEM_PICTURE_EXP_TIME },
+                                  { "pictureiso",       LISTITEM_PICTURE_ISO },
+                                  { "pictureauthor",                 LISTITEM_PICTURE_AUTHOR },
+                                  { "picturebyline",                 LISTITEM_PICTURE_BYLINE },
+                                  { "picturebylinetitle",            LISTITEM_PICTURE_BYLINE_TITLE },
+                                  { "picturecategory",               LISTITEM_PICTURE_CATEGORY },
+                                  { "pictureccdwidth",               LISTITEM_PICTURE_CCD_WIDTH },
+                                  { "picturecity",                   LISTITEM_PICTURE_CITY },
+                                  { "pictureurgency",                LISTITEM_PICTURE_URGENCY },
+                                  { "picturecopyrightnotice",        LISTITEM_PICTURE_COPYRIGHT_NOTICE },
+                                  { "picturecountry",                LISTITEM_PICTURE_COUNTRY },
+                                  { "picturecountrycode",            LISTITEM_PICTURE_COUNTRY_CODE },
+                                  { "picturecredit",                 LISTITEM_PICTURE_CREDIT },
+                                  { "pictureiptcdate",               LISTITEM_PICTURE_IPTCDATE },
+                                  { "picturedigitalzoom",            LISTITEM_PICTURE_DIGITAL_ZOOM },
+                                  { "pictureexposure",               LISTITEM_PICTURE_EXPOSURE },
+                                  { "pictureexposurebias",           LISTITEM_PICTURE_EXPOSURE_BIAS },
+                                  { "pictureflashused",              LISTITEM_PICTURE_FLASH_USED },
+                                  { "pictureheadline",               LISTITEM_PICTURE_HEADLINE },
+                                  { "picturecolour",                 LISTITEM_PICTURE_COLOUR },
+                                  { "picturelightsource",            LISTITEM_PICTURE_LIGHT_SOURCE },
+                                  { "picturemeteringmode",           LISTITEM_PICTURE_METERING_MODE },
+                                  { "pictureobjectname",             LISTITEM_PICTURE_OBJECT_NAME },
+                                  { "pictureorientation",            LISTITEM_PICTURE_ORIENTATION },
+                                  { "pictureprocess",                LISTITEM_PICTURE_PROCESS },
+                                  { "picturereferenceservice",       LISTITEM_PICTURE_REF_SERVICE },
+                                  { "picturesource",                 LISTITEM_PICTURE_SOURCE },
+                                  { "picturespecialinstructions",    LISTITEM_PICTURE_SPEC_INSTR },
+                                  { "picturestate",                  LISTITEM_PICTURE_STATE },
+                                  { "picturesupplementalcategories", LISTITEM_PICTURE_SUP_CATEGORIES },
+                                  { "picturetransmissionreference",  LISTITEM_PICTURE_TX_REFERENCE },
+                                  { "picturewhitebalance",           LISTITEM_PICTURE_WHITE_BALANCE },
+                                  { "pictureimagetype",              LISTITEM_PICTURE_IMAGETYPE },
+                                  { "picturesublocation",            LISTITEM_PICTURE_SUBLOCATION },
+                                  { "pictureiptctime",               LISTITEM_PICTURE_TIMECREATED },
+                                  { "picturegpslat",    LISTITEM_PICTURE_GPS_LAT },
+                                  { "picturegpslon",    LISTITEM_PICTURE_GPS_LON },
+                                  { "picturegpsalt",    LISTITEM_PICTURE_GPS_ALT },
+                                  { "studio",           LISTITEM_STUDIO },
+                                  { "country",          LISTITEM_COUNTRY },
+                                  { "mpaa",             LISTITEM_MPAA },
+                                  { "cast",             LISTITEM_CAST },
+                                  { "castandrole",      LISTITEM_CAST_AND_ROLE },
+                                  { "writer",           LISTITEM_WRITER },
+                                  { "tagline",          LISTITEM_TAGLINE },
+                                  { "status",           LISTITEM_STATUS },
+                                  { "top250",           LISTITEM_TOP250 },
+                                  { "trailer",          LISTITEM_TRAILER },
+                                  { "sortletter",       LISTITEM_SORT_LETTER },
+                                  { "tag",              LISTITEM_TAG },
+                                  { "set",              LISTITEM_SET },
+                                  { "setid",            LISTITEM_SETID },
+                                  { "videocodec",       LISTITEM_VIDEO_CODEC },
+                                  { "videoresolution",  LISTITEM_VIDEO_RESOLUTION },
+                                  { "videowidth",       LISTITEM_VIDEO_WIDTH},
+                                  { "videoheight",      LISTITEM_VIDEO_HEIGHT},
+                                  { "videoaspect",      LISTITEM_VIDEO_ASPECT },
+                                  { "audiocodec",       LISTITEM_AUDIO_CODEC },
+                                  { "audiochannels",    LISTITEM_AUDIO_CHANNELS },
+                                  { "audiolanguage",    LISTITEM_AUDIO_LANGUAGE },
+                                  { "subtitlelanguage", LISTITEM_SUBTITLE_LANGUAGE },
+                                  { "isresumable",      LISTITEM_IS_RESUMABLE},
+                                  { "percentplayed",    LISTITEM_PERCENT_PLAYED},
+                                  { "isfolder",         LISTITEM_IS_FOLDER },
+                                  { "isparentfolder",   LISTITEM_IS_PARENTFOLDER },
+                                  { "iscollection",     LISTITEM_IS_COLLECTION },
+                                  { "originaltitle",    LISTITEM_ORIGINALTITLE },
+                                  { "lastplayed",       LISTITEM_LASTPLAYED },
+                                  { "playcount",        LISTITEM_PLAYCOUNT },
+                                  { "discnumber",       LISTITEM_DISC_NUMBER },
+                                  { "starttime",        LISTITEM_STARTTIME },
+                                  { "endtime",          LISTITEM_ENDTIME },
+                                  { "endtimeresume",    LISTITEM_ENDTIME_RESUME },
+                                  { "startdate",        LISTITEM_STARTDATE },
+                                  { "enddate",          LISTITEM_ENDDATE },
+                                  { "nexttitle",        LISTITEM_NEXT_TITLE },
+                                  { "nextgenre",        LISTITEM_NEXT_GENRE },
+                                  { "nextplot",         LISTITEM_NEXT_PLOT },
+                                  { "nextplotoutline",  LISTITEM_NEXT_PLOT_OUTLINE },
+                                  { "nextstarttime",    LISTITEM_NEXT_STARTTIME },
+                                  { "nextendtime",      LISTITEM_NEXT_ENDTIME },
+                                  { "nextstartdate",    LISTITEM_NEXT_STARTDATE },
+                                  { "nextenddate",      LISTITEM_NEXT_ENDDATE },
+                                  { "nextduration",     LISTITEM_NEXT_DURATION },
+                                  { "channelname",      LISTITEM_CHANNEL_NAME },
+                                  { "channelnumberlabel", LISTITEM_CHANNEL_NUMBER },
+                                  { "channelgroup",     LISTITEM_CHANNEL_GROUP },
+                                  { "hasepg",           LISTITEM_HAS_EPG },
+                                  { "hastimer",         LISTITEM_HASTIMER },
+                                  { "hastimerschedule", LISTITEM_HASTIMERSCHEDULE },
+                                  { "hasreminder",      LISTITEM_HASREMINDER },
+                                  { "hasreminderrule",  LISTITEM_HASREMINDERRULE },
+                                  { "hasrecording",     LISTITEM_HASRECORDING },
+                                  { "isrecording",      LISTITEM_ISRECORDING },
+                                  { "isplayable",       LISTITEM_ISPLAYABLE },
+                                  { "hasarchive",       LISTITEM_HASARCHIVE },
+                                  { "inprogress",       LISTITEM_INPROGRESS },
+                                  { "isencrypted",      LISTITEM_ISENCRYPTED },
+                                  { "progress",         LISTITEM_PROGRESS },
+                                  { "dateadded",        LISTITEM_DATE_ADDED },
+                                  { "dbtype",           LISTITEM_DBTYPE },
+                                  { "dbid",             LISTITEM_DBID },
+                                  { "appearances",      LISTITEM_APPEARANCES },
+                                  { "stereoscopicmode", LISTITEM_STEREOSCOPIC_MODE },
+                                  { "isstereoscopic",   LISTITEM_IS_STEREOSCOPIC },
+                                  { "imdbnumber",       LISTITEM_IMDBNUMBER },
+                                  { "episodename",      LISTITEM_EPISODENAME },
+                                  { "timertype",        LISTITEM_TIMERTYPE },
+                                  { "epgeventtitle",    LISTITEM_EPG_EVENT_TITLE },
+                                  { "epgeventicon",     LISTITEM_EPG_EVENT_ICON },
+                                  { "timerisactive",    LISTITEM_TIMERISACTIVE },
+                                  { "timerhaserror",    LISTITEM_TIMERHASERROR },
+                                  { "timerhasconflict", LISTITEM_TIMERHASCONFLICT },
+                                  { "addonname",        LISTITEM_ADDON_NAME },
+                                  { "addonversion",     LISTITEM_ADDON_VERSION },
+                                  { "addoncreator",     LISTITEM_ADDON_CREATOR },
+                                  { "addonsummary",     LISTITEM_ADDON_SUMMARY },
+                                  { "addondescription", LISTITEM_ADDON_DESCRIPTION },
+                                  { "addondisclaimer",  LISTITEM_ADDON_DISCLAIMER },
+                                  { "addonnews",        LISTITEM_ADDON_NEWS },
+                                  { "addonbroken",      LISTITEM_ADDON_BROKEN },
+                                  { "addonlifecycletype", LISTITEM_ADDON_LIFECYCLE_TYPE },
+                                  { "addonlifecycledesc", LISTITEM_ADDON_LIFECYCLE_DESC },
+                                  { "addontype",        LISTITEM_ADDON_TYPE },
+                                  { "addoninstalldate", LISTITEM_ADDON_INSTALL_DATE },
+                                  { "addonlastupdated", LISTITEM_ADDON_LAST_UPDATED },
+                                  { "addonlastused",    LISTITEM_ADDON_LAST_USED },
+                                  { "addonorigin",      LISTITEM_ADDON_ORIGIN },
+                                  { "addonsize",        LISTITEM_ADDON_SIZE },
+                                  { "expirationdate",   LISTITEM_EXPIRATION_DATE },
+                                  { "expirationtime",   LISTITEM_EXPIRATION_TIME },
+                                  { "art",              LISTITEM_ART },
+                                  { "property",         LISTITEM_PROPERTY },
+                                  { "parentalrating",   LISTITEM_PARENTAL_RATING },
+                                  { "parentalratingcode", LISTITEM_PARENTAL_RATING_CODE },
+                                  { "currentitem",      LISTITEM_CURRENTITEM },
+                                  { "isnew",            LISTITEM_IS_NEW },
+                                  { "isboxset",         LISTITEM_IS_BOXSET },
+                                  { "totaldiscs",       LISTITEM_TOTALDISCS },
+                                  { "releasedate",      LISTITEM_RELEASEDATE },
+                                  { "originaldate",     LISTITEM_ORIGINALDATE },
+                                  { "bpm",              LISTITEM_BPM },
+                                  { "uniqueid",         LISTITEM_UNIQUEID },
+                                  { "bitrate",          LISTITEM_BITRATE },
+                                  { "samplerate",       LISTITEM_SAMPLERATE },
+                                  { "musicchannels",    LISTITEM_MUSICCHANNELS },
+                                  { "ispremiere",       LISTITEM_IS_PREMIERE },
+                                  { "isfinale",         LISTITEM_IS_FINALE },
+                                  { "islive",           LISTITEM_IS_LIVE },
+                                  { "tvshowdbid",       LISTITEM_TVSHOWDBID },
+                                  { "albumstatus",      LISTITEM_ALBUMSTATUS },
+                                  { "isautoupdateable", LISTITEM_ISAUTOUPDATEABLE },
+                                  { "hdrtype",          LISTITEM_VIDEO_HDR_TYPE },
+                                  { "songvideourl",     LISTITEM_SONG_VIDEO_URL },
+                                  { "hasvideoversions", LISTITEM_HASVIDEOVERSIONS },
+                                  { "isvideoextra",     LISTITEM_ISVIDEOEXTRA },
+                                  { "videoversionname", LISTITEM_VIDEOVERSION_NAME },
+                                  { "hasvideoextras",   LISTITEM_HASVIDEOEXTRAS },
+};
 // clang-format on
 
 /// \page modules__infolabels_boolean_conditions
@@ -7809,15 +7420,11 @@ constexpr std::array<InfoMap, 228> listitem_labels = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 5> visualisation = {{
-    {"locked",      VISUALISATION_LOCKED},
-    {"preset",      VISUALISATION_PRESET},
-    {"haspresets",  VISUALISATION_HAS_PRESETS},
-    {"name",        VISUALISATION_NAME},
-    {"enabled",     VISUALISATION_ENABLED},
-}};
-// clang-format on
+const infomap visualisation[] =  {{ "locked",           VISUALISATION_LOCKED },
+                                  { "preset",           VISUALISATION_PRESET },
+                                  { "haspresets",       VISUALISATION_HAS_PRESETS },
+                                  { "name",             VISUALISATION_NAME },
+                                  { "enabled",          VISUALISATION_ENABLED }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Fanart Fanart
@@ -7856,14 +7463,10 @@ constexpr std::array<InfoMap, 5> visualisation = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 4> fanart_labels = {{
-    {"color1",  FANART_COLOR1},
-    {"color2",  FANART_COLOR2},
-    {"color3",  FANART_COLOR3},
-    {"image",   FANART_IMAGE},
-}};
-// clang-format on
+const infomap fanart_labels[] =  {{ "color1",           FANART_COLOR1 },
+                                  { "color2",           FANART_COLOR2 },
+                                  { "color3",           FANART_COLOR3 },
+                                  { "image",            FANART_IMAGE }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Skin Skin
@@ -7958,14 +7561,10 @@ constexpr std::array<InfoMap, 4> fanart_labels = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 4> skin_labels = {{
-    {"currenttheme",        SKIN_THEME},
-    {"currentcolourtheme",  SKIN_COLOUR_THEME},
-    {"aspectratio",         SKIN_ASPECT_RATIO},
-    {"font",                SKIN_FONT},
-}};
-// clang-format on
+const infomap skin_labels[] =    {{ "currenttheme",      SKIN_THEME },
+                                  { "currentcolourtheme",SKIN_COLOUR_THEME },
+                                  { "aspectratio",       SKIN_ASPECT_RATIO},
+                                  { "font",              SKIN_FONT}};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Window Window
@@ -8111,19 +7710,15 @@ constexpr std::array<InfoMap, 4> skin_labels = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 9> window_bools = {{
-    {"ismedia",               WINDOW_IS_MEDIA},
-    {"is",                    WINDOW_IS},
-    {"isactive",              WINDOW_IS_ACTIVE},
-    {"isvisible",             WINDOW_IS_VISIBLE},
-    {"istopmost",             WINDOW_IS_DIALOG_TOPMOST}, //! @deprecated, remove in v19
-    {"isdialogtopmost",       WINDOW_IS_DIALOG_TOPMOST},
-    {"ismodaldialogtopmost",  WINDOW_IS_MODAL_DIALOG_TOPMOST},
-    {"previous",              WINDOW_PREVIOUS},
-    {"next",                  WINDOW_NEXT},
-}};
-// clang-format on
+const infomap window_bools[] =   {{ "ismedia",          WINDOW_IS_MEDIA },
+                                  { "is",               WINDOW_IS },
+                                  { "isactive",         WINDOW_IS_ACTIVE },
+                                  { "isvisible",        WINDOW_IS_VISIBLE },
+                                  { "istopmost",        WINDOW_IS_DIALOG_TOPMOST }, //! @deprecated, remove in v19
+                                  { "isdialogtopmost",  WINDOW_IS_DIALOG_TOPMOST },
+                                  { "ismodaldialogtopmost", WINDOW_IS_MODAL_DIALOG_TOPMOST },
+                                  { "previous",         WINDOW_PREVIOUS },
+                                  { "next",             WINDOW_NEXT }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Control Control
@@ -8168,14 +7763,10 @@ constexpr std::array<InfoMap, 9> window_bools = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 4> control_labels = {{
-    {"hasfocus",  CONTROL_HAS_FOCUS},
-    {"isvisible", CONTROL_IS_VISIBLE},
-    {"isenabled", CONTROL_IS_ENABLED},
-    {"getlabel",  CONTROL_GET_LABEL},
-}};
-// clang-format on
+const infomap control_labels[] = {{ "hasfocus",         CONTROL_HAS_FOCUS },
+                                  { "isvisible",        CONTROL_IS_VISIBLE },
+                                  { "isenabled",        CONTROL_IS_ENABLED },
+                                  { "getlabel",         CONTROL_GET_LABEL }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Playlist Playlist
@@ -8239,17 +7830,13 @@ constexpr std::array<InfoMap, 4> control_labels = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 7> playlist = {{
-    {"length",      PLAYLIST_LENGTH},
-    {"position",    PLAYLIST_POSITION},
-    {"random",      PLAYLIST_RANDOM},
-    {"repeat",      PLAYLIST_REPEAT},
-    {"israndom",    PLAYLIST_ISRANDOM},
-    {"isrepeat",    PLAYLIST_ISREPEAT},
-    {"isrepeatone", PLAYLIST_ISREPEATONE},
-}};
-// clang-format on
+const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
+                                  { "position",         PLAYLIST_POSITION },
+                                  { "random",           PLAYLIST_RANDOM },
+                                  { "repeat",           PLAYLIST_REPEAT },
+                                  { "israndom",         PLAYLIST_ISRANDOM },
+                                  { "isrepeat",         PLAYLIST_ISREPEAT },
+                                  { "isrepeatone",      PLAYLIST_ISREPEATONE }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Pvr Pvr
@@ -8799,123 +8386,89 @@ constexpr std::array<InfoMap, 7> playlist = {{
 ///                  _string_,
 ///     @return The icon of the currently playing epg event\, if any.
 ///     <p><hr>
-///     @skinning_v18 **[New Infolabel]** \link PVR_EpgEventIcon `PVR.EpgEventIcon`\endlink
+///     @skinning_v18 **[New Infolabel]** \link PVR_EpgEventIcon `PVR_EpgEventIcon`\endlink
 ///     <p>
 ///   }
-///   \table_row3{   <b>`PVR.ClientCount`</b>,
-///                  \anchor PVR_ClientCount
-///                  _integer_,
-///     @return Number of PVR clients enabled.
-///     <p><hr>
-///     @skinning_v22 **[New Integer Value]** \link PVR_ClientCount `PVR.ClientCount`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`PVR.ClientName`</b>,
-///                  \anchor PVR_ClientName
-///                  _string_,
-///     @return The name of the PVR client add-on\, as specified by the add-on developer.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link PVR_ClientName `PVR.ClientName`\endlink
-///     <p>
-///   }
-///   \table_row3{   <b>`PVR.InstanceName`</b>,
-///                  \anchor PVR_InstanceName
-///                  _string_,
-///     @return The name of the instance of the PVR client add-on\, as specified by the user in
-///     the add-on settings. Empty if the PVR client add-on does not support multiple instances.
-///     <p><hr>
-///     @skinning_v22 **[New Infolabel]** \link PVR_InstanceName `PVR.InstanceName`\endlink
-///     <p>
-///   }
-/// \table_end
 ///
-/// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 82> pvr = {{
-    {"isrecording",                   PVR_IS_RECORDING},
-    {"hastimer",                      PVR_HAS_TIMER},
-    {"hastvchannels",                 PVR_HAS_TV_CHANNELS},
-    {"hasradiochannels",              PVR_HAS_RADIO_CHANNELS},
-    {"hasnonrecordingtimer",          PVR_HAS_NONRECORDING_TIMER},
-    {"backendname",                   PVR_BACKEND_NAME},
-    {"backendversion",                PVR_BACKEND_VERSION},
-    {"backendhost",                   PVR_BACKEND_HOST},
-    {"backenddiskspace",              PVR_BACKEND_DISKSPACE},
-    {"backenddiskspaceprogr",         PVR_BACKEND_DISKSPACE_PROGR},
-    {"backendchannels",               PVR_BACKEND_CHANNELS},
-    {"backendtimers",                 PVR_BACKEND_TIMERS},
-    {"backendrecordings",             PVR_BACKEND_RECORDINGS},
-    {"backenddeletedrecordings",      PVR_BACKEND_DELETED_RECORDINGS},
-    {"backendnumber",                 PVR_BACKEND_NUMBER},
-    {"totaldiscspace",                PVR_TOTAL_DISKSPACE},
-    {"nexttimer",                     PVR_NEXT_TIMER},
-    {"isplayingtv",                   PVR_IS_PLAYING_TV},
-    {"isplayingradio",                PVR_IS_PLAYING_RADIO},
-    {"isplayingrecording",            PVR_IS_PLAYING_RECORDING},
-    {"isplayingepgtag",               PVR_IS_PLAYING_EPGTAG},
-    {"epgeventprogress",              PVR_EPG_EVENT_PROGRESS},
-    {"actstreamclient",               PVR_ACTUAL_STREAM_CLIENT},
-    {"actstreamdevice",               PVR_ACTUAL_STREAM_DEVICE},
-    {"actstreamstatus",               PVR_ACTUAL_STREAM_STATUS},
-    {"actstreamsignal",               PVR_ACTUAL_STREAM_SIG},
-    {"actstreamsnr",                  PVR_ACTUAL_STREAM_SNR},
-    {"actstreamber",                  PVR_ACTUAL_STREAM_BER},
-    {"actstreamunc",                  PVR_ACTUAL_STREAM_UNC},
-    {"actstreamprogrsignal",          PVR_ACTUAL_STREAM_SIG_PROGR},
-    {"actstreamprogrsnr",             PVR_ACTUAL_STREAM_SNR_PROGR},
-    {"actstreamisencrypted",          PVR_ACTUAL_STREAM_ENCRYPTED},
-    {"actstreamencryptionname",       PVR_ACTUAL_STREAM_CRYPTION},
-    {"actstreamservicename",          PVR_ACTUAL_STREAM_SERVICE},
-    {"actstreammux",                  PVR_ACTUAL_STREAM_MUX},
-    {"actstreamprovidername",         PVR_ACTUAL_STREAM_PROVIDER},
-    {"istimeshift",                   PVR_IS_TIMESHIFTING},
-    {"timeshiftprogress",             PVR_TIMESHIFT_PROGRESS},
-    {"timeshiftseekbar",              PVR_TIMESHIFT_SEEKBAR},
-    {"nowrecordingtitle",             PVR_NOW_RECORDING_TITLE},
-    {"nowrecordingdatetime",          PVR_NOW_RECORDING_DATETIME},
-    {"nowrecordingchannel",           PVR_NOW_RECORDING_CHANNEL},
-    {"nowrecordingchannelicon",       PVR_NOW_RECORDING_CHAN_ICO},
-    {"nextrecordingtitle",            PVR_NEXT_RECORDING_TITLE},
-    {"nextrecordingdatetime",         PVR_NEXT_RECORDING_DATETIME},
-    {"nextrecordingchannel",          PVR_NEXT_RECORDING_CHANNEL},
-    {"nextrecordingchannelicon",      PVR_NEXT_RECORDING_CHAN_ICO},
-    {"tvnowrecordingtitle",           PVR_TV_NOW_RECORDING_TITLE},
-    {"tvnowrecordingdatetime",        PVR_TV_NOW_RECORDING_DATETIME},
-    {"tvnowrecordingchannel",         PVR_TV_NOW_RECORDING_CHANNEL},
-    {"tvnowrecordingchannelicon",     PVR_TV_NOW_RECORDING_CHAN_ICO},
-    {"tvnextrecordingtitle",          PVR_TV_NEXT_RECORDING_TITLE},
-    {"tvnextrecordingdatetime",       PVR_TV_NEXT_RECORDING_DATETIME},
-    {"tvnextrecordingchannel",        PVR_TV_NEXT_RECORDING_CHANNEL},
-    {"tvnextrecordingchannelicon",    PVR_TV_NEXT_RECORDING_CHAN_ICO},
-    {"radionowrecordingtitle",        PVR_RADIO_NOW_RECORDING_TITLE},
-    {"radionowrecordingdatetime",     PVR_RADIO_NOW_RECORDING_DATETIME},
-    {"radionowrecordingchannel",      PVR_RADIO_NOW_RECORDING_CHANNEL},
-    {"radionowrecordingchannelicon",  PVR_RADIO_NOW_RECORDING_CHAN_ICO},
-    {"radionextrecordingtitle",       PVR_RADIO_NEXT_RECORDING_TITLE},
-    {"radionextrecordingdatetime",    PVR_RADIO_NEXT_RECORDING_DATETIME},
-    {"radionextrecordingchannel",     PVR_RADIO_NEXT_RECORDING_CHANNEL},
-    {"radionextrecordingchannelicon", PVR_RADIO_NEXT_RECORDING_CHAN_ICO},
-    {"isrecordingtv",                 PVR_IS_RECORDING_TV},
-    {"hastvtimer",                    PVR_HAS_TV_TIMER},
-    {"hasnonrecordingtvtimer",        PVR_HAS_NONRECORDING_TV_TIMER},
-    {"isrecordingradio",              PVR_IS_RECORDING_RADIO},
-    {"hasradiotimer",                 PVR_HAS_RADIO_TIMER},
-    {"hasnonrecordingradiotimer",     PVR_HAS_NONRECORDING_RADIO_TIMER},
-    {"channelnumberinput",            PVR_CHANNEL_NUMBER_INPUT},
-    {"canrecordplayingchannel",       PVR_CAN_RECORD_PLAYING_CHANNEL},
-    {"isrecordingplayingchannel",     PVR_IS_RECORDING_PLAYING_CHANNEL},
-    {"isplayingactiverecording",      PVR_IS_PLAYING_ACTIVE_RECORDING},
-    {"timeshiftprogressplaypos",      PVR_TIMESHIFT_PROGRESS_PLAY_POS},
-    {"timeshiftprogressepgstart",     PVR_TIMESHIFT_PROGRESS_EPG_START},
-    {"timeshiftprogressepgend",       PVR_TIMESHIFT_PROGRESS_EPG_END},
-    {"timeshiftprogressbufferstart",  PVR_TIMESHIFT_PROGRESS_BUFFER_START},
-    {"timeshiftprogressbufferend",    PVR_TIMESHIFT_PROGRESS_BUFFER_END},
-    {"epgeventicon",                  PVR_EPG_EVENT_ICON},
-    {"clientcount",                   PVR_CLIENT_COUNT},
-    {"clientname",                    PVR_CLIENT_NAME},
-    {"instancename",                  PVR_INSTANCE_NAME},
-}};
-// clang-format on
+const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING },
+                                  { "hastimer",                 PVR_HAS_TIMER },
+                                  { "hastvchannels",            PVR_HAS_TV_CHANNELS },
+                                  { "hasradiochannels",         PVR_HAS_RADIO_CHANNELS },
+                                  { "hasnonrecordingtimer",     PVR_HAS_NONRECORDING_TIMER },
+                                  { "backendname",              PVR_BACKEND_NAME },
+                                  { "backendversion",           PVR_BACKEND_VERSION },
+                                  { "backendhost",              PVR_BACKEND_HOST },
+                                  { "backenddiskspace",         PVR_BACKEND_DISKSPACE },
+                                  { "backenddiskspaceprogr",    PVR_BACKEND_DISKSPACE_PROGR },
+                                  { "backendchannels",          PVR_BACKEND_CHANNELS },
+                                  { "backendtimers",            PVR_BACKEND_TIMERS },
+                                  { "backendrecordings",        PVR_BACKEND_RECORDINGS },
+                                  { "backenddeletedrecordings", PVR_BACKEND_DELETED_RECORDINGS },
+                                  { "backendnumber",            PVR_BACKEND_NUMBER },
+                                  { "totaldiscspace",           PVR_TOTAL_DISKSPACE },
+                                  { "nexttimer",                PVR_NEXT_TIMER },
+                                  { "isplayingtv",              PVR_IS_PLAYING_TV },
+                                  { "isplayingradio",           PVR_IS_PLAYING_RADIO },
+                                  { "isplayingrecording",       PVR_IS_PLAYING_RECORDING },
+                                  { "isplayingepgtag",          PVR_IS_PLAYING_EPGTAG },
+                                  { "epgeventprogress",         PVR_EPG_EVENT_PROGRESS },
+                                  { "actstreamclient",          PVR_ACTUAL_STREAM_CLIENT },
+                                  { "actstreamdevice",          PVR_ACTUAL_STREAM_DEVICE },
+                                  { "actstreamstatus",          PVR_ACTUAL_STREAM_STATUS },
+                                  { "actstreamsignal",          PVR_ACTUAL_STREAM_SIG },
+                                  { "actstreamsnr",             PVR_ACTUAL_STREAM_SNR },
+                                  { "actstreamber",             PVR_ACTUAL_STREAM_BER },
+                                  { "actstreamunc",             PVR_ACTUAL_STREAM_UNC },
+                                  { "actstreamprogrsignal",     PVR_ACTUAL_STREAM_SIG_PROGR },
+                                  { "actstreamprogrsnr",        PVR_ACTUAL_STREAM_SNR_PROGR },
+                                  { "actstreamisencrypted",     PVR_ACTUAL_STREAM_ENCRYPTED },
+                                  { "actstreamencryptionname",  PVR_ACTUAL_STREAM_CRYPTION },
+                                  { "actstreamservicename",     PVR_ACTUAL_STREAM_SERVICE },
+                                  { "actstreammux",             PVR_ACTUAL_STREAM_MUX },
+                                  { "actstreamprovidername",    PVR_ACTUAL_STREAM_PROVIDER },
+                                  { "istimeshift",              PVR_IS_TIMESHIFTING },
+                                  { "timeshiftprogress",        PVR_TIMESHIFT_PROGRESS },
+                                  { "timeshiftseekbar",         PVR_TIMESHIFT_SEEKBAR },
+                                  { "nowrecordingtitle",        PVR_NOW_RECORDING_TITLE },
+                                  { "nowrecordingdatetime",     PVR_NOW_RECORDING_DATETIME },
+                                  { "nowrecordingchannel",      PVR_NOW_RECORDING_CHANNEL },
+                                  { "nowrecordingchannelicon",  PVR_NOW_RECORDING_CHAN_ICO },
+                                  { "nextrecordingtitle",       PVR_NEXT_RECORDING_TITLE },
+                                  { "nextrecordingdatetime",    PVR_NEXT_RECORDING_DATETIME },
+                                  { "nextrecordingchannel",     PVR_NEXT_RECORDING_CHANNEL },
+                                  { "nextrecordingchannelicon", PVR_NEXT_RECORDING_CHAN_ICO },
+                                  { "tvnowrecordingtitle",            PVR_TV_NOW_RECORDING_TITLE },
+                                  { "tvnowrecordingdatetime",         PVR_TV_NOW_RECORDING_DATETIME },
+                                  { "tvnowrecordingchannel",          PVR_TV_NOW_RECORDING_CHANNEL },
+                                  { "tvnowrecordingchannelicon",      PVR_TV_NOW_RECORDING_CHAN_ICO },
+                                  { "tvnextrecordingtitle",           PVR_TV_NEXT_RECORDING_TITLE },
+                                  { "tvnextrecordingdatetime",        PVR_TV_NEXT_RECORDING_DATETIME },
+                                  { "tvnextrecordingchannel",         PVR_TV_NEXT_RECORDING_CHANNEL },
+                                  { "tvnextrecordingchannelicon",     PVR_TV_NEXT_RECORDING_CHAN_ICO },
+                                  { "radionowrecordingtitle",         PVR_RADIO_NOW_RECORDING_TITLE },
+                                  { "radionowrecordingdatetime",      PVR_RADIO_NOW_RECORDING_DATETIME },
+                                  { "radionowrecordingchannel",       PVR_RADIO_NOW_RECORDING_CHANNEL },
+                                  { "radionowrecordingchannelicon",   PVR_RADIO_NOW_RECORDING_CHAN_ICO },
+                                  { "radionextrecordingtitle",        PVR_RADIO_NEXT_RECORDING_TITLE },
+                                  { "radionextrecordingdatetime",     PVR_RADIO_NEXT_RECORDING_DATETIME },
+                                  { "radionextrecordingchannel",      PVR_RADIO_NEXT_RECORDING_CHANNEL },
+                                  { "radionextrecordingchannelicon",  PVR_RADIO_NEXT_RECORDING_CHAN_ICO },
+                                  { "isrecordingtv",              PVR_IS_RECORDING_TV },
+                                  { "hastvtimer",                 PVR_HAS_TV_TIMER },
+                                  { "hasnonrecordingtvtimer",     PVR_HAS_NONRECORDING_TV_TIMER },
+                                  { "isrecordingradio",           PVR_IS_RECORDING_RADIO },
+                                  { "hasradiotimer",              PVR_HAS_RADIO_TIMER },
+                                  { "hasnonrecordingradiotimer",  PVR_HAS_NONRECORDING_RADIO_TIMER },
+                                  { "channelnumberinput",         PVR_CHANNEL_NUMBER_INPUT },
+                                  { "canrecordplayingchannel",    PVR_CAN_RECORD_PLAYING_CHANNEL },
+                                  { "isrecordingplayingchannel",  PVR_IS_RECORDING_PLAYING_CHANNEL },
+                                  { "isplayingactiverecording",   PVR_IS_PLAYING_ACTIVE_RECORDING },
+                                  { "timeshiftprogressplaypos",   PVR_TIMESHIFT_PROGRESS_PLAY_POS },
+                                  { "timeshiftprogressepgstart",  PVR_TIMESHIFT_PROGRESS_EPG_START },
+                                  { "timeshiftprogressepgend",    PVR_TIMESHIFT_PROGRESS_EPG_END },
+                                  { "timeshiftprogressbufferstart", PVR_TIMESHIFT_PROGRESS_BUFFER_START },
+                                  { "timeshiftprogressbufferend", PVR_TIMESHIFT_PROGRESS_BUFFER_END },
+                                  { "epgeventicon",               PVR_EPG_EVENT_ICON }};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`PVR.EpgEventDuration`</b>,
@@ -9131,22 +8684,18 @@ constexpr std::array<InfoMap, 82> pvr = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 12> pvr_times = {{
-    {"epgeventduration",            PVR_EPG_EVENT_DURATION},
-    {"epgeventelapsedtime",         PVR_EPG_EVENT_ELAPSED_TIME},
-    {"epgeventremainingtime",       PVR_EPG_EVENT_REMAINING_TIME},
-    {"epgeventfinishtime",          PVR_EPG_EVENT_FINISH_TIME},
-    {"epgeventseektime",            PVR_EPG_EVENT_SEEK_TIME},
-    {"timeshiftstart",              PVR_TIMESHIFT_START_TIME},
-    {"timeshiftend",                PVR_TIMESHIFT_END_TIME},
-    {"timeshiftcur",                PVR_TIMESHIFT_PLAY_TIME},
-    {"timeshiftoffset",             PVR_TIMESHIFT_OFFSET},
-    {"timeshiftprogressduration",   PVR_TIMESHIFT_PROGRESS_DURATION},
-    {"timeshiftprogressstarttime",  PVR_TIMESHIFT_PROGRESS_START_TIME},
-    {"timeshiftprogressendtime",    PVR_TIMESHIFT_PROGRESS_END_TIME},
-}};
-// clang-format on
+const infomap pvr_times[] =      {{ "epgeventduration",       PVR_EPG_EVENT_DURATION },
+                                  { "epgeventelapsedtime",    PVR_EPG_EVENT_ELAPSED_TIME },
+                                  { "epgeventremainingtime",  PVR_EPG_EVENT_REMAINING_TIME },
+                                  { "epgeventfinishtime",     PVR_EPG_EVENT_FINISH_TIME },
+                                  { "epgeventseektime",       PVR_EPG_EVENT_SEEK_TIME },
+                                  { "timeshiftstart",         PVR_TIMESHIFT_START_TIME },
+                                  { "timeshiftend",           PVR_TIMESHIFT_END_TIME },
+                                  { "timeshiftcur",           PVR_TIMESHIFT_PLAY_TIME },
+                                  { "timeshiftoffset",        PVR_TIMESHIFT_OFFSET },
+                                  { "timeshiftprogressduration",  PVR_TIMESHIFT_PROGRESS_DURATION },
+                                  { "timeshiftprogressstarttime", PVR_TIMESHIFT_PROGRESS_START_TIME },
+                                  { "timeshiftprogressendtime",   PVR_TIMESHIFT_PROGRESS_END_TIME }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_RDS RDS
@@ -9598,55 +9147,51 @@ constexpr std::array<InfoMap, 12> pvr_times = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 45> rds = {{
-    {"hasrds",            RDS_HAS_RDS},
-    {"hasradiotext",      RDS_HAS_RADIOTEXT},
-    {"hasradiotextplus",  RDS_HAS_RADIOTEXT_PLUS},
-    {"audiolanguage",     RDS_AUDIO_LANG},
-    {"channelcountry",    RDS_CHANNEL_COUNTRY},
-    {"title",             RDS_TITLE},
-    {"getline",           RDS_GET_RADIOTEXT_LINE},
-    {"artist",            RDS_ARTIST},
-    {"band",              RDS_BAND},
-    {"composer",          RDS_COMPOSER},
-    {"conductor",         RDS_CONDUCTOR},
-    {"album",             RDS_ALBUM},
-    {"tracknumber",       RDS_ALBUM_TRACKNUMBER},
-    {"radiostyle",        RDS_GET_RADIO_STYLE},
-    {"comment",           RDS_COMMENT},
-    {"infonews",          RDS_INFO_NEWS},
-    {"infonewslocal",     RDS_INFO_NEWS_LOCAL},
-    {"infostock",         RDS_INFO_STOCK},
-    {"infostocksize",     RDS_INFO_STOCK_SIZE},
-    {"infosport",         RDS_INFO_SPORT},
-    {"infosportsize",     RDS_INFO_SPORT_SIZE},
-    {"infolottery",       RDS_INFO_LOTTERY},
-    {"infolotterysize",   RDS_INFO_LOTTERY_SIZE},
-    {"infoweather",       RDS_INFO_WEATHER},
-    {"infoweathersize",   RDS_INFO_WEATHER_SIZE},
-    {"infocinema",        RDS_INFO_CINEMA},
-    {"infocinemasize",    RDS_INFO_CINEMA_SIZE},
-    {"infohoroscope",     RDS_INFO_HOROSCOPE},
-    {"infohoroscopesize", RDS_INFO_HOROSCOPE_SIZE},
-    {"infoother",         RDS_INFO_OTHER},
-    {"infoothersize",     RDS_INFO_OTHER_SIZE},
-    {"progstation",       RDS_PROG_STATION},
-    {"prognow",           RDS_PROG_NOW},
-    {"prognext",          RDS_PROG_NEXT},
-    {"proghost",          RDS_PROG_HOST},
-    {"progeditstaff",     RDS_PROG_EDIT_STAFF},
-    {"proghomepage",      RDS_PROG_HOMEPAGE},
-    {"progstyle",         RDS_PROG_STYLE},
-    {"phonehotline",      RDS_PHONE_HOTLINE},
-    {"phonestudio",       RDS_PHONE_STUDIO},
-    {"smsstudio",         RDS_SMS_STUDIO},
-    {"emailhotline",      RDS_EMAIL_HOTLINE},
-    {"emailstudio",       RDS_EMAIL_STUDIO},
-    {"hashotline",        RDS_HAS_HOTLINE_DATA},
-    {"hasstudio",         RDS_HAS_STUDIO_DATA},
-}};
-// clang-format on
+const infomap rds[] =            {{ "hasrds",                   RDS_HAS_RDS },
+                                  { "hasradiotext",             RDS_HAS_RADIOTEXT },
+                                  { "hasradiotextplus",         RDS_HAS_RADIOTEXT_PLUS },
+                                  { "audiolanguage",            RDS_AUDIO_LANG },
+                                  { "channelcountry",           RDS_CHANNEL_COUNTRY },
+                                  { "title",                    RDS_TITLE },
+                                  { "getline",                  RDS_GET_RADIOTEXT_LINE },
+                                  { "artist",                   RDS_ARTIST },
+                                  { "band",                     RDS_BAND },
+                                  { "composer",                 RDS_COMPOSER },
+                                  { "conductor",                RDS_CONDUCTOR },
+                                  { "album",                    RDS_ALBUM },
+                                  { "tracknumber",              RDS_ALBUM_TRACKNUMBER },
+                                  { "radiostyle",               RDS_GET_RADIO_STYLE },
+                                  { "comment",                  RDS_COMMENT },
+                                  { "infonews",                 RDS_INFO_NEWS },
+                                  { "infonewslocal",            RDS_INFO_NEWS_LOCAL },
+                                  { "infostock",                RDS_INFO_STOCK },
+                                  { "infostocksize",            RDS_INFO_STOCK_SIZE },
+                                  { "infosport",                RDS_INFO_SPORT },
+                                  { "infosportsize",            RDS_INFO_SPORT_SIZE },
+                                  { "infolottery",              RDS_INFO_LOTTERY },
+                                  { "infolotterysize",          RDS_INFO_LOTTERY_SIZE },
+                                  { "infoweather",              RDS_INFO_WEATHER },
+                                  { "infoweathersize",          RDS_INFO_WEATHER_SIZE },
+                                  { "infocinema",               RDS_INFO_CINEMA },
+                                  { "infocinemasize",           RDS_INFO_CINEMA_SIZE },
+                                  { "infohoroscope",            RDS_INFO_HOROSCOPE },
+                                  { "infohoroscopesize",        RDS_INFO_HOROSCOPE_SIZE },
+                                  { "infoother",                RDS_INFO_OTHER },
+                                  { "infoothersize",            RDS_INFO_OTHER_SIZE },
+                                  { "progstation",              RDS_PROG_STATION },
+                                  { "prognow",                  RDS_PROG_NOW },
+                                  { "prognext",                 RDS_PROG_NEXT },
+                                  { "proghost",                 RDS_PROG_HOST },
+                                  { "progeditstaff",            RDS_PROG_EDIT_STAFF },
+                                  { "proghomepage",             RDS_PROG_HOMEPAGE },
+                                  { "progstyle",                RDS_PROG_STYLE },
+                                  { "phonehotline",             RDS_PHONE_HOTLINE },
+                                  { "phonestudio",              RDS_PHONE_STUDIO },
+                                  { "smsstudio",                RDS_SMS_STUDIO },
+                                  { "emailhotline",             RDS_EMAIL_HOTLINE },
+                                  { "emailstudio",              RDS_EMAIL_STUDIO },
+                                  { "hashotline",               RDS_HAS_HOTLINE_DATA },
+                                  { "hasstudio",                RDS_HAS_STUDIO_DATA }};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_slideshow Slideshow
@@ -9855,6 +9400,14 @@ constexpr std::array<InfoMap, 45> rds = {{
 ///     @return A short description of the current picture. The SlideComment\,
 ///     EXIFComment or Caption values might contain a longer description.
 ///     @note This is the value of the EXIF ImageDescription tag (hex code 0x010E).
+///     <p>
+///   }
+///   \table_row3{   <b>`Slideshow.EXIFSoftware`</b>,
+///                  \anchor Slideshow_EXIFSoftware
+///                  _string_,
+///     @return The name and version of the firmware used by the camera that took
+///     the current picture.
+///     @note This is the value of the EXIF Software tag (hex code 0x0131).
 ///     <p>
 ///   }
 ///   \table_row3{   <b>`Slideshow.EXIFTime`</b>,
@@ -10234,76 +9787,75 @@ constexpr std::array<InfoMap, 45> rds = {{
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-// clang-format off
-constexpr std::array<InfoMap, 63> slideshow = {{
-    {"ispaused",                SLIDESHOW_ISPAUSED},
-    {"isactive",                SLIDESHOW_ISACTIVE},
-    {"isvideo",                 SLIDESHOW_ISVIDEO},
-    {"israndom",                SLIDESHOW_ISRANDOM},
-    {"filename",                SLIDESHOW_FILE_NAME},
-    {"path",                    SLIDESHOW_FILE_PATH},
-    {"filesize",                SLIDESHOW_FILE_SIZE},
-    {"filedate",                SLIDESHOW_FILE_DATE},
-    {"slideindex",              SLIDESHOW_INDEX},
-    {"resolution",              SLIDESHOW_RESOLUTION},
-    {"slidecomment",            SLIDESHOW_COMMENT},
-    {"colour",                  SLIDESHOW_COLOUR},
-    {"process",                 SLIDESHOW_PROCESS},
-    {"exiftime",                SLIDESHOW_EXIF_DATE_TIME},
-    {"exifdate",                SLIDESHOW_EXIF_DATE},
-    {"longexiftime",            SLIDESHOW_EXIF_LONG_DATE_TIME},
-    {"longexifdate",            SLIDESHOW_EXIF_LONG_DATE},
-    {"exifdescription",         SLIDESHOW_EXIF_DESCRIPTION},
-    {"cameramake",              SLIDESHOW_EXIF_CAMERA_MAKE},
-    {"cameramodel",             SLIDESHOW_EXIF_CAMERA_MODEL},
-    {"exifcomment",             SLIDESHOW_EXIF_COMMENT},
-    {"aperture",                SLIDESHOW_EXIF_APERTURE},
-    {"focallength",             SLIDESHOW_EXIF_FOCAL_LENGTH},
-    {"focusdistance",           SLIDESHOW_EXIF_FOCUS_DIST},
-    {"exposure",                SLIDESHOW_EXIF_EXPOSURE},
-    {"exposuretime",            SLIDESHOW_EXIF_EXPOSURE_TIME},
-    {"exposurebias",            SLIDESHOW_EXIF_EXPOSURE_BIAS},
-    {"exposuremode",            SLIDESHOW_EXIF_EXPOSURE_MODE},
-    {"flashused",               SLIDESHOW_EXIF_FLASH_USED},
-    {"whitebalance",            SLIDESHOW_EXIF_WHITE_BALANCE},
-    {"lightsource",             SLIDESHOW_EXIF_LIGHT_SOURCE},
-    {"meteringmode",            SLIDESHOW_EXIF_METERING_MODE},
-    {"isoequivalence",          SLIDESHOW_EXIF_ISO_EQUIV},
-    {"digitalzoom",             SLIDESHOW_EXIF_DIGITAL_ZOOM},
-    {"ccdwidth",                SLIDESHOW_EXIF_CCD_WIDTH},
-    {"orientation",             SLIDESHOW_EXIF_ORIENTATION},
-    {"supplementalcategories",  SLIDESHOW_IPTC_SUP_CATEGORIES},
-    {"keywords",                SLIDESHOW_IPTC_KEYWORDS},
-    {"caption",                 SLIDESHOW_IPTC_CAPTION},
-    {"author",                  SLIDESHOW_IPTC_AUTHOR},
-    {"headline",                SLIDESHOW_IPTC_HEADLINE},
-    {"specialinstructions",     SLIDESHOW_IPTC_SPEC_INSTR},
-    {"category",                SLIDESHOW_IPTC_CATEGORY},
-    {"byline",                  SLIDESHOW_IPTC_BYLINE},
-    {"bylinetitle",             SLIDESHOW_IPTC_BYLINE_TITLE},
-    {"credit",                  SLIDESHOW_IPTC_CREDIT},
-    {"source",                  SLIDESHOW_IPTC_SOURCE},
-    {"copyrightnotice",         SLIDESHOW_IPTC_COPYRIGHT_NOTICE},
-    {"objectname",              SLIDESHOW_IPTC_OBJECT_NAME},
-    {"city",                    SLIDESHOW_IPTC_CITY},
-    {"state",                   SLIDESHOW_IPTC_STATE},
-    {"country",                 SLIDESHOW_IPTC_COUNTRY},
-    {"transmissionreference",   SLIDESHOW_IPTC_TX_REFERENCE},
-    {"iptcdate",                SLIDESHOW_IPTC_DATE},
-    {"urgency",                 SLIDESHOW_IPTC_URGENCY},
-    {"countrycode",             SLIDESHOW_IPTC_COUNTRY_CODE},
-    {"referenceservice",        SLIDESHOW_IPTC_REF_SERVICE},
-    {"latitude",                SLIDESHOW_EXIF_GPS_LATITUDE},
-    {"longitude",               SLIDESHOW_EXIF_GPS_LONGITUDE},
-    {"altitude",                SLIDESHOW_EXIF_GPS_ALTITUDE},
-    {"timecreated",             SLIDESHOW_IPTC_TIMECREATED},
-    {"sublocation",             SLIDESHOW_IPTC_SUBLOCATION},
-    {"imagetype",               SLIDESHOW_IPTC_IMAGETYPE},
-}};
-// clang-format on
+const infomap slideshow[] =      {{ "ispaused",               SLIDESHOW_ISPAUSED },
+                                  { "isactive",               SLIDESHOW_ISACTIVE },
+                                  { "isvideo",                SLIDESHOW_ISVIDEO },
+                                  { "israndom",               SLIDESHOW_ISRANDOM },
+                                  { "filename",               SLIDESHOW_FILE_NAME },
+                                  { "path",                   SLIDESHOW_FILE_PATH },
+                                  { "filesize",               SLIDESHOW_FILE_SIZE },
+                                  { "filedate",               SLIDESHOW_FILE_DATE },
+                                  { "slideindex",             SLIDESHOW_INDEX },
+                                  { "resolution",             SLIDESHOW_RESOLUTION },
+                                  { "slidecomment",           SLIDESHOW_COMMENT },
+                                  { "colour",                 SLIDESHOW_COLOUR },
+                                  { "process",                SLIDESHOW_PROCESS },
+                                  { "exiftime",               SLIDESHOW_EXIF_DATE_TIME },
+                                  { "exifdate",               SLIDESHOW_EXIF_DATE },
+                                  { "longexiftime",           SLIDESHOW_EXIF_LONG_DATE_TIME },
+                                  { "longexifdate",           SLIDESHOW_EXIF_LONG_DATE },
+                                  { "exifdescription",        SLIDESHOW_EXIF_DESCRIPTION },
+                                  { "cameramake",             SLIDESHOW_EXIF_CAMERA_MAKE },
+                                  { "cameramodel",            SLIDESHOW_EXIF_CAMERA_MODEL },
+                                  { "exifcomment",            SLIDESHOW_EXIF_COMMENT },
+                                  { "exifsoftware",           SLIDESHOW_EXIF_SOFTWARE },
+                                  { "aperture",               SLIDESHOW_EXIF_APERTURE },
+                                  { "focallength",            SLIDESHOW_EXIF_FOCAL_LENGTH },
+                                  { "focusdistance",          SLIDESHOW_EXIF_FOCUS_DIST },
+                                  { "exposure",               SLIDESHOW_EXIF_EXPOSURE },
+                                  { "exposuretime",           SLIDESHOW_EXIF_EXPOSURE_TIME },
+                                  { "exposurebias",           SLIDESHOW_EXIF_EXPOSURE_BIAS },
+                                  { "exposuremode",           SLIDESHOW_EXIF_EXPOSURE_MODE },
+                                  { "flashused",              SLIDESHOW_EXIF_FLASH_USED },
+                                  { "whitebalance",           SLIDESHOW_EXIF_WHITE_BALANCE },
+                                  { "lightsource",            SLIDESHOW_EXIF_LIGHT_SOURCE },
+                                  { "meteringmode",           SLIDESHOW_EXIF_METERING_MODE },
+                                  { "isoequivalence",         SLIDESHOW_EXIF_ISO_EQUIV },
+                                  { "digitalzoom",            SLIDESHOW_EXIF_DIGITAL_ZOOM },
+                                  { "ccdwidth",               SLIDESHOW_EXIF_CCD_WIDTH },
+                                  { "orientation",            SLIDESHOW_EXIF_ORIENTATION },
+                                  { "supplementalcategories", SLIDESHOW_IPTC_SUP_CATEGORIES },
+                                  { "keywords",               SLIDESHOW_IPTC_KEYWORDS },
+                                  { "caption",                SLIDESHOW_IPTC_CAPTION },
+                                  { "author",                 SLIDESHOW_IPTC_AUTHOR },
+                                  { "headline",               SLIDESHOW_IPTC_HEADLINE },
+                                  { "specialinstructions",    SLIDESHOW_IPTC_SPEC_INSTR },
+                                  { "category",               SLIDESHOW_IPTC_CATEGORY },
+                                  { "byline",                 SLIDESHOW_IPTC_BYLINE },
+                                  { "bylinetitle",            SLIDESHOW_IPTC_BYLINE_TITLE },
+                                  { "credit",                 SLIDESHOW_IPTC_CREDIT },
+                                  { "source",                 SLIDESHOW_IPTC_SOURCE },
+                                  { "copyrightnotice",        SLIDESHOW_IPTC_COPYRIGHT_NOTICE },
+                                  { "objectname",             SLIDESHOW_IPTC_OBJECT_NAME },
+                                  { "city",                   SLIDESHOW_IPTC_CITY },
+                                  { "state",                  SLIDESHOW_IPTC_STATE },
+                                  { "country",                SLIDESHOW_IPTC_COUNTRY },
+                                  { "transmissionreference",  SLIDESHOW_IPTC_TX_REFERENCE },
+                                  { "iptcdate",               SLIDESHOW_IPTC_DATE },
+                                  { "urgency",                SLIDESHOW_IPTC_URGENCY },
+                                  { "countrycode",            SLIDESHOW_IPTC_COUNTRY_CODE },
+                                  { "referenceservice",       SLIDESHOW_IPTC_REF_SERVICE },
+                                  { "latitude",               SLIDESHOW_EXIF_GPS_LATITUDE },
+                                  { "longitude",              SLIDESHOW_EXIF_GPS_LONGITUDE },
+                                  { "altitude",               SLIDESHOW_EXIF_GPS_ALTITUDE },
+                                  { "timecreated",            SLIDESHOW_IPTC_TIMECREATED },
+                                  { "sublocation",            SLIDESHOW_IPTC_SUBLOCATION },
+                                  { "imagetype",              SLIDESHOW_IPTC_IMAGETYPE },
+};
 
 /// \page modules__infolabels_boolean_conditions
 /// \subsection modules__infolabels_boolean_conditions_Library Library
+/// @todo Make this annotate an array of infobools/labels to make it easier to track
 /// \table_start
 ///   \table_h3{ Labels, Type, Description }
 ///   \table_row3{   <b>`Library.IsScanning`</b>,
@@ -10469,18 +10021,11 @@ constexpr std::array<InfoMap, 63> slideshow = {{
 ///     <p>
 ///   }
 /// \table_end
-/// @todo Make this annotate an array of infobools/labels to make it easier to track
 ///
 /// -----------------------------------------------------------------------------
 
 /// \page modules__infolabels_boolean_conditions
 /// \section modules_rm_infolabels_booleans Additional revision history for Infolabels and Boolean Conditions
-/// <hr>
-/// \subsection modules_rm_infolabels_booleans_v22 Kodi v22
-/// @skinning_v22 **[Removed Infolabels]** The following infolabels have been removed:
-///   - `Player.Cutlist` - Please use \link Player_Editlist `Player.EditList`\endlink for the EDL list and \link Player_Cuts `Player.Cuts`\endlink for the cut markers
-///   - `Slideshow.EXIFSoftware`- This infolabel was broken (did nothing) in previous versions. It might be re-added later.
-///
 /// <hr>
 /// \subsection modules_rm_infolabels_booleans_v21 Kodi v21 (Omega)
 /// @skinning_v21 **[Removed Infolabels]** The following infolabels have been removed:
@@ -10583,37 +10128,13 @@ constexpr std::array<InfoMap, 63> slideshow = {{
 /// \page modules__infolabels_boolean_conditions
 /// \tableofcontents
 
-} // unnamed namespace
-
-CGUIInfoManager::CGUIInfoManager() : m_currentFile(std::make_unique<CFileItem>())
-{
-}
-
-CGUIInfoManager::~CGUIInfoManager() = default;
-
-void CGUIInfoManager::Initialize()
-{
-  CServiceBroker::GetAppMessenger()->RegisterReceiver(this);
-}
-
-/// \brief Translates a string as given by the skin into an int that we use for more
-/// efficient retrieval of data. Can handle combined strings on the form
-/// Player.Caching + VideoPlayer.IsFullscreen (Logical and)
-/// Player.HasVideo | Player.HasAudio (Logical or)
-int CGUIInfoManager::TranslateString(const std::string& condition)
-{
-  // translate $LOCALIZE as required
-  std::string strCondition(CGUIInfoLabel::ReplaceLocalize(condition));
-  return TranslateSingleString(strCondition);
-}
-
-CGUIInfoManager::Property::Property(const std::string& property, const std::string& parameters)
-  : m_name(property)
+CGUIInfoManager::Property::Property(const std::string &property, const std::string &parameters)
+: name(property)
 {
   CUtil::SplitParams(parameters, params);
 }
 
-const std::string& CGUIInfoManager::Property::param(size_t n /* = 0 */) const
+const std::string &CGUIInfoManager::Property::param(unsigned int n /* = 0 */) const
 {
   if (n < params.size())
     return params[n];
@@ -10625,8 +10146,7 @@ unsigned int CGUIInfoManager::Property::num_params() const
   return params.size();
 }
 
-void CGUIInfoManager::SplitInfoString(const std::string& infoString,
-                                      std::vector<Property>& info) const
+void CGUIInfoManager::SplitInfoString(const std::string &infoString, std::vector<Property> &info)
 {
   // our string is of the form:
   // category[(params)][.info(params).info2(params)] ...
@@ -10634,21 +10154,21 @@ void CGUIInfoManager::SplitInfoString(const std::string& infoString,
   unsigned int parentheses = 0;
   std::string property;
   std::string param;
-  for (const char c : infoString)
+  for (size_t i = 0; i < infoString.size(); ++i)
   {
-    if (c == '(')
+    if (infoString[i] == '(')
     {
       if (!parentheses++)
         continue;
     }
-    else if (c == ')')
+    else if (infoString[i] == ')')
     {
       if (!parentheses)
         CLog::Log(LOGERROR, "unmatched parentheses in {}", infoString);
       else if (!--parentheses)
         continue;
     }
-    else if (c == '.' && !parentheses)
+    else if (infoString[i] == '.' && !parentheses)
     {
       if (!property.empty()) // add our property and parameters
       {
@@ -10660,9 +10180,9 @@ void CGUIInfoManager::SplitInfoString(const std::string& infoString,
       continue;
     }
     if (parentheses)
-      param += c;
+      param += infoString[i];
     else
-      property += c;
+      property += infoString[i];
   }
 
   if (parentheses)
@@ -10682,34 +10202,6 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition)
   bool listItemDependent;
   return TranslateSingleString(strCondition, listItemDependent);
 }
-
-namespace
-{
-std::string TranslateListSeparator(const std::string& param)
-{
-  if (StringUtils::EqualsNoCase(param, "comma"))
-    return ", ";
-  else if (StringUtils::EqualsNoCase(param, "pipe"))
-    return " | ";
-  else if (StringUtils::EqualsNoCase(param, "slash"))
-    return " / ";
-  else if (StringUtils::EqualsNoCase(param, "cr"))
-    return "\n";
-  else if (StringUtils::EqualsNoCase(param, "dash"))
-    return " - ";
-  else if (StringUtils::EqualsNoCase(param, "colon"))
-    return " : ";
-  else if (StringUtils::EqualsNoCase(param, "semicolon"))
-    return "; ";
-  else if (StringUtils::EqualsNoCase(param, "fullstop"))
-    return ". ";
-  else
-  {
-    CLog::Log(LOGERROR, "unhandled separator param {}", param);
-    return {};
-  }
-}
-} // unnamed namespace
 
 int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool &listItemDependent)
 {
@@ -10731,25 +10223,25 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
   const Property &cat = info[0];
   if (info.size() == 1)
   { // single category
-    if (cat.Name() == "false" || cat.Name() == "no")
+    if (cat.name == "false" || cat.name == "no")
       return SYSTEM_ALWAYS_FALSE;
-    else if (cat.Name() == "true" || cat.Name() == "yes")
+    else if (cat.name == "true" || cat.name == "yes")
       return SYSTEM_ALWAYS_TRUE;
   }
   else if (info.size() == 2)
   {
     const Property &prop = info[1];
-    if (cat.Name() == "string")
+    if (cat.name == "string")
     {
-      if (prop.Name() == "isempty")
+      if (prop.name == "isempty")
       {
         return AddMultiInfo(CGUIInfo(STRING_IS_EMPTY, TranslateSingleString(prop.param(), listItemDependent)));
       }
       else if (prop.num_params() == 2)
       {
-        for (const auto& string_bool : string_bools)
+        for (const infomap& string_bool : string_bools)
         {
-          if (prop.Name() == string_bool.str)
+          if (prop.name == string_bool.str)
           {
             int data1 = TranslateSingleString(prop.param(0), listItemDependent);
             // pipe our original string through the localize parsing then make it lowercase (picks up $LBRACKET etc.)
@@ -10767,18 +10259,18 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         }
       }
     }
-    if (cat.Name() == "integer")
+    if (cat.name == "integer")
     {
-      if (prop.Name() == "valueof")
+      if (prop.name == "valueof")
       {
         int value = -1;
         std::from_chars(prop.param(0).data(), prop.param(0).data() + prop.param(0).size(), value);
         return AddMultiInfo(CGUIInfo(INTEGER_VALUEOF, value));
       }
 
-      for (const auto& integer_bool : integer_bools)
+      for (const infomap& integer_bool : integer_bools)
       {
-        if (prop.Name() == integer_bool.str)
+        if (prop.name == integer_bool.str)
         {
           std::array<int, 2> data = {-1, -1};
           for (size_t i = 0; i < data.size(); i++)
@@ -10800,21 +10292,21 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         }
       }
     }
-    else if (cat.Name() == "player")
+    else if (cat.name == "player")
     {
-      for (const auto& player_label : player_labels)
+      for (const infomap& player_label : player_labels)
       {
-        if (prop.Name() == player_label.str)
+        if (prop.name == player_label.str)
           return player_label.val;
       }
-      for (const auto& player_time : player_times)
+      for (const infomap& player_time : player_times)
       {
-        if (prop.Name() == player_time.str)
+        if (prop.name == player_time.str)
           return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
       }
-      if (prop.Name() == "process" && prop.num_params())
+      if (prop.name == "process" && prop.num_params())
       {
-        for (const auto& player_proces : player_process)
+        for (const infomap& player_proces : player_process)
         {
           if (StringUtils::EqualsNoCase(prop.param(), player_proces.str))
             return player_proces.val;
@@ -10822,75 +10314,73 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
       }
       if (prop.num_params() == 1)
       {
-        for (const auto& i : player_param)
+        for (const infomap& i : player_param)
         {
-          if (prop.Name() == i.str)
+          if (prop.name == i.str)
             return AddMultiInfo(CGUIInfo(i.val, prop.param()));
         }
       }
     }
-    else if (cat.Name() == "addon")
+    else if (cat.name == "addon")
     {
-      for (const auto& i : addons)
+      for (const infomap& i : addons)
       {
-        if (prop.Name() == i.str && prop.num_params() == 2)
+        if (prop.name == i.str && prop.num_params() == 2)
           return AddMultiInfo(CGUIInfo(i.val, prop.param(0), prop.param(1)));
       }
     }
-    else if (cat.Name() == "weather")
+    else if (cat.name == "weather")
     {
-      if (prop.num_params() == 0)
+      for (const infomap& i : weather)
       {
-        for (const auto& i : weather)
-        {
-          if (prop.Name() == i.str)
-            return i.val;
-        }
-      }
-      else if (prop.num_params() == 1)
-      {
-        if (prop.Name() == "data")
-          return AddMultiInfo(CGUIInfo(WEATHER_DATA, prop.param(), 0));
-      }
-    }
-    else if (cat.Name() == "network")
-    {
-      for (const auto& network_label : network_labels)
-      {
-        if (prop.Name() == network_label.str)
-          return network_label.val;
-      }
-    }
-    else if (cat.Name() == "musicpartymode")
-    {
-      for (const auto& i : musicpartymode)
-      {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
     }
-    else if (cat.Name() == "system")
+    else if (cat.name == "network")
     {
-      for (const auto& system_label : system_labels)
+      for (const infomap& network_label : network_labels)
       {
-        if (prop.Name() == system_label.str)
+        if (prop.name == network_label.str)
+          return network_label.val;
+      }
+    }
+    else if (cat.name == "musicpartymode")
+    {
+      for (const infomap& i : musicpartymode)
+      {
+        if (prop.name == i.str)
+          return i.val;
+      }
+    }
+    else if (cat.name == "system")
+    {
+      for (const infomap& system_label : system_labels)
+      {
+        if (prop.name == system_label.str)
           return system_label.val;
       }
       if (prop.num_params() == 1)
       {
         const std::string &param = prop.param();
-        if (prop.Name() == "getbool")
+        if (prop.name == "getbool")
         {
           std::string paramCopy = param;
           StringUtils::ToLower(paramCopy);
           return AddMultiInfo(CGUIInfo(SYSTEM_GET_BOOL, paramCopy));
         }
-        for (const auto& i : system_param)
+        if (prop.name == "getint")
         {
-          if (prop.Name() == i.str)
+          std::string paramCopy = param;
+          StringUtils::ToLower(paramCopy);
+          return AddMultiInfo(CGUIInfo(SYSTEM_GET_INT, paramCopy));
+        }
+        for (const infomap& i : system_param)
+        {
+          if (prop.name == i.str)
             return AddMultiInfo(CGUIInfo(i.val, param));
         }
-        if (prop.Name() == "memory")
+        if (prop.name == "memory")
         {
           if (param == "free")
             return SYSTEM_FREE_MEMORY;
@@ -10903,7 +10393,7 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           else if (param == "total")
             return SYSTEM_TOTAL_MEMORY;
         }
-        else if (prop.Name() == "addontitle")
+        else if (prop.name == "addontitle")
         {
           // Example: System.AddonTitle(Skin.String(HomeVideosButton1)) => skin string HomeVideosButton1 holds an addon identifier string
           int infoLabel = TranslateSingleString(param, listItemDependent);
@@ -10913,7 +10403,7 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           StringUtils::ToLower(label);
           return AddMultiInfo(CGUIInfo(SYSTEM_ADDON_TITLE, label, 1));
         }
-        else if (prop.Name() == "addonicon")
+        else if (prop.name == "addonicon")
         {
           int infoLabel = TranslateSingleString(param, listItemDependent);
           if (infoLabel > 0)
@@ -10922,7 +10412,7 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           StringUtils::ToLower(label);
           return AddMultiInfo(CGUIInfo(SYSTEM_ADDON_ICON, label, 1));
         }
-        else if (prop.Name() == "addonversion")
+        else if (prop.name == "addonversion")
         {
           int infoLabel = TranslateSingleString(param, listItemDependent);
           if (infoLabel > 0)
@@ -10931,11 +10421,19 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           StringUtils::ToLower(label);
           return AddMultiInfo(CGUIInfo(SYSTEM_ADDON_VERSION, label, 1));
         }
-        else if (prop.Name() == "idletime")
+        else if (prop.name == "idletime")
           return AddMultiInfo(CGUIInfo(SYSTEM_IDLE_TIME, atoi(param.c_str())));
-        else if (prop.Name() == "locale")
+        else if (prop.name == "locale")
         {
-          if (param == "region")
+          if (param == "timezonecountry")
+          {
+            return SYSTEM_LOCALE_TIMEZONECOUNTRY;
+          }
+          else if (param == "timezone")
+          {
+            return SYSTEM_LOCALE_TIMEZONE;
+          }
+          else if (param == "region")
           {
             return SYSTEM_LOCALE_REGION;
           }
@@ -10944,12 +10442,12 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
             return SYSTEM_LOCALE;
           }
         }
-        else if (prop.Name() == "pathexist")
+        else if (prop.name == "pathexist")
           return AddMultiInfo(CGUIInfo(SYSTEM_PATH_EXIST, param));
       }
-      if (prop.Name() == "alarmlessorequal" && prop.num_params() == 2)
+      if (prop.name == "alarmlessorequal" && prop.num_params() == 2)
         return AddMultiInfo(CGUIInfo(SYSTEM_ALARM_LESS_OR_EQUAL, prop.param(0), atoi(prop.param(1).c_str())));
-      else if (prop.Name() == "date")
+      else if (prop.name == "date")
       {
         if (prop.num_params() == 2)
           return AddMultiInfo(CGUIInfo(SYSTEM_DATE, StringUtils::DateStringToYYYYMMDD(prop.param(0)) % 10000, StringUtils::DateStringToYYYYMMDD(prop.param(1)) % 10000));
@@ -10963,7 +10461,7 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         }
         return SYSTEM_DATE;
       }
-      else if (prop.Name() == "time")
+      else if (prop.name == "time")
       {
         if (prop.num_params() == 0)
           return AddMultiInfo(CGUIInfo(SYSTEM_TIME, TIME_FORMAT_GUESS));
@@ -10978,250 +10476,207 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           return AddMultiInfo(CGUIInfo(SYSTEM_TIME, StringUtils::TimeStringToSeconds(prop.param(0)), StringUtils::TimeStringToSeconds(prop.param(1))));
       }
     }
-    else if (cat.Name() == "library")
+    else if (cat.name == "library")
     {
-      if (prop.Name() == "isscanning")
+      if (prop.name == "isscanning")
         return LIBRARY_IS_SCANNING;
-      else if (prop.Name() == "isscanningvideo")
+      else if (prop.name == "isscanningvideo")
         return LIBRARY_IS_SCANNING_VIDEO; //! @todo change to IsScanning(Video)
-      else if (prop.Name() == "isscanningmusic")
+      else if (prop.name == "isscanningmusic")
         return LIBRARY_IS_SCANNING_MUSIC;
-      else if (prop.Name() == "hascontent" && prop.num_params())
+      else if (prop.name == "hascontent" && prop.num_params())
       {
-        std::string content{prop.param(0)};
-        StringUtils::ToLower(content);
-        if (content == "music")
+        std::string cat = prop.param(0);
+        StringUtils::ToLower(cat);
+        if (cat == "music")
           return LIBRARY_HAS_MUSIC;
-        else if (content == "video")
+        else if (cat == "video")
           return LIBRARY_HAS_VIDEO;
-        else if (content == "movies")
+        else if (cat == "movies")
           return LIBRARY_HAS_MOVIES;
-        else if (content == "tvshows")
+        else if (cat == "tvshows")
           return LIBRARY_HAS_TVSHOWS;
-        else if (content == "musicvideos")
+        else if (cat == "musicvideos")
           return LIBRARY_HAS_MUSICVIDEOS;
-        else if (content == "moviesets")
+        else if (cat == "moviesets")
           return LIBRARY_HAS_MOVIE_SETS;
-        else if (content == "singles")
+        else if (cat == "singles")
           return LIBRARY_HAS_SINGLES;
-        else if (content == "compilations")
+        else if (cat == "compilations")
           return LIBRARY_HAS_COMPILATIONS;
-        else if (content == "boxsets")
+        else if (cat == "boxsets")
           return LIBRARY_HAS_BOXSETS;
-        else if (content == "role" && prop.num_params() > 1)
+        else if (cat == "role" && prop.num_params() > 1)
           return AddMultiInfo(CGUIInfo(LIBRARY_HAS_ROLE, prop.param(1), 0));
       }
-      else if (prop.Name() == "hasnode" && prop.num_params())
+      else if (prop.name == "hasnode" && prop.num_params())
       {
         std::string node = prop.param(0);
         StringUtils::ToLower(node);
         return AddMultiInfo(CGUIInfo(LIBRARY_HAS_NODE, prop.param(), 0));
       }
     }
-    else if (cat.Name() == "musicplayer")
+    else if (cat.name == "musicplayer")
     {
-      for (const auto& player_time : player_times) //! @todo remove these, they're repeats
+      for (const infomap& player_time : player_times) //! @todo remove these, they're repeats
       {
-        if (prop.Name() == player_time.str)
+        if (prop.name == player_time.str)
           return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
       }
-      if (prop.Name() == "content" && prop.num_params())
-      {
+      if (prop.name == "content" && prop.num_params())
         return AddMultiInfo(CGUIInfo(MUSICPLAYER_CONTENT, prop.param(), 0));
-      }
-      else if (prop.Name() == "genre" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(CGUIInfo(MUSICPLAYER_GENRE, TranslateListSeparator(prop.param()), 0));
-      }
-      else if (prop.Name() == "property")
+      else if (prop.name == "property")
       {
         if (StringUtils::EqualsNoCase(prop.param(), "fanart_image"))
           return AddMultiInfo(CGUIInfo(PLAYER_ITEM_ART, "fanart"));
 
         return AddMultiInfo(CGUIInfo(MUSICPLAYER_PROPERTY, prop.param()));
       }
-      else if (prop.Name() == "channels" && prop.num_params() == 1)
-      {
-        return AddMultiInfo(CGUIInfo(MUSICPLAYER_CHANNELS, prop.param()));
-      }
-
-      return TranslateMusicPlayerString(prop.Name());
+      return TranslateMusicPlayerString(prop.name);
     }
-    else if (cat.Name() == "videoplayer")
+    else if (cat.name == "videoplayer")
     {
-      if (prop.Name() !=
-          "starttime") // player.starttime is semantically different from videoplayer.starttime which has its own implementation!
+      if (prop.name != "starttime") // player.starttime is semantically different from videoplayer.starttime which has its own implementation!
       {
-        for (const auto& player_time : player_times) //! @todo remove these, they're repeats
+        for (const infomap& player_time : player_times) //! @todo remove these, they're repeats
         {
-          if (prop.Name() == player_time.str)
+          if (prop.name == player_time.str)
             return AddMultiInfo(CGUIInfo(player_time.val, TranslateTimeFormat(prop.param())));
         }
       }
-      if (prop.Name() == "content" && prop.num_params())
+      if (prop.name == "content" && prop.num_params())
       {
         return AddMultiInfo(CGUIInfo(VIDEOPLAYER_CONTENT, prop.param(), 0));
       }
-      if (prop.Name() == "uniqueid" && prop.num_params())
+      if (prop.name == "uniqueid" && prop.num_params())
       {
         return AddMultiInfo(CGUIInfo(VIDEOPLAYER_UNIQUEID, prop.param(), 0));
       }
-      if (prop.Name() == "art" && prop.num_params() > 0)
+      if (prop.name == "art" && prop.num_params() > 0)
       {
         return AddMultiInfo(CGUIInfo(VIDEOPLAYER_ART, prop.param(), 0));
       }
-      if (prop.Name() == "cast" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(CGUIInfo(VIDEOPLAYER_CAST, TranslateListSeparator(prop.param()), 0));
-      }
-      if (prop.Name() == "castandrole" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(
-            CGUIInfo(VIDEOPLAYER_CAST_AND_ROLE, TranslateListSeparator(prop.param()), 0));
-      }
-      if (prop.Name() == "writer" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(CGUIInfo(VIDEOPLAYER_WRITER, TranslateListSeparator(prop.param()), 0));
-      }
-      if (prop.Name() == "director" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(
-            CGUIInfo(VIDEOPLAYER_DIRECTOR, TranslateListSeparator(prop.param()), 0));
-      }
-      if (prop.Name() == "genre" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(CGUIInfo(VIDEOPLAYER_GENRE, TranslateListSeparator(prop.param()), 0));
-      }
-      if (prop.Name() == "nextgenre" && prop.num_params() > 0)
-      {
-        return AddMultiInfo(
-            CGUIInfo(VIDEOPLAYER_NEXT_GENRE, TranslateListSeparator(prop.param()), 0));
-      }
-
-      if (prop.Name() == "audiochannels" && prop.num_params() == 1)
-        return AddMultiInfo(CGUIInfo(VIDEOPLAYER_AUDIO_CHANNELS, prop.param(), 0));
-
-      return TranslateVideoPlayerString(prop.Name());
+      return TranslateVideoPlayerString(prop.name);
     }
-    else if (cat.Name() == "retroplayer")
+    else if (cat.name == "retroplayer")
     {
-      for (const auto& i : retroplayer)
+      for (const infomap& i : retroplayer)
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
     }
-    else if (cat.Name() == "slideshow")
+    else if (cat.name == "slideshow")
     {
-      for (const auto& i : slideshow)
+      for (const infomap& i : slideshow)
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
     }
-    else if (cat.Name() == "container")
+    else if (cat.name == "container")
     {
-      for (const auto& i : mediacontainer) // these ones don't have or need an id
+      for (const infomap& i : mediacontainer) // these ones don't have or need an id
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
       int id = atoi(cat.param().c_str());
-      for (const auto& container_bool :
-           container_bools) // these ones can have an id (but don't need to?)
+      for (const infomap& container_bool : container_bools) // these ones can have an id (but don't need to?)
       {
-        if (prop.Name() == container_bool.str)
+        if (prop.name == container_bool.str)
           return id ? AddMultiInfo(CGUIInfo(container_bool.val, id)) : container_bool.val;
       }
-      for (const auto& container_int :
-           container_ints) // these ones can have an int param on the property
+      for (const infomap& container_int : container_ints) // these ones can have an int param on the property
       {
-        if (prop.Name() == container_int.str)
+        if (prop.name == container_int.str)
           return AddMultiInfo(CGUIInfo(container_int.val, id, atoi(prop.param().c_str())));
       }
-      for (const auto& i : container_str) // these ones have a string param on the property
+      for (const infomap& i : container_str) // these ones have a string param on the property
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return AddMultiInfo(CGUIInfo(i.val, id, prop.param()));
       }
-      if (prop.Name() == "sortdirection")
+      if (prop.name == "sortdirection")
       {
-        SortOrder order = SortOrder::NONE;
+        SortOrder order = SortOrderNone;
         if (StringUtils::EqualsNoCase(prop.param(), "ascending"))
-          order = SortOrder::ASCENDING;
+          order = SortOrderAscending;
         else if (StringUtils::EqualsNoCase(prop.param(), "descending"))
-          order = SortOrder::DESCENDING;
-        return AddMultiInfo(CGUIInfo(CONTAINER_SORT_DIRECTION, static_cast<int>(order)));
+          order = SortOrderDescending;
+        return AddMultiInfo(CGUIInfo(CONTAINER_SORT_DIRECTION, order));
       }
     }
-    else if (cat.Name() == "listitem" || cat.Name() == "listitemposition" ||
-             cat.Name() == "listitemnowrap" || cat.Name() == "listitemabsolute")
+    else if (cat.name == "listitem" ||
+             cat.name == "listitemposition" ||
+             cat.name == "listitemnowrap" ||
+             cat.name == "listitemabsolute")
     {
       int ret = TranslateListItem(cat, prop, 0, false);
       if (ret)
         listItemDependent = true;
       return ret;
     }
-    else if (cat.Name() == "visualisation")
+    else if (cat.name == "visualisation")
     {
-      for (const auto& i : visualisation)
+      for (const infomap& i : visualisation)
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
     }
-    else if (cat.Name() == "fanart")
+    else if (cat.name == "fanart")
     {
-      for (const auto& fanart_label : fanart_labels)
+      for (const infomap& fanart_label : fanart_labels)
       {
-        if (prop.Name() == fanart_label.str)
+        if (prop.name == fanart_label.str)
           return fanart_label.val;
       }
     }
-    else if (cat.Name() == "skin")
+    else if (cat.name == "skin")
     {
-      for (const auto& skin_label : skin_labels)
+      for (const infomap& skin_label : skin_labels)
       {
-        if (prop.Name() == skin_label.str)
+        if (prop.name == skin_label.str)
           return skin_label.val;
       }
       if (prop.num_params())
       {
-        if (prop.Name() == "string")
+        if (prop.name == "string")
         {
           if (prop.num_params() == 2)
             return AddMultiInfo(CGUIInfo(SKIN_STRING_IS_EQUAL, CSkinSettings::GetInstance().TranslateString(prop.param(0)), prop.param(1)));
           else
             return AddMultiInfo(CGUIInfo(SKIN_STRING, CSkinSettings::GetInstance().TranslateString(prop.param(0))));
         }
-        else if (prop.Name() == "numeric")
+        else if (prop.name == "numeric")
         {
           return AddMultiInfo(
               CGUIInfo(SKIN_INTEGER, CSkinSettings::GetInstance().TranslateString(prop.param(0))));
         }
-        else if (prop.Name() == "hassetting")
+        else if (prop.name == "hassetting")
           return AddMultiInfo(CGUIInfo(SKIN_BOOL, CSkinSettings::GetInstance().TranslateBool(prop.param(0))));
-        else if (prop.Name() == "hastheme")
+        else if (prop.name == "hastheme")
           return AddMultiInfo(CGUIInfo(SKIN_HAS_THEME, prop.param(0)));
-        else if (prop.Name() == "timerisrunning")
+        else if (prop.name == "timerisrunning")
           return AddMultiInfo(CGUIInfo(SKIN_TIMER_IS_RUNNING, prop.param(0)));
-        else if (prop.Name() == "timerelapsedsecs")
+        else if (prop.name == "timerelapsedsecs")
           return AddMultiInfo(CGUIInfo(SKIN_TIMER_ELAPSEDSECS, prop.param(0)));
-                else if (prop.Name() == "hasfile")
-                    return AddMultiInfo(CGUIInfo(SKIN_HAS_FILE, prop.param(0)));
+        else if (prop.name == "hasfile")
+          return AddMultiInfo(CGUIInfo(SKIN_HAS_FILE, prop.param(0)));
       }
     }
-    else if (cat.Name() == "window")
+    else if (cat.name == "window")
     {
-      if (prop.Name() == "property" && prop.num_params() == 1)
+      if (prop.name == "property" && prop.num_params() == 1)
       { //! @todo this doesn't support foo.xml
         int winID = cat.param().empty() ? 0 : CWindowTranslator::TranslateWindow(cat.param());
         if (winID != WINDOW_INVALID)
           return AddMultiInfo(CGUIInfo(WINDOW_PROPERTY, winID, prop.param()));
       }
-      for (const auto& window_bool : window_bools)
+      for (const infomap& window_bool : window_bools)
       {
-        if (prop.Name() == window_bool.str)
+        if (prop.name == window_bool.str)
         { //! @todo The parameter for these should really be on the first not the second property
           if (prop.param().find("xml") != std::string::npos)
             return AddMultiInfo(CGUIInfo(window_bool.val, 0, prop.param()));
@@ -11230,11 +10685,11 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         }
       }
     }
-    else if (cat.Name() == "control")
+    else if (cat.name == "control")
     {
-      for (const auto& control_label : control_labels)
+      for (const infomap& control_label : control_labels)
       {
-        if (prop.Name() == control_label.str)
+        if (prop.name == control_label.str)
         { //! @todo The parameter for these should really be on the first not the second property
           int controlID = atoi(prop.param().c_str());
           if (controlID)
@@ -11243,18 +10698,18 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         }
       }
     }
-    else if (cat.Name() == "controlgroup" && prop.Name() == "hasfocus")
+    else if (cat.name == "controlgroup" && prop.name == "hasfocus")
     {
       int groupID = atoi(cat.param().c_str());
       if (groupID)
         return AddMultiInfo(CGUIInfo(CONTROL_GROUP_HAS_FOCUS, groupID, atoi(prop.param(0).c_str())));
     }
-    else if (cat.Name() == "playlist")
+    else if (cat.name == "playlist")
     {
       int ret = -1;
-      for (const auto& i : playlist)
+      for (const infomap& i : playlist)
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
         {
           ret = i.val;
           break;
@@ -11266,47 +10721,47 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
           return ret;
         else
         {
-          PLAYLIST::Id playlistid = PLAYLIST::Id::TYPE_NONE;
+          PLAYLIST::Id playlistid = PLAYLIST::TYPE_NONE;
           if (StringUtils::EqualsNoCase(prop.param(), "video"))
-            playlistid = PLAYLIST::Id::TYPE_VIDEO;
+            playlistid = PLAYLIST::TYPE_VIDEO;
           else if (StringUtils::EqualsNoCase(prop.param(), "music"))
-            playlistid = PLAYLIST::Id::TYPE_MUSIC;
+            playlistid = PLAYLIST::TYPE_MUSIC;
 
-          if (playlistid != PLAYLIST::Id::TYPE_NONE)
-            return AddMultiInfo(CGUIInfo(ret, static_cast<int>(playlistid), 1));
+          if (playlistid != PLAYLIST::TYPE_NONE)
+            return AddMultiInfo(CGUIInfo(ret, playlistid, 1));
         }
       }
     }
-    else if (cat.Name() == "pvr")
+    else if (cat.name == "pvr")
     {
-      for (const auto& i : pvr)
+      for (const infomap& i : pvr)
       {
-        if (prop.Name() == i.str)
+        if (prop.name == i.str)
           return i.val;
       }
-      for (const auto& pvr_time : pvr_times)
+      for (const infomap& pvr_time : pvr_times)
       {
-        if (prop.Name() == pvr_time.str)
+        if (prop.name == pvr_time.str)
           return AddMultiInfo(CGUIInfo(pvr_time.val, TranslateTimeFormat(prop.param())));
       }
     }
-    else if (cat.Name() == "rds")
+    else if (cat.name == "rds")
     {
-      if (prop.Name() == "getline")
+      if (prop.name == "getline")
         return AddMultiInfo(CGUIInfo(RDS_GET_RADIOTEXT_LINE, atoi(prop.param(0).c_str())));
 
-      for (const auto& rd : rds)
+      for (const infomap& rd : rds)
       {
-        if (prop.Name() == rd.str)
+        if (prop.name == rd.str)
           return rd.val;
       }
     }
   }
   else if (info.size() == 3 || info.size() == 4)
   {
-    if (info[0].Name() == "system" && info[1].Name() == "platform")
+    if (info[0].name == "system" && info[1].name == "platform")
     { //! @todo replace with a single system.platform
-      std::string platform = info[2].Name();
+      std::string platform = info[2].name;
       if (platform == "linux")
         return SYSTEM_PLATFORM_LINUX;
       else if (platform == "windows")
@@ -11326,60 +10781,62 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
       else if (platform == "webos")
         return SYSTEM_PLATFORM_WEBOS;
     }
-    if (info[0].Name() == "musicplayer")
+    if (info[0].name == "musicplayer")
     { //! @todo these two don't allow duration(foo) and also don't allow more than this number of levels...
-      if (info[1].Name() == "position")
+      if (info[1].name == "position")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslateMusicPlayerString(info[2].Name()); // musicplayer.position(foo).bar
+        int value = TranslateMusicPlayerString(info[2].name); // musicplayer.position(foo).bar
         return AddMultiInfo(CGUIInfo(value, 2, position)); // 2 => absolute (0 used for not set)
       }
-      else if (info[1].Name() == "offset")
+      else if (info[1].name == "offset")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslateMusicPlayerString(info[2].Name()); // musicplayer.offset(foo).bar
+        int value = TranslateMusicPlayerString(info[2].name); // musicplayer.offset(foo).bar
         return AddMultiInfo(CGUIInfo(value, 1, position)); // 1 => relative
       }
     }
-    else if (info[0].Name() == "videoplayer")
+    else if (info[0].name == "videoplayer")
     { //! @todo these two don't allow duration(foo) and also don't allow more than this number of levels...
-      if (info[1].Name() == "position")
+      if (info[1].name == "position")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslateVideoPlayerString(info[2].Name()); // videoplayer.position(foo).bar
+        int value = TranslateVideoPlayerString(info[2].name); // videoplayer.position(foo).bar
         // additional param for the requested infolabel, e.g. VideoPlayer.Position(1).Art(poster): art is the value, poster is the param
         const std::string& param = info[2].param();
         return AddMultiInfo(
             CGUIInfo(value, 2, position, param)); // 2 => absolute (0 used for not set)
       }
-      else if (info[1].Name() == "offset")
+      else if (info[1].name == "offset")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslateVideoPlayerString(info[2].Name()); // videoplayer.offset(foo).bar
+        int value = TranslateVideoPlayerString(info[2].name); // videoplayer.offset(foo).bar
         // additional param for the requested infolabel, e.g. VideoPlayer.Offset(1).Art(poster): art is the value, poster is the param
         const std::string& param = info[2].param();
         return AddMultiInfo(CGUIInfo(value, 1, position, param)); // 1 => relative
       }
     }
-    else if (info[0].Name() == "player")
+    else if (info[0].name == "player")
     { //! @todo these two don't allow duration(foo) and also don't allow more than this number of levels...
-      if (info[1].Name() == "position")
+      if (info[1].name == "position")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslatePlayerString(info[2].Name()); // player.position(foo).bar
+        int value = TranslatePlayerString(info[2].name); // player.position(foo).bar
         return AddMultiInfo(CGUIInfo(value, 2, position)); // 2 => absolute (0 used for not set)
       }
-      else if (info[1].Name() == "offset")
+      else if (info[1].name == "offset")
       {
         int position = atoi(info[1].param().c_str());
-        int value = TranslatePlayerString(info[2].Name()); // player.offset(foo).bar
+        int value = TranslatePlayerString(info[2].name); // player.offset(foo).bar
         return AddMultiInfo(CGUIInfo(value, 1, position)); // 1 => relative
       }
     }
-    else if (info[0].Name() == "container")
+    else if (info[0].name == "container")
     {
-      if (info[1].Name() == "listitem" || info[1].Name() == "listitemposition" ||
-          info[1].Name() == "listitemabsolute" || info[1].Name() == "listitemnowrap")
+      if (info[1].name == "listitem" ||
+          info[1].name == "listitemposition" ||
+          info[1].name == "listitemabsolute" ||
+          info[1].name == "listitemnowrap")
       {
         int id = atoi(info[0].param().c_str());
         int ret = TranslateListItem(info[1], info[2], id, true);
@@ -11388,12 +10845,12 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
         return ret;
       }
     }
-    else if (info[0].Name() == "control")
+    else if (info[0].name == "control")
     {
       const Property &prop = info[1];
-      for (const auto& control_label : control_labels)
+      for (const infomap& control_label : control_labels)
       {
-        if (prop.Name() == control_label.str)
+        if (prop.name == control_label.str)
         { //! @todo The parameter for these should really be on the first not the second property
           int controlID = atoi(prop.param().c_str());
           if (controlID)
@@ -11415,36 +10872,31 @@ int CGUIInfoManager::TranslateListItem(const Property& cat, const Property& prop
   if (prop.num_params() == 1)
   {
     // special case: map 'property(fanart_image)' to 'art(fanart)'
-    if (prop.Name() == "property" && StringUtils::EqualsNoCase(prop.param(), "fanart_image"))
+    if (prop.name == "property" && StringUtils::EqualsNoCase(prop.param(), "fanart_image"))
     {
       ret = LISTITEM_ART;
       data3 = "fanart";
     }
-    else if (prop.Name() == "property" || prop.Name() == "art" || prop.Name() == "rating" ||
-             prop.Name() == "votes" || prop.Name() == "ratingandvotes" || prop.Name() == "uniqueid")
+    else if (prop.name == "property" ||
+             prop.name == "art" ||
+             prop.name == "rating" ||
+             prop.name == "votes" ||
+             prop.name == "ratingandvotes" ||
+             prop.name == "uniqueid")
     {
       data3 = prop.param();
     }
-    else if (prop.Name() == "cast" || prop.Name() == "castandrole" || prop.Name() == "director" ||
-             prop.Name() == "writer" || prop.Name() == "genre" || prop.Name() == "nextgenre")
-    {
-      data3 = TranslateListSeparator(prop.param());
-    }
-    else if (prop.Name() == "duration" || prop.Name() == "nextduration")
+    else if (prop.name == "duration" || prop.name == "nextduration")
     {
       data4 = TranslateTimeFormat(prop.param());
-    }
-    else if (prop.Name() == "audiochannels" || prop.Name() == "musicchannels")
-    {
-      data3 = prop.param();
     }
   }
 
   if (ret == 0)
   {
-    for (const auto& listitem_label : listitem_labels) // these ones don't have or need an id
+    for (const infomap& listitem_label : listitem_labels) // these ones don't have or need an id
     {
-      if (prop.Name() == listitem_label.str)
+      if (prop.name == listitem_label.str)
       {
         ret = listitem_label.val;
         break;
@@ -11457,13 +10909,13 @@ int CGUIInfoManager::TranslateListItem(const Property& cat, const Property& prop
     int offset = std::atoi(cat.param().c_str());
 
     int flags = 0;
-    if (cat.Name() == "listitem")
+    if (cat.name == "listitem")
       flags = INFOFLAG_LISTITEM_WRAP;
-    else if (cat.Name() == "listitemposition")
+    else if (cat.name == "listitemposition")
       flags = INFOFLAG_LISTITEM_POSITION;
-    else if (cat.Name() == "listitemabsolute")
+    else if (cat.name == "listitemabsolute")
       flags = INFOFLAG_LISTITEM_ABSOLUTE;
-    else if (cat.Name() == "listitemnowrap")
+    else if (cat.name == "listitemnowrap")
       flags = INFOFLAG_LISTITEM_NOWRAP;
 
     if (container)
@@ -11475,9 +10927,9 @@ int CGUIInfoManager::TranslateListItem(const Property& cat, const Property& prop
   return 0;
 }
 
-int CGUIInfoManager::TranslateMusicPlayerString(std::string_view info) const
+int CGUIInfoManager::TranslateMusicPlayerString(const std::string &info) const
 {
-  for (const auto& i : musicplayer)
+  for (const infomap& i : musicplayer)
   {
     if (info == i.str)
       return i.val;
@@ -11485,9 +10937,9 @@ int CGUIInfoManager::TranslateMusicPlayerString(std::string_view info) const
   return 0;
 }
 
-int CGUIInfoManager::TranslateVideoPlayerString(std::string_view info) const
+int CGUIInfoManager::TranslateVideoPlayerString(const std::string& info) const
 {
-  for (const auto& i : videoplayer)
+  for (const infomap& i : videoplayer)
   {
     if (info == i.str)
       return i.val;
@@ -11495,9 +10947,9 @@ int CGUIInfoManager::TranslateVideoPlayerString(std::string_view info) const
   return 0;
 }
 
-int CGUIInfoManager::TranslatePlayerString(std::string_view info) const
+int CGUIInfoManager::TranslatePlayerString(const std::string& info) const
 {
-  for (const auto& i : player_labels)
+  for (const infomap& i : player_labels)
   {
     if (info == i.str)
       return i.val;
@@ -11560,7 +11012,7 @@ std::string CGUIInfoManager::GetLabel(int info, int contextWindow, std::string *
   }
 
   std::string strLabel;
-  m_infoProviders.GetLabel(strLabel, m_currentFile.get(), contextWindow, CGUIInfo(info), fallback);
+  m_infoProviders.GetLabel(strLabel, m_currentFile, contextWindow, CGUIInfo(info), fallback);
   return strLabel;
 }
 
@@ -11582,7 +11034,7 @@ bool CGUIInfoManager::GetInt(int &value, int info, int contextWindow, const CGUI
   }
 
   value = 0;
-  return m_infoProviders.GetInt(value, m_currentFile.get(), contextWindow, CGUIInfo(info));
+  return m_infoProviders.GetInt(value, m_currentFile, contextWindow, CGUIInfo(info));
 }
 
 INFO::InfoPtr CGUIInfoManager::Register(const std::string &expression, int context)
@@ -11593,10 +11045,11 @@ INFO::InfoPtr CGUIInfoManager::Register(const std::string &expression, int conte
   if (condition.empty())
     return INFO::InfoPtr();
 
-  std::unique_lock lock(m_critInfo);
+  std::lock_guard lock(m_critInfo);
+
   std::pair<INFOBOOLTYPE::iterator, bool> res;
 
-  if (condition.find_first_of("|+[]!") != std::string::npos)
+  if (condition.find_first_of("|+[]!") != condition.npos)
     res = m_bools.insert(std::make_shared<InfoExpression>(condition, context, m_refreshCounter));
   else
     res = m_bools.insert(std::make_shared<InfoSingle>(condition, context, m_refreshCounter));
@@ -11609,7 +11062,8 @@ INFO::InfoPtr CGUIInfoManager::Register(const std::string &expression, int conte
 
 void CGUIInfoManager::UnRegister(const INFO::InfoPtr& expression)
 {
-  std::unique_lock lock(m_critInfo);
+  std::lock_guard lock(m_critInfo);
+
   m_bools.erase(expression);
 }
 
@@ -11642,8 +11096,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
   {
     bReturn = GetMultiInfoBool(m_multiInfo[condition - MULTI_INFO_START], contextWindow, item);
   }
-  else if (!m_infoProviders.GetBool(bReturn, m_currentFile.get(), contextWindow,
-                                    CGUIInfo(condition)))
+  else if (!m_infoProviders.GetBool(bReturn, m_currentFile, contextWindow, CGUIInfo(condition)))
   {
     // default: use integer value different from 0 as true
     int val;
@@ -11656,7 +11109,7 @@ bool CGUIInfoManager::GetBool(int condition1, int contextWindow, const CGUIListI
 bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, const CGUIListItem *item)
 {
   bool bReturn = false;
-  int condition = std::abs(info.GetInfo());
+  int condition = std::abs(info.m_info);
 
   if (condition >= LISTITEM_START && condition <= LISTITEM_END)
   {
@@ -11681,7 +11134,7 @@ bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, 
       bReturn = false;
     }
   }
-  else if (!m_infoProviders.GetBool(bReturn, m_currentFile.get(), contextWindow, info))
+  else if (!m_infoProviders.GetBool(bReturn, m_currentFile, contextWindow, info))
   {
     switch (condition)
     {
@@ -11696,56 +11149,54 @@ bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, 
       case STRING_ENDS_WITH:
       case STRING_CONTAINS:
       case STRING_IS_EQUAL:
-      {
-        std::string compare;
-        if (info.GetData2() < 0) // info labels are stored with negative numbers
         {
-          int info2 = -info.GetData2();
-          std::shared_ptr<CGUIListItem> item2;
-
-          if (IsListItemInfo(info2))
+          std::string compare;
+          if (info.GetData2() < 0) // info labels are stored with negative numbers
           {
-            int iResolvedInfo2 = ResolveMultiInfo(info2);
-            if (iResolvedInfo2 != 0)
+            int info2 = -info.GetData2();
+            std::shared_ptr<CGUIListItem> item2;
+
+            if (IsListItemInfo(info2))
             {
-              const GUIINFO::CGUIInfo& resolvedInfo2 =
-                  m_multiInfo[iResolvedInfo2 - MULTI_INFO_START];
-              if (resolvedInfo2.GetInfoFlag() & INFOFLAG_LISTITEM_CONTAINER)
-                item2 = GUIINFO::GetCurrentListItem(
-                    contextWindow, resolvedInfo2.GetData1()); // data1 contains the container id
+              int iResolvedInfo2 = ResolveMultiInfo(info2);
+              if (iResolvedInfo2 != 0)
+              {
+                const GUIINFO::CGUIInfo& resolvedInfo2 = m_multiInfo[iResolvedInfo2 - MULTI_INFO_START];
+                if (resolvedInfo2.GetInfoFlag() & INFOFLAG_LISTITEM_CONTAINER)
+                  item2 = GUIINFO::GetCurrentListItem(contextWindow, resolvedInfo2.GetData1()); // data1 contains the container id
+              }
             }
+
+            if (item2 && item2->IsFileItem())
+              compare = GetItemImage(item2.get(), contextWindow, info2);
+            else if (item && item->IsFileItem())
+              compare = GetItemImage(item, contextWindow, info2);
+            else
+              compare = GetImage(info2, contextWindow);
           }
+          else if (!info.GetData3().empty())
+          { // conditional string
+            compare = info.GetData3();
+          }
+          StringUtils::ToLower(compare);
 
-          if (item2 && item2->IsFileItem())
-            compare = GetItemImage(item2.get(), contextWindow, info2);
-          else if (item && item->IsFileItem())
-            compare = GetItemImage(item, contextWindow, info2);
+          std::string label;
+          if (item && item->IsFileItem() && IsListItemInfo(info.GetData1()))
+            label = GetItemImage(item, contextWindow, info.GetData1());
           else
-            compare = GetImage(info2, contextWindow);
-        }
-        else if (!info.GetData3().empty())
-        { // conditional string
-          compare = info.GetData3();
-        }
-        StringUtils::ToLower(compare);
+            label = GetImage(info.GetData1(), contextWindow);
+          StringUtils::ToLower(label);
 
-        std::string label;
-        if (item && item->IsFileItem() && IsListItemInfo(info.GetData1()))
-          label = GetItemImage(item, contextWindow, info.GetData1());
-        else
-          label = GetImage(info.GetData1(), contextWindow);
-        StringUtils::ToLower(label);
-
-        if (condition == STRING_STARTS_WITH)
-          bReturn = StringUtils::StartsWith(label, compare);
-        else if (condition == STRING_ENDS_WITH)
-          bReturn = StringUtils::EndsWith(label, compare);
-        else if (condition == STRING_CONTAINS)
-          bReturn = label.find(compare) != std::string::npos;
-        else
-          bReturn = StringUtils::EqualsNoCase(label, compare);
+          if (condition == STRING_STARTS_WITH)
+            bReturn = StringUtils::StartsWith(label, compare);
+          else if (condition == STRING_ENDS_WITH)
+            bReturn = StringUtils::EndsWith(label, compare);
+          else if (condition == STRING_CONTAINS)
+            bReturn = label.find(compare) != std::string::npos;
+          else
+            bReturn = StringUtils::EqualsNoCase(label, compare);
+        }
         break;
-      }
       case INTEGER_IS_EQUAL:
       case INTEGER_GREATER_THAN:
       case INTEGER_GREATER_OR_EQUAL:
@@ -11753,63 +11204,60 @@ bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, 
       case INTEGER_LESS_OR_EQUAL:
       case INTEGER_EVEN:
       case INTEGER_ODD:
-      {
-        auto getIntValue = [this, &item, &contextWindow](int infoNum)
         {
-          int intValue = 0;
-          if (!GetInt(intValue, infoNum, contextWindow, item))
-          {
-            std::string value;
-            if (item && item->IsFileItem() && IsListItemInfo(infoNum))
-              value = GetItemImage(item, contextWindow, infoNum);
-            else
-              value = GetImage(infoNum, contextWindow);
+          auto getIntValue = [this, &item, &contextWindow](int infoNum) {
+            int intValue = 0;
+            if (!GetInt(intValue, infoNum, contextWindow, item))
+            {
+              std::string value;
+              if (item && item->IsFileItem() && IsListItemInfo(infoNum))
+                value = GetItemImage(item, contextWindow, infoNum);
+              else
+                value = GetImage(infoNum, contextWindow);
 
-            // Handle the case when a value contains time separator (:). This makes Integer.IsGreater
-            // useful for Player.Time* members without adding a separate set of members returning time in seconds
-            if (value.find_first_of(':') != std::string::npos)
-              intValue = StringUtils::TimeStringToSeconds(value);
-            else
-              std::from_chars(value.data(), value.data() + value.size(), intValue);
-          }
-          return intValue;
-        };
+              // Handle the case when a value contains time separator (:). This makes Integer.IsGreater
+              // useful for Player.Time* members without adding a separate set of members returning time in seconds
+              if (value.find_first_of(':') != value.npos)
+                intValue = StringUtils::TimeStringToSeconds(value);
+              else
+                std::from_chars(value.data(), value.data() + value.size(), intValue);
+            }
+            return intValue;
+          };
 
-        int leftIntValue = getIntValue(info.GetData1());
-        int rightIntValue = getIntValue(info.GetData2());
+          int leftIntValue = getIntValue(info.GetData1());
+          int rightIntValue = getIntValue(info.GetData2());
 
-        // compare
-        if (condition == INTEGER_IS_EQUAL)
-          bReturn = leftIntValue == rightIntValue;
-        else if (condition == INTEGER_GREATER_THAN)
-          bReturn = leftIntValue > rightIntValue;
-        else if (condition == INTEGER_GREATER_OR_EQUAL)
-          bReturn = leftIntValue >= rightIntValue;
-        else if (condition == INTEGER_LESS_THAN)
-          bReturn = leftIntValue < rightIntValue;
-        else if (condition == INTEGER_LESS_OR_EQUAL)
-          bReturn = leftIntValue <= rightIntValue;
-        else if (condition == INTEGER_EVEN)
-          bReturn = leftIntValue % 2 == 0;
-        else if (condition == INTEGER_ODD)
-          bReturn = leftIntValue % 2 != 0;
-        break;
-      }
-      default:
+          // compare
+          if (condition == INTEGER_IS_EQUAL)
+            bReturn = leftIntValue == rightIntValue;
+          else if (condition == INTEGER_GREATER_THAN)
+            bReturn = leftIntValue > rightIntValue;
+          else if (condition == INTEGER_GREATER_OR_EQUAL)
+            bReturn = leftIntValue >= rightIntValue;
+          else if (condition == INTEGER_LESS_THAN)
+            bReturn = leftIntValue < rightIntValue;
+          else if (condition == INTEGER_LESS_OR_EQUAL)
+            bReturn = leftIntValue <= rightIntValue;
+          else if (condition == INTEGER_EVEN)
+            bReturn = leftIntValue % 2 == 0;
+          else if (condition == INTEGER_ODD)
+            bReturn = leftIntValue % 2 != 0;
+        }
         break;
     }
   }
-  return (info.GetInfo() < 0) ? !bReturn : bReturn;
+  return (info.m_info < 0) ? !bReturn : bReturn;
 }
 
 bool CGUIInfoManager::GetMultiInfoInt(int &value, const CGUIInfo &info, int contextWindow, const CGUIListItem *item) const
 {
-  if (info.GetInfo() == INTEGER_VALUEOF)
+  if (info.m_info == INTEGER_VALUEOF)
   {
     value = info.GetData1();
     return true;
   }
-  else if (info.GetInfo() >= LISTITEM_START && info.GetInfo() <= LISTITEM_END)
+  else if (info.m_info >= LISTITEM_START && info.m_info <= LISTITEM_END)
   {
     std::shared_ptr<CGUIListItem> itemPtr;
     if (!item)
@@ -11819,7 +11267,7 @@ bool CGUIInfoManager::GetMultiInfoInt(int &value, const CGUIInfo &info, int cont
     }
     if (item)
     {
-      if (info.GetInfo() == LISTITEM_PROPERTY)
+      if (info.m_info == LISTITEM_PROPERTY)
       {
         if (item->HasProperty(info.GetData3()))
         {
@@ -11829,7 +11277,7 @@ bool CGUIInfoManager::GetMultiInfoInt(int &value, const CGUIInfo &info, int cont
         return false;
       }
       else
-        return GetItemInt(value, item, contextWindow, info.GetInfo());
+        return GetItemInt(value, item, contextWindow, info.m_info);
     }
     else
     {
@@ -11837,14 +11285,14 @@ bool CGUIInfoManager::GetMultiInfoInt(int &value, const CGUIInfo &info, int cont
     }
   }
 
-  return m_infoProviders.GetInt(value, m_currentFile.get(), contextWindow, info);
+  return m_infoProviders.GetInt(value, m_currentFile, contextWindow, info);
 }
 
 std::string CGUIInfoManager::GetMultiInfoLabel(const CGUIInfo &constinfo, int contextWindow, std::string *fallback) const
 {
   CGUIInfo info(constinfo);
 
-  if (info.GetInfo() >= LISTITEM_START && info.GetInfo() <= LISTITEM_END)
+  if (info.m_info >= LISTITEM_START && info.m_info <= LISTITEM_END)
   {
     const std::shared_ptr<CGUIListItem> item = GUIINFO::GetCurrentListItem(
         contextWindow, info.GetData1(), info.GetData2(), info.GetInfoFlag());
@@ -11858,25 +11306,25 @@ std::string CGUIInfoManager::GetMultiInfoLabel(const CGUIInfo &constinfo, int co
       return std::string();
     }
   }
-  else if (info.GetInfo() == SYSTEM_ADDON_TITLE || info.GetInfo() == SYSTEM_ADDON_ICON ||
-           info.GetInfo() == SYSTEM_ADDON_VERSION)
+  else if (info.m_info == SYSTEM_ADDON_TITLE ||
+           info.m_info == SYSTEM_ADDON_ICON ||
+           info.m_info == SYSTEM_ADDON_VERSION)
   {
     if (info.GetData2() == 0)
     {
       // resolve the addon id
       const std::string addonId = GetLabel(info.GetData1(), contextWindow);
-      info = CGUIInfo(info.GetInfo(), addonId);
+      info = CGUIInfo(info.m_info, addonId);
     }
   }
 
   std::string strValue;
-  m_infoProviders.GetLabel(strValue, m_currentFile.get(), contextWindow, info, fallback);
+  m_infoProviders.GetLabel(strValue, m_currentFile, contextWindow, info, fallback);
   return strValue;
 }
 
 /// \brief Obtains the filename of the image to show from whichever subsystem is needed
-std::string CGUIInfoManager::GetImage(int info, int contextWindow, std::string *fallback)
-{
+std::string CGUIInfoManager::GetImage(int info, int contextWindow, std::string *fallback) const {
   if (info >= CONDITIONAL_LABEL_START && info <= CONDITIONAL_LABEL_END)
   {
     return GetSkinVariableString(info, contextWindow, true);
@@ -11901,39 +11349,38 @@ std::string CGUIInfoManager::GetImage(int info, int contextWindow, std::string *
 
 void CGUIInfoManager::ResetCurrentItem()
 {
-  m_currentFile = std::make_unique<CFileItem>();
+  m_currentFile->Reset();
   m_infoProviders.InitCurrentItem(nullptr);
 }
 
-void CGUIInfoManager::UpdateCurrentItem(const CFileItem &item)
-{
+void CGUIInfoManager::UpdateCurrentItem(const CFileItem &item) const {
   m_currentFile->UpdateInfo(item);
 }
 
 void CGUIInfoManager::SetCurrentItem(const CFileItem &item)
 {
   *m_currentFile = item;
-  ART::FillInDefaultIcon(*m_currentFile);
+  m_currentFile->FillInDefaultIcon();
 
-  m_infoProviders.InitCurrentItem(m_currentFile.get());
+  m_infoProviders.InitCurrentItem(m_currentFile);
 
   CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Info, "OnChanged");
 }
 
-void CGUIInfoManager::SetCurrentAlbumThumb(const std::string &thumbFileName)
-{
+void CGUIInfoManager::SetCurrentAlbumThumb(const std::string &thumbFileName) const {
   if (CFileUtils::Exists(thumbFileName))
     m_currentFile->SetArt("thumb", thumbFileName);
   else
   {
     m_currentFile->SetArt("thumb", "");
-    ART::FillInDefaultIcon(*m_currentFile);
+    m_currentFile->FillInDefaultIcon();
   }
 }
 
 void CGUIInfoManager::Clear()
 {
-  std::unique_lock lock(m_critInfo);
+  std::lock_guard lock(m_critInfo);
+
   m_skinVariableStrings.clear();
 
   /*
@@ -11946,18 +11393,18 @@ void CGUIInfoManager::Clear()
   {
     swapList.clear();
     for (auto &item : m_bools)
-      if (item.use_count() > 1)
+      if (!item.unique())
         swapList.insert(item);
     m_bools.swap(swapList);
   } while (swapList.size() != m_bools.size());
 
   // log which ones are used - they should all be gone by now
-  for (const auto& infoBool : m_bools)
-    CLog::Log(LOGDEBUG, "Infobool '{}' still used by {} instances", infoBool->GetExpression(),
-              infoBool.use_count());
+  for (auto i = m_bools.begin(); i != m_bools.end(); ++i)
+    CLog::Log(LOGDEBUG, "Infobool '{}' still used by {} instances", (*i)->GetExpression(),
+              (unsigned int)i->use_count());
 }
 
-void CGUIInfoManager::UpdateAVInfo() const
+void CGUIInfoManager::UpdateAVInfo()
 {
   if (CServiceBroker::GetDataCacheCore().HasAVInfoChanges())
   {
@@ -11972,6 +11419,50 @@ void CGUIInfoManager::UpdateAVInfo() const
     appPlayer->GetSubtitleStreamInfo(CURRENT_STREAM, subtitle);
 
     m_infoProviders.UpdateAVInfo(audio, video, subtitle);
+
+    int channels = audio.channels;
+    std::string audio_layout = "Null";               // Null
+    switch (channels)
+    {
+    case 0:
+      audio_layout = "No Channels";                   // No Channels
+      break;
+    case 1:
+      audio_layout = "Mono";                           // 1.0
+      break;
+    case 2:
+      audio_layout = "FL, FR";                          // 2.0
+      break;
+    case 3:
+      audio_layout = "FL, FR, LFE";                      // 2.1
+      break;
+    case 4:
+      audio_layout = "FL, FR, BL, BR";                    // 4.0
+      break;
+    case 5:
+      audio_layout = "FL, FR, LFE, BL, BR";                // 4.1
+      break;
+    case 6:
+      audio_layout = "FL, FR, FC, LFE, SL, SR";             // 5.1
+      break;
+    case 7:
+      audio_layout = "FL, FR, FC, LFE, BL, BR, BC";          // 6.1
+      break;
+    case 8:
+      audio_layout = "FL, FR, FC, LFE, BL, BR, SL, SR";       // 7.1
+      break;
+    case 9:
+      audio_layout = "Undefined";                               // Undefined
+      break;
+    case 10:
+      audio_layout = "FL, FR, FC, LFE, BL, BR, SL, SR, FWL, FWR"; // 9.1
+      break;
+    default:
+      audio_layout = "Unknown";                                    // Unknown
+      break;
+    }
+
+    CServiceBroker::GetDataCacheCore().SetAudioChannels(audio_layout);
   }
 }
 
@@ -11985,7 +11476,7 @@ int CGUIInfoManager::AddMultiInfo(const CGUIInfo &info)
   m_multiInfo.emplace_back(info);
   int id = static_cast<int>(m_multiInfo.size()) + MULTI_INFO_START - 1;
   if (id > MULTI_INFO_END)
-    CLog::LogF(LOGERROR, "Too many multiinfo bool/labels in this skin");
+    CLog::Log(LOGERROR, "{} - too many multiinfo bool/labels in this skin", __FUNCTION__);
   return id;
 }
 
@@ -11997,7 +11488,7 @@ int CGUIInfoManager::ResolveMultiInfo(int info) const
   while (iResolvedInfo >= MULTI_INFO_START && iResolvedInfo <= MULTI_INFO_END)
   {
     iLastInfo = iResolvedInfo;
-    iResolvedInfo = m_multiInfo[iResolvedInfo - MULTI_INFO_START].GetInfo();
+    iResolvedInfo = m_multiInfo[iResolvedInfo - MULTI_INFO_START].m_info;
   }
 
   return iLastInfo;
@@ -12007,7 +11498,7 @@ bool CGUIInfoManager::IsListItemInfo(int info) const
 {
   int iResolvedInfo = info;
   while (iResolvedInfo >= MULTI_INFO_START && iResolvedInfo <= MULTI_INFO_END)
-    iResolvedInfo = m_multiInfo[iResolvedInfo - MULTI_INFO_START].GetInfo();
+    iResolvedInfo = m_multiInfo[iResolvedInfo - MULTI_INFO_START].m_info;
 
   return (iResolvedInfo >= LISTITEM_START && iResolvedInfo <= LISTITEM_END);
 }
@@ -12034,18 +11525,17 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
 
   std::string value;
 
-  if (info.GetInfo() >= CONDITIONAL_LABEL_START && info.GetInfo() <= CONDITIONAL_LABEL_END)
+  if (info.m_info >= CONDITIONAL_LABEL_START && info.m_info <= CONDITIONAL_LABEL_END)
   {
-    return GetSkinVariableString(info.GetInfo(), contextWindow, false, item);
+    return GetSkinVariableString(info.m_info, contextWindow, false, item);
   }
-  else if (info.GetInfo() >= MULTI_INFO_START && info.GetInfo() <= MULTI_INFO_END)
+  else if (info.m_info >= MULTI_INFO_START && info.m_info <= MULTI_INFO_END)
   {
-    return GetMultiInfoItemLabel(item, contextWindow,
-                                 m_multiInfo[info.GetInfo() - MULTI_INFO_START], fallback);
+    return GetMultiInfoItemLabel(item, contextWindow, m_multiInfo[info.m_info - MULTI_INFO_START], fallback);
   }
   else if (!m_infoProviders.GetLabel(value, item, contextWindow, info, fallback))
   {
-    switch (info.GetInfo())
+    switch (info.m_info)
     {
       case LISTITEM_PROPERTY:
         return item->GetProperty(info.GetData3()).asString();
@@ -12058,37 +11548,31 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
       case LISTITEM_FILENAME_NO_EXTENSION:
       {
         std::string strFile = URIUtils::GetFileName(item->GetPath());
-        if (info.GetInfo() == LISTITEM_FILE_EXTENSION)
+        if (info.m_info == LISTITEM_FILE_EXTENSION)
         {
           std::string strExtension = URIUtils::GetExtension(strFile);
           return StringUtils::TrimLeft(strExtension, ".");
         }
-        else if (info.GetInfo() == LISTITEM_FILENAME_NO_EXTENSION)
+        else if (info.m_info == LISTITEM_FILENAME_NO_EXTENSION)
         {
           URIUtils::RemoveExtension(strFile);
         }
         return strFile;
       }
       case LISTITEM_DATE:
-      {
-        const CDateTime& dateTime{item->GetDateTime()};
-        if (dateTime.IsValid())
-          return dateTime.GetAsLocalizedDate();
+        if (item->m_dateTime.IsValid())
+          return item->m_dateTime.GetAsLocalizedDate();
         break;
-      }
       case LISTITEM_DATETIME:
-      {
-        const CDateTime& dateTime{item->GetDateTime()};
-        if (dateTime.IsValid())
-          return dateTime.GetAsLocalizedDateTime();
+        if (item->m_dateTime.IsValid())
+          return item->m_dateTime.GetAsLocalizedDateTime();
         break;
-      }
       case LISTITEM_SIZE:
-        if (!item->IsFolder() || item->GetSize())
-          return StringUtils::SizeToString(item->GetSize());
+        if (!item->m_bIsFolder || item->m_dwSize)
+          return StringUtils::SizeToString(item->m_dwSize);
         break;
       case LISTITEM_PROGRAM_COUNT:
-        return std::to_string(item->GetProgramCount());
+        return std::to_string(item->m_iprogramCount);
       case LISTITEM_ACTUAL_ICON:
         return item->GetArt("icon");
       case LISTITEM_ICON:
@@ -12107,14 +11591,14 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
       case LISTITEM_THUMB:
         return item->GetThumbHideIfUnwatched(item);
       case LISTITEM_FOLDERPATH:
-        return item->GetURL().GetWithoutUserDetails();
+        return CURL(item->GetPath()).GetWithoutUserDetails();
       case LISTITEM_FOLDERNAME:
       case LISTITEM_PATH:
       {
         std::string path;
         URIUtils::GetParentPath(item->GetPath(), path);
         path = CURL(path).GetWithoutUserDetails();
-        if (info.GetInfo() == LISTITEM_FOLDERNAME)
+        if (info.m_info == LISTITEM_FOLDERNAME)
         {
           URIUtils::RemoveSlashAtEnd(path);
           path = URIUtils::GetFileName(path);
@@ -12132,27 +11616,23 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
         std::string letter;
         std::wstring character(1, item->GetSortLabel()[0]);
         StringUtils::ToUpper(character);
-        CCharsetConverter::wToUTF8(character, letter);
+        g_charsetConverter.wToUTF8(character, letter);
         return letter;
       }
       case LISTITEM_STARTTIME:
       {
-        const CDateTime& dateTime{item->GetDateTime()};
-        if (dateTime.IsValid())
-          return dateTime.GetAsLocalizedTime("", false);
+        if (item->m_dateTime.IsValid())
+          return item->m_dateTime.GetAsLocalizedTime("", false);
         break;
       }
       case LISTITEM_STARTDATE:
       {
-        const CDateTime& dateTime{item->GetDateTime()};
-        if (dateTime.IsValid())
-          return dateTime.GetAsLocalizedDate(true);
+        if (item->m_dateTime.IsValid())
+          return item->m_dateTime.GetAsLocalizedDate(true);
         break;
       }
       case LISTITEM_CURRENTITEM:
         return std::to_string(item->GetCurrentItem());
-      default:
-        break;
     }
   }
 
@@ -12169,14 +11649,13 @@ std::string CGUIInfoManager::GetItemImage(const CGUIListItem *item, int contextW
 
 std::string CGUIInfoManager::GetMultiInfoItemImage(const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback /*= nullptr*/) const
 {
-  if (info.GetInfo() >= CONDITIONAL_LABEL_START && info.GetInfo() <= CONDITIONAL_LABEL_END)
+  if (info.m_info >= CONDITIONAL_LABEL_START && info.m_info <= CONDITIONAL_LABEL_END)
   {
-    return GetSkinVariableString(info.GetInfo(), contextWindow, true, item);
+    return GetSkinVariableString(info.m_info, contextWindow, true, item);
   }
-  else if (info.GetInfo() >= MULTI_INFO_START && info.GetInfo() <= MULTI_INFO_END)
+  else if (info.m_info >= MULTI_INFO_START && info.m_info <= MULTI_INFO_END)
   {
-    return GetMultiInfoItemImage(item, contextWindow,
-                                 m_multiInfo[info.GetInfo() - MULTI_INFO_START], fallback);
+    return GetMultiInfoItemImage(item, contextWindow, m_multiInfo[info.m_info - MULTI_INFO_START], fallback);
   }
 
   return GetMultiInfoItemLabel(item, contextWindow, info, fallback);
@@ -12195,18 +11674,16 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int contextWindow, i
       case LISTITEM_ISSELECTED:
         return item->IsSelected();
       case LISTITEM_IS_FOLDER:
-        return item->IsFolder();
+        return item->m_bIsFolder;
       case LISTITEM_IS_PARENTFOLDER:
       {
         if (item->IsFileItem())
         {
-          const auto* pItem{static_cast<const CFileItem*>(item)};
+            auto pItem = static_cast<const CFileItem *>(item);
           return pItem->IsParentFolder();
         }
         break;
       }
-      default:
-        break;
     }
   }
 
@@ -12216,24 +11693,19 @@ bool CGUIInfoManager::GetItemBool(const CGUIListItem *item, int contextWindow, i
 void CGUIInfoManager::ResetCache()
 {
   // mark our infobools as dirty
-  std::unique_lock lock(m_critInfo);
+  std::lock_guard lock(m_critInfo);
+
   ++m_refreshCounter;
 }
 
-void CGUIInfoManager::SetCurrentVideoTag(const CVideoInfoTag &tag)
-{
+void CGUIInfoManager::SetCurrentVideoTag(const CVideoInfoTag &tag) const {
   m_currentFile->SetFromVideoInfoTag(tag);
   m_currentFile->SetStartOffset(0);
-
-  CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Info, "OnChanged");
 }
 
-void CGUIInfoManager::SetCurrentSongTag(const MUSIC_INFO::CMusicInfoTag &tag)
-{
+void CGUIInfoManager::SetCurrentSongTag(const MUSIC_INFO::CMusicInfoTag &tag) const {
   m_currentFile->SetFromMusicInfoTag(tag);
   m_currentFile->SetStartOffset(0);
-
-  CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Info, "OnChanged");
 }
 
 const MUSIC_INFO::CMusicInfoTag* CGUIInfoManager::GetCurrentSongTag() const
@@ -12265,7 +11737,8 @@ int CGUIInfoManager::RegisterSkinVariableString(const CSkinVariableString* info)
   if (!info)
     return 0;
 
-  std::unique_lock lock(m_critInfo);
+  std::lock_guard lock(m_critInfo);
+
   m_skinVariableStrings.emplace_back(*info);
   delete info;
   return CONDITIONAL_LABEL_START + m_skinVariableStrings.size() - 1;
@@ -12294,14 +11767,14 @@ std::string CGUIInfoManager::GetSkinVariableString(int info,
   return "";
 }
 
-bool CGUIInfoManager::ConditionsChangedValues(const std::map<INFO::InfoPtr, bool>& map) const
+bool CGUIInfoManager::ConditionsChangedValues(const std::map<INFO::InfoPtr, bool>& map)
 {
-  return std::ranges::any_of(map,
-                             [](const auto& entry)
-                             {
-                               const auto& [info, value] = entry;
-                               return info->Get(INFO::DEFAULT_CONTEXT) != value;
-                             });
+  for (auto it = map.begin() ; it != map.end() ; ++it)
+  {
+    if (it->first->Get(INFO::DEFAULT_CONTEXT) != it->second)
+      return true;
+  }
+  return false;
 }
 
 int CGUIInfoManager::GetMessageMask()
@@ -12318,7 +11791,7 @@ void CGUIInfoManager::OnApplicationMessage(KODI::MESSAGING::ThreadMessage* pMsg)
     if (pMsg->lpVoid)
     {
       auto infoLabels = static_cast<std::vector<std::string>*>(pMsg->lpVoid);
-      for (const auto& param : pMsg->params)
+      for (auto& param : pMsg->params)
         infoLabels->emplace_back(GetLabel(TranslateString(param), DEFAULT_CONTEXT));
     }
   }
@@ -12329,7 +11802,7 @@ void CGUIInfoManager::OnApplicationMessage(KODI::MESSAGING::ThreadMessage* pMsg)
     if (pMsg->lpVoid)
     {
       auto infoLabels = static_cast<std::vector<bool>*>(pMsg->lpVoid);
-      for (const auto& param : pMsg->params)
+      for (auto& param : pMsg->params)
         infoLabels->push_back(EvaluateBool(param, DEFAULT_CONTEXT));
     }
   }
@@ -12337,7 +11810,7 @@ void CGUIInfoManager::OnApplicationMessage(KODI::MESSAGING::ThreadMessage* pMsg)
 
   case TMSG_UPDATE_CURRENT_ITEM:
   {
-    auto* item{static_cast<CFileItem*>(pMsg->lpVoid)};
+    auto item = static_cast<CFileItem*>(pMsg->lpVoid);
     if (!item)
       return;
 
@@ -12362,7 +11835,7 @@ void CGUIInfoManager::RegisterInfoProvider(IGUIInfoProvider *provider)
   if (!CServiceBroker::GetWinSystem())
     return;
 
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   m_infoProviders.RegisterProvider(provider, false);
 }
@@ -12372,7 +11845,7 @@ void CGUIInfoManager::UnregisterInfoProvider(IGUIInfoProvider *provider)
   if (!CServiceBroker::GetWinSystem())
     return;
 
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   m_infoProviders.UnregisterProvider(provider);
 }

@@ -12,13 +12,11 @@
 #include "GUIControlProfiler.h"
 #include "GUIFont.h" // for XBFONT_* definitions
 #include "GUIMessage.h"
-#include "ServiceBroker.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "input/mouse/MouseEvent.h"
 #include "utils/StringUtils.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 
@@ -76,23 +74,23 @@ void CGUIControlGroupList::Process(unsigned int currentTime, CDirtyRegionList &d
 
   if (m_pageControl)
   {
-    // Only send GUI_MSG_LABEL_RESET when size or total size actually changes
-    int currentSize = static_cast<int>(Size());
-    int currentTotalSize = static_cast<int>(m_totalSize);
+    const int currentSize = static_cast<int>(Size());
+    const int currentTotalSize = static_cast<int>(m_totalSize);
+    const int currentScrollerValue = static_cast<int>(m_scroller.GetValue());
+
     if (m_lastPageControlSize != currentSize || m_lastPageControlTotalSize != currentTotalSize)
     {
-      CGUIMessage message(GUI_MSG_LABEL_RESET, GetParentID(), m_pageControl, currentSize, currentTotalSize);
+      CGUIMessage message(GUI_MSG_LABEL_RESET, GetParentID(), m_pageControl, currentSize,
+                          currentTotalSize);
       SendWindowMessage(message);
       m_lastPageControlSize = currentSize;
       m_lastPageControlTotalSize = currentTotalSize;
     }
 
-    // Only send GUI_MSG_ITEM_SELECT when scroller value changes
-    int currentScrollerValue = static_cast<int>(m_scroller.GetValue());
     if (m_lastScrollerValue != currentScrollerValue)
     {
-      CGUIMessage message2(GUI_MSG_ITEM_SELECT, GetParentID(), m_pageControl, currentScrollerValue);
-      SendWindowMessage(message2);
+      CGUIMessage message(GUI_MSG_ITEM_SELECT, GetParentID(), m_pageControl, currentScrollerValue);
+      SendWindowMessage(message);
       m_lastScrollerValue = currentScrollerValue;
     }
   }
@@ -132,7 +130,7 @@ void CGUIControlGroupList::Render()
   bool render(CServiceBroker::GetWinSystem()->GetGfxContext().SetClipRegion(m_posX, m_posY, m_width, m_height));
   float pos = GetAlignOffset();
   float focusedPos = 0;
-  CGUIControl *focusedControl = NULL;
+  CGUIControl *focusedControl = nullptr;
   for (iControls it = m_children.begin(); it != m_children.end(); ++it)
   {
     // note we render all controls, even if they're offscreen, as then they'll be updated
@@ -294,12 +292,12 @@ void CGUIControlGroupList::AddControl(CGUIControl *control, int position /*= -1*
   { // set the navigation of items so that they form a list
     CGUIAction beforeAction = GetAction((m_orientation == VERTICAL) ? ACTION_MOVE_UP : ACTION_MOVE_LEFT);
     CGUIAction afterAction = GetAction((m_orientation == VERTICAL) ? ACTION_MOVE_DOWN : ACTION_MOVE_RIGHT);
-    if (!m_children.empty())
+    if (m_children.size())
     {
       // we're inserting at the given position, so grab the items above and below and alter
       // their navigation accordingly
-      CGUIControl *before = NULL;
-      CGUIControl *after = NULL;
+      CGUIControl *before = nullptr;
+      CGUIControl *after = nullptr;
       if (position == 0)
       { // inserting at the beginning
         after = m_children[0];
@@ -372,9 +370,8 @@ void CGUIControlGroupList::ClearAll()
   m_totalSize = 0;
   CGUIControlGroup::ClearAll();
   m_scroller.SetValue(0);
-  m_lastScrollerValue = -1;
-  m_lastPageControlSize = -1;
-  m_lastPageControlTotalSize = -1;
+  m_lastPageControlSize.reset();
+  m_lastPageControlTotalSize.reset();
 }
 
 #define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
@@ -415,9 +412,9 @@ void CGUIControlGroupList::SetInvalid()
 {
   CGUIControl::SetInvalid();
   // Force a message to the scrollbar
-  m_lastScrollerValue = -1;
-  m_lastPageControlSize = -1;
-  m_lastPageControlTotalSize = -1;
+  m_lastScrollerValue.reset();
+  m_lastPageControlSize.reset();
+  m_lastPageControlTotalSize.reset();
 }
 
 void CGUIControlGroupList::ScrollTo(float offset)

@@ -8,11 +8,10 @@
 
 #pragma once
 
+#include "EGL/egl.h"
 #include "WinSystemX11.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "windowing/X11/GLContextEGL.h"
-
-#include <EGL/egl.h>
 
 class CGLContextEGL;
 

@@ -8,14 +8,10 @@
 
 #include "PlayList.h"
 
-#include "FileItemList.h"
 #include "PlayListPlayer.h"
 #include "ServiceBroker.h"
 #include "playlists/PlayListFactory.h"
-#include "playlists/PlayListFileItemClassify.h"
 #include "utils/URIUtils.h"
-
-using namespace KODI;
 
 namespace XBMCAddon
 {
@@ -24,24 +20,22 @@ namespace XBMCAddon
     //! @todo need a means to check for a valid construction
     //!  either by throwing an exception or by an "isValid" check
     PlayList::PlayList(int playList) :
-      iPlayList(playList), pPlayList(NULL)
+      iPlayList(playList), pPlayList(nullptr)
     {
       // we do not create our own playlist, just using the ones from playlistplayer
-      if (PLAYLIST::Id{iPlayList} != PLAYLIST::Id::TYPE_MUSIC &&
-          PLAYLIST::Id{iPlayList} != PLAYLIST::Id::TYPE_VIDEO)
+      if (iPlayList != PLAYLIST::TYPE_MUSIC && iPlayList != PLAYLIST::TYPE_VIDEO)
         throw PlayListException("PlayList does not exist");
 
-      pPlayList = &CServiceBroker::GetPlaylistPlayer().GetPlaylist(PLAYLIST::Id{playList});
+      pPlayList = &CServiceBroker::GetPlaylistPlayer().GetPlaylist(playList);
       iPlayList = playList;
     }
 
     PlayList::~PlayList() = default;
 
-    void PlayList::add(const String& url, XBMCAddon::xbmcgui::ListItem* listitem, int index)
-    {
+    void PlayList::add(const String& url, XBMCAddon::xbmcgui::ListItem* listitem, int index) const {
       CFileItemList items;
 
-      if (listitem != NULL)
+      if (listitem != nullptr)
       {
         // an optional listitem was passed
         // set m_strPath to the passed url
@@ -60,12 +54,11 @@ namespace XBMCAddon
       pPlayList->Insert(items, index);
     }
 
-    bool PlayList::load(const char* cFileName)
-    {
+    bool PlayList::load(const char* cFileName) const {
       CFileItem item(cFileName);
       item.SetPath(cFileName);
 
-      if (PLAYLIST::IsPlayList(item))
+      if (item.IsPlayList())
       {
         // load playlist and copy al items to existing playlist
 
@@ -80,7 +73,7 @@ namespace XBMCAddon
             return false;
 
           // clear current playlist
-          CServiceBroker::GetPlaylistPlayer().ClearPlaylist(PLAYLIST::Id{this->iPlayList});
+          CServiceBroker::GetPlaylistPlayer().ClearPlaylist(this->iPlayList);
 
           // add each item of the playlist to the playlistplayer
           for (int i=0; i < pPlayList->size(); ++i)
@@ -100,28 +93,23 @@ namespace XBMCAddon
       return true;
     }
 
-    void PlayList::remove(const char* filename)
-    {
+    void PlayList::remove(const char* filename) const {
       pPlayList->Remove(filename);
     }
 
-    void PlayList::clear()
-    {
+    void PlayList::clear() const {
       pPlayList->Clear();
     }
 
-    int PlayList::size()
-    {
+    int PlayList::size() const {
       return pPlayList->size();
     }
 
-    void PlayList::shuffle()
-    {
+    void PlayList::shuffle() const {
       pPlayList->Shuffle();
     }
 
-    void PlayList::unshuffle()
-    {
+    void PlayList::unshuffle() const {
       pPlayList->UnShuffle();
     }
 

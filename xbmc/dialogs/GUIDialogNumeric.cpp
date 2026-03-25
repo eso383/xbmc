@@ -13,14 +13,13 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUILabelControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "input/keyboard/KeyIDs.h"
 #include "input/keyboard/XBMC_vkeys.h"
 #include "interfaces/AnnouncementManager.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/Digest.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
@@ -39,7 +38,8 @@
 using namespace KODI::MESSAGING;
 using KODI::UTILITY::CDigest;
 
-CGUIDialogNumeric::CGUIDialogNumeric(void) : CGUIDialog(WINDOW_DIALOG_NUMERIC, "DialogNumeric.xml")
+CGUIDialogNumeric::CGUIDialogNumeric(void)
+  : CGUIDialog(WINDOW_DIALOG_NUMERIC, "DialogNumeric.xml"), m_block{}, m_lastblock{}
 {
   memset(&m_datetime, 0, sizeof(KODI::TIME::SystemTime));
   m_loadType = KEEP_IN_MEMORY;
@@ -339,7 +339,7 @@ void CGUIDialogNumeric::FrameMove()
     start = m_block * 4;
     end = m_block * 4 + 3;
   }
-  CGUILabelControl *pLabel = dynamic_cast<CGUILabelControl *>(GetControl(CONTROL_INPUT_LABEL));
+  auto pLabel = dynamic_cast<CGUILabelControl *>(GetControl(CONTROL_INPUT_LABEL));
   if (pLabel)
   {
     pLabel->SetLabel(strLabel);
@@ -559,8 +559,7 @@ bool CGUIDialogNumeric::ShowAndVerifyNewPassword(std::string& strNewPassword)
 {
   // Prompt user for password input
   std::string strUserInput;
-  InputVerificationResult ret = ShowAndVerifyInput(
-      strUserInput, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12340), false);
+  InputVerificationResult ret = ShowAndVerifyInput(strUserInput, g_localizeStrings.Get(12340), false);
   if (ret != InputVerificationResult::SUCCESS)
   {
     if (ret == InputVerificationResult::FAILED)
@@ -576,8 +575,7 @@ bool CGUIDialogNumeric::ShowAndVerifyNewPassword(std::string& strNewPassword)
     return false;
 
   // Prompt again for password input, this time sending previous input as the password to verify
-  ret = ShowAndVerifyInput(
-      strUserInput, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12341), true);
+  ret = ShowAndVerifyInput(strUserInput, g_localizeStrings.Get(12341), true);
   if (ret != InputVerificationResult::SUCCESS)
   {
     if (ret == InputVerificationResult::FAILED)
@@ -604,10 +602,8 @@ int CGUIDialogNumeric::ShowAndVerifyPassword(std::string& strPassword, const std
   if (iRetries > 0)
   {
     // Show a string telling user they have iRetries retries left
-    strTempHeading = StringUtils::Format(
-        "{}. {} {} {}", strHeading,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12342), iRetries,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12343));
+    strTempHeading = StringUtils::Format("{}. {} {} {}", strHeading, g_localizeStrings.Get(12342),
+                                         iRetries, g_localizeStrings.Get(12343));
   }
 
   // make a copy of strPassword to prevent from overwriting it later

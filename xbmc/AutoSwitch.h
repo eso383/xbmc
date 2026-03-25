@@ -13,7 +13,9 @@ class CFileItemList;
 class CAutoSwitch
 {
 public:
-  CAutoSwitch() = delete;
+
+  CAutoSwitch(void);
+  virtual ~CAutoSwitch(void);
 
   static int GetView(const CFileItemList& vecItems);
 
@@ -22,5 +24,7 @@ public:
   static bool ByThumbPercent(bool bHideParentDirItems, int iPercent, const CFileItemList& vecItems);
   static bool ByFileCount(const CFileItemList& vecItems);
   static bool ByFolderThumbPercentage(bool hideParentDirItems, int percent, const CFileItemList &vecItems);
-  static float MetadataPercentage(const CFileItemList& vecItems);
+  static float MetadataPercentage(const CFileItemList &vecItems);
+protected:
+
 };

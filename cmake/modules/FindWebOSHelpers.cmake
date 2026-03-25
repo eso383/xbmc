@@ -5,29 +5,22 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::WebOSHelpers   - The webOS helpers library
+#   WEBOSHELPERS::WEBOSHELPERS   - The webOS helpers library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  SETUP_FIND_SPECS()
-
-  find_package(PkgConfig ${SEARCH_QUIET})
+if(NOT TARGET WEBOSHELPERS::WEBOSHELPERS)
+  find_package(PkgConfig)
   if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PC_WEBOSHELPERS helpers${PC_${CMAKE_FIND_PACKAGE_NAME}_FIND_SPEC} ${SEARCH_QUIET})
+    pkg_check_modules(PC_WEBOSHELPERS helpers>=2.0.0 QUIET)
   endif()
 
   find_path(WEBOSHELPERS_INCLUDE_DIR NAMES webos-helpers/libhelpers.h
-                                     HINTS ${PC_WEBOSHELPERS_INCLUDEDIR})
+                                     PATHS ${PC_WEBOSHELPERS_INCLUDEDIR}
+                                     NO_CACHE)
   find_library(WEBOSHELPERS_LIBRARY NAMES helpers
-                                    HINTS ${PC_WEBOSHELPERS_LIBDIR})
+                                    PATHS ${PC_WEBOSHELPERS_LIBDIR}
+                                    NO_CACHE)
 
   set(WEBOSHELPERS_VERSION ${PC_WEBOSHELPERS_VERSION})
-
-  if(NOT VERBOSE_FIND)
-     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY TRUE)
-   endif()
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(WebOSHelpers
@@ -35,13 +28,10 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
                                     VERSION_VAR WEBOSHELPERS_VERSION)
 
   if(WEBOSHELPERS_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} UNKNOWN IMPORTED)
-    set_target_properties(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} PROPERTIES
-                                                                     IMPORTED_LOCATION "${WEBOSHELPERS_LIBRARY}"
-                                                                     INTERFACE_INCLUDE_DIRECTORIES "${WEBOSHELPERS_INCLUDE_DIR}")
-  else()
-    if(WebOSHelpers_FIND_REQUIRED)
-      message(FATAL_ERROR "WebOSHelpers libraries were not found.")
-    endif()
+    add_library(WEBOSHELPERS::WEBOSHELPERS UNKNOWN IMPORTED)
+    set_target_properties(WEBOSHELPERS::WEBOSHELPERS PROPERTIES
+                                                     IMPORTED_LOCATION "${WEBOSHELPERS_LIBRARY}"
+                                                     INTERFACE_INCLUDE_DIRECTORIES "${WEBOSHELPERS_INCLUDE_DIR}")
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP WEBOSHELPERS::WEBOSHELPERS)
   endif()
 endif()

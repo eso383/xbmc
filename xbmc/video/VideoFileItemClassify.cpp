@@ -25,20 +25,6 @@ bool IsBDFile(const CFileItem& item)
   return URIUtils::IsBDFile(item.GetDynPath());
 }
 
-bool IsDiscStub(const CFileItem& item)
-{
-  if (IsVideoDb(item) && item.HasVideoInfoTag())
-  {
-    CFileItem dbItem(item.IsFolder() ? item.GetVideoInfoTag()->m_strPath
-                                     : item.GetVideoInfoTag()->m_strFileNameAndPath,
-                     item.IsFolder());
-    return IsDiscStub(dbItem);
-  }
-
-  return item.GetURL().HasExtension(
-      CServiceBroker::GetFileExtensionProvider().GetDiscStubExtensions());
-}
-
 bool IsDVDFile(const CFileItem& item, bool bVobs /*= true*/, bool bIfos /*= true*/)
 {
   const std::string strFileName = URIUtils::GetFileName(item.GetDynPath());
@@ -68,76 +54,9 @@ bool IsProtectedBlurayDisc(const CFileItem& item)
   return CFileUtils::Exists(path);
 }
 
-bool IsSubtitle(const CFileItem& item)
-{
-  return item.GetURL().HasExtension(
-      CServiceBroker::GetFileExtensionProvider().GetSubtitleExtensions());
-}
-
-bool IsVideo(const CFileItem& item)
-{
-  /* check preset mime type */
-  if (StringUtils::StartsWithNoCase(item.GetMimeType(), "video/"))
-    return true;
-
-  if (item.HasVideoInfoTag())
-    return true;
-
-  if (item.HasGameInfoTag())
-    return false;
-
-  if (item.HasMusicInfoTag())
-    return false;
-
-  if (item.HasPictureInfoTag())
-    return false;
-
-  // TV recordings are videos...
-  if (!item.IsFolder() && URIUtils::IsPVRTVRecordingFileOrFolder(item.GetPath()))
-    return true;
-
-  // ... all other PVR items are not.
-  if (item.IsPVR())
-    return false;
-
-  if (URIUtils::IsDVD(item.GetPath()))
-    return true;
-
-  std::string extension;
-  if (StringUtils::StartsWithNoCase(item.GetMimeType(), "application/"))
-  { /* check for some standard types */
-    extension = item.GetMimeType().substr(12);
-    if (StringUtils::EqualsNoCase(extension, "ogg") ||
-        StringUtils::EqualsNoCase(extension, "mp4") || StringUtils::EqualsNoCase(extension, "mxf"))
-      return true;
-  }
-
-  //! @todo If the file is a zip file, ask the game clients if any support this
-  // file before assuming it is video.
-
-  return item.GetURL().HasExtension(
-      CServiceBroker::GetFileExtensionProvider().GetVideoExtensions());
-}
-
-bool IsVideoAssetFile(const CFileItem& item)
-{
-  if (item.IsFolder() || !IsVideoDb(item))
-    return false;
-
-  // @todo better encoding of video assets as path, they won't always be tied with movies.
-  const CURL url{item.GetPath()};
-  return (url.HasOption("videoversionid") || url.HasOption("assetType"));
-}
-
 bool IsVideoDb(const CFileItem& item)
 {
   return URIUtils::IsVideoDb(item.GetPath());
-}
-
-bool IsVideoExtrasFolder(const CFileItem& item)
-{
-  return item.IsFolder() &&
-         StringUtils::EqualsNoCase(URIUtils::GetFileOrFolderName(item.GetPath()), "extras");
 }
 
 } // namespace KODI::VIDEO

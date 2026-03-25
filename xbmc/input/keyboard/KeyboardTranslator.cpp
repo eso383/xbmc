@@ -8,8 +8,7 @@
 
 #include "KeyboardTranslator.h"
 
-#include "utils/Map.h"
-
+#include <map>
 #include <string_view>
 
 using namespace KODI;
@@ -17,7 +16,7 @@ using namespace KEYBOARD;
 
 namespace
 {
-constexpr auto KeyboardSymbols = make_map<std::string_view, XBMCKey>({
+static const std::map<std::string_view, XBMCKey> KeyboardSymbols = {
     {KEY_SYMBOL_BACKSPACE, XBMCK_BACKSPACE},
     {KEY_SYMBOL_TAB, XBMCK_TAB},
     {KEY_SYMBOL_CLEAR, XBMCK_CLEAR},
@@ -158,12 +157,16 @@ constexpr auto KeyboardSymbols = make_map<std::string_view, XBMCKey>({
     {KEY_SYMBOL_EURO, XBMCK_EURO},
     {KEY_SYMBOL_UNDO, XBMCK_UNDO},
     {KEY_SYMBOL_OEM102, XBMCK_OEM_102},
-});
+};
 } // namespace
 
 XBMCKey CKeyboardTranslator::TranslateKeysym(const SymbolName& symbolName)
 {
-  return KeyboardSymbols.get(symbolName).value_or(XBMCK_UNKNOWN);
+  const auto it = KeyboardSymbols.find(symbolName);
+  if (it != KeyboardSymbols.end())
+    return it->second;
+
+  return XBMCK_UNKNOWN;
 }
 
 const char* CKeyboardTranslator::TranslateKeycode(XBMCKey keycode)

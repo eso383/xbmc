@@ -22,7 +22,6 @@
 #include "cores/IPlayer.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodec.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFlags.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/MatrixGL.h"
 #include "rendering/gl/RenderSystemGL.h"
 #include "settings/AdvancedSettings.h"
@@ -132,21 +131,6 @@ CLinuxRendererGL::CLinuxRendererGL()
   m_cmsOn = false;
 
   m_renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
-
-  int32_t intermediatePrecision = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
-      CSettings::SETTING_VIDEOPLAYER_HQSCALERPRECISION);
-  if (intermediatePrecision == 16)
-  {
-    m_intermediateFormat = GL_RGBA16;
-    m_intermediateType = GL_SHORT;
-    m_intermediateGammaCorrection = true;
-  }
-  else if (intermediatePrecision == 10)
-  {
-    m_intermediateFormat = GL_RGB10_A2;
-    m_intermediateType = GL_UNSIGNED_INT_2_10_10_10_REV;
-    m_intermediateGammaCorrection = true;
-  }
 }
 
 CLinuxRendererGL::~CLinuxRendererGL()
@@ -249,18 +233,10 @@ bool CLinuxRendererGL::Configure(const VideoPicture &picture, float fps, unsigne
   m_nonLinStretchGui = false;
   m_pixelRatio = 1.0;
 
-  m_pboSupported = CGLExtensions::IsExtensionSupported(CGLExtensions::ARB_pixel_buffer_object);
+  m_pboSupported = CServiceBroker::GetRenderSystem()->IsExtSupported("GL_ARB_pixel_buffer_object");
 
   // setup the background colour
   m_clearColour = CServiceBroker::GetWinSystem()->UseLimitedColor() ? (16.0f / 0xff) : 0.0f;
-
-  if (picture.color_transfer == AVCOL_TRC_SMPTE2084 ||
-      picture.color_transfer == AVCOL_TRC_ARIB_STD_B67)
-  {
-    m_passthroughHDR = CServiceBroker::GetWinSystem()->SetHDR(&picture);
-    CLog::Log(LOGDEBUG, "LinuxRendererGL::Configure: HDR passthrough: {}",
-              m_passthroughHDR ? "on" : "off");
-  }
 
   // load 3DLUT
   if (m_ColorManager->IsEnabled())
@@ -897,8 +873,7 @@ void CLinuxRendererGL::UpdateVideoFilter()
         break;
       }
 
-      if (!m_fbo.fbo.CreateAndBindToTexture(GL_TEXTURE_2D, m_sourceWidth, m_sourceHeight,
-                                            m_intermediateFormat, m_intermediateType, GL_NEAREST))
+      if (!m_fbo.fbo.CreateAndBindToTexture(GL_TEXTURE_2D, m_sourceWidth, m_sourceHeight, GL_RGBA16, GL_SHORT))
       {
         CLog::Log(LOGERROR, "GL: Error creating texture and binding to FBO");
         break;
@@ -912,14 +887,14 @@ void CLinuxRendererGL::UpdateVideoFilter()
         m_cmsOn ? m_fullRange : false,
         m_cmsOn ? m_tCLUTTex : 0,
         m_CLUTsize);
-    m_pVideoFilterShader = new ConvolutionFilterShader(m_scalingMethod, m_nonLinStretch,
-                                                       m_intermediateGammaCorrection, out);
+    m_pVideoFilterShader = new ConvolutionFilterShader(m_scalingMethod, m_nonLinStretch, out);
     if (!m_pVideoFilterShader->CompileAndLink())
     {
       CLog::Log(LOGERROR, "GL: Error compiling and linking video filter shader");
       break;
     }
 
+    SetTextureFilter(GL_LINEAR);
     m_renderQuality = RQ_MULTIPASS;
     return;
 
@@ -981,10 +956,12 @@ void CLinuxRendererGL::LoadShaders(int field)
 
       if (m_scalingMethod == VS_SCALINGMETHOD_LANCZOS3_FAST || m_scalingMethod == VS_SCALINGMETHOD_SPLINE36_FAST)
       {
-        m_pYUVShader = new YUV2RGBFilterShader4(
-            m_textureTarget == GL_TEXTURE_RECTANGLE, shaderFormat, m_nonLinStretch,
-            m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709, m_srcPrimaries,
-            m_toneMap, m_toneMapMethod, m_scalingMethod, out);
+        m_pYUVShader = new YUV2RGBFilterShader4(m_textureTarget == GL_TEXTURE_RECTANGLE,
+                                                shaderFormat, m_nonLinStretch,
+                                                AVColorPrimaries::AVCOL_PRI_BT709, m_srcPrimaries,
+                                                m_toneMap,
+                                                m_toneMapMethod,
+                                                m_scalingMethod, out);
         if (!m_cmsOn)
           m_pYUVShader->SetConvertFullColorRange(m_fullRange);
 
@@ -1006,12 +983,9 @@ void CLinuxRendererGL::LoadShaders(int field)
 
     if (!m_pYUVShader)
     {
-      m_pYUVShader = new YUV2RGBProgressiveShader(
-          m_textureTarget == GL_TEXTURE_RECTANGLE, shaderFormat,
-          m_nonLinStretch && m_renderQuality == RQ_SINGLEPASS,
-          m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709, m_srcPrimaries,
-          m_toneMap, m_toneMapMethod, out,
-          m_intermediateGammaCorrection && m_renderQuality == RQ_MULTIPASS);
+      m_pYUVShader = new YUV2RGBProgressiveShader(m_textureTarget == GL_TEXTURE_RECTANGLE, shaderFormat,
+                                                  m_nonLinStretch && m_renderQuality == RQ_SINGLEPASS,
+                                                  AVColorPrimaries::AVCOL_PRI_BT709, m_srcPrimaries, m_toneMap, m_toneMapMethod, out);
 
       if (!m_cmsOn)
         m_pYUVShader->SetConvertFullColorRange(m_fullRange);
@@ -1042,7 +1016,8 @@ void CLinuxRendererGL::LoadShaders(int field)
 void CLinuxRendererGL::UnInit()
 {
   CLog::Log(LOGDEBUG, "LinuxRendererGL: Cleaning up GL resources");
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   glFinish();
 
@@ -1059,9 +1034,6 @@ void CLinuxRendererGL::UnInit()
   m_fbo.fbo.Cleanup();
   m_bValidated = false;
   m_bConfigured = false;
-
-  CServiceBroker::GetWinSystem()->SetHDR(nullptr);
-  m_passthroughHDR = false;
 }
 
 bool CLinuxRendererGL::Render(unsigned int flags, int renderBuffer)
@@ -1246,7 +1218,7 @@ void CLinuxRendererGL::RenderSinglePass(int index, int field)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte)*4, idx, GL_STATIC_DRAW);
 
-  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, nullptr);
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, 0);
   VerifyGLState();
 
   glDisableVertexAttribArray(vertLoc);
@@ -1457,7 +1429,7 @@ void CLinuxRendererGL::RenderToFBO(int index, int field, bool weave /*= false*/)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte)*4, idx, GL_STATIC_DRAW);
 
-  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, nullptr);
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, 0);
   VerifyGLState();
 
   glDisableVertexAttribArray(vertLoc);
@@ -1580,7 +1552,7 @@ void CLinuxRendererGL::RenderFromFBO()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte)*4, idx, GL_STATIC_DRAW);
 
-  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, nullptr);
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, 0);
   VerifyGLState();
 
   glDisableVertexAttribArray(loc);
@@ -1721,7 +1693,7 @@ void CLinuxRendererGL::RenderRGB(int index, int field)
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte)*4, idx, GL_STATIC_DRAW);
 
-  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, nullptr);
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, 0);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glDeleteBuffers(1, &vertexVBO);
@@ -2635,7 +2607,7 @@ bool CLinuxRendererGL::Supports(ERENDERFEATURE feature) const
 
 bool CLinuxRendererGL::SupportsMultiPassRendering()
 {
-  return CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_framebuffer_object);
+  return m_renderSystem->IsExtSupported("GL_EXT_framebuffer_object");
 }
 
 bool CLinuxRendererGL::Supports(ESCALINGMETHOD method) const
@@ -2674,7 +2646,7 @@ bool CLinuxRendererGL::Supports(ESCALINGMETHOD method) const
     if (major > 3 ||
         (major == 3 && minor >= 2))
       hasFramebuffer = true;
-    if (CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_framebuffer_object))
+    if (m_renderSystem->IsExtSupported("GL_EXT_framebuffer_object"))
       hasFramebuffer = true;
     if (hasFramebuffer  && (m_renderMethod & RENDER_GLSL))
       return true;
@@ -2800,7 +2772,7 @@ void CLinuxRendererGL::CheckVideoParameters(int index)
   const bool streamIsHDRPQ =
       (buf.m_srcColTransfer == AVCOL_TRC_SMPTE2084 && buf.m_srcPrimaries == AVCOL_PRI_BT2020);
 
-  if (!m_passthroughHDR && streamIsHDRPQ && toneMapMethod != VS_TONEMAPMETHOD_OFF)
+  if (streamIsHDRPQ && toneMapMethod != VS_TONEMAPMETHOD_OFF)
   {
     toneMap = true;
   }

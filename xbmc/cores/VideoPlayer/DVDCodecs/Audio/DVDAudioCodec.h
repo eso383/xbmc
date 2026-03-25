@@ -29,8 +29,6 @@ typedef struct stDVDAudioFrame
   uint8_t* data[16];
   double pts;
   bool hasTimestamp;
-  bool hasDiscontinuity; // Set when a timing discontinuity was detected (e.g., seamless branching)
-  double discontinuityCorrection; // Amount of PTS correction applied (for clock sync)
   double duration;
   unsigned int nb_frames;
   unsigned int framesOut;
@@ -45,13 +43,18 @@ typedef struct stDVDAudioFrame
   int profile;
   bool hasDownmix;
   double centerMixLevel;
+
+  // LAV discontinuity signaling (used when LAV sync is enabled)
+  bool hasDiscontinuity{false};
+  double discontinuityCorrection{0.0};
 } DVDAudioFrame;
 
 class CDVDAudioCodec
 {
 public:
 
-  explicit CDVDAudioCodec(CProcessInfo &processInfo) : m_processInfo(processInfo) {}
+  explicit CDVDAudioCodec(CProcessInfo &processInfo) : m_processInfo(processInfo),
+                                                       m_dataCacheCore(CServiceBroker::GetDataCacheCore()) {}
   virtual ~CDVDAudioCodec() = default;
 
   /*
@@ -122,4 +125,5 @@ public:
 
 protected:
   CProcessInfo &m_processInfo;
+  CDataCacheCore &m_dataCacheCore;
 };

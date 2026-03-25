@@ -118,11 +118,9 @@ public class XBMCMediaSession
   public XBMCMediaSession()
   {
     Log.d(TAG, "XBMCMediaSession init");
-    mSession = new MediaSession(Main.MainActivity, "XBMC_session");
+    this.mSession = new MediaSession(Main.MainActivity, "XBMC_session");
     if (Build.VERSION.SDK_INT < 26) {
-      @SuppressWarnings("deprecation")
-      int flags = MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS;
-      mSession.setFlags(flags);
+      this.mSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
     }
 
     Main.MainActivity.runOnUiThread(new Runnable()

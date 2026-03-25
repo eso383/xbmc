@@ -29,8 +29,7 @@ using namespace JOYSTICK;
 using namespace KEYMAP;
 
 CKeymapHandler::CKeymapHandler(ACTION::IActionListener* actionHandler, const IKeymap* keymap)
-  : m_actionHandler(actionHandler),
-    m_keymap(keymap)
+  : m_actionHandler(actionHandler), m_keymap(keymap)
 {
   assert(m_actionHandler != nullptr);
   assert(m_keymap != nullptr);

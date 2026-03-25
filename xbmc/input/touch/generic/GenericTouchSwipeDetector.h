@@ -37,8 +37,7 @@ private:
    *
    * \sa TouchMoveDirection
    */
-  unsigned int m_directions = TouchMoveDirectionLeft | TouchMoveDirectionRight |
-                              TouchMoveDirectionUp | TouchMoveDirectionDown;
+  unsigned int m_directions;
   /*!
    * \brief Whether a swipe gesture has been detected or not
    */

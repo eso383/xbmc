@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "jobs/Job.h"
 #include "music/tags/MusicInfoTag.h"
+#include "utils/Job.h"
 
 namespace XFILE
 {
@@ -50,15 +50,15 @@ public:
   ~CCDDARipJob() override;
 
   const char* GetType() const override { return "cdrip"; }
-  bool Equals(const CJob* job) const override;
+  bool operator==(const CJob* job) const override;
   bool DoWork() override;
-  const std::string& GetOutput() const { return m_output; }
+  std::string GetOutput() const { return m_output; }
 
 protected:
   /*!
    * \brief Setup the audio encoder
    */
-  std::unique_ptr<CEncoder> SetupEncoder(XFILE::CFile& reader);
+  std::unique_ptr<CEncoder> SetupEncoder(XFILE::CFile& reader) const;
 
   /*!
    * \brief Helper used if output is a remote url

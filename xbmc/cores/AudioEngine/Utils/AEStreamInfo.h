@@ -46,7 +46,7 @@ public:
   bool m_dataIsLE = true;
   unsigned int m_dtsPeriod = 0;
   unsigned int m_repeat = 0;
-  unsigned int m_frameSize = 0;
+  unsigned int m_ac3FrameSize = 0;
   unsigned int m_dtsSamplesPerFrame = 0;
   int m_dialNorm = 0; // Dialog Normalization in dB (TrueHD Atmos 16ch)
   bool m_hasAtmos = false; // TrueHD Atmos (16-channel presentation)

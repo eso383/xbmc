@@ -8,13 +8,12 @@
 
 #include "VideoLibraryResetResumePointJob.h"
 
+#include <vector>
+
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "Util.h"
 #include "filesystem/IDirectory.h"
-
-#include <vector>
 #ifdef HAS_UPNP
 #include "network/upnp/UPnP.h"
 #endif
@@ -31,12 +30,12 @@ CVideoLibraryResetResumePointJob::CVideoLibraryResetResumePointJob(
 {
 }
 
-bool CVideoLibraryResetResumePointJob::Equals(const CJob* job) const
+bool CVideoLibraryResetResumePointJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CVideoLibraryResetResumePointJob* resetJob = dynamic_cast<const CVideoLibraryResetResumePointJob*>(job);
+  auto resetJob = dynamic_cast<const CVideoLibraryResetResumePointJob*>(job);
   if (!resetJob)
     return false;
 
@@ -53,7 +52,7 @@ bool CVideoLibraryResetResumePointJob::Work(CVideoDatabase &db)
   CFileItemList items;
   items.Add(std::make_shared<CFileItem>(*m_item));
 
-  if (m_item->IsFolder())
+  if (m_item->m_bIsFolder)
     CUtil::GetRecursiveListing(m_item->GetPath(), items, "", XFILE::DIR_FLAG_NO_FILE_INFO);
 
   std::vector<CFileItemPtr> resetItems;

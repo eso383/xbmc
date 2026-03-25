@@ -76,7 +76,7 @@ bool CGUIDialogBusy::WaitOnEvent(CEvent &event, unsigned int displaytime /* = 10
   bool cancelled = false;
   if (!event.Wait(std::chrono::milliseconds(displaytime)))
   {
-    auto* dialog = static_cast<CGUIDialogBusy*>(
+    CGUIDialogBusy* dialog = static_cast<CGUIDialogBusy*>(
         CServiceBroker::GetGUI()->GetWindowManager().GetWindow(WINDOW_DIALOG_BUSY));
     if (dialog)
     {
@@ -111,6 +111,7 @@ CGUIDialogBusy::CGUIDialogBusy(void)
   : CGUIDialog(WINDOW_DIALOG_BUSY, "DialogBusy.xml", DialogModalityType::MODAL)
 {
   m_loadType = LOAD_ON_GUI_INIT;
+  m_cancelled = false;
 }
 
 CGUIDialogBusy::~CGUIDialogBusy(void) = default;

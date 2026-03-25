@@ -20,6 +20,7 @@
 class CEventLog;
 class CEventLogManager;
 class CSettings;
+class TiXmlNode;
 
 class CProfileManager : protected ISettingsHandler,
                          protected ISettingCallback
@@ -59,7 +60,7 @@ public:
 
   bool DeleteProfile(unsigned int index);
 
-  void CreateProfileFolders();
+  void CreateProfileFolders() const;
 
   /*! \brief Retrieve the master profile
     \return const reference to the master profile
@@ -85,7 +86,7 @@ public:
 
   /*! \brief Retrieve index of a particular profile by name
     \param name name of the profile index to retrieve
-    \return index of this profile, INVALID_PROFILE_ID if invalid.
+    \return index of this profile, -1 if invalid.
     */
   int GetProfileIndex(const std::string &name) const;
 
@@ -116,14 +117,14 @@ public:
   /*! \brief Are we the master user?
     \return true if the current profile is the master user, false otherwise
     */
-  bool IsMasterProfile() const { return m_currentProfile == MASTER_PROFILE_ID; }
+  bool IsMasterProfile() const { return m_currentProfile == 0; }
 
   /*! \brief Update the date of the current profile
     */
   void UpdateCurrentProfileDate();
 
   /*! \brief Load the master user for the purposes of logging in
-    Loads the master user.  Identical to LoadProfile(MASTER_PROFILE_ID) but doesn't
+    Loads the master user.  Identical to LoadProfile(0) but doesn't
     update the last logged in details
     */
   void LoadMasterProfileForLogin();
@@ -147,16 +148,16 @@ public:
   int GetCurrentProfileId() const { return GetCurrentProfile().getId(); }
 
   /*! \brief Retrieve the autologin profile id
-    Retrieves the autologin profile id. When set to INVALID_PROFILE_ID, then the last
+    Retrieves the autologin profile id. When set to -1, then the last
     used profile will be loaded
     \return the id to the autologin profile
     */
   int GetAutoLoginProfileId() const { return m_autoLoginProfile; }
 
-  /*! \brief Set the autologin profile id
-    sets the autologin profile id. When set to INVALID_PROFILE_ID, then the last
+  /*! \brief Retrieve the autologin profile id
+    Retrieves the autologin profile id. When set to -1, then the last
     used profile will be loaded
-    \param profileId the id for the autologin profile
+    \return the id to the autologin profile
     */
   void SetAutoLoginProfileId(const int profileId)
   {
@@ -186,7 +187,7 @@ public:
   std::string GetUserDataItem(const std::string& strFile) const;
 
   // Event log access
-  CEventLog &GetEventLog();
+  CEventLog &GetEventLog() const;
 
 protected:
   // implementation of ISettingCallback
@@ -198,8 +199,8 @@ private:
     */
   void SetCurrentProfileId(unsigned int profileId);
 
-  void PrepareLoadProfile(unsigned int profileIndex);
-  void FinalizeLoadProfile();
+  void PrepareLoadProfile(unsigned int profileIndex) const;
+  void FinalizeLoadProfile() const;
 
   // Construction parameters
   std::shared_ptr<CSettings> m_settings;
@@ -208,12 +209,12 @@ private:
   bool m_usingLoginScreen = false;
   bool m_profileLoadedForLogin = false;
   bool m_previousProfileLoadedForLogin = false;
-  int m_autoLoginProfile{INVALID_PROFILE_ID};
-  unsigned int m_lastUsedProfile{MASTER_PROFILE_ID};
-  unsigned int m_currentProfile{
-      MASTER_PROFILE_ID}; // do not modify directly, use SetCurrentProfileId() function instead
-  int m_nextProfileId{
-      MASTER_PROFILE_ID}; // for tracking the next available id to give to a new profile to ensure id's are not re-used
+  int m_autoLoginProfile = -1;
+  unsigned int m_lastUsedProfile = 0;
+  unsigned int m_currentProfile =
+      0; // do not modify directly, use SetCurrentProfileId() function instead
+  int m_nextProfileId =
+      0; // for tracking the next available id to give to a new profile to ensure id's are not re-used
   mutable CCriticalSection m_critical;
 
   // Event properties

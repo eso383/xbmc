@@ -12,7 +12,6 @@
 #include "DAVCommon.h"
 #include "DAVFile.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -60,33 +59,33 @@ void CDAVDirectory::ParseResponse(const tinyxml2::XMLElement* element, CFileItem
               if (CDAVCommon::ValueWithoutNamespace(propChild, "getcontentlength") &&
                   !propChild->NoChildren())
               {
-                item.SetSize(std::strtoll(propChild->FirstChild()->Value(), nullptr, 10));
+                item.m_dwSize = strtoll(propChild->FirstChild()->Value(), nullptr, 10);
               }
               else if (CDAVCommon::ValueWithoutNamespace(propChild, "getlastmodified") &&
                        !propChild->NoChildren())
               {
                 struct tm timeDate = {};
                 strptime(propChild->FirstChild()->Value(), "%a, %d %b %Y %T", &timeDate);
-                item.SetDateTime(std::mktime(&timeDate));
+                item.m_dateTime = mktime(&timeDate);
               }
               else if (CDAVCommon::ValueWithoutNamespace(propChild, "displayname") &&
                        !propChild->NoChildren())
               {
                 item.SetLabel(CURL::Decode(propChild->FirstChild()->Value()));
               }
-              else if (!item.GetDateTime().IsValid() &&
+              else if (!item.m_dateTime.IsValid() &&
                        CDAVCommon::ValueWithoutNamespace(propChild, "creationdate") &&
                        !propChild->NoChildren())
               {
                 struct tm timeDate = {};
                 strptime(propChild->FirstChild()->Value(), "%Y-%m-%dT%T", &timeDate);
-                item.SetDateTime(std::mktime(&timeDate));
+                item.m_dateTime = mktime(&timeDate);
               }
               else if (CDAVCommon::ValueWithoutNamespace(propChild, "resourcetype"))
               {
                 if (CDAVCommon::ValueWithoutNamespace(propChild->FirstChild(), "collection"))
                 {
-                  item.SetFolder(true);
+                  item.m_bIsFolder = true;
                 }
               }
             }
@@ -126,7 +125,7 @@ bool CDAVDirectory::GetDirectory(const CURL& url, CFileItemList &items)
   std::string strResponse;
   dav.ReadData(strResponse);
 
-  std::string fileCharset(dav.GetProperty(XFILE::FileProperty::CONTENT_CHARSET));
+  std::string fileCharset(dav.GetProperty(XFILE::FILE_PROPERTY_CONTENT_CHARSET));
   CXBMCTinyXML2 davResponse;
   davResponse.Parse(strResponse);
 
@@ -156,7 +155,7 @@ bool CDAVDirectory::GetDirectory(const CURL& url, CFileItemList &items)
         item.SetLabel(CURL::Decode(URIUtils::GetFileName(name)));
       }
 
-      if (item.IsFolder())
+      if (item.m_bIsFolder)
         URIUtils::AddSlashAtEnd(itemPath);
 
       // Add back protocol options

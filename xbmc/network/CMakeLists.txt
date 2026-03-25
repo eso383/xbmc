@@ -33,30 +33,26 @@ if(ENABLE_OPTICAL)
   list(APPEND HEADERS cddb.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::Plist)
+if(TARGET Plist::Plist)
   list(APPEND SOURCES AirPlayServer.cpp)
   list(APPEND HEADERS AirPlayServer.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::Shairplay)
+if(TARGET Shairplay::Shairplay)
   list(APPEND SOURCES AirTunesServer.cpp)
   list(APPEND HEADERS AirTunesServer.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::SmbClient)
+if(SMBCLIENT_FOUND)
   list(APPEND HEADERS IWSDiscovery.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::MicroHttpd)
+if(MICROHTTPD_FOUND)
   list(APPEND SOURCES WebServer.cpp)
   list(APPEND HEADERS WebServer.h)
 endif()
 
 core_add_library(network)
-
-if(TARGET ${APP_NAME_LC}::Bluetooth)
-  target_link_libraries(${CORE_LIBRARY} PRIVATE ${APP_NAME_LC}::Bluetooth)
-endif()
 
 if(ENABLE_STATIC_LIBS AND ENABLE_UPNP)
   target_link_libraries(${CORE_LIBRARY} PRIVATE upnp)

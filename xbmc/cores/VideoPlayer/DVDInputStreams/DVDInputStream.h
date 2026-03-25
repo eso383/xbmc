@@ -14,10 +14,7 @@
 #include "filesystem/IFileTypes.h"
 #include "utils/BitstreamStats.h"
 #include "utils/Geometry.h"
-#include "video/VideoInfoTag.h"
 
-#include <chrono>
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -37,7 +34,7 @@ enum DVDStreamType
   DVDSTREAM_TYPE_ADDON = 14
 };
 
-#define DVDSTREAM_SEEK_POSSIBLE 0x10 // flag used to check if protocol allows seeks
+#define SEEK_POSSIBLE 0x10 // flag used to check if protocol allows seeks
 
 #define DVDSTREAM_BLOCK_SIZE_FILE (2048 * 16)
 #define DVDSTREAM_BLOCK_SIZE_DVD  2048
@@ -49,8 +46,6 @@ namespace XFILE
 
 struct DemuxPacket;
 class CDemuxStream;
-class CStreamDetails;
-struct SPlayerState;
 class CDVDDemux;
 
 class CDVDInputStream
@@ -90,10 +85,10 @@ public:
   {
   public:
     virtual ~IChapter() = default;
-    virtual int GetChapter() = 0;
-    virtual int GetChapterCount() = 0;
-    virtual void GetChapterName(std::string& name, int ch = -1) = 0;
-    virtual std::chrono::milliseconds GetChapterPos(int ch = -1) = 0;
+    virtual int  GetChapter() = 0;
+    virtual int  GetChapterCount() = 0;
+    virtual void GetChapterName(std::string& name, int ch=-1) = 0;
+    virtual int64_t GetChapterPos(int ch=-1) = 0;
     virtual bool SeekChapter(int ch) = 0;
   };
 
@@ -147,7 +142,7 @@ public:
     virtual int GetNrOfStreams() const = 0;
     virtual void SetSpeed(int iSpeed) = 0;
     virtual void FillBuffer(bool mode) {}
-    virtual bool SeekTime(double time, bool backward = false, double* startpts = NULL) = 0;
+    virtual bool SeekTime(double time, bool backward = false, double* startpts = nullptr) = 0;
     virtual void AbortDemux() = 0;
     virtual void FlushDemux() = 0;
     virtual void SetVideoResolution(unsigned int width,
@@ -207,7 +202,7 @@ public:
   virtual bool IsEOF() = 0;
   virtual BitstreamStats GetBitstreamStats() const { return m_stats; }
 
-  bool ContentLookup() { return m_contentLookup; }
+  bool ContentLookup() const { return m_contentLookup; }
 
   virtual bool IsRealtime() { return m_realtime; }
 
@@ -220,75 +215,7 @@ public:
   virtual ITimes* GetITimes() { return nullptr; }
   virtual IChapter* GetIChapter() { return nullptr; }
 
-  const CVariant& GetProperty(const std::string& key) { return m_item.GetProperty(key); }
-
-  enum class UpdateState : uint8_t
-  {
-    NONE,
-    FINISHED,
-    NOT_PLAYED
-  };
-
-  /*!
-  \brief Saves the current state of the current stream (including stream details)
-  \param details streamdetails of the current playing stream
-  */
-  virtual void SaveCurrentState(const CStreamDetails& details) {}
-
-  /*!
-  \brief Updates the given fileitem with the state and streamdetails of what is decided to be the main (ie. main movie) title
-  \param item fileitem to update
-  \param time current playback time
-  \param closed sets closed to indicate if the stream was closed (=true) (ie. playback stopped before end) or finished (=false)
-  \returns an UpdateState flag indicating if no main title was played (=NOT_PLAYED), the main title was played completely (=FINISHED) 
-  \        or no update needs to be made to the VideoPlayer state (=NONE)
-  */
-  virtual UpdateState UpdateItemFromSavedStates(CFileItem& item, double time, bool& closed)
-  {
-    return UpdateState::NONE;
-  }
-
-  struct PlaylistInformation
-  {
-    int playlist{-1};
-    bool inMenu{false};
-    std::chrono::milliseconds duration{std::chrono::milliseconds::zero()};
-    std::chrono::milliseconds watchedTime{std::chrono::milliseconds::zero()};
-    std::chrono::milliseconds position{std::chrono::milliseconds::zero()};
-    CStreamDetails details;
-  };
-
-  /*!
-  \brief Function shared with DVDInputStreamBluray (for Blurays) and DVDInputStreamNavigator (for DVDs) to save playlist/title details
-  \param playedPlaylists vector of played playlists/titles to update
-  \param startTime a time point indicating when playback started (used to calculate the actual time a playlist/title was played for)
-  \param currentPlaylistInformation information about the current playlist/title being played
-  */
-  static void SavePlaylistDetails(std::vector<PlaylistInformation>& playedPlaylists,
-                                  std::chrono::steady_clock::time_point startTime,
-                                  const PlaylistInformation& currentPlaylistInformation);
-
-  /*!
-  \brief Function shared with DVDInputStreamBluray (for Blurays) and DVDInputStreamNavigator (for DVDs) to updates the given fileitem with 
-  \      the state and streamdetails of what is decided to be the main (ie. main movie) title
-  \param type playback type (DVD or Bluray)
-  \param playedPlaylists vector of played playlists/titles
-  \param item fileitem to update
-  \param time current playback time
-  \param closed sets closed to indicate if the stream was closed (=true) (ie. playback stopped before end) or finished (=false)
-  \returns an UpdateState flag indicating if no main title was played (=NOT_PLAYED), the main title was played completely (=FINISHED) 
-  \        or no update needs to be made (=NONE)
-  */
-  static UpdateState UpdateItemFromPlaylistDetails(
-      DVDStreamType type,
-      std::vector<PlaylistInformation>& playedPlaylists,
-      CFileItem& item,
-      double time,
-      bool& closed);
-
-  virtual void UpdateStack(CFileItem& item) {}
-
-  static void UpdateStackItem(CFileItem& item, std::chrono::milliseconds length);
+  const CVariant& GetProperty(const std::string& key) const { return m_item.GetProperty(key); }
 
 protected:
   DVDStreamType m_streamType;

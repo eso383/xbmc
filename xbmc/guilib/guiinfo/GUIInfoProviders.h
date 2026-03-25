@@ -30,7 +30,11 @@ class CGUIListItem;
 struct AudioStreamInfo;
 struct VideoStreamInfo;
 
-namespace KODI::GUILIB::GUIINFO
+namespace KODI
+{
+namespace GUILIB
+{
+namespace GUIINFO
 {
 
 class CGUIInfo;
@@ -47,20 +51,20 @@ public:
    * @param provider The provider to register.
    * @param bAppend True to append to the list of providers, false to insert before the first provider
    */
-  void RegisterProvider(IGUIInfoProvider* provider, bool bAppend = true);
+  void RegisterProvider(IGUIInfoProvider *provider, bool bAppend = true);
 
   /*!
    * @brief Unregister a guiinfo provider.
    * @param provider The provider to unregister.
    */
-  void UnregisterProvider(IGUIInfoProvider* provider);
+  void UnregisterProvider(IGUIInfoProvider *provider);
 
   /*!
    * @brief Init a new current guiinfo manager item. Gets called whenever the active guiinfo manager item changes.
    * @param item The new item.
    * @return True if the item was inited by one of the providers, false otherwise.
    */
-  bool InitCurrentItem(CFileItem* item) const;
+  bool InitCurrentItem(CFileItem *item) const;
 
   /*!
    * @brief Get a GUIInfoManager label string from one of the registered providers.
@@ -71,11 +75,7 @@ public:
    * @param fallback A fallback value. Can be nullptr.
    * @return True if the value was filled successfully by one of the providers, false otherwise.
    */
-  bool GetLabel(std::string& value,
-                const CFileItem* item,
-                int contextWindow,
-                const CGUIInfo& info,
-                std::string* fallback) const;
+  bool GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const;
 
   /*!
    * @brief Get a GUIInfoManager integer value from one of the registered providers.
@@ -85,7 +85,7 @@ public:
    * @param info The GUI info (label id + additional data).
    * @return True if the value was filled successfully by one of the providers, false otherwise.
    */
-  bool GetInt(int& value, const CGUIListItem* item, int contextWindow, const CGUIInfo& info) const;
+  bool GetInt(int& value, const CGUIListItem *item, int contextWindow, const CGUIInfo &info) const;
 
   /*!
    * @brief Get a GUIInfoManager bool value from one of the registered providers.
@@ -95,10 +95,7 @@ public:
    * @param info The GUI info (label id + additional data).
    * @return True if the value was filled successfully by one of the providers, false otherwise.
    */
-  bool GetBool(bool& value,
-               const CGUIListItem* item,
-               int contextWindow,
-               const CGUIInfo& info) const;
+  bool GetBool(bool& value, const CGUIListItem *item, int contextWindow, const CGUIInfo &info) const;
 
   /*!
    * @brief Set new audio/video/subtitle stream info data at all registered providers.
@@ -106,9 +103,7 @@ public:
    * @param videoInfo New video stream info.
    * @param subtitleInfo New subtitle stream info.
    */
-  void UpdateAVInfo(const AudioStreamInfo& audioInfo,
-                    const VideoStreamInfo& videoInfo,
-                    const SubtitleStreamInfo& subtitleInfo) const;
+  void UpdateAVInfo(const AudioStreamInfo& audioInfo, const VideoStreamInfo& videoInfo, const SubtitleStreamInfo& subtitleInfo) const;
 
   /*!
    * @brief Get the player guiinfo provider.
@@ -141,7 +136,7 @@ public:
   CLibraryGUIInfo& GetLibraryInfoProvider() { return m_libraryGUIInfo; }
 
 private:
-  std::vector<IGUIInfoProvider*> m_providers;
+  std::vector<IGUIInfoProvider *> m_providers;
 
   CAddonsGUIInfo m_addonsGUIInfo;
   CGamesGUIInfo m_gamesGUIInfo;
@@ -157,4 +152,6 @@ private:
   CWeatherGUIInfo m_weatherGUIInfo;
 };
 
-} // namespace KODI::GUILIB::GUIINFO
+} // namespace GUIINFO
+} // namespace GUILIB
+} // namespace KODI

@@ -16,7 +16,6 @@
 #include <vector>
 
 class CGUIDialogOK;
-class TiXmlElement;
 
 class CExternalPlayer : public IPlayer, public CThread
 {

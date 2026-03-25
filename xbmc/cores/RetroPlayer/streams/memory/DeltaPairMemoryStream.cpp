@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2026 Team Kodi
+ *  Copyright (C) 2016-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -22,7 +22,8 @@ void CDeltaPairMemoryStream::Reset()
 
 void CDeltaPairMemoryStream::SubmitFrameInternal()
 {
-  MemoryFrame& frame = m_rewindBuffer.emplace_back();
+  m_rewindBuffer.emplace_back();
+  MemoryFrame& frame = m_rewindBuffer.back();
 
   // Record frame history
   frame.frameHistoryCount = m_currentFrameHistory++;

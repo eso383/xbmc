@@ -35,7 +35,7 @@ namespace addon
 /// @copydetails cpp_kodi_addon_pvr_Defs_Timer_PVRTimer_Help
 ///
 ///@{
-class PVRTimer : public DynamicCStructHdl<PVRTimer, PVR_TIMER>
+class PVRTimer : public CStructHdl<PVRTimer, PVR_TIMER>
 {
   friend class CInstancePVRClient;
 
@@ -43,17 +43,30 @@ public:
   /*! \cond PRIVATE */
   PVRTimer()
   {
+    m_cStructure->iClientIndex = 0;
     m_cStructure->state = PVR_TIMER_STATE_NEW;
     m_cStructure->iTimerType = PVR_TIMER_TYPE_NONE;
+    m_cStructure->iParentClientIndex = 0;
     m_cStructure->iClientChannelUid = PVR_TIMER_VALUE_NOT_AVAILABLE;
+    m_cStructure->startTime = 0;
+    m_cStructure->endTime = 0;
+    m_cStructure->bStartAnyTime = false;
+    m_cStructure->bEndAnyTime = false;
+    m_cStructure->bFullTextEpgSearch = false;
     m_cStructure->iPriority = PVR_TIMER_VALUE_NOT_AVAILABLE;
     m_cStructure->iLifetime = PVR_TIMER_VALUE_NOT_AVAILABLE;
     m_cStructure->iMaxRecordings = PVR_TIMER_VALUE_NOT_AVAILABLE;
+    m_cStructure->iRecordingGroup = 0;
+    m_cStructure->firstDay = 0;
     m_cStructure->iWeekdays = PVR_WEEKDAY_NONE;
+    m_cStructure->iPreventDuplicateEpisodes = 0;
+    m_cStructure->iEpgUid = 0;
+    m_cStructure->iMarginStart = 0;
+    m_cStructure->iMarginEnd = 0;
     m_cStructure->iGenreType = PVR_TIMER_VALUE_NOT_AVAILABLE;
     m_cStructure->iGenreSubType = PVR_TIMER_VALUE_NOT_AVAILABLE;
   }
-  PVRTimer(const PVRTimer& timer) : DynamicCStructHdl(timer) {}
+  PVRTimer(const PVRTimer& data) : CStructHdl(data) {}
   /*! \endcond */
 
   /// @defgroup cpp_kodi_addon_pvr_Defs_Timer_PVRTimer_Help Value Help
@@ -88,7 +101,6 @@ public:
   /// | **Genre type** | `int` | @ref PVRTimer::SetGenreType "SetGenreType" | @ref PVRTimer::GetGenreType "GetGenreType" | *optional*
   /// | **Genre sub type** | `int` | @ref PVRTimer::SetGenreSubType "SetGenreSubType" | @ref PVRTimer::GetGenreSubType "GetGenreSubType" | *optional*
   /// | **Series link** | `std::string` | @ref PVRTimer::SetSeriesLink "SetSeriesLink" | @ref PVRTimer::GetSeriesLink "GetSeriesLink" | *optional*
-  /// | **Custom properties** | @ref cpp_kodi_addon_pvr_Defs_PVRSettingKeyValuePair "PVRSettingKeyValuePair" | @ref PVRTimer::SetCustomProperties "SetCustomProperties" | @ref PVRTimer::GetCustomProperties "GetCustomProperties" | *optional*
 
   /// @addtogroup cpp_kodi_addon_pvr_Defs_Timer_PVRTimer
   ///@{
@@ -101,7 +113,7 @@ public:
   /// first time to the client. A valid index must be greater than
   /// @ref PVR_TIMER_NO_CLIENT_INDEX.
   ///
-  void SetClientIndex(unsigned int clientIndex) { m_cStructure->iClientIndex = clientIndex; }
+  void SetClientIndex(unsigned int clientIndex) const { m_cStructure->iClientIndex = clientIndex; }
 
   /// @brief To get with @ref SetClientIndex changed values.
   unsigned int GetClientIndex() const { return m_cStructure->iClientIndex; }
@@ -120,7 +132,7 @@ public:
   /// tag.SetState(PVR_TIMER_STATE_RECORDING);
   /// ~~~~~~~~~~~~~
   ///
-  void SetState(PVR_TIMER_STATE state) { m_cStructure->state = state; }
+  void SetState(PVR_TIMER_STATE state) const { m_cStructure->state = state; }
 
   /// @brief To get with @ref SetState changed values.
   PVR_TIMER_STATE GetState() const { return m_cStructure->state; }
@@ -146,20 +158,19 @@ public:
   /// tag.SetTimerType(123);
   /// ~~~~~~~~~~~~~
   ///
-  void SetTimerType(unsigned int timerType) { m_cStructure->iTimerType = timerType; }
+  void SetTimerType(unsigned int timerType) const { m_cStructure->iTimerType = timerType; }
 
   /// @brief To get with @ref SetTimerType changed values.
   unsigned int GetTimerType() const { return m_cStructure->iTimerType; }
 
   /// @brief **required**\n
   /// A title for this timer.
-  void SetTitle(const std::string& title)
-  {
-    ReallocAndCopyString(&m_cStructure->strTitle, title.c_str());
+  void SetTitle(const std::string& title) const {
+    strncpy(m_cStructure->strTitle, title.c_str(), sizeof(m_cStructure->strTitle) - 1);
   }
 
   /// @brief To get with @ref SetTitle changed values.
-  std::string GetTitle() const { return m_cStructure->strTitle ? m_cStructure->strTitle : ""; }
+  std::string GetTitle() const { return m_cStructure->strTitle; }
 
   /// @brief **optional**\n
   /// For timers scheduled by a repeating timer.
@@ -167,8 +178,7 @@ public:
   /// The index of the repeating timer that scheduled this timer (it's
   /// @ref clientIndex value). Use @ref PVR_TIMER_NO_PARENT to indicate that
   /// this timer was no scheduled by a repeating timer.
-  void SetParentClientIndex(unsigned int parentClientIndex)
-  {
+  void SetParentClientIndex(unsigned int parentClientIndex) const {
     m_cStructure->iParentClientIndex = parentClientIndex;
   }
 
@@ -180,8 +190,7 @@ public:
   ///
   /// @ref PVR_TIMER_ANY_CHANNEL will denote "any channel", not a specific one.
   /// @ref PVR_CHANNEL_INVALID_UID denotes that channel uid is not available.
-  void SetClientChannelUid(int clientChannelUid)
-  {
+  void SetClientChannelUid(int clientChannelUid) const {
     m_cStructure->iClientChannelUid = clientChannelUid;
   }
 
@@ -193,14 +202,14 @@ public:
   ///
   /// Instant timers that are sent to the add-on by Kodi will have this value
   /// set to 0.
-  void SetStartTime(time_t startTime) { m_cStructure->startTime = startTime; }
+  void SetStartTime(time_t startTime) const { m_cStructure->startTime = startTime; }
 
   /// @brief To get with @ref SetStartTime changed values.
   time_t GetStartTime() const { return m_cStructure->startTime; }
 
   /// @brief **optional**\n
   /// End time of the recording in UTC.
-  void SetEndTime(time_t endTime) { m_cStructure->endTime = endTime; }
+  void SetEndTime(time_t endTime) const { m_cStructure->endTime = endTime; }
 
   /// @brief To get with @ref SetEndTime changed values.
   time_t GetEndTime() const { return m_cStructure->endTime; }
@@ -209,7 +218,7 @@ public:
   /// For EPG based (not Manual) timers indicates startTime does not apply.
   ///
   /// Default = false.
-  void SetStartAnyTime(bool startAnyTime) { m_cStructure->bStartAnyTime = startAnyTime; }
+  void SetStartAnyTime(bool startAnyTime) const { m_cStructure->bStartAnyTime = startAnyTime; }
 
   /// @brief To get with @ref SetStartAnyTime changed values.
   bool GetStartAnyTime() const { return m_cStructure->bStartAnyTime; }
@@ -218,7 +227,7 @@ public:
   /// For EPG based (not Manual) timers indicates endTime does not apply.
   ///
   /// Default = false
-  void SetEndAnyTime(bool endAnyTime) { m_cStructure->bEndAnyTime = endAnyTime; }
+  void SetEndAnyTime(bool endAnyTime) const { m_cStructure->bEndAnyTime = endAnyTime; }
 
   /// @brief To get with @ref SetEndAnyTime changed values.
   bool GetEndAnyTime() const { return m_cStructure->bEndAnyTime; }
@@ -227,22 +236,18 @@ public:
   /// A string used to search epg data for repeating epg-based timers.
   ///
   /// Format is backend-dependent, for example regexp.
-  void SetEPGSearchString(const std::string& epgSearchString)
-  {
-    ReallocAndCopyString(&m_cStructure->strEpgSearchString, epgSearchString.c_str());
+  void SetEPGSearchString(const std::string& epgSearchString) const {
+    strncpy(m_cStructure->strEpgSearchString, epgSearchString.c_str(),
+            sizeof(m_cStructure->strEpgSearchString) - 1);
   }
 
   /// @brief To get with @ref SetEPGSearchString changed values
-  std::string GetEPGSearchString() const
-  {
-    return m_cStructure->strEpgSearchString ? m_cStructure->strEpgSearchString : "";
-  }
+  std::string GetEPGSearchString() const { return m_cStructure->strEpgSearchString; }
 
   /// @brief **optional**\n
   /// Indicates, whether @ref SetEPGSearchString() is to match against the epg
   /// episode title only or also against "other" epg data (backend-dependent).
-  void SetFullTextEpgSearch(bool fullTextEpgSearch)
-  {
+  void SetFullTextEpgSearch(bool fullTextEpgSearch) const {
     m_cStructure->bFullTextEpgSearch = fullTextEpgSearch;
   }
 
@@ -251,33 +256,25 @@ public:
 
   /// @brief **optional**\n
   /// The (relative) directory where the recording will be stored in.
-  void SetDirectory(const std::string& directory)
-  {
-    ReallocAndCopyString(&m_cStructure->strDirectory, directory.c_str());
+  void SetDirectory(const std::string& directory) const {
+    strncpy(m_cStructure->strDirectory, directory.c_str(), sizeof(m_cStructure->strDirectory) - 1);
   }
 
   /// @brief To get with @ref SetDirectory changed values.
-  std::string GetDirectory() const
-  {
-    return m_cStructure->strDirectory ? m_cStructure->strDirectory : "";
-  }
+  std::string GetDirectory() const { return m_cStructure->strDirectory; }
 
   /// @brief **optional**\n
   /// The summary for this timer.
-  void SetSummary(const std::string& summary)
-  {
-    ReallocAndCopyString(&m_cStructure->strSummary, summary.c_str());
+  void SetSummary(const std::string& summary) const {
+    strncpy(m_cStructure->strSummary, summary.c_str(), sizeof(m_cStructure->strSummary) - 1);
   }
 
   /// @brief To get with @ref SetDirectory changed values.
-  std::string GetSummary() const
-  {
-    return m_cStructure->strSummary ? m_cStructure->strSummary : "";
-  }
+  std::string GetSummary() const { return m_cStructure->strSummary; }
 
   /// @brief **optional**\n
   /// The priority of this timer.
-  void SetPriority(int priority) { m_cStructure->iPriority = priority; }
+  void SetPriority(int priority) const { m_cStructure->iPriority = priority; }
 
   /// @brief To get with @ref SetPriority changed values.
   int GetPriority() const { return m_cStructure->iPriority; }
@@ -287,7 +284,7 @@ public:
   ///
   /// Value > 0 days after which recordings will be deleted by the backend, < 0
   /// addon defined integer list reference, == 0 disabled.
-  void SetLifetime(int priority) { m_cStructure->iLifetime = priority; }
+  void SetLifetime(int priority) const { m_cStructure->iLifetime = priority; }
 
   /// @brief To get with @ref SetLifetime changed values.
   int GetLifetime() const { return m_cStructure->iLifetime; }
@@ -296,15 +293,14 @@ public:
   /// Maximum number of recordings this timer shall create.
   ///
   /// Value > 0 number of recordings, < 0 addon defined integer list reference, == 0 disabled.
-  void SetMaxRecordings(int maxRecordings) { m_cStructure->iMaxRecordings = maxRecordings; }
+  void SetMaxRecordings(int maxRecordings) const { m_cStructure->iMaxRecordings = maxRecordings; }
 
   /// @brief To get with @ref SetMaxRecordings changed values.
   int GetMaxRecordings() const { return m_cStructure->iMaxRecordings; }
 
   /// @brief **optional**\n
   /// Integer ref to addon/backend defined list of recording groups.
-  void SetRecordingGroup(unsigned int recordingGroup)
-  {
+  void SetRecordingGroup(unsigned int recordingGroup) const {
     m_cStructure->iRecordingGroup = recordingGroup;
   }
 
@@ -313,7 +309,7 @@ public:
 
   /// @brief **optional**\n
   /// The first day this timer is active, for repeating timers.
-  void SetFirstDay(time_t firstDay) { m_cStructure->firstDay = firstDay; }
+  void SetFirstDay(time_t firstDay) const { m_cStructure->firstDay = firstDay; }
 
   /// @brief To get with @ref SetFirstDay changed values.
   time_t GetFirstDay() const { return m_cStructure->firstDay; }
@@ -334,7 +330,7 @@ public:
   /// tag.SetWeekdays(PVR_WEEKDAY_MONDAY | PVR_WEEKDAY_SATURDAY);
   /// ...
   /// ~~~~~~~~~~~~~
-  void SetWeekdays(unsigned int weekdays) { m_cStructure->iWeekdays = weekdays; }
+  void SetWeekdays(unsigned int weekdays) const { m_cStructure->iWeekdays = weekdays; }
 
   /// @brief To get with @ref SetFirstDay changed values.
   unsigned int GetWeekdays() const { return m_cStructure->iWeekdays; }
@@ -348,8 +344,7 @@ public:
   /// Actual algorithm for duplicate detection is defined by the backend.
   /// Addons may define own values for different duplicate detection
   /// algorithms, thus this is not just a bool.
-  void SetPreventDuplicateEpisodes(unsigned int preventDuplicateEpisodes)
-  {
+  void SetPreventDuplicateEpisodes(unsigned int preventDuplicateEpisodes) const {
     m_cStructure->iPreventDuplicateEpisodes = preventDuplicateEpisodes;
   }
 
@@ -364,7 +359,7 @@ public:
   /// channel.
   ///
   /// Valid ids must be greater than @ref EPG_TAG_INVALID_UID.
-  void SetEPGUid(unsigned int epgUid) { m_cStructure->iEpgUid = epgUid; }
+  void SetEPGUid(unsigned int epgUid) const { m_cStructure->iEpgUid = epgUid; }
 
   /// @brief To get with @ref SetEPGUid changed values.
   unsigned int GetEPGUid() const { return m_cStructure->iEpgUid; }
@@ -372,7 +367,7 @@ public:
   /// @brief **optional**\n
   /// If set, the backend starts the recording selected minutes before
   /// @ref SetStartTime.
-  void SetMarginStart(unsigned int marginStart) { m_cStructure->iMarginStart = marginStart; }
+  void SetMarginStart(unsigned int marginStart) const { m_cStructure->iMarginStart = marginStart; }
 
   /// @brief To get with @ref SetMarginStart changed values.
   unsigned int GetMarginStart() const { return m_cStructure->iMarginStart; }
@@ -380,7 +375,7 @@ public:
   /// @brief **optional**\n
   /// If set, the backend ends the recording selected minutes after
   /// @ref SetEndTime.
-  void SetMarginEnd(unsigned int marginEnd) { m_cStructure->iMarginEnd = marginEnd; }
+  void SetMarginEnd(unsigned int marginEnd) const { m_cStructure->iMarginEnd = marginEnd; }
 
   /// @brief To get with @ref SetMarginEnd changed values.
   unsigned int GetMarginEnd() const { return m_cStructure->iMarginEnd; }
@@ -404,7 +399,7 @@ public:
   /// conform values, can be @ref EPG_EVENT_CONTENTMASK ignored and to set here
   /// with backend value.
   ///
-  void SetGenreType(int genreType) { m_cStructure->iGenreType = genreType; }
+  void SetGenreType(int genreType) const { m_cStructure->iGenreType = genreType; }
 
   /// @brief To get with @ref SetGenreType changed values.
   int GetGenreType() const { return m_cStructure->iGenreType; }
@@ -442,7 +437,7 @@ public:
   /// ...
   /// ~~~~~~~~~~~~~
   ///
-  void SetGenreSubType(int genreSubType) { m_cStructure->iGenreSubType = genreSubType; }
+  void SetGenreSubType(int genreSubType) const { m_cStructure->iGenreSubType = genreSubType; }
 
   /// @brief To get with @ref SetGenreType changed values.
   int GetGenreSubType() const { return m_cStructure->iGenreSubType; }
@@ -452,80 +447,18 @@ public:
   ///
   /// If set for an epg-based timer rule, matching events will be found by
   /// checking with here, instead of @ref SetTitle() (and @ref SetFullTextEpgSearch()).
-  void SetSeriesLink(const std::string& seriesLink)
-  {
-    ReallocAndCopyString(&m_cStructure->strSeriesLink, seriesLink.c_str());
+  void SetSeriesLink(const std::string& seriesLink) const {
+    strncpy(m_cStructure->strSeriesLink, seriesLink.c_str(),
+            sizeof(m_cStructure->strSeriesLink) - 1);
   }
 
   /// @brief To get with @ref SetSeriesLink changed values.
-  std::string GetSeriesLink() const
-  {
-    return m_cStructure->strSeriesLink ? m_cStructure->strSeriesLink : "";
-  }
-
-  //----------------------------------------------------------------------------
-
-  /// @brief **optional**\n
-  /// Array containing the custom properties.
-  ///
-  /// @param[in] properties List of properties.
-  ///
-  /// --------------------------------------------------------------------------
-  ///
-  /// @copydetails cpp_kodi_addon_pvr_Defs_General_PVRSettingKeyValuePair_Help
-  void SetCustomProperties(const std::vector<PVRSettingKeyValuePair>& properties)
-  {
-    PVRSettingKeyValuePair::ReallocAndCopyData(&m_cStructure->customProps,
-                                               &m_cStructure->iCustomPropsSize, properties);
-  }
-
-  /// @brief To get with @ref SetCustomProperties changed values
-  std::vector<PVRSettingKeyValuePair> GetCustomProperties() const
-  {
-    std::vector<PVRSettingKeyValuePair> ret;
-    if (m_cStructure->iCustomPropsSize)
-    {
-      ret.reserve(m_cStructure->iCustomPropsSize);
-      for (unsigned int i = 0; i < m_cStructure->iCustomPropsSize; ++i)
-      {
-        ret.emplace_back(m_cStructure->customProps[i].iKey, m_cStructure->customProps[i].eType,
-                         m_cStructure->customProps[i].iValue,
-                         m_cStructure->customProps[i].strValue);
-      }
-    }
-    return ret;
-  }
+  std::string GetSeriesLink() const { return m_cStructure->strSeriesLink; }
   ///@}
 
-  static void AllocResources(const PVR_TIMER* source, PVR_TIMER* target)
-  {
-    target->strTitle = AllocAndCopyString(source->strTitle);
-    target->strEpgSearchString = AllocAndCopyString(source->strEpgSearchString);
-    target->strDirectory = AllocAndCopyString(source->strDirectory);
-    target->strSummary = AllocAndCopyString(source->strSummary);
-    target->strSeriesLink = AllocAndCopyString(source->strSeriesLink);
-
-    target->customProps =
-        PVRSettingKeyValuePair::AllocAndCopyData(source->customProps, source->iCustomPropsSize);
-    target->iCustomPropsSize = source->iCustomPropsSize;
-  }
-
-  static void FreeResources(PVR_TIMER* target)
-  {
-    FreeString(target->strTitle);
-    FreeString(target->strEpgSearchString);
-    FreeString(target->strDirectory);
-    FreeString(target->strSummary);
-    FreeString(target->strSeriesLink);
-
-    PVRSettingKeyValuePair::FreeResources(target->customProps, target->iCustomPropsSize);
-    target->customProps = nullptr;
-    target->iCustomPropsSize = 0;
-  }
-
 private:
-  PVRTimer(const PVR_TIMER* timer) : DynamicCStructHdl(timer) {}
-  PVRTimer(PVR_TIMER* timer) : DynamicCStructHdl(timer) {}
+  PVRTimer(const PVR_TIMER* data) : CStructHdl(data) {}
+  PVRTimer(PVR_TIMER* data) : CStructHdl(data) {}
 };
 
 ///@}
@@ -546,8 +479,7 @@ public:
   /*! \cond PRIVATE */
   PVRTimersResultSet() = delete;
   PVRTimersResultSet(const AddonInstance_PVR* instance, PVR_HANDLE handle)
-    : m_instance(instance),
-      m_handle(handle)
+    : m_instance(instance), m_handle(handle)
   {
   }
   /*! \endcond */
@@ -558,8 +490,7 @@ public:
   /// @brief To add and give content from addon to Kodi on related call.
   ///
   /// @param[in] tag The to transferred data.
-  void Add(const kodi::addon::PVRTimer& tag)
-  {
+  void Add(const kodi::addon::PVRTimer& tag) const {
     m_instance->toKodi->TransferTimerEntry(m_instance->toKodi->kodiInstance, m_handle, tag);
   }
 
@@ -584,7 +515,7 @@ private:
 /// @copydetails cpp_kodi_addon_pvr_Defs_Timer_PVRTimerType_Help
 ///
 ///@{
-class PVRTimerType : public DynamicCStructHdl<PVRTimerType, PVR_TIMER_TYPE>
+class PVRTimerType : public CStructHdl<PVRTimerType, PVR_TIMER_TYPE>
 {
   friend class CInstancePVRClient;
 
@@ -592,13 +523,14 @@ public:
   /*! \cond PRIVATE */
   PVRTimerType()
   {
+    memset(m_cStructure, 0, sizeof(PVR_TIMER_TYPE));
     m_cStructure->iPrioritiesDefault = -1;
     m_cStructure->iLifetimesDefault = -1;
     m_cStructure->iPreventDuplicateEpisodesDefault = -1;
     m_cStructure->iRecordingGroupDefault = -1;
     m_cStructure->iMaxRecordingsDefault = -1;
   }
-  PVRTimerType(const PVRTimerType& type) : DynamicCStructHdl(type) {}
+  PVRTimerType(const PVRTimerType& type) : CStructHdl(type) {}
   /*! \endcond */
 
   /// @defgroup cpp_kodi_addon_pvr_Defs_Timer_PVRTimerType_Help Value Help
@@ -626,8 +558,6 @@ public:
   /// | | | | | |
   /// | **Max recordings selection** | @ref cpp_kodi_addon_pvr_Defs_PVRTypeIntValue "PVRTypeIntValue" | @ref PVRTimerType::SetMaxRecordings "SetMaxRecordings" | @ref PVRTimerType::GetMaxRecordings "GetMaxRecordings" | *optional*
   /// | **Max recordings default** | `int`| @ref PVRTimerType::SetMaxRecordingsDefault "SetMaxRecordingsDefault" | @ref PVRTimerType::GetMaxRecordingsDefault "GetMaxRecordingsDefault" | *optional*
-  /// | | | | | |
-  /// | **Custom setting definitions**|  @ref cpp_kodi_addon_pvr_Defs_PVRSettingDefinition "PVRSettingDefinition" | @ref PVRTimerType::SetCustomSettingDefinitions "SetCustomSettingDefinitions" | @ref PVRTimerType::GetCustomSettingDefinitions "GetCustomSettingDefinitions" | *optional*
   ///
 
   /// @addtogroup cpp_kodi_addon_pvr_Defs_Timer_PVRTimerType
@@ -635,7 +565,7 @@ public:
 
   /// @brief **required**\n
   /// This type's identifier. Ids must be > @ref PVR_TIMER_TYPE_NONE.
-  void SetId(unsigned int id) { m_cStructure->iId = id; }
+  void SetId(unsigned int id) const { m_cStructure->iId = id; }
 
   /// @brief To get with @ref SetAttributes changed values.
   unsigned int GetId() const { return m_cStructure->iId; }
@@ -654,7 +584,7 @@ public:
   /// tag.SetAttributes(PVR_TIMER_TYPE_IS_MANUAL | PVR_TIMER_TYPE_IS_REPEATING);
   /// ~~~~~~~~~~~~~
   ///
-  void SetAttributes(uint64_t attributes) { m_cStructure->iAttributes = attributes; }
+  void SetAttributes(uint64_t attributes) const { m_cStructure->iAttributes = attributes; }
 
   /// @brief To get with @ref SetAttributes changed values.
   uint64_t GetAttributes() const { return m_cStructure->iAttributes; }
@@ -665,16 +595,13 @@ public:
   ///
   /// If left blank, Kodi will generate a description based on the attributes
   /// REPEATING and MANUAL. (e.g. "Repeating EPG-based.")
-  void SetDescription(const std::string& description)
-  {
-    ReallocAndCopyString(&m_cStructure->strDescription, description.c_str());
+  void SetDescription(const std::string& description) const {
+    strncpy(m_cStructure->strDescription, description.c_str(),
+            sizeof(m_cStructure->strDescription) - 1);
   }
 
   /// @brief To get with @ref SetDescription changed values.
-  std::string GetDescription() const
-  {
-    return m_cStructure->strDescription ? m_cStructure->strDescription : "";
-  }
+  std::string GetDescription() const { return m_cStructure->strDescription; }
 
   //----------------------------------------------------------------------------
 
@@ -690,10 +617,16 @@ public:
   /// --------------------------------------------------------------------------
   ///
   /// @copydetails cpp_kodi_addon_pvr_Defs_PVRTypeIntValue_Help
-  void SetPriorities(const std::vector<PVRTypeIntValue>& priorities, int prioritiesDefault = -1)
-  {
-    PVRTypeIntValue::ReallocAndCopyData(&m_cStructure->priorities, &m_cStructure->iPrioritiesSize,
-                                        priorities);
+  void SetPriorities(const std::vector<PVRTypeIntValue>& priorities, int prioritiesDefault = -1) const {
+    m_cStructure->iPrioritiesSize = priorities.size();
+    for (unsigned int i = 0;
+         i < m_cStructure->iPrioritiesSize && i < sizeof(m_cStructure->priorities); ++i)
+    {
+      m_cStructure->priorities[i].iValue = priorities[i].GetCStructure()->iValue;
+      strncpy(m_cStructure->priorities[i].strDescription,
+              priorities[i].GetCStructure()->strDescription,
+              sizeof(m_cStructure->priorities[i].strDescription) - 1);
+    }
     if (prioritiesDefault != -1)
       m_cStructure->iPrioritiesDefault = prioritiesDefault;
   }
@@ -713,8 +646,7 @@ public:
   ///
   /// @note Must be filled if @ref SetPriorities contain values and not
   /// defined there on second function value.
-  void SetPrioritiesDefault(int prioritiesDefault)
-  {
+  void SetPrioritiesDefault(int prioritiesDefault) const {
     m_cStructure->iPrioritiesDefault = prioritiesDefault;
   }
 
@@ -735,10 +667,16 @@ public:
   /// --------------------------------------------------------------------------
   ///
   /// @copydetails cpp_kodi_addon_pvr_Defs_PVRTypeIntValue_Help
-  void SetLifetimes(const std::vector<PVRTypeIntValue>& lifetimes, int lifetimesDefault = -1)
-  {
-    PVRTypeIntValue::ReallocAndCopyData(&m_cStructure->lifetimes, &m_cStructure->iLifetimesSize,
-                                        lifetimes);
+  void SetLifetimes(const std::vector<PVRTypeIntValue>& lifetimes, int lifetimesDefault = -1) const {
+    m_cStructure->iLifetimesSize = lifetimes.size();
+    for (unsigned int i = 0;
+         i < m_cStructure->iLifetimesSize && i < sizeof(m_cStructure->lifetimes); ++i)
+    {
+      m_cStructure->lifetimes[i].iValue = lifetimes[i].GetCStructure()->iValue;
+      strncpy(m_cStructure->lifetimes[i].strDescription,
+              lifetimes[i].GetCStructure()->strDescription,
+              sizeof(m_cStructure->lifetimes[i].strDescription) - 1);
+    }
     if (lifetimesDefault != -1)
       m_cStructure->iLifetimesDefault = lifetimesDefault;
   }
@@ -758,8 +696,7 @@ public:
   ///
   /// @note Must be filled if @ref SetLifetimes contain values and not
   /// defined there on second function value.
-  void SetLifetimesDefault(int lifetimesDefault)
-  {
+  void SetLifetimesDefault(int lifetimesDefault) const {
     m_cStructure->iLifetimesDefault = lifetimesDefault;
   }
 
@@ -783,11 +720,19 @@ public:
   ///
   /// @copydetails cpp_kodi_addon_pvr_Defs_PVRTypeIntValue_Help
   void SetPreventDuplicateEpisodes(const std::vector<PVRTypeIntValue>& preventDuplicateEpisodes,
-                                   int preventDuplicateEpisodesDefault = -1)
-  {
-    PVRTypeIntValue::ReallocAndCopyData(&m_cStructure->preventDuplicateEpisodes,
-                                        &m_cStructure->iPreventDuplicateEpisodesSize,
-                                        preventDuplicateEpisodes);
+                                   int preventDuplicateEpisodesDefault = -1) const {
+    m_cStructure->iPreventDuplicateEpisodesSize =
+        static_cast<unsigned int>(preventDuplicateEpisodes.size());
+    for (unsigned int i = 0; i < m_cStructure->iPreventDuplicateEpisodesSize &&
+                             i < sizeof(m_cStructure->preventDuplicateEpisodes);
+         ++i)
+    {
+      m_cStructure->preventDuplicateEpisodes[i].iValue =
+          preventDuplicateEpisodes[i].GetCStructure()->iValue;
+      strncpy(m_cStructure->preventDuplicateEpisodes[i].strDescription,
+              preventDuplicateEpisodes[i].GetCStructure()->strDescription,
+              sizeof(m_cStructure->preventDuplicateEpisodes[i].strDescription) - 1);
+    }
     if (preventDuplicateEpisodesDefault != -1)
       m_cStructure->iPreventDuplicateEpisodesDefault = preventDuplicateEpisodesDefault;
   }
@@ -807,8 +752,7 @@ public:
   ///
   /// @note Must be filled if @ref SetPreventDuplicateEpisodes contain values and not
   /// defined there on second function value.
-  void SetPreventDuplicateEpisodesDefault(int preventDuplicateEpisodesDefault)
-  {
+  void SetPreventDuplicateEpisodesDefault(int preventDuplicateEpisodesDefault) const {
     m_cStructure->iPreventDuplicateEpisodesDefault = preventDuplicateEpisodesDefault;
   }
 
@@ -831,10 +775,16 @@ public:
   ///
   /// @copydetails cpp_kodi_addon_pvr_Defs_PVRTypeIntValue_Help
   void SetRecordingGroups(const std::vector<PVRTypeIntValue>& recordingGroup,
-                          int recordingGroupDefault = -1)
-  {
-    PVRTypeIntValue::ReallocAndCopyData(&m_cStructure->recordingGroup,
-                                        &m_cStructure->iRecordingGroupSize, recordingGroup);
+                          int recordingGroupDefault = -1) const {
+    m_cStructure->iRecordingGroupSize = recordingGroup.size();
+    for (unsigned int i = 0;
+         i < m_cStructure->iRecordingGroupSize && i < sizeof(m_cStructure->recordingGroup); ++i)
+    {
+      m_cStructure->recordingGroup[i].iValue = recordingGroup[i].GetCStructure()->iValue;
+      strncpy(m_cStructure->recordingGroup[i].strDescription,
+              recordingGroup[i].GetCStructure()->strDescription,
+              sizeof(m_cStructure->recordingGroup[i].strDescription) - 1);
+    }
     if (recordingGroupDefault != -1)
       m_cStructure->iRecordingGroupDefault = recordingGroupDefault;
   }
@@ -854,8 +804,7 @@ public:
   ///
   /// @note Must be filled if @ref SetRecordingGroups contain values and not
   /// defined there on second function value.
-  void SetRecordingGroupDefault(int recordingGroupDefault)
-  {
+  void SetRecordingGroupDefault(int recordingGroupDefault) const {
     m_cStructure->iRecordingGroupDefault = recordingGroupDefault;
   }
 
@@ -867,7 +816,7 @@ public:
   /// @brief **optional**\n
   /// Array containing the possible values of @ref PVRTimer::SetMaxRecordings().
   ///
-  /// @param[in] maxRecordings List of max recordings values
+  /// @param[in] maxRecordings List of lifetimes values
   /// @param[in] maxRecordingsDefault [opt] The default value in list, can also be
   ///                                 set by @ref SetMaxRecordingsDefault()
   ///
@@ -875,10 +824,16 @@ public:
   ///
   /// @copydetails cpp_kodi_addon_pvr_Defs_PVRTypeIntValue_Help
   void SetMaxRecordings(const std::vector<PVRTypeIntValue>& maxRecordings,
-                        int maxRecordingsDefault = -1)
-  {
-    PVRTypeIntValue::ReallocAndCopyData(&m_cStructure->maxRecordings,
-                                        &m_cStructure->iMaxRecordingsSize, maxRecordings);
+                        int maxRecordingsDefault = -1) const {
+    m_cStructure->iMaxRecordingsSize = maxRecordings.size();
+    for (unsigned int i = 0;
+         i < m_cStructure->iMaxRecordingsSize && i < sizeof(m_cStructure->maxRecordings); ++i)
+    {
+      m_cStructure->maxRecordings[i].iValue = maxRecordings[i].GetCStructure()->iValue;
+      strncpy(m_cStructure->maxRecordings[i].strDescription,
+              maxRecordings[i].GetCStructure()->strDescription,
+              sizeof(m_cStructure->maxRecordings[i].strDescription) - 1);
+    }
     if (maxRecordingsDefault != -1)
       m_cStructure->iMaxRecordingsDefault = maxRecordingsDefault;
   }
@@ -897,162 +852,17 @@ public:
   /// The default value for @ref SetMaxRecordings().
   ///
   /// Can be set with here if on @ref SetMaxRecordings not given as second value.
-  void SetMaxRecordingsDefault(int maxRecordingsDefault)
-  {
+  void SetMaxRecordingsDefault(int maxRecordingsDefault) const {
     m_cStructure->iMaxRecordingsDefault = maxRecordingsDefault;
   }
 
   /// @brief To get with @ref SetMaxRecordingsDefault changed values
   int GetMaxRecordingsDefault() const { return m_cStructure->iMaxRecordingsDefault; }
-
-  //----------------------------------------------------------------------------
-
-  /// @brief **optional**\n
-  /// Array containing the possible custom integer setting definitions.
-  ///
-  /// @param[in] defs List of integer setting definitions.
-  ///
-  /// --------------------------------------------------------------------------
-  ///
-  /// @copydetails cpp_kodi_addon_pvr_Defs_General_PVRIntSettingDefinition_Help
-  void SetCustomSettingDefinitions(const std::vector<PVRSettingDefinition>& defs)
-  {
-    PVRSettingDefinition::ReallocAndCopyData(&m_cStructure->customSettingDefs,
-                                             &m_cStructure->iCustomSettingDefsSize, defs);
-  }
-
-  /// @brief To get with @ref SetCustomSettingDefinitions changed values
-  std::vector<PVRSettingDefinition> GetCustomSettingDefinitions() const
-  {
-    std::vector<PVRSettingDefinition> ret;
-    if (m_cStructure->iCustomSettingDefsSize)
-    {
-      ret.reserve(m_cStructure->iCustomSettingDefsSize);
-      for (unsigned int i = 0; i < m_cStructure->iCustomSettingDefsSize; ++i)
-      {
-        const PVR_SETTING_DEFINITION* def{m_cStructure->customSettingDefs[i]};
-
-        PVRIntSettingDefinition intDef;
-        if (def->intSettingDefinition)
-        {
-          const PVR_INT_SETTING_DEFINITION* intSettingDef{def->intSettingDefinition};
-
-          std::vector<PVRTypeIntValue> intValues;
-          if (intSettingDef->iValuesSize)
-          {
-            intValues.reserve(intSettingDef->iValuesSize);
-            for (unsigned int j = 0; j < intSettingDef->iValuesSize; ++j)
-            {
-              intValues.emplace_back(intSettingDef->values[j].iValue,
-                                     intSettingDef->values[j].strDescription);
-            }
-          }
-          intDef = {intValues, intSettingDef->iDefaultValue, intSettingDef->iMinValue,
-                    intSettingDef->iStep, intSettingDef->iMaxValue};
-        }
-
-        PVRStringSettingDefinition stringDef;
-        if (def->stringSettingDefinition)
-        {
-          const PVR_STRING_SETTING_DEFINITION* stringSettingDef{def->stringSettingDefinition};
-
-          std::vector<PVRTypeStringValue> stringValues;
-          if (stringSettingDef->iValuesSize)
-          {
-            stringValues.reserve(stringSettingDef->iValuesSize);
-            for (unsigned int j = 0; j < stringSettingDef->iValuesSize; ++j)
-            {
-              stringValues.emplace_back(stringSettingDef->values[j].strValue,
-                                        stringSettingDef->values[j].strDescription);
-            }
-          }
-          stringDef = {stringValues, stringSettingDef->strDefaultValue,
-                       stringSettingDef->bAllowEmptyValue};
-        }
-
-        ret.emplace_back(def->iId, def->strName, def->eType, def->iReadonlyConditions, intDef,
-                         stringDef);
-      }
-    }
-    return ret;
-  }
   ///@}
 
-  static void AllocResources(const PVR_TIMER_TYPE* source, PVR_TIMER_TYPE* target)
-  {
-    target->strDescription = AllocAndCopyString(source->strDescription);
-
-    if (target->iPrioritiesSize)
-    {
-      target->priorities =
-          PVRTypeIntValue::AllocAndCopyData(source->priorities, source->iPrioritiesSize);
-    }
-
-    if (target->iLifetimesSize)
-    {
-      target->lifetimes =
-          PVRTypeIntValue::AllocAndCopyData(source->lifetimes, source->iLifetimesSize);
-    }
-
-    if (target->iPreventDuplicateEpisodesSize)
-    {
-      target->preventDuplicateEpisodes = PVRTypeIntValue::AllocAndCopyData(
-          source->preventDuplicateEpisodes, source->iPreventDuplicateEpisodesSize);
-    }
-
-    if (target->iRecordingGroupSize)
-    {
-      target->recordingGroup =
-          PVRTypeIntValue::AllocAndCopyData(source->recordingGroup, source->iRecordingGroupSize);
-    }
-
-    if (target->iMaxRecordingsSize)
-    {
-      target->maxRecordings =
-          PVRTypeIntValue::AllocAndCopyData(source->maxRecordings, source->iMaxRecordingsSize);
-    }
-
-    if (target->iCustomSettingDefsSize)
-    {
-      target->customSettingDefs = PVRSettingDefinition::AllocAndCopyData(
-          source->customSettingDefs, source->iCustomSettingDefsSize);
-    }
-  }
-
-  static void FreeResources(PVR_TIMER_TYPE* target)
-  {
-    FreeString(target->strDescription);
-    target->strDescription = nullptr;
-
-    PVRTypeIntValue::FreeResources(target->priorities, target->iPrioritiesSize);
-    target->priorities = nullptr;
-    target->iPrioritiesSize = 0;
-
-    PVRTypeIntValue::FreeResources(target->lifetimes, target->iLifetimesSize);
-    target->lifetimes = nullptr;
-    target->iLifetimesSize = 0;
-
-    PVRTypeIntValue::FreeResources(target->preventDuplicateEpisodes,
-                                   target->iPreventDuplicateEpisodesSize);
-    target->preventDuplicateEpisodes = nullptr;
-    target->iPreventDuplicateEpisodesSize = 0;
-
-    PVRTypeIntValue::FreeResources(target->recordingGroup, target->iRecordingGroupSize);
-    target->recordingGroup = nullptr;
-    target->iRecordingGroupSize = 0;
-
-    PVRTypeIntValue::FreeResources(target->maxRecordings, target->iMaxRecordingsSize);
-    target->maxRecordings = nullptr;
-    target->iMaxRecordingsSize = 0;
-
-    PVRSettingDefinition::FreeResources(target->customSettingDefs, target->iCustomSettingDefsSize);
-    target->customSettingDefs = nullptr;
-    target->iCustomSettingDefsSize = 0;
-  }
-
 private:
-  PVRTimerType(const PVR_TIMER_TYPE* type) : DynamicCStructHdl(type) {}
-  PVRTimerType(PVR_TIMER_TYPE* type) : DynamicCStructHdl(type) {}
+  PVRTimerType(const PVR_TIMER_TYPE* type) : CStructHdl(type) {}
+  PVRTimerType(PVR_TIMER_TYPE* type) : CStructHdl(type) {}
 };
 ///@}
 //------------------------------------------------------------------------------

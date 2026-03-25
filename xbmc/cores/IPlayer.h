@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "Direction.h"
 #include "IPlayerCallback.h"
 #include "Interface/StreamInfo.h"
 #include "MenuType.h"
@@ -50,24 +49,22 @@ public:
 
 class CFileItem;
 
-// \brief Player Audio capabilities
-enum class IPlayerAudioCaps
+enum IPlayerAudioCapabilities
 {
-  ALL, // All capabilities supported
-  SELECT_STREAM, // Support to change stream
-  SELECT_OUTPUT, // Support to select an output device
-  OUTPUT_STEREO, // Support output in stereo mode
-  OFFSET, // Support to change sync offset
-  VOLUME_AMP, // Support volume amplification
+  IPC_AUD_ALL,
+  IPC_AUD_OFFSET,
+  IPC_AUD_AMP,
+  IPC_AUD_SELECT_STREAM,
+  IPC_AUD_OUTPUT_STEREO,
+  IPC_AUD_SELECT_OUTPUT
 };
 
-// \brief Player Subtitle capabilities
-enum class IPlayerSubtitleCaps
+enum IPlayerSubtitleCapabilities
 {
-  ALL, // All capabilities supported
-  SELECT_STREAM, // Support to change stream
-  EXTERNAL, // Support to load external subtitles
-  OFFSET, // Support to change sync offset
+  IPC_SUBS_ALL,
+  IPC_SUBS_SELECT,
+  IPC_SUBS_EXTERNAL,
+  IPC_SUBS_OFFSET
 };
 
 enum ERENDERFEATURE
@@ -108,7 +105,7 @@ public:
   virtual bool IsPassthrough() const { return false;}
   virtual bool CanSeek() const { return true; }
   virtual void Seek(bool bPlus = true, bool bLargeStep = false, bool bChapterOverride = false) = 0;
-  virtual bool SeekScene(Direction seekDirection) { return false; }
+  virtual bool SeekScene(bool bPlus = true) {return false;}
   virtual void SeekPercentage(float fPercent = 0){}
   virtual float GetCachePercentage() const { return 0; }
   virtual void SetMute(bool bOnOff){}
@@ -184,9 +181,9 @@ public:
   virtual void SetTime(int64_t time) { }
 
   /*!
-   \brief Set the total time in milliseconds
+   \brief Set the total time  in milliseconds
    this can be used for injecting the duration in case
-   it's not available in the underlying decoder (airtunes for example)
+   its not available in the underlaying decoder (airtunes for example)
    */
   virtual void SetTotalTime(int64_t time) { }
   virtual void SetSpeed(float speed) = 0;
@@ -213,20 +210,16 @@ public:
   virtual std::string GetPlayerState() { return ""; }
   virtual bool SetPlayerState(const std::string& state) { return false; }
 
-  /*!
-   * \brief Define the audio capabilities of the player
-   */
-  virtual void GetAudioCapabilities(std::vector<IPlayerAudioCaps>& caps) const
+  virtual void GetAudioCapabilities(std::vector<int>& audioCaps) const
   {
-    caps.assign(1, IPlayerAudioCaps::ALL);
+    audioCaps.assign(1, IPC_AUD_ALL);
   }
-
   /*!
-   * \brief Define the subtitle capabilities of the player
+   \brief define the subtitle capabilities of the player
    */
-  virtual void GetSubtitleCapabilities(std::vector<IPlayerSubtitleCaps>& caps) const
+  virtual void GetSubtitleCapabilities(std::vector<int>& subCaps) const
   {
-    caps.assign(1, IPlayerSubtitleCaps::ALL);
+    subCaps.assign(1, IPC_SUBS_ALL);
   }
 
   /*!
@@ -239,14 +232,7 @@ public:
   virtual void TriggerUpdateResolution() {}
   virtual void TriggerUpdateResolutionHdr(StreamHdrType hdrType) {}
   virtual bool IsRenderingVideo() const { return false; }
-  virtual bool IsLiveStream() const { return false; }
-  virtual void GetRects(CRect& source, CRect& dest, CRect& view) const
-  {
-    source = {};
-    dest = {};
-    view = {};
-  }
-  virtual unsigned int GetOrientation() const { return 0; }
+
   virtual bool Supports(EINTERLACEMETHOD method) const { return false; }
   virtual EINTERLACEMETHOD GetDeinterlacingMethodDefault() const
   {

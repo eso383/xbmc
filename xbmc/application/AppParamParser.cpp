@@ -10,7 +10,6 @@
 
 #include "CompileInfo.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "application/AppParams.h"
 #include "utils/StringUtils.h"
@@ -24,12 +23,12 @@
 namespace
 {
 
-constexpr const char* versionText =
+constexpr auto versionText =
     R"""({0} Media Center {1}
 Copyright (C) {2} Team {0} - http://kodi.tv
 )""";
 
-constexpr const char* helpText =
+constexpr auto helpText =
     R"""(Usage: {0} [OPTION]... [FILE]...
 
 Arguments:
@@ -70,7 +69,7 @@ void CAppParamParser::Parse(const char* const* argv, int nArgs)
       m_params->SetTestMode(false);
   }
 
-  // Record raw parameters
+  // Record raw paramerters
   m_params->SetRawArgs(std::move(args));
 }
 
@@ -102,17 +101,17 @@ void CAppParamParser::ParseArg(const std::string &arg)
     DisplayVersion();
   else if (arg == "--standalone")
     m_params->SetStandAlone(true);
-  else if (arg == "-p" || arg == "--portable")
-    m_params->SetUserDirectoriesLocation(UserDirectoriesLocation::PORTABLE);
+  else if (arg == "-p" || arg  == "--portable")
+    m_params->SetPlatformDirectories(false);
   else if (arg == "--debug")
     m_params->SetLogLevel(LOG_LEVEL_DEBUG);
   else if (arg == "--test")
     m_params->SetTestMode(true);
   else if (arg.substr(0, 11) == "--settings=")
     m_params->SetSettingsFile(arg.substr(11));
-  else if (!arg.empty() && arg[0] != '-')
+  else if (arg.length() != 0 && arg[0] != '-')
   {
-    const CFileItemPtr item = std::make_shared<CFileItem>(arg);
+    const auto item = std::make_shared<CFileItem>(arg);
     item->SetPath(arg);
     m_params->GetPlaylist().Add(item);
   }

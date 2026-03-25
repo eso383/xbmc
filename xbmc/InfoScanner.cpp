@@ -13,7 +13,7 @@
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
-bool CInfoScanner::HasNoMedia(const std::string& strDirectory)
+bool CInfoScanner::HasNoMedia(const std::string &strDirectory) const
 {
   std::string noMediaFile = URIUtils::AddFileToFolder(strDirectory, ".nomedia");
 

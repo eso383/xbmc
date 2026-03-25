@@ -10,7 +10,6 @@
 
 #include "controllers/Controller.h"
 #include "controllers/ControllerManager.h"
-#include "cores/RetroPlayer/shaders/ShaderPresetFactory.h"
 #include "games/GameSettings.h"
 #include "games/GameUtils.h"
 #include "games/agents/input/AgentInput.h"
@@ -23,14 +22,12 @@ CGameServices::CGameServices(CControllerManager& controllerManager,
                              RETRO::CGUIGameRenderManager& renderManager,
                              PERIPHERALS::CPeripherals& peripheralManager,
                              const CProfileManager& profileManager,
-                             CInputManager& inputManager,
-                             ADDON::CAddonMgr& addons)
+                             CInputManager& inputManager)
   : m_controllerManager(controllerManager),
     m_gameRenderManager(renderManager),
     m_profileManager(profileManager),
     m_gameSettings(new CGameSettings()),
-    m_agentInput(std::make_unique<CAgentInput>(peripheralManager, inputManager)),
-    m_videoShaders(std::make_unique<SHADER::CShaderPresetFactory>(addons))
+    m_agentInput(std::make_unique<CAgentInput>(peripheralManager, inputManager))
 {
   // Load the add-ons from the database asynchronously
   m_initializationTask =
@@ -39,34 +36,28 @@ CGameServices::CGameServices(CControllerManager& controllerManager,
 
 CGameServices::~CGameServices() = default;
 
-ControllerPtr CGameServices::GetController(const std::string& controllerId)
-{
+ControllerPtr CGameServices::GetController(const std::string& controllerId) const {
   return m_controllerManager.GetController(controllerId);
 }
 
-ControllerPtr CGameServices::GetDefaultController()
-{
+ControllerPtr CGameServices::GetDefaultController() const {
   return m_controllerManager.GetDefaultController();
 }
 
-ControllerPtr CGameServices::GetDefaultKeyboard()
-{
+ControllerPtr CGameServices::GetDefaultKeyboard() const {
   return m_controllerManager.GetDefaultKeyboard();
 }
 
-ControllerPtr CGameServices::GetDefaultMouse()
-{
+ControllerPtr CGameServices::GetDefaultMouse() const {
   return m_controllerManager.GetDefaultMouse();
 }
 
-ControllerVector CGameServices::GetControllers()
-{
+ControllerVector CGameServices::GetControllers() const {
   return m_controllerManager.GetControllers();
 }
 
 std::string CGameServices::TranslateFeature(const std::string& controllerId,
-                                            const std::string& featureName)
-{
+                                            const std::string& featureName) const {
   return m_controllerManager.TranslateFeature(controllerId, featureName);
 }
 

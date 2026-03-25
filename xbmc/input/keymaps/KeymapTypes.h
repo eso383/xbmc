@@ -38,7 +38,7 @@ struct KeymapAction
 struct KeymapActionGroup
 {
   int windowId = -1;
-  std::multiset<KeymapAction> actions;
+  std::set<KeymapAction> actions;
 };
 } // namespace KEYMAP
 } // namespace KODI

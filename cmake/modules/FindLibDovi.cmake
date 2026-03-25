@@ -2,28 +2,31 @@
 # -------
 # Finds the libdovi library
 #
-# This will define the following target:
+# This will define the following variables::
 #
-#   ${APP_NAME_LC}::LibDovi   - The libDovi library
+# LIBDOVI_FOUND - system has libdovi
+# LIBDOVI_INCLUDE_DIRS - the libdovi include directories
+# LIBDOVI_LIBRARIES - the libdovi libraries
+# LIBDOVI_DEFINITIONS - the libdovi compile definitions
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC libdovi)
-  set(${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME dovi)
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
-
-  SETUP_BUILD_VARS()
-
-  SETUP_FIND_SPECS()
-
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAVE_LIBDOVI)
-    ADD_TARGET_COMPILE_DEFINITION()
-  endif()
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(PC_LIBDOVI libdovi QUIET)
 endif()
+
+find_library(LIBDOVI_LIBRARY NAMES dovi libdovi
+                             PATHS ${PC_LIBDOVI_LIBDIR}
+)
+find_path(LIBDOVI_INCLUDE_DIR NAMES libdovi/rpu_parser.h
+                              PATHS ${PC_LIBDOVI_INCLUDEDIR})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LibDovi
+                                  REQUIRED_VARS LIBDOVI_LIBRARY LIBDOVI_INCLUDE_DIR)
+
+if(LIBDOVI_FOUND)
+  set(LIBDOVI_INCLUDE_DIRS ${LIBDOVI_INCLUDE_DIR})
+  set(LIBDOVI_LIBRARIES ${LIBDOVI_LIBRARY})
+  set(LIBDOVI_DEFINITIONS -DHAVE_LIBDOVI=1)
+endif()
+
+mark_as_advanced(LIBDOVI_INCLUDE_DIR LIBDOVI_LIBRARY)

@@ -100,7 +100,7 @@ ssize_t CPosixFile::Read(void* lpBuf, size_t uiBufSize)
     return -1;
 
   assert(lpBuf != NULL || uiBufSize == 0);
-  if (lpBuf == NULL && uiBufSize != 0)
+  if (lpBuf == nullptr && uiBufSize != 0)
     return -1;
 
   if (uiBufSize > SSIZE_MAX)
@@ -142,7 +142,7 @@ ssize_t CPosixFile::Write(const void* lpBuf, size_t uiBufSize)
     return -1;
 
   assert(lpBuf != NULL || uiBufSize == 0);
-  if ((lpBuf == NULL && uiBufSize != 0) || !m_allowWrite)
+  if ((lpBuf == nullptr && uiBufSize != 0) || !m_allowWrite)
     return -1;
 
   if (uiBufSize > SSIZE_MAX)
@@ -224,18 +224,18 @@ void CPosixFile::Flush()
     fsync(m_fd);
 }
 
-int CPosixFile::IoControl(IOControl request, void* param)
+int CPosixFile::IoControl(EIoControl request, void* param)
 {
   if (m_fd < 0)
     return -1;
 
-  if (request == IOControl::NATIVE)
+  if (request == IOCTRL_NATIVE)
   {
     if(!param)
       return -1;
     return ioctl(m_fd, ((SNativeIoControl*)param)->request, ((SNativeIoControl*)param)->param);
   }
-  else if (request == IOControl::SEEK_POSSIBLE)
+  else if (request == IOCTRL_SEEK_POSSIBLE)
   {
     if (GetPosition() < 0)
       return -1; // current position is unknown, can't test seeking

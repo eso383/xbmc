@@ -13,14 +13,13 @@
 #include "input/mouse/MouseStat.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <algorithm>
+#include <string.h>
 
 #include <linux/input.h>
 
-void CLibInputPointer::ProcessButton(libinput_event_pointer *e)
-{
+void CLibInputPointer::ProcessButton(libinput_event_pointer *e) const {
   const uint32_t b = libinput_event_pointer_get_button(e);
   const bool pressed = libinput_event_pointer_get_button_state(e) == LIBINPUT_BUTTON_STATE_PRESSED;
   unsigned char xbmc_button = 0;
@@ -119,8 +118,7 @@ void CLibInputPointer::ProcessMotionAbsolute(libinput_event_pointer *e)
     appPort->OnEvent(event);
 }
 
-void CLibInputPointer::ProcessAxis(libinput_event_pointer *e)
-{
+void CLibInputPointer::ProcessAxis(libinput_event_pointer *e) const {
   unsigned char scroll = 0;
   if (!libinput_event_pointer_has_axis(e, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
     return;

@@ -34,7 +34,6 @@ class CSetting;
 class CApplicationPowerHandling : public IApplicationComponent
 {
   friend class CApplication;
-  friend class CApplicationMessageHandling;
 
 public:
   bool IsInScreenSaver() const { return m_screensaverActive; }
@@ -43,7 +42,7 @@ public:
   void SetScreenSaverLockFailed() { m_iScreenSaveLock = -1; }
   void SetScreenSaverUnlocked() { m_iScreenSaveLock = 1; }
   void StopScreenSaverTimer();
-  const std::string& ScreensaverIdInUse() const { return m_screensaverIdInUse; }
+  std::string ScreensaverIdInUse() const { return m_screensaverIdInUse; }
 
   bool GetRenderGUI() const { return m_renderGUI; }
   void SetRenderGUI(bool renderGUI);

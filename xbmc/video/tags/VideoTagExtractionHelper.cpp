@@ -10,15 +10,14 @@
 
 #include "FileItem.h"
 #include "ServiceBroker.h"
-#include "imagefiles/ImageFileURL.h"
+#include "TextureDatabase.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/URIUtils.h"
 #include "video/VideoInfoTag.h"
 #include "video/tags/VideoTagLoaderFFmpeg.h"
 
-namespace KODI::VIDEO::TAGS
-{
+using namespace VIDEO::TAGS;
 
 bool CVideoTagExtractionHelper::IsExtractionSupportedFor(const CFileItem& item)
 {
@@ -36,9 +35,7 @@ std::string CVideoTagExtractionHelper::ExtractEmbeddedArtFor(const CFileItem& it
   for (const auto& it : tag.m_coverArt)
   {
     if (it.m_type == artType)
-      return IMAGE_FILES::URLFromFile(item.GetDynPath(), "video_" + artType);
+      return CTextureUtils::GetWrappedImageURL(item.GetDynPath(), "video_" + artType);
   }
   return {};
 }
-
-} // namespace KODI::VIDEO::TAGS

@@ -46,7 +46,7 @@ void CDVDMessageQueue::Init()
 
 void CDVDMessageQueue::Flush(CDVDMsg::Message type)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   m_messages.remove_if([type](const DVDMessageListItem &item){
     return type == CDVDMsg::NONE || item.message->IsType(type);
@@ -66,7 +66,7 @@ void CDVDMessageQueue::Flush(CDVDMsg::Message type)
 
 void CDVDMessageQueue::Abort()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   m_bAbortRequest = true;
 
@@ -76,7 +76,7 @@ void CDVDMessageQueue::Abort()
 
 void CDVDMessageQueue::End()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   Flush(CDVDMsg::NONE);
 
@@ -99,7 +99,7 @@ MsgQueueReturnCode CDVDMessageQueue::Put(const std::shared_ptr<CDVDMsg>& pMsg,
                                          int priority,
                                          bool front)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (!m_bInitialized)
   {
@@ -267,9 +267,8 @@ void CDVDMessageQueue::UpdateTimeBack()
   }
 }
 
-unsigned CDVDMessageQueue::GetPacketCount(CDVDMsg::Message type)
-{
-  std::unique_lock lock(m_section);
+unsigned CDVDMessageQueue::GetPacketCount(CDVDMsg::Message type) const {
+  std::lock_guard lock(m_section);
 
   if (!m_bInitialized)
     return 0;
@@ -292,7 +291,8 @@ unsigned CDVDMessageQueue::GetPacketCount(CDVDMsg::Message type)
 void CDVDMessageQueue::WaitUntilEmpty()
 {
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
+
     m_drain = true;
   }
 
@@ -302,14 +302,15 @@ void CDVDMessageQueue::WaitUntilEmpty()
   msg->Wait(m_bAbortRequest, 0);
 
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
+
     m_drain = false;
   }
 }
 
 int CDVDMessageQueue::GetLevel(bool data_level) const
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (m_iDataSize > m_iMaxDataSize)
     return 100;
@@ -366,7 +367,7 @@ void CDVDMessageQueue::GetLevels(int& level, int& dataLevel) const
 
 double CDVDMessageQueue::GetTimeSize() const
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (IsDataBasedLocked())
     return 0.0;

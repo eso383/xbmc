@@ -17,10 +17,9 @@
 #include "guilib/GUIMessage.h"
 #include "guilib/GUISliderControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
 #include "interfaces/AnnouncementManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/Variant.h"
 
 #include <cmath>
@@ -71,19 +70,19 @@ void CDialogGameVolume::OnInitWindow()
 
   SET_CONTROL_HIDDEN(CONTROL_LABEL);
 
-  CGUIDialogVolumeBar* dialogVolumeBar = dynamic_cast<CGUIDialogVolumeBar*>(
+  auto dialogVolumeBar = dynamic_cast<CGUIDialogVolumeBar*>(
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow(WINDOW_DIALOG_VOLUME_BAR));
   if (dialogVolumeBar != nullptr)
     dialogVolumeBar->RegisterCallback(this);
 
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::Application);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 }
 
 void CDialogGameVolume::OnDeinitWindow(int nextWindowID)
 {
   CServiceBroker::GetAnnouncementManager()->RemoveAnnouncer(this);
 
-  CGUIDialogVolumeBar* dialogVolumeBar = dynamic_cast<CGUIDialogVolumeBar*>(
+  auto dialogVolumeBar = dynamic_cast<CGUIDialogVolumeBar*>(
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow(WINDOW_DIALOG_VOLUME_BAR));
   if (dialogVolumeBar != nullptr)
     dialogVolumeBar->UnregisterCallback(this);
@@ -114,7 +113,7 @@ void CDialogGameVolume::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
                                  const std::string& message,
                                  const CVariant& data)
 {
-  if (message == "OnVolumeChanged")
+  if (flag == ANNOUNCEMENT::Application && message == "OnVolumeChanged")
   {
     const float volumePercent = static_cast<float>(data["volume"].asDouble());
 
@@ -146,5 +145,5 @@ float CDialogGameVolume::GetVolumePercent() const
 
 std::string CDialogGameVolume::GetLabel()
 {
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13376); // "Volume"
+  return g_localizeStrings.Get(13376); // "Volume"
 }

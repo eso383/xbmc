@@ -8,19 +8,14 @@
 
 #include "DVDDemux.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
-#include "utils/StreamUtils.h"
 #include "utils/StringUtils.h"
 
-std::string CDemuxStreamAudio::GetStreamType() const
-{
+std::string CDemuxStreamAudio::GetStreamType() const {
   std::string strInfo;
   switch (codec)
   {
     case AV_CODEC_ID_AC3:
-      strInfo = "AC3";
+      strInfo = "AC3 ";
       break;
     case AV_CODEC_ID_AC4:
       strInfo = "AC4";
@@ -28,9 +23,9 @@ std::string CDemuxStreamAudio::GetStreamType() const
     case AV_CODEC_ID_EAC3:
     {
       if (profile == AV_PROFILE_EAC3_DDP_ATMOS)
-        strInfo = "DD+ ATMOS";
+        strInfo = "DD+ ATMOS ";
       else
-        strInfo = "DD+";
+        strInfo = "DD+ ";
       break;
     }
     case AV_CODEC_ID_DTS:
@@ -38,43 +33,43 @@ std::string CDemuxStreamAudio::GetStreamType() const
       switch (profile)
       {
         case AV_PROFILE_DTS_96_24:
-          strInfo = "DTS 96/24";
+          strInfo = "DTS 96/24 ";
           break;
         case AV_PROFILE_DTS_ES:
-          strInfo = "DTS ES";
+          strInfo = "DTS ES ";
           break;
         case AV_PROFILE_DTS_EXPRESS:
-          strInfo = "DTS EXPRESS";
+          strInfo = "DTS EXPRESS ";
           break;
         case AV_PROFILE_DTS_HD_MA:
-          strInfo = "DTS-HD MA";
+          strInfo = "DTS-HD MA ";
           break;
         case AV_PROFILE_DTS_HD_HRA:
-          strInfo = "DTS-HD HRA";
+          strInfo = "DTS-HD HRA ";
           break;
         case AV_PROFILE_DTS_HD_MA_X:
-          strInfo = "DTS-HD MA X";
+          strInfo = "DTS-HD MA X ";
           break;
         case AV_PROFILE_DTS_HD_MA_X_IMAX:
-          strInfo = "DTS-HD MA X (IMAX)";
+          strInfo = "DTS-HD MA X (IMAX) ";
           break;
         default:
-          strInfo = "DTS";
+          strInfo = "DTS ";
           break;
       }
       break;
     }
     case AV_CODEC_ID_MP2:
-      strInfo = "MP2";
+      strInfo = "MP2 ";
       break;
     case AV_CODEC_ID_MP3:
-      strInfo = "MP3";
+      strInfo = "MP3 ";
       break;
     case AV_CODEC_ID_TRUEHD:
       if (profile == AV_PROFILE_TRUEHD_ATMOS)
-        strInfo = "TrueHD ATMOS";
+        strInfo = "TrueHD ATMOS ";
       else
-        strInfo = "TrueHD";
+        strInfo = "TrueHD ";
       break;
     case AV_CODEC_ID_AAC:
     {
@@ -82,71 +77,68 @@ std::string CDemuxStreamAudio::GetStreamType() const
       {
         case AV_PROFILE_AAC_LOW:
         case AV_PROFILE_MPEG2_AAC_LOW:
-          strInfo = "AAC-LC";
+          strInfo = "AAC-LC ";
           break;
         case AV_PROFILE_AAC_HE:
         case AV_PROFILE_MPEG2_AAC_HE:
-          strInfo = "HE-AAC";
+          strInfo = "HE-AAC ";
           break;
         case AV_PROFILE_AAC_HE_V2:
-          strInfo = "HE-AACv2";
+          strInfo = "HE-AACv2 ";
           break;
         case AV_PROFILE_AAC_SSR:
-          strInfo = "AAC-SSR";
+          strInfo = "AAC-SSR ";
           break;
         case AV_PROFILE_AAC_LTP:
-          strInfo = "AAC-LTP";
+          strInfo = "AAC-LTP ";
           break;
         default:
         {
           // Try check by codec full string according to RFC 6381
           if (codecName == "mp4a.40.2" || codecName == "mp4a.40.17")
-            strInfo = "AAC-LC";
+            strInfo = "AAC-LC ";
           else if (codecName == "mp4a.40.3")
-            strInfo = "AAC-SSR";
+            strInfo = "AAC-SSR ";
           else if (codecName == "mp4a.40.4" || codecName == "mp4a.40.19")
-            strInfo = "AAC-LTP";
+            strInfo = "AAC-LTP ";
           else if (codecName == "mp4a.40.5")
-            strInfo = "HE-AAC";
+            strInfo = "HE-AAC ";
           else if (codecName == "mp4a.40.29")
-            strInfo = "HE-AACv2";
+            strInfo = "HE-AACv2 ";
           else
-            strInfo = "AAC";
+            strInfo = "AAC ";
           break;
         }
       }
       break;
     }
     case AV_CODEC_ID_ALAC:
-      strInfo = "ALAC";
+      strInfo = "ALAC ";
       break;
     case AV_CODEC_ID_FLAC:
-      strInfo = "FLAC";
+      strInfo = "FLAC ";
       break;
     case AV_CODEC_ID_OPUS:
-      strInfo = "Opus";
+      strInfo = "Opus ";
       break;
     case AV_CODEC_ID_VORBIS:
-      strInfo = "Vorbis";
+      strInfo = "Vorbis ";
+      break;
+    case AV_CODEC_ID_PCM_BLURAY:
+    case AV_CODEC_ID_PCM_DVD:
+      strInfo = "PCM ";
       break;
     default:
+      strInfo = "";
       break;
   }
 
-  if (codec >= AV_CODEC_ID_PCM_S16LE && codec <= AV_CODEC_ID_PCM_SGA)
-    strInfo = "PCM";
-
-  if (strInfo.empty())
-    strInfo = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13205); // "Unknown"
-
-  strInfo.append(" ");
-  strInfo.append(StreamUtils::GetLayout(iChannels));
+  strInfo += m_channelLayoutName;
 
   return strInfo;
 }
 
-int CDVDDemux::GetNrOfStreams(StreamType streamType) const
-{
+int CDVDDemux::GetNrOfStreams(StreamType streamType) const {
   int iCounter = 0;
 
   for (auto pStream : GetStreams())
@@ -158,9 +150,9 @@ int CDVDDemux::GetNrOfStreams(StreamType streamType) const
   return iCounter;
 }
 
-int CDVDDemux::GetNrOfSubtitleStreams() const
+int CDVDDemux::GetNrOfSubtitleStreams()
 {
-  return GetNrOfStreams(StreamType::SUBTITLE);
+  return GetNrOfStreams(STREAM_SUBTITLE);
 }
 
 std::string CDemuxStream::GetStreamName()

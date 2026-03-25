@@ -89,7 +89,8 @@ public:
   void Stop();
 
   ///returns the list of found services
-  /// if this is updated, a source update announcement with "zeroconf://" as path is sent:
+  /// if this is updated, the following message with "zeroconf://" as path is sent:
+  /// CGUIMessage message(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE_PATH);
   std::vector<ZeroconfService> GetFoundServices();
   ///@}
 
@@ -110,7 +111,7 @@ public:
   // release the singleton; (save to call multiple times)
   static void ReleaseInstance();
   // returns false if ReleaseInstance() was called before
-  static bool IsInstantiated() { return  smp_instance != 0; }
+  static bool IsInstantiated() { return  smp_instance != nullptr; }
 
   virtual void ProcessResults() {}
 

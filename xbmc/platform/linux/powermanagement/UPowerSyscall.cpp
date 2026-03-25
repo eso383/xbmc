@@ -12,7 +12,7 @@
 
 CUPowerSource::CUPowerSource(const char *powerSource)
 {
-  if(powerSource == NULL)
+  if(powerSource == nullptr)
     m_powerSource = "";
   else
     m_powerSource = powerSource;
@@ -30,13 +30,11 @@ void CUPowerSource::Update()
   m_batteryLevel = properties["Percentage"].asDouble();
 }
 
-bool CUPowerSource::IsRechargeable()
-{
+bool CUPowerSource::IsRechargeable() const {
   return m_isRechargeable;
 }
 
-double CUPowerSource::BatteryLevel()
-{
+double CUPowerSource::BatteryLevel() const {
   return m_batteryLevel;
 }
 
@@ -149,10 +147,10 @@ void CUPowerSyscall::EnumeratePowerSources()
   DBusMessage *reply = message.SendSystem();
   if (reply)
   {
-    char** source  = NULL;
+    char** source  = nullptr;
     int    length = 0;
 
-    if (dbus_message_get_args (reply, NULL, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &source, &length, DBUS_TYPE_INVALID))
+    if (dbus_message_get_args (reply, nullptr, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &source, &length, DBUS_TYPE_INVALID))
     {
       for (int i = 0; i < length; i++)
       {

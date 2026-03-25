@@ -8,18 +8,17 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
-
 namespace dbiplus
 {
 class Database;
 class Dataset;
 } // namespace dbiplus
 
-class DatabaseSettings;
+#include <memory>
+#include <string>
+#include <vector>
+
+class DatabaseSettings; // forward
 class CDbUrl;
 class CProfileManager;
 struct SortDescription;
@@ -30,9 +29,9 @@ public:
   class Filter
   {
   public:
-    Filter();
-    explicit Filter(const char* w) : where(w) {}
-    explicit Filter(const std::string& w) : where(w) {}
+    Filter() : fields("*") {}
+    explicit Filter(const char* w) : fields("*"), where(w) {}
+    explicit Filter(const std::string& w) : fields("*"), where(w) {}
 
     void AppendField(const std::string& strField);
     void AppendJoin(const std::string& strJoin);
@@ -40,7 +39,7 @@ public:
     void AppendOrder(const std::string& strOrder);
     void AppendGroup(const std::string& strGroup);
 
-    std::string fields{"*"};
+    std::string fields;
     std::string join;
     std::string where;
     std::string order;
@@ -64,14 +63,14 @@ public:
   class DatasetLayout
   {
   public:
-    explicit DatasetLayout(size_t totalfields);
-    void SetField(int fieldNo, std::string_view strField, bool bOutput = false);
+    DatasetLayout(size_t totalfields);
+    void SetField(int fieldNo, const std::string& strField, bool bOutput = false);
     void AdjustRecordNumbers(int offset);
-    bool GetFetch(int fieldno);
+    bool GetFetch(int fieldno) const;
     void SetFetch(int fieldno, bool bFetch = true);
-    bool GetOutput(int fieldno);
-    int GetRecNo(int fieldno);
-    std::string GetFields() const;
+    bool GetOutput(int fieldno) const;
+    int GetRecNo(int fieldno) const;
+    const std::string GetFields() const;
     bool HasFilterFields() const;
 
   private:
@@ -87,7 +86,7 @@ public:
     {
     }
     void AppendJoin(const std::string& strJoin);
-    void AppendWhere(std::string_view strWhere, bool combineWithAnd = true);
+    void AppendWhere(const std::string& strWhere, bool combineWithAnd = true);
     bool BuildSQL(std::string& strSQL) const;
 
     std::string tablename;
@@ -100,19 +99,18 @@ public:
   virtual ~CDatabase(void);
   bool IsOpen() const;
   virtual void Close();
-  bool Compress(bool bForce = true);
-  void Interrupt();
+  bool Compress(bool bForce = true) const;
+  void Interrupt() const;
 
   bool Open(const DatabaseSettings& db);
 
-  void BeginTransaction();
+  void BeginTransaction() const;
   virtual bool CommitTransaction();
-  void RollbackTransaction();
-  bool InTransaction() const;
-  void CopyDB(const std::string& latestDb);
-  void DropAnalytics();
+  void RollbackTransaction() const;
+  void CopyDB(const std::string& latestDb) const;
+  void DropAnalytics() const;
 
-  std::string PrepareSQL(std::string_view sqlFormat, ...) const;
+  std::string PrepareSQL(std::string strStmt, ...) const;
 
   /*!
    * @brief Get a single value from a table.
@@ -134,7 +132,8 @@ public:
    \param ds the dataset to use for the query.
    \return the value from the query, empty on failure.
    */
-  std::string GetSingleValue(const std::string& query, dbiplus::Dataset& ds) const;
+  std::string GetSingleValue(const std::string& query,
+                             const std::unique_ptr<dbiplus::Dataset>& ds) const;
 
   /*!
  * @brief Get a single integer value from a table.
@@ -156,7 +155,8 @@ public:
    \param ds the dataset to use for the query.
    \return the value from the query, 0 on failure.
    */
-  int GetSingleValueInt(const std::string& query, dbiplus::Dataset& ds) const;
+  int GetSingleValueInt(const std::string& query,
+                        const std::unique_ptr<dbiplus::Dataset>& ds) const;
 
   /*!
    * @brief Delete values from a table.
@@ -255,21 +255,12 @@ public:
                         CDbUrl& dbUrl,
                         SortDescription& sorting);
 
-  enum class ConnectionState
-  {
-    STATE_ERROR,
-    STATE_DATABASE_NOT_FOUND,
-    STATE_CONNECTED,
-  };
-
-  ConnectionState Connect(const std::string& dbName, const DatabaseSettings& db, bool create);
+  bool Connect(const std::string& dbName, const DatabaseSettings& db, bool create);
 
 protected:
   friend class CDatabaseManager;
 
-  void Split(const std::string& strFileNameAndPath,
-             std::string& strPath,
-             std::string& strFileName) const;
+  void Split(const std::string& strFileNameAndPath, std::string& strPath, std::string& strFileName);
 
   virtual bool Open();
 
@@ -303,29 +294,30 @@ protected:
   virtual int GetSchemaVersion() const = 0;
   virtual const char* GetBaseDBName() const = 0;
 
-  int GetDBVersion();
+  int GetDBVersion() const;
 
-  bool BuildSQL(std::string_view strQuery, const Filter& filter, std::string& strSQL) const;
+  bool BuildSQL(const std::string& strQuery, const Filter& filter, std::string& strSQL) const;
 
-  bool m_sqlite{true}; ///< \brief whether we use sqlite (defaults to true)
+  bool m_sqlite; ///< \brief whether we use sqlite (defaults to true)
 
   std::unique_ptr<dbiplus::Database> m_pDB;
   std::unique_ptr<dbiplus::Dataset> m_pDS;
   std::unique_ptr<dbiplus::Dataset> m_pDS2;
 
+protected:
   // Construction parameters
   const CProfileManager& m_profileManager;
 
 private:
   void InitSettings(DatabaseSettings& dbSettings);
-  void UpdateVersionNumber();
+  void UpdateVersionNumber() const;
 
-  bool m_bMultiInsert{
-      false}; /*!< True if there are any queries in the insert queue, false otherwise */
-  bool m_bMultiDelete{
-      false}; /*!< True if there are any queries in the delete queue, false otherwise */
-  unsigned int m_openCount{0};
+  bool m_bMultiInsert =
+      false; /*!< True if there are any queries in the insert queue, false otherwise */
+  bool m_bMultiDelete =
+      false; /*!< True if there are any queries in the delete queue, false otherwise */
+  unsigned int m_openCount;
 
-  bool m_multipleExecute{false};
+  bool m_multipleExecute;
   std::vector<std::string> m_multipleQueries;
 };

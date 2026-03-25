@@ -1,41 +1,42 @@
 #.rst:
-# FindIconv
+# FindICONV
 # --------
 # Finds the ICONV library
 #
-# This will define the following targets:
+# This will define the following target:
 #
-#   ${APP_NAME_LC}::Iconv - An alias of the Iconv::Iconv target
-#   LIBRARY::Iconv - An alias of the Iconv::Iconv target
-#   Iconv::Iconv - The ICONV library
+#   ICONV::ICONV - The ICONV library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
+if(NOT TARGET ICONV::ICONV)
+  find_path(ICONV_INCLUDE_DIR NAMES iconv.h
+                              HINTS ${DEPENDS_PATH}/include
+                              NO_CACHE)
 
-  # We do this dance to utilise cmake system FindIconv. Saves us dealing with it
-  set(_temp_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
-  unset(CMAKE_MODULE_PATH)
+  find_library(ICONV_LIBRARY NAMES iconv libiconv c
+                             HINTS ${DEPENDS_PATH}/lib
+                             NO_CACHE)
 
-  if(Iconv_FIND_REQUIRED)
-    set(ICONV_REQUIRED "REQUIRED")
+  set(CMAKE_REQUIRED_LIBRARIES ${ICONV_LIBRARY})
+  check_function_exists(iconv HAVE_ICONV_FUNCTION)
+  if(NOT HAVE_ICONV_FUNCTION)
+    check_function_exists(libiconv HAVE_LIBICONV_FUNCTION2)
+    set(HAVE_ICONV_FUNCTION ${HAVE_LIBICONV_FUNCTION2})
+    unset(HAVE_LIBICONV_FUNCTION2)
   endif()
 
-  find_package(Iconv ${ICONV_REQUIRED} ${SEARCH_QUIET})
-
-  # Back to our normal module paths
-  set(CMAKE_MODULE_PATH ${_temp_CMAKE_MODULE_PATH})
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Iconv
+                                    REQUIRED_VARS ICONV_LIBRARY ICONV_INCLUDE_DIR HAVE_ICONV_FUNCTION)
 
   if(ICONV_FOUND)
-    # We still want to Alias its "standard" target to our APP_NAME_LC based target
-    # for integration into our core dep packaging
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS Iconv::Iconv)
-    add_library(LIBRARY::${CMAKE_FIND_PACKAGE_NAME} ALIAS Iconv::Iconv)
-
-    # Required for external searches. Not used internally
-    set(Iconv_FOUND ON CACHE BOOL "Iconv found")
-    mark_as_advanced(Iconv_FOUND)
-  else()
-    if(Iconv_FIND_REQUIRED)
-      message(FATAL_ERROR "Iconv libraries were not found.")
+    # Libc causes grief for linux, so search if found library is libc.* and only
+    # create imported TARGET if its not
+    if(NOT ${ICONV_LIBRARY} MATCHES ".*libc\..*")
+      add_library(ICONV::ICONV UNKNOWN IMPORTED)
+      set_target_properties(ICONV::ICONV PROPERTIES
+                                         IMPORTED_LOCATION "${ICONV_LIBRARY}"
+                                         INTERFACE_INCLUDE_DIRECTORIES "${ICONV_INCLUDE_DIR}")
+      set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP ICONV::ICONV)
     endif()
   endif()
 endif()

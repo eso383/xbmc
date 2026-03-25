@@ -19,7 +19,6 @@
 #include "input/mouse/MouseEvent.h"
 #include "utils/ColorUtils.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 
@@ -63,7 +62,7 @@ void CGUIVideoControl::Render()
     TransformMatrix mat;
     gfxContext.SetTransform(mat, 1.0, 1.0);
 
-    KODI::UTILS::COLOR::Color alpha = gfxContext.MergeAlpha(0xFF000000) >> 24;
+    UTILS::COLOR::Color alpha = gfxContext.MergeAlpha(0xFF000000) >> 24;
     if (appPlayer->IsRenderingVideoLayer())
     {
       CRect old = gfxContext.GetScissors();

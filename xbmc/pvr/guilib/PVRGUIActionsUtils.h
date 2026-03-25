@@ -34,14 +34,14 @@ public:
      * @param item The item.
      * @return True on success, false otherwise.
      */
-  bool OnInfo(const CFileItem& item) const;
+  bool OnInfo(const CFileItem& item);
 
   /*!
    * @brief Load item details (create recording info tag etc.).
    * @param item The item.
    * @return Loaded item on success, nullptr otherwise.
    */
-  std::shared_ptr<CFileItem> LoadItem(const CFileItem& item) const;
+  std::shared_ptr<CFileItem> LoadItem(const CFileItem& item);
 
 private:
   CPVRGUIActionsUtils(const CPVRGUIActionsUtils&) = delete;

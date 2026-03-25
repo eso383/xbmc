@@ -8,7 +8,6 @@
 #pragma once
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "addons/binary-addons/AddonDll.h"
 #include "addons/binary-addons/AddonInstanceHandler.h"
 #include "addons/kodi-dev-kit/include/kodi/addon-instance/VFS.h"
@@ -20,20 +19,23 @@
 
 namespace ADDON
 {
+struct AddonEvent;
+
 class CVFSEntry;
-using VFSEntryPtr = std::shared_ptr<CVFSEntry>;
+typedef std::shared_ptr<CVFSEntry> VFSEntryPtr;
 
 class CVFSAddonCache : public CAddonDllInformer
 {
 public:
-  ~CVFSAddonCache() override;
+  virtual ~CVFSAddonCache();
   void Init();
   void Deinit();
-  std::vector<VFSEntryPtr> GetAddonInstances();
+  const std::vector<VFSEntryPtr> GetAddonInstances();
   VFSEntryPtr GetAddonInstance(const std::string& strId);
 
-private:
+protected:
   void Update(const std::string& id);
+  void OnEvent(const AddonEvent& event);
   bool IsInUse(const std::string& id) override;
 
   CCriticalSection m_critSection;
@@ -58,7 +60,7 @@ private:
       int label;             //!< String ID to use as label in dialog
 
       //! \brief The constructor reads the info from an add-on info structure.
-      explicit ProtocolInfo(const AddonInfoPtr& addonInfo);
+      ProtocolInfo(const AddonInfoPtr& addonInfo);
     };
 
     //! \brief Construct from add-on properties.
@@ -67,8 +69,8 @@ private:
     ~CVFSEntry() override;
 
     // Things that MUST be supplied by the child classes
-    void* Open(const CURL& url);
-    void* OpenForWrite(const CURL& url, bool bOverWrite);
+    void* Open(const CURL& url) const;
+    void* OpenForWrite(const CURL& url, bool bOverWrite) const;
     bool Exists(const CURL& url) const;
     int Stat(const CURL& url, struct __stat64* buffer) const;
     ssize_t Read(void* ctx, void* lpBuf, size_t uiBufSize) const;
@@ -79,7 +81,7 @@ private:
     int64_t GetPosition(void* ctx) const;
     int64_t GetLength(void* ctx) const;
     int GetChunkSize(void* ctx) const;
-    int IoControl(void* ctx, XFILE::IOControl request, void* param) const;
+    int IoControl(void* ctx, XFILE::EIoControl request, void* param) const;
     bool Delete(const CURL& url) const;
     bool Rename(const CURL& url, const CURL& url2) const;
 
@@ -99,8 +101,7 @@ private:
     bool HasFileDirectories() const { return m_filedirectories; }
     const std::string& GetZeroconfType() const { return m_zeroconf; }
     const ProtocolInfo& GetProtocolInfo() const { return m_protocolInfo; }
-
-  private:
+  protected:
     std::string m_protocols;  //!< Protocols for VFS entry.
     std::string m_extensions; //!< Extensions for VFS entry.
     std::string m_zeroconf;   //!< Zero conf announce string for VFS protocol.
@@ -179,7 +180,7 @@ private:
     int GetChunkSize() override;
 
     //! \brief Perform I/O controls for file.
-    int IoControl(XFILE::IOControl request, void* param) override;
+    int IoControl(XFILE::EIoControl request, void* param) override;
 
     //! \brief Delete a file.
     //! \param[in] url URL of file to delete.
@@ -189,8 +190,7 @@ private:
     //! \param[in] url URL of file to rename.
     //! \param[in] url2 New URL of file.
     bool Rename(const CURL& url, const CURL& url2) override;
-
-  private:
+  protected:
     void* m_context = nullptr; //!< Opaque add-on specific context for opened file.
     VFSEntryPtr m_addon; //!< Pointer to wrapped CVFSEntry.
   };
@@ -305,12 +305,7 @@ private:
       return CVFSEntryIDirectoryWrapper::Create(url);
     }
 
-    //! \brief Return items.
-    //! \return The items.
-    const CFileItemList& GetItems() const { return m_items; }
-
-  private:
     CFileItemList m_items; //!< Internal list of items, used for cache purposes.
   };
 
-  } /*namespace ADDON*/
+} /*namespace ADDON*/

@@ -218,13 +218,13 @@ extern "C"
     void RemoveItem(int itemPosition);
     void RemoveItem(CFileItemPtr* fileItem);
     void ClearList();
-    CFileItemPtr* GetListItem(int position);
+    CFileItemPtr* GetListItem(int position) const;
     int GetListSize() const;
     int GetCurrentListPosition() const;
     void SetCurrentListPosition(int item);
-    void SetContainerProperty(const std::string& key, const std::string& value);
-    void SetContainerContent(const std::string& value);
-    int GetCurrentContainerControlId();
+    void SetContainerProperty(const std::string& key, const std::string& value) const;
+    void SetContainerContent(const std::string& value) const;
+    int GetCurrentContainerControlId() const;
     CGUIControl* GetAddonControl(int controlId,
                                  CGUIControl::GUICONTROLTYPES type,
                                  const std::string& typeName);
@@ -248,16 +248,16 @@ extern "C"
                               int itemNumber,
                               unsigned int button) = nullptr;
 
-    const int m_windowId{0};
-    int m_oldWindowId{0};
+    const int m_windowId;
+    int m_oldWindowId = 0;
 
   private:
     void WaitForActionEvent(unsigned int timeout);
 
-    CEvent m_actionEvent{true};
-    ADDON::CAddonDll* m_addon{nullptr};
+    CEvent m_actionEvent;
+    ADDON::CAddonDll* m_addon;
     std::string m_mediaDir;
-    bool m_isMedia{false};
+    bool m_isMedia;
   };
 
   class CGUIAddonWindowDialog : public CGUIAddonWindow

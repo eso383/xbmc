@@ -6,7 +6,7 @@ set(HEADERS WinSystemAmlogic.h
             VideoSyncAML.h
             DolbyVisionAML.h)
 
-if(ENABLE_OPENGLES)
+if(OPENGLES_FOUND)
   list(APPEND SOURCES WinSystemAmlogicGLESContext.cpp)
   list(APPEND HEADERS WinSystemAmlogicGLESContext.h)
 endif()

@@ -885,7 +885,7 @@ namespace XBMCAddon
       ///                                          performance).
       ///                                          Note however, that if you are creating listitems
       ///                                          and managing the container itself (e.g using
-      ///                                          WindowXML or WindowXMLDialog classes) subsequent
+      ///                                          WindowXML or WindowXMLDialog classes) subsquent
       ///                                          modifications to the item will require locking.
       ///                                          Thus, in such cases, use the default value (`False`).
       ///
@@ -920,7 +920,7 @@ namespace XBMCAddon
       ///
       getDbId();
 #else
-      int getDbId();
+      int getDbId() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -938,7 +938,7 @@ namespace XBMCAddon
       ///
       getDirector();
 #else
-      String getDirector();
+      String getDirector() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -956,7 +956,7 @@ namespace XBMCAddon
       ///
       getDirectors();
 #else
-      std::vector<String> getDirectors();
+      std::vector<String> getDirectors() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -973,7 +973,7 @@ namespace XBMCAddon
       ///
       getWritingCredits();
 #else
-      String getWritingCredits();
+      String getWritingCredits() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -990,7 +990,7 @@ namespace XBMCAddon
       ///
       getWriters();
 #else
-      std::vector<String> getWriters();
+      std::vector<String> getWriters() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1008,7 +1008,7 @@ namespace XBMCAddon
       ///
       getGenre();
 #else
-      String getGenre();
+      String getGenre() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1026,7 +1026,7 @@ namespace XBMCAddon
       ///
       getGenres();
 #else
-      std::vector<String> getGenres();
+      std::vector<String> getGenres() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1043,7 +1043,7 @@ namespace XBMCAddon
       ///
       getTagLine();
 #else
-      String getTagLine();
+      String getTagLine() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1060,7 +1060,7 @@ namespace XBMCAddon
       ///
       getPlotOutline();
 #else
-      String getPlotOutline();
+      String getPlotOutline() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1077,7 +1077,7 @@ namespace XBMCAddon
       ///
       getPlot();
 #else
-      String getPlot();
+      String getPlot() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1094,7 +1094,7 @@ namespace XBMCAddon
       ///
       getPictureURL();
 #else
-      String getPictureURL();
+      String getPictureURL() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1111,7 +1111,7 @@ namespace XBMCAddon
       ///
       getTitle();
 #else
-      String getTitle();
+      String getTitle() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1128,7 +1128,7 @@ namespace XBMCAddon
       ///
       getTVShowTitle();
 #else
-      String getTVShowTitle();
+      String getTVShowTitle() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1155,7 +1155,7 @@ namespace XBMCAddon
       ///
       getMediaType();
 #else
-      String getMediaType();
+      String getMediaType() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1198,7 +1198,7 @@ namespace XBMCAddon
       ///
       getVotesAsInt(type);
 #else
-      int getVotesAsInt(const String& type = "");
+      int getVotesAsInt(const String& type = "") const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1215,7 +1215,7 @@ namespace XBMCAddon
       ///
       getCast();
 #else
-      String getCast();
+      String getCast() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1232,7 +1232,7 @@ namespace XBMCAddon
       ///
       getActors();
 #else
-      std::vector<Actor*> getActors();
+      std::vector<Actor*> getActors() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1249,7 +1249,7 @@ namespace XBMCAddon
       ///
       getFile();
 #else
-      String getFile();
+      String getFile() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1266,7 +1266,7 @@ namespace XBMCAddon
       ///
       getPath();
 #else
-      String getPath();
+      String getPath() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1283,7 +1283,7 @@ namespace XBMCAddon
       ///
       getFilenameAndPath();
 #else
-      String getFilenameAndPath();
+      String getFilenameAndPath() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1301,7 +1301,7 @@ namespace XBMCAddon
       ///
       getIMDBNumber();
 #else
-      String getIMDBNumber();
+      String getIMDBNumber() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1318,7 +1318,7 @@ namespace XBMCAddon
       ///
       getSeason();
 #else
-      int getSeason();
+      int getSeason() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1335,7 +1335,7 @@ namespace XBMCAddon
       ///
       getEpisode();
 #else
-      int getEpisode();
+      int getEpisode() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1352,7 +1352,7 @@ namespace XBMCAddon
       ///
       getYear();
 #else
-      int getYear();
+      int getYear() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1378,7 +1378,7 @@ namespace XBMCAddon
       ///
       getRating(type);
 #else
-      double getRating(const String& type = "");
+      double getRating(const String& type = "") const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1395,7 +1395,7 @@ namespace XBMCAddon
       ///
       getUserRating();
 #else
-      int getUserRating();
+      int getUserRating() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1412,7 +1412,7 @@ namespace XBMCAddon
       ///
       getPlayCount();
 #else
-      int getPlayCount();
+      int getPlayCount() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1429,7 +1429,7 @@ namespace XBMCAddon
       ///
       getLastPlayed();
 #else
-      String getLastPlayed();
+      String getLastPlayed() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1446,7 +1446,7 @@ namespace XBMCAddon
       ///
       getLastPlayedAsW3C();
 #else
-      String getLastPlayedAsW3C();
+      String getLastPlayedAsW3C() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1463,24 +1463,7 @@ namespace XBMCAddon
       ///
       getOriginalTitle();
 #else
-      String getOriginalTitle();
-#endif
-
-#ifdef DOXYGEN_SHOULD_USE_THIS
-      ///
-      /// \ingroup python_InfoTagVideo
-      /// \brief \python_func{ getOriginalLanguage() }
-      /// To retrieve the original language of the video.
-      ///
-      /// \return [string] Original language ISO 639-2/B code
-      ///
-      ///
-      ///-----------------------------------------------------------------------
-      /// @python_v22 New function added.
-      ///
-      getOriginalLanguage();
-#else
-      String getOriginalLanguage();
+      String getOriginalTitle() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1498,7 +1481,7 @@ namespace XBMCAddon
       ///
       getPremiered();
 #else
-      String getPremiered();
+      String getPremiered() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1515,7 +1498,7 @@ namespace XBMCAddon
       ///
       getPremieredAsW3C();
 #else
-      String getPremieredAsW3C();
+      String getPremieredAsW3C() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1532,7 +1515,7 @@ namespace XBMCAddon
       ///
       getFirstAired();
 #else
-      String getFirstAired();
+      String getFirstAired() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1549,7 +1532,7 @@ namespace XBMCAddon
       ///
       getFirstAiredAsW3C();
 #else
-      String getFirstAiredAsW3C();
+      String getFirstAiredAsW3C() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1566,7 +1549,7 @@ namespace XBMCAddon
       ///
       getTrailer();
 #else
-      String getTrailer();
+      String getTrailer() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1583,7 +1566,7 @@ namespace XBMCAddon
       ///
       getArtist();
 #else
-      std::vector<std::string> getArtist();
+      std::vector<std::string> getArtist() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1600,7 +1583,7 @@ namespace XBMCAddon
       ///
       getAlbum();
 #else
-      String getAlbum();
+      String getAlbum() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1617,7 +1600,7 @@ namespace XBMCAddon
       ///
       getTrack();
 #else
-      int getTrack();
+      int getTrack() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1634,7 +1617,7 @@ namespace XBMCAddon
       ///
       getDuration();
 #else
-      unsigned int getDuration();
+      unsigned int getDuration() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1651,7 +1634,7 @@ namespace XBMCAddon
       ///
       getResumeTime(...);
 #else
-      double getResumeTime();
+      double getResumeTime() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1668,7 +1651,7 @@ namespace XBMCAddon
       ///
       getResumeTimeTotal(...);
 #else
-      double getResumeTimeTotal();
+      double getResumeTimeTotal() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1695,7 +1678,7 @@ namespace XBMCAddon
       ///
       getUniqueID(key);
 #else
-      String getUniqueID(const char* key);
+      String getUniqueID(const char* key) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1716,7 +1699,7 @@ namespace XBMCAddon
       ///
       setUniqueID(...);
 #else
-      void setUniqueID(const String& uniqueid, const String& type = "", bool isdefault = false);
+      void setUniqueID(const String& uniqueid, const String& type = "", bool isdefault = false) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1745,8 +1728,8 @@ namespace XBMCAddon
       ///
       setUniqueIDs(...);
 #else
-      void setUniqueIDs(const std::map<String, String, std::less<>>& uniqueIDs,
-                        const String& defaultuniqueid = "");
+      void setUniqueIDs(const std::map<String, String>& uniqueIDs,
+                        const String& defaultuniqueid = "") const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1763,7 +1746,7 @@ namespace XBMCAddon
       ///
       setDbId(...);
 #else
-      void setDbId(int dbid);
+      void setDbId(int dbid) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1780,7 +1763,7 @@ namespace XBMCAddon
       ///
       setYear(...);
 #else
-      void setYear(int year);
+      void setYear(int year) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1797,7 +1780,7 @@ namespace XBMCAddon
       ///
       setEpisode(...);
 #else
-      void setEpisode(int episode);
+      void setEpisode(int episode) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1814,7 +1797,7 @@ namespace XBMCAddon
       ///
       setSeason(...);
 #else
-      void setSeason(int season);
+      void setSeason(int season) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1831,7 +1814,7 @@ namespace XBMCAddon
       ///
       setSortEpisode(...);
 #else
-      void setSortEpisode(int sortepisode);
+      void setSortEpisode(int sortepisode) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1848,7 +1831,7 @@ namespace XBMCAddon
       ///
       setSortSeason(...);
 #else
-      void setSortSeason(int sortseason);
+      void setSortSeason(int sortseason) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1865,7 +1848,7 @@ namespace XBMCAddon
       ///
       setEpisodeGuide(...);
 #else
-      void setEpisodeGuide(const String& episodeguide);
+      void setEpisodeGuide(const String& episodeguide) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1882,7 +1865,7 @@ namespace XBMCAddon
       ///
       setTop250(...);
 #else
-      void setTop250(int top250);
+      void setTop250(int top250) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1899,7 +1882,7 @@ namespace XBMCAddon
       ///
       setSetId(...);
 #else
-      void setSetId(int setid);
+      void setSetId(int setid) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1916,7 +1899,7 @@ namespace XBMCAddon
       ///
       setTrackNumber(...);
 #else
-      void setTrackNumber(int tracknumber);
+      void setTrackNumber(int tracknumber) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1936,7 +1919,7 @@ namespace XBMCAddon
       ///
       setRating(...);
 #else
-      void setRating(float rating, int votes = 0, const String& type = "", bool isdefault = false);
+      void setRating(float rating, int votes = 0, const String& type = "", bool isdefault = false) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1955,7 +1938,7 @@ namespace XBMCAddon
       setRatings(...);
 #else
       void setRatings(const std::map<String, Tuple<float, int>>& ratings,
-                      const String& defaultrating = "");
+                      const String& defaultrating = "") const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1972,7 +1955,7 @@ namespace XBMCAddon
       ///
       setUserRating(...);
 #else
-      void setUserRating(int userrating);
+      void setUserRating(int userrating) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1989,7 +1972,7 @@ namespace XBMCAddon
       ///
       setPlaycount(...);
 #else
-      void setPlaycount(int playcount);
+      void setPlaycount(int playcount) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2006,7 +1989,7 @@ namespace XBMCAddon
       ///
       setMpaa(...);
 #else
-      void setMpaa(const String& mpaa);
+      void setMpaa(const String& mpaa) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2023,7 +2006,7 @@ namespace XBMCAddon
       ///
       setPlot(...);
 #else
-      void setPlot(const String& plot);
+      void setPlot(const String& plot) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2040,7 +2023,7 @@ namespace XBMCAddon
       ///
       setPlotOutline(...);
 #else
-      void setPlotOutline(const String& plotoutline);
+      void setPlotOutline(const String& plotoutline) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2057,7 +2040,7 @@ namespace XBMCAddon
       ///
       setTitle(...);
 #else
-      void setTitle(const String& title);
+      void setTitle(const String& title) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2074,25 +2057,7 @@ namespace XBMCAddon
       ///
       setOriginalTitle(...);
 #else
-      void setOriginalTitle(const String& originaltitle);
-#endif
-
-#ifdef DOXYGEN_SHOULD_USE_THIS
-      ///
-      /// \ingroup python_InfoTagVideo
-      /// \brief \python_func{ setOriginalLanguage(language) }
-      /// Set the original language of the video item.
-      ///
-      /// \param language      string - ISO-639-1, ISO-639/B, ISO 639-2/T, BCP-47 or full english name
-      /// \return [boolean]    status code. true for success, false for failure (most likely an unrecognized language parameter value).
-      ///
-      ///
-      ///-----------------------------------------------------------------------
-      /// @python_v22 New function added.
-      ///
-      setOriginalLanguage(...);
-#else
-      bool setOriginalLanguage(const String& language);
+      void setOriginalTitle(const String& originaltitle) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2109,7 +2074,7 @@ namespace XBMCAddon
       ///
       setSortTitle(...);
 #else
-      void setSortTitle(const String& sorttitle);
+      void setSortTitle(const String& sorttitle) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2126,7 +2091,7 @@ namespace XBMCAddon
       ///
       setTagLine(...);
 #else
-      void setTagLine(const String& tagline);
+      void setTagLine(const String& tagline) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2143,7 +2108,7 @@ namespace XBMCAddon
       ///
       setTvShowTitle(...);
 #else
-      void setTvShowTitle(const String& tvshowtitle);
+      void setTvShowTitle(const String& tvshowtitle) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2160,7 +2125,7 @@ namespace XBMCAddon
       ///
       setTvShowStatus(...);
 #else
-      void setTvShowStatus(const String& status);
+      void setTvShowStatus(const String& status) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2177,7 +2142,7 @@ namespace XBMCAddon
       ///
       setGenres(...);
 #else
-      void setGenres(std::vector<String> genre);
+      void setGenres(std::vector<String> genre) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2194,7 +2159,7 @@ namespace XBMCAddon
       ///
       setCountries(...);
 #else
-      void setCountries(std::vector<String> countries);
+      void setCountries(std::vector<String> countries) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2211,7 +2176,7 @@ namespace XBMCAddon
       ///
       setDirectors(...);
 #else
-      void setDirectors(std::vector<String> directors);
+      void setDirectors(std::vector<String> directors) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2228,7 +2193,7 @@ namespace XBMCAddon
       ///
       setStudios(...);
 #else
-      void setStudios(std::vector<String> studios);
+      void setStudios(std::vector<String> studios) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2245,7 +2210,7 @@ namespace XBMCAddon
       ///
       setWriters(...);
 #else
-      void setWriters(std::vector<String> writers);
+      void setWriters(std::vector<String> writers) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2262,7 +2227,7 @@ namespace XBMCAddon
       ///
       setDuration(...);
 #else
-      void setDuration(int duration);
+      void setDuration(int duration) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2279,7 +2244,7 @@ namespace XBMCAddon
       ///
       setPremiered(...);
 #else
-      void setPremiered(const String& premiered);
+      void setPremiered(const String& premiered) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2296,7 +2261,7 @@ namespace XBMCAddon
       ///
       setSet(...);
 #else
-      void setSet(const String& set);
+      void setSet(const String& set) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2313,7 +2278,7 @@ namespace XBMCAddon
       ///
       setSetOverview(...);
 #else
-      void setSetOverview(const String& setoverview);
+      void setSetOverview(const String& setoverview) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2330,7 +2295,7 @@ namespace XBMCAddon
       ///
       setTags(...);
 #else
-      void setTags(std::vector<String> tags);
+      void setTags(std::vector<String> tags) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2347,7 +2312,7 @@ namespace XBMCAddon
       ///
       setVideoAssetTitle(...);
 #else
-      void setVideoAssetTitle(const String& videoAssetTitle);
+      void setVideoAssetTitle(const String& videoAssetTitle) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2364,7 +2329,7 @@ namespace XBMCAddon
       ///
       setProductionCode(...);
 #else
-      void setProductionCode(const String& productioncode);
+      void setProductionCode(const String& productioncode) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2381,7 +2346,7 @@ namespace XBMCAddon
       ///
       setFirstAired(...);
 #else
-      void setFirstAired(const String& firstaired);
+      void setFirstAired(const String& firstaired) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2398,7 +2363,7 @@ namespace XBMCAddon
       ///
       setLastPlayed(...);
 #else
-      void setLastPlayed(const String& lastplayed);
+      void setLastPlayed(const String& lastplayed) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2415,7 +2380,7 @@ namespace XBMCAddon
       ///
       setAlbum(...);
 #else
-      void setAlbum(const String& album);
+      void setAlbum(const String& album) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2432,7 +2397,7 @@ namespace XBMCAddon
       ///
       setVotes(...);
 #else
-      void setVotes(int votes);
+      void setVotes(int votes) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2449,7 +2414,7 @@ namespace XBMCAddon
       ///
       setTrailer(...);
 #else
-      void setTrailer(const String& trailer);
+      void setTrailer(const String& trailer) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2466,7 +2431,7 @@ namespace XBMCAddon
       ///
       setPath(...);
 #else
-      void setPath(const String& path);
+      void setPath(const String& path) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2483,7 +2448,7 @@ namespace XBMCAddon
       ///
       setFilenameAndPath(...);
 #else
-      void setFilenameAndPath(const String& filenameandpath);
+      void setFilenameAndPath(const String& filenameandpath) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2500,7 +2465,7 @@ namespace XBMCAddon
       ///
       setIMDBNumber(...);
 #else
-      void setIMDBNumber(const String& imdbnumber);
+      void setIMDBNumber(const String& imdbnumber) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2517,7 +2482,7 @@ namespace XBMCAddon
       ///
       setDateAdded(...);
 #else
-      void setDateAdded(const String& dateadded);
+      void setDateAdded(const String& dateadded) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2534,7 +2499,7 @@ namespace XBMCAddon
       ///
       setMediaType(...);
 #else
-      void setMediaType(const String& mediatype);
+      void setMediaType(const String& mediatype) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2551,7 +2516,7 @@ namespace XBMCAddon
       ///
       setShowLinks(...);
 #else
-      void setShowLinks(std::vector<String> showlinks);
+      void setShowLinks(std::vector<String> showlinks) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2568,7 +2533,7 @@ namespace XBMCAddon
       ///
       setArtists(...);
 #else
-      void setArtists(std::vector<String> artists);
+      void setArtists(std::vector<String> artists) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2585,7 +2550,7 @@ namespace XBMCAddon
       ///
       setCast(...);
 #else
-      void setCast(const std::vector<const Actor*>& actors);
+      void setCast(const std::vector<const Actor*>& actors) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2603,54 +2568,51 @@ namespace XBMCAddon
       ///
       setResumePoint(...);
 #else
-      void setResumePoint(double time, double totaltime = 0.0);
+      void setResumePoint(double time, double totaltime = 0.0) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
       ///
       /// \ingroup python_InfoTagVideo
-      /// @brief \python_func{ addSeason(number, [name], [plot]) }
-      /// Add a season with name and a plot. It needs at least the season number.
+      /// @brief \python_func{ addSeason(number, [name]) }
+      /// Add a season with name. It needs at least the season number.
       ///
       /// @param number     int - the number of the season.
       /// @param name       string - the name of the season. Default "".
-      /// @param plot       string - the plot of the season. Default "".
       ///
       ///
       ///-----------------------------------------------------------------------
       ///
       /// @python_v20 New function added.
-      /// @python_v22 Added plot parameter
       ///
       /// **Example:**
       /// ~~~~~~~~~~~~~{.py}
       /// ...
-      /// # addSeason(number, name, plot))
-      /// infotagvideo.addSeason(1, "Murder House", "The first installment revolves around...")
+      /// # addSeason(number, name))
+      /// infotagvideo.addSeason(1, "Murder House")
       /// ...
       /// ~~~~~~~~~~~~~
       ///
       addSeason(...);
 #else
-      void addSeason(int number, std::string name = "", std::string plot = "");
+      void addSeason(int number, std::string name = "") const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
       ///
       /// \ingroup python_InfoTagVideo
-      /// @brief \python_func{ addSeasons(seasons) }
-      /// Add seasons to the TV show.
+      /// @brief \python_func{ addSeasons(namedseasons) }
+      /// Add named seasons to the TV show.
       ///
-      /// @param seasons       list - `[ (season, name, plot) ]`.
+      /// @param namedseasons       list - `[ (season, name) ]`.
       ///
       ///
       ///-----------------------------------------------------------------------
       /// @python_v20 New function added.
-      /// @python_v22 Added third element to the tuple for the season plot
       ///
       addSeasons(...);
 #else
-      void addSeasons(const std::vector<Tuple<int, std::string, std::string>>& seasons);
+      void addSeasons(const std::vector<Tuple<int, std::string>>& namedseasons) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2667,7 +2629,7 @@ namespace XBMCAddon
       ///
       addVideoStream(...);
 #else
-      void addVideoStream(const VideoStreamDetail* stream);
+      void addVideoStream(const VideoStreamDetail* stream) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2684,7 +2646,7 @@ namespace XBMCAddon
       ///
       addAudioStream(...);
 #else
-      void addAudioStream(const AudioStreamDetail* stream);
+      void addAudioStream(const AudioStreamDetail* stream) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2701,7 +2663,7 @@ namespace XBMCAddon
       ///
       addSubtitleStream(...);
 #else
-      void addSubtitleStream(const SubtitleStreamDetail* stream);
+      void addSubtitleStream(const SubtitleStreamDetail* stream) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2739,7 +2701,7 @@ namespace XBMCAddon
         const std::string& cache = "",
         bool post = false,
         bool isgz = false,
-        int season = -1);
+        int season = -1) const;
 #endif
       /// @}
 
@@ -2782,7 +2744,7 @@ namespace XBMCAddon
                                  const String& type = "",
                                  bool isDefault = false);
       static void setUniqueIDsRaw(CVideoInfoTag* infoTag,
-                                  std::map<String, String, std::less<>> uniqueIDs,
+                                  std::map<String, String> uniqueIDs,
                                   const String& defaultUniqueID = "");
       static void setYearRaw(CVideoInfoTag* infoTag, int year);
       static void setEpisodeRaw(CVideoInfoTag* infoTag, int episode);
@@ -2808,7 +2770,6 @@ namespace XBMCAddon
       static void setPlotOutlineRaw(CVideoInfoTag* infoTag, const String& plotOutline);
       static void setTitleRaw(CVideoInfoTag* infoTag, const String& title);
       static void setOriginalTitleRaw(CVideoInfoTag* infoTag, const String& originalTitle);
-      static bool setOriginalLanguageRaw(CVideoInfoTag* infoTag, const String& language);
       static void setSortTitleRaw(CVideoInfoTag* infoTag, const String& sortTitle);
       static void setTagLineRaw(CVideoInfoTag* infoTag, const String& tagLine);
       static void setTvShowTitleRaw(CVideoInfoTag* infoTag, const String& tvshowTitle);
@@ -2840,12 +2801,9 @@ namespace XBMCAddon
       static void setCastRaw(CVideoInfoTag* infoTag, std::vector<SActorInfo> cast);
       static void setResumePointRaw(CVideoInfoTag* infoTag, double time, double totalTime = 0.0);
 
-      static void addSeasonRaw(CVideoInfoTag* infoTag,
-                               int number,
-                               std::string name = "",
-                               std::string plot = "");
+      static void addSeasonRaw(CVideoInfoTag* infoTag, int number, std::string name = "");
       static void addSeasonsRaw(CVideoInfoTag* infoTag,
-                                const std::vector<Tuple<int, std::string, std::string>>& seasons);
+                                const std::vector<Tuple<int, std::string>>& namedSeasons);
 
       static void addStreamRaw(CVideoInfoTag* infoTag, CStreamDetail* stream);
       static void finalizeStreamsRaw(CVideoInfoTag* infoTag);

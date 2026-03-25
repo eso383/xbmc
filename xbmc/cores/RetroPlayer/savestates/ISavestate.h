@@ -123,13 +123,6 @@ public:
   virtual unsigned int GetNominalHeight() const = 0;
 
   /*!
-   * \brief The nominal display aspect ratio of the video stream
-   *
-   * An aspect ratio of 0.0f indicates square pixels, i.e. a DAR of W/H.
-   */
-  virtual float GetNominalDisplayAspectRatio() const = 0;
-
-  /*!
    * \brief The maximum width of the video stream, in pixels
    */
   virtual unsigned int GetMaxWidth() const = 0;
@@ -138,6 +131,11 @@ public:
    * \brief The maximum height of the video stream, in pixels
    */
   virtual unsigned int GetMaxHeight() const = 0;
+
+  /*!
+   * \brief The pixel aspect ratio of the video stream
+   */
+  virtual float GetPixelAspectRatio() const = 0;
   ///}
 
   /// @name Video frame properties
@@ -161,13 +159,6 @@ public:
    * \brief The height of the video frame, in pixels
    */
   virtual unsigned int GetVideoHeight() const = 0;
-
-  /*!
-   * \brief The display aspect ratio of the video frame
-   *
-   * An aspect ratio of 0.0f indicates square pixels, i.e. a DAR of W/H.
-   */
-  virtual float GetDisplayAspectRatio() const = 0;
 
   /*!
    * \brief The rotation of the video frame, in degrees counter-clockwise
@@ -203,13 +194,12 @@ public:
   virtual void SetPixelFormat(AVPixelFormat pixelFormat) = 0;
   virtual void SetNominalWidth(unsigned int nominalWidth) = 0;
   virtual void SetNominalHeight(unsigned int nominalHeight) = 0;
-  virtual void SetNominalDisplayAspectRatio(float nominalDisplayAspectRatio) = 0;
   virtual void SetMaxWidth(unsigned int maxWidth) = 0;
   virtual void SetMaxHeight(unsigned int maxHeight) = 0;
+  virtual void SetPixelAspectRatio(float pixelAspectRatio) = 0;
   virtual uint8_t* GetVideoBuffer(size_t size) = 0;
   virtual void SetVideoWidth(unsigned int videoWidth) = 0;
   virtual void SetVideoHeight(unsigned int videoHeight) = 0;
-  virtual void SetDisplayAspectRatio(float displayAspectRatio) = 0;
   virtual void SetRotationDegCCW(unsigned int rotationCCW) = 0;
   virtual uint8_t* GetMemoryBuffer(size_t size) = 0;
   virtual void Finalize() = 0;

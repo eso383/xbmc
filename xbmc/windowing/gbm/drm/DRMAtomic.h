@@ -26,24 +26,23 @@ class CDRMAtomic : public CDRMUtils
 {
 public:
   CDRMAtomic() = default;
-  ~CDRMAtomic() override;
-  void FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, bool async) override;
+  ~CDRMAtomic() override = default;
+  void FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer) override;
   bool SetVideoMode(const RESOLUTION_INFO& res, struct gbm_bo* bo) override;
   bool SetActive(bool active) override;
   bool InitDrm() override;
   void DestroyDrm() override;
-  bool SupportsFencing() override { return true; }
   bool AddProperty(CDRMObject* object, const char* name, uint64_t value);
 
+  bool DisplayHardwareScalingEnabled();
+
 private:
-  void DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer, bool updateGuiPlane);
-  bool IsVideoGuiCommitPending();
-  void ResetVideoGuiCommitFence();
+  void DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer);
+
+  bool SetScalingFilter(CDRMObject* object, const char* name, const char* type);
 
   bool m_need_modeset;
   bool m_active = true;
-  bool m_videoGuiCommitPending = false;
-  int m_videoGuiOutFenceFd{-1};
 
   class CDRMAtomicRequest
   {
@@ -77,6 +76,6 @@ private:
   std::deque<std::unique_ptr<CDRMAtomicRequest>> m_atomicRequestQueue;
 };
 
-} // namespace GBM
-} // namespace WINDOWING
-} // namespace KODI
+}
+}
+}

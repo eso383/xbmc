@@ -8,10 +8,8 @@
 
 #include "SubtitlesSettings.h"
 
-#include "ServiceBroker.h"
 #include "guilib/GUIFontManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/Settings.h"
 #include "settings/lib/Setting.h"
 #include "utils/FileUtils.h"
@@ -40,7 +38,7 @@ CSubtitlesSettings::CSubtitlesSettings(const std::shared_ptr<CSettings>& setting
        CSettings::SETTING_SUBTITLES_LANGUAGES,      CSettings::SETTING_SUBTITLES_STORAGEMODE,
        CSettings::SETTING_SUBTITLES_CUSTOMPATH,     CSettings::SETTING_SUBTITLES_PAUSEONSEARCH,
        CSettings::SETTING_SUBTITLES_DOWNLOADFIRST,  CSettings::SETTING_SUBTITLES_TV,
-       CSettings::SETTING_SUBTITLES_MOVIE,          CSettings::SETTING_SUBTITLES_LINE_SPACING});
+       CSettings::SETTING_SUBTITLES_MOVIE});
 }
 
 CSubtitlesSettings::~CSubtitlesSettings()
@@ -50,7 +48,7 @@ CSubtitlesSettings::~CSubtitlesSettings()
 
 void CSubtitlesSettings::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (!setting)
+  if (setting == nullptr)
     return;
 
   SetChanged();
@@ -62,114 +60,89 @@ void CSubtitlesSettings::OnSettingChanged(const std::shared_ptr<const CSetting>&
   }
 }
 
-Align CSubtitlesSettings::GetAlignment() const
-{
+Align CSubtitlesSettings::GetAlignment() const {
   return static_cast<Align>(m_settings->GetInt(CSettings::SETTING_SUBTITLES_ALIGN));
 }
 
-void CSubtitlesSettings::SetAlignment(Align align) const
-{
+void CSubtitlesSettings::SetAlignment(Align align) const {
   m_settings->SetInt(CSettings::SETTING_SUBTITLES_ALIGN, static_cast<int>(align));
 }
 
-HorizontalAlign CSubtitlesSettings::GetHorizontalAlignment() const
-{
+HorizontalAlign CSubtitlesSettings::GetHorizontalAlignment() const {
   return static_cast<HorizontalAlign>(
       m_settings->GetInt(CSettings::SETTING_SUBTITLES_CAPTIONSALIGN));
 }
 
-std::string CSubtitlesSettings::GetFontName() const
-{
+std::string CSubtitlesSettings::GetFontName() const {
   return m_settings->GetString(CSettings::SETTING_SUBTITLES_FONTNAME);
 }
 
-FontStyle CSubtitlesSettings::GetFontStyle() const
-{
+FontStyle CSubtitlesSettings::GetFontStyle() const {
   return static_cast<FontStyle>(m_settings->GetInt(CSettings::SETTING_SUBTITLES_STYLE));
 }
 
-int CSubtitlesSettings::GetFontSize() const
-{
+int CSubtitlesSettings::GetFontSize() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_FONTSIZE);
 }
 
-UTILS::COLOR::Color CSubtitlesSettings::GetFontColor() const
-{
+UTILS::COLOR::Color CSubtitlesSettings::GetFontColor() const {
   return UTILS::COLOR::ConvertHexToColor(m_settings->GetString(CSettings::SETTING_SUBTITLES_COLOR));
 }
 
-int CSubtitlesSettings::GetFontOpacity() const
-{
+int CSubtitlesSettings::GetFontOpacity() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_OPACITY);
 }
 
-int CSubtitlesSettings::GetBorderSize() const
-{
+int CSubtitlesSettings::GetBorderSize() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_BORDERSIZE);
 }
 
-UTILS::COLOR::Color CSubtitlesSettings::GetBorderColor() const
-{
+UTILS::COLOR::Color CSubtitlesSettings::GetBorderColor() const {
   return UTILS::COLOR::ConvertHexToColor(
       m_settings->GetString(CSettings::SETTING_SUBTITLES_BORDERCOLOR));
 }
 
-int CSubtitlesSettings::GetShadowSize() const
-{
+int CSubtitlesSettings::GetShadowSize() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_SHADOWSIZE);
 }
 
-UTILS::COLOR::Color CSubtitlesSettings::GetShadowColor() const
-{
+UTILS::COLOR::Color CSubtitlesSettings::GetShadowColor() const {
   return UTILS::COLOR::ConvertHexToColor(
       m_settings->GetString(CSettings::SETTING_SUBTITLES_SHADOWCOLOR));
 }
 
-int CSubtitlesSettings::GetShadowOpacity() const
-{
+int CSubtitlesSettings::GetShadowOpacity() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_SHADOWOPACITY);
 }
 
-int CSubtitlesSettings::GetBlurSize() const
-{
+int CSubtitlesSettings::GetBlurSize() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_BLUR);
 }
 
-int CSubtitlesSettings::GetLineSpacing() const
-{
-  return m_settings->GetInt(CSettings::SETTING_SUBTITLES_LINE_SPACING);
-}
-
-BackgroundType CSubtitlesSettings::GetBackgroundType() const
-{
+BackgroundType CSubtitlesSettings::GetBackgroundType() const {
   return static_cast<BackgroundType>(
       m_settings->GetInt(CSettings::SETTING_SUBTITLES_BACKGROUNDTYPE));
 }
 
-UTILS::COLOR::Color CSubtitlesSettings::GetBackgroundColor() const
-{
+UTILS::COLOR::Color CSubtitlesSettings::GetBackgroundColor() const {
   return UTILS::COLOR::ConvertHexToColor(
       m_settings->GetString(CSettings::SETTING_SUBTITLES_BGCOLOR));
 }
 
-int CSubtitlesSettings::GetBackgroundOpacity() const
-{
+int CSubtitlesSettings::GetBackgroundOpacity() const {
   return m_settings->GetInt(CSettings::SETTING_SUBTITLES_BGOPACITY);
 }
 
-bool CSubtitlesSettings::IsOverrideFonts() const
-{
+bool CSubtitlesSettings::IsOverrideFonts() const {
   return m_settings->GetBool(CSettings::SETTING_SUBTITLES_OVERRIDEFONTS);
 }
 
-OverrideStyles CSubtitlesSettings::GetOverrideStyles() const
-{
+OverrideStyles CSubtitlesSettings::GetOverrideStyles() const {
   return static_cast<OverrideStyles>(
       m_settings->GetInt(CSettings::SETTING_SUBTITLES_OVERRIDESTYLES));
 }
 
-float CSubtitlesSettings::GetVerticalMarginPerc() const
-{
+float CSubtitlesSettings::GetVerticalMarginPerc() const {
   // We return the vertical margin as percentage
   // to fit the current screen resolution
   return static_cast<float>(m_settings->GetNumber(CSettings::SETTING_SUBTITLES_MARGINVERTICAL));
@@ -177,7 +150,8 @@ float CSubtitlesSettings::GetVerticalMarginPerc() const
 
 void CSubtitlesSettings::SettingOptionsSubtitleFontsFiller(const SettingConstPtr& setting,
                                                            std::vector<StringSettingOption>& list,
-                                                           std::string& current)
+                                                           std::string& current,
+                                                           void* data)
 {
   // From application system fonts folder we add the default font only
   std::string defaultFontPath =
@@ -187,12 +161,10 @@ void CSubtitlesSettings::SettingOptionsSubtitleFontsFiller(const SettingConstPtr
     std::string familyName = UTILS::FONT::GetFontFamily(defaultFontPath);
     if (!familyName.empty())
     {
-      list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(571) +
-                            " " + familyName,
-                        FONT_DEFAULT_FAMILYNAME);
+      list.emplace_back(g_localizeStrings.Get(571) + " " + familyName, FONT_DEFAULT_FAMILYNAME);
     }
   }
-  // Add additional fonts from the user fonts folder
+  // Add additionals fonts from the user fonts folder
   for (const std::string& familyName : g_fontManager.GetUserFontsFamilyNames())
   {
     list.emplace_back(familyName, familyName);

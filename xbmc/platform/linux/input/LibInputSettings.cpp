@@ -55,7 +55,9 @@ CLibInputSettings::CLibInputSettings(CLibInputHandler *handler) :
 
   setting->SetVisible(true);
 
-  settingsManager->RegisterCallback(this, {SETTING_INPUT_LIBINPUTKEYBOARDLAYOUT});
+  std::set<std::string> settingSet;
+  settingSet.insert(SETTING_INPUT_LIBINPUTKEYBOARDLAYOUT);
+  settingsManager->RegisterCallback(this, settingSet);
   settingsManager->RegisterSettingOptionsFiller("libinputkeyboardlayout",
                                                 SettingOptionsKeyboardLayoutsFiller);
 
@@ -147,7 +149,8 @@ CLibInputSettings::~CLibInputSettings()
 void CLibInputSettings::SettingOptionsKeyboardLayoutsFiller(
     const std::shared_ptr<const CSetting>& setting,
     std::vector<StringSettingOption>& list,
-    std::string& current)
+    std::string& current,
+    void* data)
 {
   list = layouts;
 }

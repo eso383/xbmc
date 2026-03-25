@@ -14,7 +14,7 @@
 #include <map>
 #include <utility>
 
-namespace KODI::VIDEO
+namespace VIDEO
 {
   struct SScanSettings;
 }
@@ -28,14 +28,14 @@ public:
   // specialization of CGUIWindow
   bool HasListItems() const override { return true; }
 
-  ADDON::ContentType GetContent() const { return m_content; }
-  void SetContent(ADDON::ContentType content);
+  CONTENT_TYPE GetContent() const { return m_content; }
+  void SetContent(CONTENT_TYPE content);
   void ResetContent();
 
   const ADDON::ScraperPtr& GetScraper() const { return m_scraper; }
   void SetScraper(ADDON::ScraperPtr scraper) { m_scraper = std::move(scraper); }
 
-  void SetScanSettings(const KODI::VIDEO::SScanSettings& scanSettings);
+  void SetScanSettings(const VIDEO::SScanSettings &scanSettings);
   bool GetScanRecursive() const { return m_scanRecursive; }
   bool GetUseDirectoryNames() const { return m_useDirectoryNames; }
   bool GetContainsSingleItem() const { return m_containsSingleItem; }
@@ -43,13 +43,13 @@ public:
   bool GetNoUpdating() const { return m_noUpdating; }
   bool GetUseAllExternalAudio() const { return m_allExternalAudio; }
 
-  static bool Show(ADDON::ScraperPtr& scraper,
-                   ADDON::ContentType content = ADDON::ContentType::NONE);
-  static bool Show(ADDON::ScraperPtr& scraper,
-                   KODI::VIDEO::SScanSettings& settings,
-                   ADDON::ContentType content = ADDON::ContentType::NONE);
+  static bool Show(ADDON::ScraperPtr& scraper, CONTENT_TYPE content = CONTENT_NONE);
+  static bool Show(ADDON::ScraperPtr& scraper, VIDEO::SScanSettings& settings, CONTENT_TYPE content = CONTENT_NONE);
 
 protected:
+  // specializations of CGUIWindow
+  void OnInitWindow() override;
+
   // implementations of ISettingCallback
   void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
   void OnSettingAction(const std::shared_ptr<const CSetting>& setting) override;
@@ -71,11 +71,11 @@ private:
   /*!
   * @brief The currently selected content type
   */
-  ADDON::ContentType m_content{ADDON::ContentType::NONE};
+  CONTENT_TYPE m_content = CONTENT_NONE;
   /*!
   * @brief The selected content type at dialog creation
   */
-  ADDON::ContentType m_originalContent{ADDON::ContentType::NONE};
+  CONTENT_TYPE m_originalContent = CONTENT_NONE;
   /*!
   * @brief The currently selected scraper
   */

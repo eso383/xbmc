@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "jobs/JobQueue.h"
 #include "threads/CriticalSection.h"
+#include "utils/JobManager.h"
 
 #include <map>
 #include <memory>
@@ -66,7 +66,7 @@ public:
    */
   bool CleanLibrary(const std::set<int>& paths = std::set<int>(),
                     bool asynchronous = true,
-                    CGUIDialogProgressBarHandle* progressBar = NULL);
+                    CGUIDialogProgressBarHandle* progressBar = nullptr);
 
   /*!
   \brief Executes a library cleaning with a modal dialog.

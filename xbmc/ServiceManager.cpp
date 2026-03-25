@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -46,7 +46,6 @@
 #include "pictures/SlideShowDelegator.h"
 #include "storage/MediaManager.h"
 #include "utils/FileExtensionProvider.h"
-#include "utils/i18n/Bcp47Registry/SubTagRegistryManager.h"
 #include "utils/log.h"
 #include "weather/WeatherManager.h"
 
@@ -83,9 +82,6 @@ bool CServiceManager::InitForTesting()
   m_extsMimeSupportList = std::make_unique<ADDONS::CExtsMimeSupportList>(*m_addonMgr);
   m_fileExtensionProvider = std::make_unique<CFileExtensionProvider>(*m_addonMgr);
 
-  m_subTagRegistryManager = std::make_unique<KODI::UTILS::I18N::CSubTagRegistryManager>();
-  m_subTagRegistryManager->Initialize();
-
   init_level = 1;
   return true;
 }
@@ -93,7 +89,6 @@ bool CServiceManager::InitForTesting()
 void CServiceManager::DeinitTesting()
 {
   init_level = 0;
-  m_subTagRegistryManager.reset();
   m_fileExtensionProvider.reset();
   m_extsMimeSupportList.reset();
   m_binaryAddonManager.reset();
@@ -173,7 +168,7 @@ bool CServiceManager::InitStageTwo(const std::string& profilesUserDataFolder)
   m_powerManager->Initialize();
   m_powerManager->SetDefaults();
 
-  m_weatherManager = std::make_unique<CWeatherManager>(*m_addonMgr);
+  m_weatherManager = std::make_unique<CWeatherManager>();
 
   m_mediaManager = std::make_unique<CMediaManager>();
   m_mediaManager->Initialize();
@@ -185,9 +180,6 @@ bool CServiceManager::InitStageTwo(const std::string& profilesUserDataFolder)
 #if defined(HAS_FILESYSTEM_SMB)
   m_WSDiscovery = WSDiscovery::IWSDiscovery::GetInstance();
 #endif
-
-  m_subTagRegistryManager = std::make_unique<KODI::UTILS::I18N::CSubTagRegistryManager>();
-  m_subTagRegistryManager->Initialize();
 
   if (!m_Platform->InitStageTwo())
     return false;
@@ -208,9 +200,9 @@ bool CServiceManager::InitStageThree(const std::shared_ptr<CProfileManager>& pro
   // Peripherals depends on strings being loaded before stage 3
   m_peripherals->Initialise();
 
-  m_gameServices = std::make_unique<GAME::CGameServices>(
-      *m_gameControllerManager, *m_gameRenderManager, *m_peripherals, *profileManager,
-      *m_inputManager, *m_addonMgr);
+  m_gameServices =
+      std::make_unique<GAME::CGameServices>(*m_gameControllerManager, *m_gameRenderManager,
+                                            *m_peripherals, *profileManager, *m_inputManager);
 
   m_contextMenuManager->Init();
 
@@ -246,8 +238,6 @@ void CServiceManager::DeinitStageThree()
 void CServiceManager::DeinitStageTwo()
 {
   init_level = 1;
-
-  m_subTagRegistryManager.reset();
 
 #if defined(HAS_FILESYSTEM_SMB)
   m_WSDiscovery.reset();
@@ -296,157 +286,123 @@ void CServiceManager::DeinitStageOne()
 }
 
 #if defined(HAS_FILESYSTEM_SMB)
-WSDiscovery::IWSDiscovery& CServiceManager::GetWSDiscovery()
-{
+WSDiscovery::IWSDiscovery& CServiceManager::GetWSDiscovery() const {
   return *m_WSDiscovery;
 }
 #endif
 
-ADDON::CAddonMgr& CServiceManager::GetAddonMgr()
-{
+ADDON::CAddonMgr& CServiceManager::GetAddonMgr() const {
   return *m_addonMgr;
 }
 
-ADDONS::CExtsMimeSupportList& CServiceManager::GetExtsMimeSupportList()
-{
+ADDONS::CExtsMimeSupportList& CServiceManager::GetExtsMimeSupportList() const {
   return *m_extsMimeSupportList;
 }
 
-ADDON::CBinaryAddonCache& CServiceManager::GetBinaryAddonCache()
-{
+ADDON::CBinaryAddonCache& CServiceManager::GetBinaryAddonCache() const {
   return *m_binaryAddonCache;
 }
 
-ADDON::CBinaryAddonManager& CServiceManager::GetBinaryAddonManager()
-{
+ADDON::CBinaryAddonManager& CServiceManager::GetBinaryAddonManager() const {
   return *m_binaryAddonManager;
 }
 
-ADDON::CVFSAddonCache& CServiceManager::GetVFSAddonCache()
-{
+ADDON::CVFSAddonCache& CServiceManager::GetVFSAddonCache() const {
   return *m_vfsAddonCache;
 }
 
-ADDON::CServiceAddonManager& CServiceManager::GetServiceAddons()
-{
+ADDON::CServiceAddonManager& CServiceManager::GetServiceAddons() const {
   return *m_serviceAddons;
 }
 
-ADDON::CRepositoryUpdater& CServiceManager::GetRepositoryUpdater()
-{
+ADDON::CRepositoryUpdater& CServiceManager::GetRepositoryUpdater() const {
   return *m_repositoryUpdater;
 }
 
 #ifdef HAS_PYTHON
-XBPython& CServiceManager::GetXBPython()
-{
+XBPython& CServiceManager::GetXBPython() const {
   return *m_XBPython;
 }
 #endif
 
 #if !defined(TARGET_WINDOWS) && defined(HAS_OPTICAL_DRIVE)
-MEDIA_DETECT::CDetectDVDMedia& CServiceManager::GetDetectDVDMedia()
-{
+MEDIA_DETECT::CDetectDVDMedia& CServiceManager::GetDetectDVDMedia() const {
   return *m_DetectDVDType;
 }
 #endif
 
-PVR::CPVRManager& CServiceManager::GetPVRManager()
-{
+PVR::CPVRManager& CServiceManager::GetPVRManager() const {
   return *m_PVRManager;
 }
 
-CContextMenuManager& CServiceManager::GetContextMenuManager()
-{
+CContextMenuManager& CServiceManager::GetContextMenuManager() const {
   return *m_contextMenuManager;
 }
 
-CDataCacheCore& CServiceManager::GetDataCacheCore()
-{
+CDataCacheCore& CServiceManager::GetDataCacheCore() const {
   return *m_dataCacheCore;
 }
 
-CPlatform& CServiceManager::GetPlatform()
-{
+CPlatform& CServiceManager::GetPlatform() const {
   return *m_Platform;
 }
 
-PLAYLIST::CPlayListPlayer& CServiceManager::GetPlaylistPlayer()
-{
+PLAYLIST::CPlayListPlayer& CServiceManager::GetPlaylistPlayer() const {
   return *m_playlistPlayer;
 }
 
-GAME::CControllerManager& CServiceManager::GetGameControllerManager()
-{
+GAME::CControllerManager& CServiceManager::GetGameControllerManager() const {
   return *m_gameControllerManager;
 }
 
-GAME::CGameServices& CServiceManager::GetGameServices()
-{
+GAME::CGameServices& CServiceManager::GetGameServices() const {
   return *m_gameServices;
 }
 
-KODI::RETRO::CGUIGameRenderManager& CServiceManager::GetGameRenderManager()
-{
+KODI::RETRO::CGUIGameRenderManager& CServiceManager::GetGameRenderManager() const {
   return *m_gameRenderManager;
 }
 
-PERIPHERALS::CPeripherals& CServiceManager::GetPeripherals()
-{
+PERIPHERALS::CPeripherals& CServiceManager::GetPeripherals() const {
   return *m_peripherals;
 }
 
-CFavouritesService& CServiceManager::GetFavouritesService()
-{
+CFavouritesService& CServiceManager::GetFavouritesService() const {
   return *m_favouritesService;
 }
 
-CInputManager& CServiceManager::GetInputManager()
-{
+CInputManager& CServiceManager::GetInputManager() const {
   return *m_inputManager;
 }
 
-CFileExtensionProvider& CServiceManager::GetFileExtensionProvider()
-{
+CFileExtensionProvider& CServiceManager::GetFileExtensionProvider() const {
   return *m_fileExtensionProvider;
 }
 
-CPowerManager& CServiceManager::GetPowerManager()
-{
+CPowerManager& CServiceManager::GetPowerManager() const {
   return *m_powerManager;
 }
 
-CNetworkBase& CServiceManager::GetNetwork()
-{
+CNetworkBase& CServiceManager::GetNetwork() const {
   return *m_network;
 }
 
-CWeatherManager& CServiceManager::GetWeatherManager()
-{
+CWeatherManager& CServiceManager::GetWeatherManager() const {
   return *m_weatherManager;
 }
 
-CPlayerCoreFactory& CServiceManager::GetPlayerCoreFactory()
-{
+CPlayerCoreFactory& CServiceManager::GetPlayerCoreFactory() const {
   return *m_playerCoreFactory;
 }
 
-CDatabaseManager& CServiceManager::GetDatabaseManager()
-{
+CDatabaseManager& CServiceManager::GetDatabaseManager() const {
   return *m_databaseManager;
 }
 
-CMediaManager& CServiceManager::GetMediaManager()
-{
+CMediaManager& CServiceManager::GetMediaManager() const {
   return *m_mediaManager;
 }
 
-CSlideShowDelegator& CServiceManager::GetSlideShowDelegator()
-{
+CSlideShowDelegator& CServiceManager::GetSlideShowDelegator() const {
   return *m_slideShowDelegator;
-}
-
-KODI::UTILS::I18N::CSubTagRegistryManager& CServiceManager::GetSubTagRegistryManager()
-{
-  return *m_subTagRegistryManager;
 }

@@ -26,7 +26,7 @@ CGUIMoverControl::CGUIMoverControl(int parentID,
                                    float height,
                                    const CTextureInfo& textureFocus,
                                    const CTextureInfo& textureNoFocus,
-                                   KODI::UTILS::MOVING_SPEED::MapEventConfig& movingSpeedCfg)
+                                   UTILS::MOVING_SPEED::MapEventConfig& movingSpeedCfg)
   : CGUIControl(parentID, controlID, posX, posY, width, height),
     m_imgFocus(CGUITexture::CreateTexture(posX, posY, width, height, textureFocus)),
     m_imgNoFocus(CGUITexture::CreateTexture(posX, posY, width, height, textureNoFocus))
@@ -232,8 +232,7 @@ void CGUIMoverControl::SetPosition(float posX, float posY)
   m_imgNoFocus->SetPosition(posX, posY);
 }
 
-bool CGUIMoverControl::SetAlpha(unsigned char alpha)
-{
+bool CGUIMoverControl::SetAlpha(unsigned char alpha) const {
   bool changed = m_imgFocus->SetAlpha(alpha);
   changed |= m_imgNoFocus->SetAlpha(alpha);
   return changed;

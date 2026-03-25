@@ -27,7 +27,7 @@ using namespace JSONRPC;
 
 JSONRPC_STATUS CApplicationOperations::GetProperties(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
-  CVariant properties = CVariant(CVariant::VariantTypeObject);
+  auto properties = CVariant(CVariant::VariantTypeObject);
   for (unsigned int index = 0; index < parameterObject["properties"].size(); index++)
   {
     std::string propertyName = parameterObject["properties"][index].asString();
@@ -152,7 +152,7 @@ JSONRPC_STATUS CApplicationOperations::GetPropertyValue(const std::string &prope
   else if (property == "sorttokens")
   {
     result = CVariant(CVariant::VariantTypeArray); // Ensure no tokens returns as []
-    const CLangInfo::Tokens sortTokens = g_langInfo.GetSortTokens();
+    std::set<std::string> sortTokens = g_langInfo.GetSortTokens();
     for (const auto& token : sortTokens)
       result.append(token);
   }

@@ -18,8 +18,7 @@
 #include "filesystem/AddonsDirectory.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/lib/Setting.h"
 #include "settings/lib/SettingsManager.h"
 #include "settings/windows/GUIControlSettings.h"
@@ -33,34 +32,31 @@
 #include <utility>
 #include <vector>
 
-namespace
-{
-constexpr const char* SETTING_CONTENT_TYPE = "contenttype";
-constexpr const char* SETTING_SCRAPER_LIST = "scraperlist";
-constexpr const char* SETTING_SCRAPER_SETTINGS = "scrapersettings";
-constexpr const char* SETTING_SCAN_RECURSIVE = "scanrecursive";
-constexpr const char* SETTING_USE_DIRECTORY_NAMES = "usedirectorynames";
-constexpr const char* SETTING_CONTAINS_SINGLE_ITEM = "containssingleitem";
-constexpr const char* SETTING_EXCLUDE = "exclude";
-constexpr const char* SETTING_NO_UPDATING = "noupdating";
-constexpr const char* SETTING_ALL_EXTERNAL_AUDIO = "allexternalaudio";
-} // unnamed namespace
+#define SETTING_CONTENT_TYPE          "contenttype"
+#define SETTING_SCRAPER_LIST          "scraperlist"
+#define SETTING_SCRAPER_SETTINGS      "scrapersettings"
+#define SETTING_SCAN_RECURSIVE        "scanrecursive"
+#define SETTING_USE_DIRECTORY_NAMES   "usedirectorynames"
+#define SETTING_CONTAINS_SINGLE_ITEM  "containssingleitem"
+#define SETTING_EXCLUDE               "exclude"
+#define SETTING_NO_UPDATING           "noupdating"
+#define SETTING_ALL_EXTERNAL_AUDIO "allexternalaudio"
 
 using namespace ADDON;
-using namespace KODI;
+
 
 CGUIDialogContentSettings::CGUIDialogContentSettings()
   : CGUIDialogSettingsManualBase(WINDOW_DIALOG_CONTENT_SETTINGS, "DialogSettings.xml")
 { }
 
-void CGUIDialogContentSettings::SetContent(ContentType content)
+void CGUIDialogContentSettings::SetContent(CONTENT_TYPE content)
 {
   m_content = m_originalContent = content;
 }
 
 void CGUIDialogContentSettings::ResetContent()
 {
-  SetContent(ContentType::NONE);
+  SetContent(CONTENT_NONE);
 }
 
 void CGUIDialogContentSettings::SetScanSettings(const VIDEO::SScanSettings &scanSettings)
@@ -74,31 +70,25 @@ void CGUIDialogContentSettings::SetScanSettings(const VIDEO::SScanSettings &scan
   m_allExternalAudio = scanSettings.m_allExtAudio;
 }
 
-bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper,
-                                     ContentType content /* = CONTENT_NONE */)
+bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper, CONTENT_TYPE content /* = CONTENT_NONE */)
 {
   VIDEO::SScanSettings dummy;
   return Show(scraper, dummy, content);
 }
 
-bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper,
-                                     VIDEO::SScanSettings& settings,
-                                     ContentType content /* = ContentType::CONTENT_NONE */)
+bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper, VIDEO::SScanSettings& settings, CONTENT_TYPE content /* = CONTENT_NONE */)
 {
   CGUIDialogContentSettings *dialog = CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogContentSettings>(WINDOW_DIALOG_CONTENT_SETTINGS);
-  if (!dialog)
+  if (dialog == nullptr)
     return false;
 
-  if (scraper)
+  if (scraper != nullptr)
   {
-    dialog->SetContent(content != ContentType::NONE ? content : scraper->Content());
+    dialog->SetContent(content != CONTENT_NONE ? content : scraper->Content());
     dialog->SetScraper(scraper);
     // toast selected but disabled scrapers
     if (CServiceBroker::GetAddonMgr().IsAddonDisabled(scraper->ID()))
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Error,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24024), scraper->Name(),
-          2000, true);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(24024), scraper->Name(), 2000, true);
   }
 
   dialog->SetScanSettings(settings);
@@ -112,7 +102,7 @@ bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper,
 
     settings.m_allExtAudio = dialog->GetUseAllExternalAudio();
 
-    if (!scraper || content == ContentType::NONE)
+    if (scraper == nullptr || content == CONTENT_NONE)
       settings.exclude = dialog->GetExclude();
     else
     {
@@ -120,12 +110,12 @@ bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper,
       settings.noupdate = dialog->GetNoUpdating();
       scraper->SetPathSettings(content, "");
 
-      if (content == ContentType::TVSHOWS)
+      if (content == CONTENT_TVSHOWS)
       {
         settings.parent_name = settings.parent_name_root = dialog->GetContainsSingleItem();
         settings.recurse = 0;
       }
-      else if (content == ContentType::MOVIES || content == ContentType::MUSICVIDEOS)
+      else if (content == CONTENT_MOVIES || content == CONTENT_MUSICVIDEOS)
       {
         if (dialog->GetUseDirectoryNames())
         {
@@ -155,9 +145,14 @@ bool CGUIDialogContentSettings::Show(ADDON::ScraperPtr& scraper,
   return confirmed;
 }
 
+void CGUIDialogContentSettings::OnInitWindow()
+{
+  CGUIDialogSettingsManualBase::OnInitWindow();
+}
+
 void CGUIDialogContentSettings::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (!setting)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingChanged(setting);
@@ -182,7 +177,7 @@ void CGUIDialogContentSettings::OnSettingChanged(const std::shared_ptr<const CSe
 
 void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSetting>& setting)
 {
-  if (!setting)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingAction(setting);
@@ -191,21 +186,19 @@ void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSet
 
   if (settingId == SETTING_CONTENT_TYPE)
   {
-    std::vector<std::pair<std::string, ContentType>> labels;
-    if (m_content == ContentType::ALBUMS || m_content == ContentType::ARTISTS)
+    std::vector<std::pair<std::string, int>> labels;
+    if (m_content == CONTENT_ALBUMS || m_content == CONTENT_ARTISTS)
     {
       labels.emplace_back(ADDON::TranslateContent(m_content, true), m_content);
     }
     else
     {
-      labels.emplace_back(ADDON::TranslateContent(ContentType::NONE, true), ContentType::NONE);
-      labels.emplace_back(ADDON::TranslateContent(ContentType::MOVIES, true), ContentType::MOVIES);
-      labels.emplace_back(ADDON::TranslateContent(ContentType::TVSHOWS, true),
-                          ContentType::TVSHOWS);
-      labels.emplace_back(ADDON::TranslateContent(ContentType::MUSICVIDEOS, true),
-                          ContentType::MUSICVIDEOS);
+      labels.emplace_back(ADDON::TranslateContent(CONTENT_NONE, true), CONTENT_NONE);
+      labels.emplace_back(ADDON::TranslateContent(CONTENT_MOVIES, true), CONTENT_MOVIES);
+      labels.emplace_back(ADDON::TranslateContent(CONTENT_TVSHOWS, true), CONTENT_TVSHOWS);
+      labels.emplace_back(ADDON::TranslateContent(CONTENT_MUSICVIDEOS, true), CONTENT_MUSICVIDEOS);
     }
-    std::ranges::sort(labels);
+    std::sort(labels.begin(), labels.end());
 
     CGUIDialogSelect *dialog = CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogSelect>(WINDOW_DIALOG_SELECT);
     if (dialog)
@@ -214,11 +207,11 @@ void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSet
 
       int iIndex = 0;
       int iSelected = 0;
-      for (const auto& [label, index] : labels)
+      for (const auto &label : labels)
       {
-        dialog->Add(label);
+        dialog->Add(label.first);
 
-        if (m_content == index)
+        if (m_content == label.second)
           iSelected = iIndex;
         iIndex++;
       }
@@ -231,13 +224,11 @@ void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSet
       if (!dialog->IsConfirmed() || newSelected < 0 || newSelected == iSelected)
         return;
 
-      const auto& [_, selected] = labels.at(newSelected);
-      m_content = selected;
+      auto selected = labels.at(newSelected);
+      m_content = static_cast<CONTENT_TYPE>(selected.second);
 
       AddonPtr scraperAddon;
-      if (!CAddonSystemSettings::GetInstance().GetActive(ADDON::ScraperTypeFromContent(m_content),
-                                                         scraperAddon) &&
-          m_content != ContentType::NONE)
+      if (!CAddonSystemSettings::GetInstance().GetActive(ADDON::ScraperTypeFromContent(m_content), scraperAddon) && m_content != CONTENT_NONE)
         return;
 
       m_scraper = std::dynamic_pointer_cast<CScraper>(scraperAddon);
@@ -250,7 +241,7 @@ void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSet
   {
     ADDON::AddonType type = ADDON::ScraperTypeFromContent(m_content);
     std::string currentScraperId;
-    if (m_scraper)
+    if (m_scraper != nullptr)
       currentScraperId = m_scraper->ID();
     std::string selectedAddonId = currentScraperId;
 
@@ -267,7 +258,8 @@ void CGUIDialogContentSettings::OnSettingAction(const std::shared_ptr<const CSet
       }
       else
       {
-        CLog::LogF(LOGERROR, "Could not get settings for addon: {}", selectedAddonId);
+        CLog::Log(LOGERROR, "{} - Could not get settings for addon: {}", __FUNCTION__,
+                  selectedAddonId);
       }
     }
   }
@@ -292,7 +284,7 @@ void CGUIDialogContentSettings::SetupView()
 
   SetLabel2(SETTING_CONTENT_TYPE, ADDON::TranslateContent(m_content, true));
 
-  if (m_content == ContentType::NONE)
+  if (m_content == CONTENT_NONE)
   {
     ToggleState(SETTING_SCRAPER_LIST, false);
     ToggleState(SETTING_SCRAPER_SETTINGS, false);
@@ -300,7 +292,7 @@ void CGUIDialogContentSettings::SetupView()
   else
   {
     ToggleState(SETTING_SCRAPER_LIST, true);
-    if (m_scraper && !CServiceBroker::GetAddonMgr().IsAddonDisabled(m_scraper->ID()))
+    if (m_scraper != nullptr && !CServiceBroker::GetAddonMgr().IsAddonDisabled(m_scraper->ID()))
     {
       SetLabel2(SETTING_SCRAPER_LIST, m_scraper->Name());
       if (m_scraper && m_scraper->Supports(m_content) && m_scraper->HasSettings())
@@ -310,9 +302,7 @@ void CGUIDialogContentSettings::SetupView()
     }
     else
     {
-      SetLabel2(SETTING_SCRAPER_LIST,
-                CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                    231)); //Set label2 to "None"
+      SetLabel2(SETTING_SCRAPER_LIST, g_localizeStrings.Get(231)); //Set label2 to "None"
       ToggleState(SETTING_SCRAPER_SETTINGS, false);
     }
   }
@@ -322,20 +312,20 @@ void CGUIDialogContentSettings::InitializeSettings()
 {
   CGUIDialogSettingsManualBase::InitializeSettings();
 
-  if (m_content == ContentType::NONE)
+  if (m_content == CONTENT_NONE)
     m_showScanSettings = false;
-  else if (m_scraper && !CServiceBroker::GetAddonMgr().IsAddonDisabled(m_scraper->ID()))
+  else if (m_scraper != nullptr && !CServiceBroker::GetAddonMgr().IsAddonDisabled(m_scraper->ID()))
     m_showScanSettings = true;
 
   std::shared_ptr<CSettingCategory> category = AddCategory("contentsettings", -1);
-  if (!category)
+  if (category == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogContentSettings: unable to setup settings");
     return;
   }
 
   std::shared_ptr<CSettingGroup> group = AddGroup(category);
-  if (!group)
+  if (group == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogContentSettings: unable to setup settings");
     return;
@@ -344,18 +334,18 @@ void CGUIDialogContentSettings::InitializeSettings()
   AddButton(group, SETTING_CONTENT_TYPE, 20344, SettingLevel::Basic);
   AddButton(group, SETTING_SCRAPER_LIST, 38025, SettingLevel::Basic);
   std::shared_ptr<CSettingAction> subsetting = AddButton(group, SETTING_SCRAPER_SETTINGS, 10004, SettingLevel::Basic);
-  if (subsetting)
+  if (subsetting != nullptr)
     subsetting->SetParent(SETTING_SCRAPER_LIST);
 
   std::shared_ptr<CSettingGroup> groupDetails = AddGroup(category, 20322);
-  if (!groupDetails)
+  if (groupDetails == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogContentSettings: unable to setup scanning settings");
     return;
   }
   switch (m_content)
   {
-    case ContentType::TVSHOWS:
+    case CONTENT_TVSHOWS:
     {
       AddToggle(groupDetails, SETTING_CONTAINS_SINGLE_ITEM, 20379, SettingLevel::Basic, m_containsSingleItem, false, m_showScanSettings);
       AddToggle(groupDetails, SETTING_NO_UPDATING, 20432, SettingLevel::Basic, m_noUpdating, false, m_showScanSettings);
@@ -364,12 +354,10 @@ void CGUIDialogContentSettings::InitializeSettings()
       break;
     }
 
-    case ContentType::MOVIES:
-    case ContentType::MUSICVIDEOS:
+    case CONTENT_MOVIES:
+    case CONTENT_MUSICVIDEOS:
     {
-      AddToggle(groupDetails, SETTING_USE_DIRECTORY_NAMES,
-                m_content == ContentType::MOVIES ? 20329 : 20330, SettingLevel::Basic,
-                m_useDirectoryNames, false, m_showScanSettings);
+      AddToggle(groupDetails, SETTING_USE_DIRECTORY_NAMES, m_content == CONTENT_MOVIES ? 20329 : 20330, SettingLevel::Basic, m_useDirectoryNames, false, m_showScanSettings);
       std::shared_ptr<CSettingBool> settingScanRecursive = AddToggle(groupDetails, SETTING_SCAN_RECURSIVE, 20346, SettingLevel::Basic, m_scanRecursive, false, m_showScanSettings);
       std::shared_ptr<CSettingBool> settingContainsSingleItem = AddToggle(groupDetails, SETTING_CONTAINS_SINGLE_ITEM, 20383, SettingLevel::Basic, m_containsSingleItem, false, m_showScanSettings);
       AddToggle(groupDetails, SETTING_NO_UPDATING, 20432, SettingLevel::Basic, m_noUpdating, false, m_showScanSettings);
@@ -379,15 +367,16 @@ void CGUIDialogContentSettings::InitializeSettings()
       // define an enable dependency with (m_useDirectoryNames && !m_containsSingleItem) || !m_useDirectoryNames
       CSettingDependency dependencyScanRecursive(SettingDependencyType::Enable, GetSettingsManager());
       dependencyScanRecursive.Or()
-          ->Add(std::make_shared<CSettingDependencyConditionCombination>(
-              BooleanLogicOperationAnd,
-              GetSettingsManager())) // m_useDirectoryNames && !m_containsSingleItem
-          ->Add(std::make_shared<CSettingDependencyCondition>(
-              SETTING_USE_DIRECTORY_NAMES, "true", SettingDependencyOperator::Equals, false,
-              GetSettingsManager())) // m_useDirectoryNames
-          ->Add(std::make_shared<CSettingDependencyCondition>(
-              SETTING_CONTAINS_SINGLE_ITEM, "false", SettingDependencyOperator::Equals, false,
-              GetSettingsManager())) // !m_containsSingleItem
+          ->Add(CSettingDependencyConditionCombinationPtr(
+              (new CSettingDependencyConditionCombination(
+                   BooleanLogicOperationAnd,
+                   GetSettingsManager())) // m_useDirectoryNames && !m_containsSingleItem
+                  ->Add(std::make_shared<CSettingDependencyCondition>(
+                      SETTING_USE_DIRECTORY_NAMES, "true", SettingDependencyOperator::Equals, false,
+                      GetSettingsManager())) // m_useDirectoryNames
+                  ->Add(std::make_shared<CSettingDependencyCondition>(
+                      SETTING_CONTAINS_SINGLE_ITEM, "false", SettingDependencyOperator::Equals,
+                      false, GetSettingsManager())))) // !m_containsSingleItem
           ->Add(std::make_shared<CSettingDependencyCondition>(
               SETTING_USE_DIRECTORY_NAMES, "false", SettingDependencyOperator::Equals, false,
               GetSettingsManager())); // !m_useDirectoryNames
@@ -412,11 +401,11 @@ void CGUIDialogContentSettings::InitializeSettings()
       break;
     }
 
-    case ContentType::ALBUMS:
-    case ContentType::ARTISTS:
+    case CONTENT_ALBUMS:
+    case CONTENT_ARTISTS:
       break;
 
-    case ContentType::NONE:
+    case CONTENT_NONE:
     default:
       AddToggle(groupDetails, SETTING_EXCLUDE, 20380, SettingLevel::Basic, m_exclude, false, !m_showScanSettings);
       AddToggle(groupDetails, SETTING_ALL_EXTERNAL_AUDIO, 39120, SettingLevel::Basic,
@@ -428,14 +417,14 @@ void CGUIDialogContentSettings::InitializeSettings()
 void CGUIDialogContentSettings::SetLabel2(const std::string &settingid, const std::string &label)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
     SET_CONTROL_LABEL2(settingControl->GetID(), label);
 }
 
 void CGUIDialogContentSettings::ToggleState(const std::string &settingid, bool enabled)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
   {
     if (enabled)
       CONTROL_ENABLE(settingControl->GetID());
@@ -447,6 +436,6 @@ void CGUIDialogContentSettings::ToggleState(const std::string &settingid, bool e
 void CGUIDialogContentSettings::SetFocusToSetting(const std::string& settingid)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
     SET_CONTROL_FOCUS(settingControl->GetID(), 0);
 }

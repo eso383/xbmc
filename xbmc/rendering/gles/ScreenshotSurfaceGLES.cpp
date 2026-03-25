@@ -13,7 +13,6 @@
 #include "guilib/GUIWindowManager.h"
 #include "utils/Screenshot.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <memory>
 #include <mutex>
@@ -41,7 +40,8 @@ bool CScreenshotSurfaceGLES::Capture()
   if (!gui)
     return false;
 
-  std::unique_lock lock(winsystem->GetGfxContext());
+  std::lock_guard lock(winsystem->GetGfxContext());
+
   gui->GetWindowManager().Render();
 
   //get current viewport

@@ -3,11 +3,9 @@ set(SOURCES RenderSystem.cpp)
 set(HEADERS RenderSystem.h
             RenderSystemTypes.h)
 
-if(TARGET ${APP_NAME_LC}::OpenGl OR TARGET ${APP_NAME_LC}::OpenGLES)
-  list(APPEND SOURCES GLExtensions.cpp
-                      MatrixGL.cpp)
-  list(APPEND HEADERS GLExtensions.h
-                      MatrixGL.h)
+if(TARGET OpenGL::GL OR TARGET OpenGL::GLES)
+  list(APPEND SOURCES MatrixGL.cpp)
+  list(APPEND HEADERS MatrixGL.h)
 
   if(ARCH MATCHES arm AND ENABLE_NEON)
     list(APPEND SOURCES MatrixGL.neon.cpp)

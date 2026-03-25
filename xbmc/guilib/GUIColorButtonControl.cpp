@@ -9,10 +9,10 @@
 #include "GUIColorButtonControl.h"
 
 #include "GUIInfoManager.h"
-#include "ServiceBroker.h"
+#include "LocalizeStrings.h"
+#include "input/keyboard/Key.h"
 #include "utils/ColorUtils.h"
 #include "utils/StringUtils.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 using namespace GUILIB;
@@ -36,9 +36,9 @@ CGUIColorButtonControl::CGUIColorButtonControl(int parentID,
 {
   m_colorPosX = 0;
   m_colorPosY = 0;
-  m_imgColorMask->SetAspectRatio(CAspectRatio::KEEP);
-  m_imgColorDisabledMask->SetAspectRatio(CAspectRatio::KEEP);
-  m_imgBoxColor = GUIINFO::CGUIInfoColor(KODI::UTILS::COLOR::NONE);
+  m_imgColorMask->SetAspectRatio(CAspectRatio::AR_KEEP);
+  m_imgColorDisabledMask->SetAspectRatio(CAspectRatio::AR_KEEP);
+  m_imgBoxColor = GUIINFO::CGUIInfoColor(UTILS::COLOR::NONE);
   ControlType = GUICONTROL_COLORBUTTON;
   // offsetX is like a left/right padding, "hex" label does not require high values
   m_labelInfo.GetLabelInfo().offsetX = 2;
@@ -164,9 +164,9 @@ void CGUIColorButtonControl::SetImageBoxColor(GUIINFO::CGUIInfoColor color)
 void CGUIColorButtonControl::SetImageBoxColor(const std::string& hexColor)
 {
   if (hexColor.empty())
-    m_imgBoxColor = GUIINFO::CGUIInfoColor(KODI::UTILS::COLOR::NONE);
+    m_imgBoxColor = GUIINFO::CGUIInfoColor(UTILS::COLOR::NONE);
   else
-    m_imgBoxColor = GUIINFO::CGUIInfoColor(KODI::UTILS::COLOR::ConvertHexToColor(hexColor));
+    m_imgBoxColor = GUIINFO::CGUIInfoColor(UTILS::COLOR::ConvertHexToColor(hexColor));
 }
 
 bool CGUIColorButtonControl::UpdateColors(const CGUIListItem* item)
@@ -192,7 +192,7 @@ void CGUIColorButtonControl::ProcessInfoText(unsigned int currentTime)
 {
   CRect labelRenderRect = m_labelInfo.GetRenderRect();
   bool changed = m_labelInfo.SetText(
-      StringUtils::Format("#{:08X}", static_cast<KODI::UTILS::COLOR::Color>(m_imgBoxColor)));
+      StringUtils::Format("#{:08X}", static_cast<UTILS::COLOR::Color>(m_imgBoxColor)));
   // Set Label X position based on image mask control position
   float textWidth = m_labelInfo.GetTextWidth() + 2 * m_labelInfo.GetLabelInfo().offsetX;
   float textPosX = m_imgColorMask->GetXPosition() - textWidth;

@@ -58,6 +58,8 @@ public:
   float GetVideoDAR();
 
   // Additional Player Process Info data (Only set in Data Core Cache)
+  void SetVideoPts(double pts);
+  double GetVideoPts();
   void SetVideoBitDepth(int bitDepth);
   int GetVideoBitDepth();
   void SetVideoHdrType(StreamHdrType hdrType);
@@ -125,6 +127,8 @@ public:
   uint64_t GetAudioSpeakerMaskSink();
 
   // Additional Player Process Info data (Only set in Data Core Cache)
+  void SetAudioPts(double pts);
+  double GetAudioPts();
   void SetAudioLiveBitRate(double bitRate);
   double GetAudioLiveBitRate();
   void SetAudioQueueLevel(int level);
@@ -150,25 +154,25 @@ public:
    * @brief Set the list of cut markers in cache.
    * @return The list of cuts or an empty list if no cuts exist
    */
-  void SetCuts(const std::vector<std::chrono::milliseconds>& cuts);
+  void SetCuts(const std::vector<int64_t>& cuts);
 
   /*!
    * @brief Get the list of cut markers from cache.
    * @return The list of cut markers or an empty vector if no cuts exist.
    */
-  const std::vector<std::chrono::milliseconds>& GetCuts() const;
+  const std::vector<int64_t>& GetCuts() const;
 
   /*!
    * @brief Set the list of scene markers in cache.
    * @return The list of scene markers or an empty list if no scene markers exist
    */
-  void SetSceneMarkers(const std::vector<std::chrono::milliseconds>& sceneMarkers);
+  void SetSceneMarkers(const std::vector<int64_t>& sceneMarkers);
 
   /*!
    * @brief Get the list of scene markers markers from cache.
    * @return The list of scene markers or an empty vector if no scene exist.
    */
-  const std::vector<std::chrono::milliseconds>& GetSceneMarkers() const;
+  const std::vector<int64_t>& GetSceneMarkers() const;
 
   void SetChapters(const std::vector<std::pair<std::string, int64_t>>& chapters);
 
@@ -181,8 +185,6 @@ public:
   // render info
   void SetRenderClockSync(bool enabled);
   bool IsRenderClockSync();
-  void SetRenderPts(double pts);
-  double GetRenderPts();
 
   // player states
   /*!
@@ -192,7 +194,7 @@ public:
   void SeekFinished(int64_t offset);
 
   void SetStateSeeking(bool active);
-  bool IsSeeking();
+  bool IsSeeking() const;
 
   /*!
    * @brief Checks if a seek has been performed in the last provided seconds interval
@@ -204,35 +206,23 @@ public:
   /*!
    * @brief Gets the last seek offset
    * @return the last seek offset
-   */
+  */
   int64_t GetSeekOffSet() const;
 
-  /*!
-   * @brief Stores the last requested absolute seek target time in milliseconds
-   * @param time - the last requested seek target time
-   */
-  void SetSeekTarget(int64_t time);
-
-  /*!
-   * @brief Gets the last requested absolute seek target time in milliseconds
-   * @return the last requested seek target time
-   */
-  int64_t GetSeekTarget() const;
-
   void SetSpeed(float tempo, float speed);
-  float GetSpeed();
+  float GetSpeed() const;
   bool IsNormalPlayback();
   bool IsPausedPlayback();
-  float GetTempo();
+  float GetTempo() const;
   void SetFrameAdvance(bool fa);
-  bool IsFrameAdvance();
+  bool IsFrameAdvance() const;
   bool IsPlayerStateChanged();
   void SetGuiRender(bool gui);
-  bool GetGuiRender();
+  bool GetGuiRender() const;
   void SetVideoRender(bool video);
-  bool GetVideoRender();
+  bool GetVideoRender() const;
   void SetPlayTimes(time_t start, int64_t current, int64_t min, int64_t max);
-  void GetPlayTimes(time_t &start, int64_t &current, int64_t &min, int64_t &max);
+  void GetPlayTimes(time_t &start, int64_t &current, int64_t &min, int64_t &max) const;
 
   /*!
    * \brief Get the start time
@@ -241,21 +231,21 @@ public:
    * in units of time_t (UTC) from which time elapsed starts. Ideally this would
    * be the start of the tv show but can be any other time as well.
    */
-  time_t GetStartTime();
+  time_t GetStartTime() const;
 
   /*!
    * \brief Get the current time of playback
    *
    * This is the time elapsed, in ms, since the start time.
    */
-  int64_t GetPlayTime();
+  int64_t GetPlayTime() const;
 
   /*!
    * \brief Get the current percentage of playback if a playback buffer is available.
    *
    *  If there is no playback buffer, percentage will be 0.
    */
-  float GetPlayPercentage();
+  float GetPlayPercentage() const;
 
   /*!
    * \brief Get the minimum time
@@ -263,7 +253,7 @@ public:
    * This will be zero for a typical video. With timeshift, this is the time,
    * in ms, that the player can go back. This can be before the start time.
    */
-  int64_t GetMinTime();
+  int64_t GetMinTime() const;
 
   /*!
    * \brief Get the maximum time
@@ -273,7 +263,7 @@ public:
    * timeshift this is zero, and for live TV with timeshift this will be the
    * buffer ahead.
    */
-  int64_t GetMaxTime();
+  int64_t GetMaxTime() const;
 
 protected:
   std::atomic_bool m_AVChange = false;
@@ -282,7 +272,7 @@ protected:
 
   CCriticalSection m_videoPlayerSection;
   struct SPlayerVideoInfo
-  {
+  {    
     std::string decoderName;
     bool isHwDecoder;
     std::string deintMethod;
@@ -293,6 +283,7 @@ protected:
     float fps;
     float dar;
     bool m_isInterlaced;
+    double pts = 0;
     int bitDepth = 0;
     StreamHdrType hdrType = StreamHdrType::HDR_TYPE_NONE;
     StreamHdrType sourceHdrType = StreamHdrType::HDR_TYPE_NONE;
@@ -314,23 +305,6 @@ protected:
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerVideoInfo;
-  std::atomic<uint64_t> m_videoSeq{0};
-  std::atomic<int> m_videoWidth{0};
-  std::atomic<int> m_videoHeight{0};
-  std::atomic<float> m_videoFps{0.0f};
-  std::atomic<float> m_videoDar{0.0f};
-  std::atomic<bool> m_videoIsInterlaced{false};
-  std::atomic<int> m_videoBitDepth{0};
-  std::atomic<StreamHdrType> m_videoHdrType{StreamHdrType::HDR_TYPE_NONE};
-  std::atomic<StreamHdrType> m_videoSourceHdrType{StreamHdrType::HDR_TYPE_NONE};
-  std::atomic<StreamHdrType> m_videoSourceAdditionalHdrType{StreamHdrType::HDR_TYPE_NONE};
-  std::atomic<AVColorSpace> m_videoColorSpace{AVCOL_SPC_UNSPECIFIED};
-  std::atomic<AVColorRange> m_videoColorRange{AVCOL_RANGE_UNSPECIFIED};
-  std::atomic<AVColorPrimaries> m_videoColorPrimaries{AVCOL_PRI_UNSPECIFIED};
-  std::atomic<AVColorTransferCharacteristic> m_videoColorTransferCharacteristic{AVCOL_TRC_UNSPECIFIED};
-  std::atomic<double> m_videoLiveBitRate{0.0};
-  std::atomic<int> m_videoQueueLevel{0};
-  std::atomic<int> m_videoQueueDataLevel{0};
 
   CCriticalSection m_audioPlayerSection;
   struct SPlayerAudioInfo
@@ -342,18 +316,11 @@ protected:
     int bitsPerSample;
     uint64_t speakerMask = 0;
     uint64_t speakerMaskSink = 0;
+    double pts = 0;
     double liveBitRate = 0;
     int queueLevel = 0;
     int queueDataLevel = 0;
   } m_playerAudioInfo;
-  std::atomic<uint64_t> m_audioSeq{0};
-  std::atomic<int> m_audioSampleRate{0};
-  std::atomic<int> m_audioBitsPerSample{0};
-  std::atomic<uint64_t> m_audioSpeakerMask{0};
-  std::atomic<uint64_t> m_audioSpeakerMaskSink{0};
-  std::atomic<double> m_audioLiveBitRate{0.0};
-  std::atomic<int> m_audioQueueLevel{0};
-  std::atomic<int> m_audioQueueDataLevel{0};
 
   mutable CCriticalSection m_contentSection;
   struct SContentInfo
@@ -375,19 +342,19 @@ protected:
       * @brief Save the list of cut markers in cache.
       * @param cuts the list of cut markers to store in cache
       */
-    void SetCuts(const std::vector<std::chrono::milliseconds>& cuts) { m_cuts = cuts; }
+    void SetCuts(const std::vector<int64_t>& cuts) { m_cuts = cuts; }
 
     /*!
       * @brief Get the list of cut markers in cache.
       * @return the list of cut markers in cache
       */
-    const std::vector<std::chrono::milliseconds>& GetCuts() const { return m_cuts; }
+    const std::vector<int64_t>& GetCuts() const { return m_cuts; }
 
     /*!
       * @brief Save the list of scene markers in cache.
       * @param sceneMarkers the list of scene markers to store in cache
       */
-    void SetSceneMarkers(const std::vector<std::chrono::milliseconds>& sceneMarkers)
+    void SetSceneMarkers(const std::vector<int64_t>& sceneMarkers)
     {
       m_sceneMarkers = sceneMarkers;
     }
@@ -396,7 +363,7 @@ protected:
       * @brief Get the list of scene markers in cache.
       * @return the list of scene markers in cache
       */
-    const std::vector<std::chrono::milliseconds>& GetSceneMarkers() const { return m_sceneMarkers; }
+    const std::vector<int64_t>& GetSceneMarkers() const { return m_sceneMarkers; }
 
     /*!
       * @brief Save the chapter list in cache.
@@ -430,39 +397,32 @@ protected:
     /*!< name and position for chapters */
     std::vector<std::pair<std::string, int64_t>> m_chapters;
     /*!< position for EDL cuts */
-    std::vector<std::chrono::milliseconds> m_cuts;
+    std::vector<int64_t> m_cuts;
     /*!< position for EDL scene markers */
-    std::vector<std::chrono::milliseconds> m_sceneMarkers;
+    std::vector<int64_t> m_sceneMarkers;
   } m_contentInfo;
 
   CCriticalSection m_renderSection;
   struct SRenderInfo
   {
     bool m_isClockSync;
-    double pts = 0;
-  } m_renderInfo{};
-  std::atomic<uint64_t> m_renderSeq{0};
-  std::atomic<bool> m_renderClockSync{false};
-  std::atomic<double> m_renderPts{0.0};
+  } m_renderInfo;
 
   mutable CCriticalSection m_stateSection;
   bool m_playerStateChanged = false;
   struct SStateInfo
   {
-    std::atomic<uint64_t> m_speedTempoSeq{0};
-    std::atomic<bool> m_stateSeeking{false};
-    std::atomic<bool> m_renderGuiLayer{false};
-    std::atomic<bool> m_renderVideoLayer{false};
-    std::atomic<float> m_tempo{1.0f};
-    std::atomic<float> m_speed{1.0f};
-    std::atomic<bool> m_frameAdvance{false};
+    bool m_stateSeeking{false};
+    bool m_renderGuiLayer{false};
+    bool m_renderVideoLayer{false};
+    float m_tempo{1.0f};
+    float m_speed{1.0f};
+    bool m_frameAdvance{false};
     /*! Time point of the last seek operation */
     std::chrono::time_point<std::chrono::system_clock> m_lastSeekTime{
         std::chrono::time_point<std::chrono::system_clock>{}};
     /*! Last seek offset */
     int64_t m_lastSeekOffset{0};
-    /*! Last requested absolute seek target */
-    int64_t m_lastSeekTarget{0};
   } m_stateInfo;
 
   struct STimeInfo

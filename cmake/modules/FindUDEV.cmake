@@ -5,25 +5,34 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::UDEV   - The UDEV library
+#   UDEV::UDEV   - The UDEV library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+if(NOT TARGET UDEV::UDEV)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_UDEV libudev QUIET)
+  endif()
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC libudev)
+  find_path(UDEV_INCLUDE_DIR NAMES libudev.h
+                             PATHS ${PC_UDEV_INCLUDEDIR}
+                             NO_CACHE)
+  find_library(UDEV_LIBRARY NAMES udev
+                            PATHS ${PC_UDEV_LIBDIR}
+                            NO_CACHE)
 
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  set(UDEV_VERSION ${PC_UDEV_VERSION})
 
-  SETUP_BUILD_VARS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(UDEV
+                                    REQUIRED_VARS UDEV_LIBRARY UDEV_INCLUDE_DIR
+                                    VERSION_VAR UDEV_VERSION)
 
-  SETUP_FIND_SPECS()
-
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAVE_LIBUDEV)
-    ADD_TARGET_COMPILE_DEFINITION()
+  if(UDEV_FOUND)
+    add_library(UDEV::UDEV UNKNOWN IMPORTED)
+    set_target_properties(UDEV::UDEV PROPERTIES
+                                   IMPORTED_LOCATION "${UDEV_LIBRARY}"
+                                   INTERFACE_INCLUDE_DIRECTORIES "${UDEV_INCLUDE_DIR}"
+                                   INTERFACE_COMPILE_DEFINITIONS HAVE_LIBUDEV=1)
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP UDEV::UDEV)
   endif()
 endif()

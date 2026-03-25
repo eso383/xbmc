@@ -10,7 +10,6 @@
 
 #include "CompileInfo.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "filesystem/File.h"
 #include "utils/StringUtils.h"
@@ -45,13 +44,13 @@ bool CAndroidAppDirectory::GetDirectory(const CURL& url, CFileItemList &items)
       if (i.packageName == className.c_str())
         continue;
       CFileItemPtr pItem(new CFileItem(i.packageName));
-      pItem->SetFolder(false);
+      pItem->m_bIsFolder = false;
       std::string path =
           StringUtils::Format("androidapp://{}/{}/{}", url.GetHostName(), dirname, i.packageName);
       pItem->SetPath(path);
       pItem->SetLabel(i.packageLabel);
       pItem->SetArt("thumb", path+".png");
-      pItem->SetSize(-1); // No size
+      pItem->m_dwSize = -1;  // No size
       items.Add(pItem);
     }
     return true;

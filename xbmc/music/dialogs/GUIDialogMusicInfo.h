@@ -12,14 +12,13 @@
 #include "guilib/GUIDialog.h"
 #include "music/Album.h"
 #include "music/Artist.h"
+#include "music/Song.h"
 #include "threads/Event.h"
 
 #include <memory>
-#include <vector>
 
 class CFileItem;
 class CFileItemList;
-class CSong;
 
 class CGUIDialogMusicInfo :
       public CGUIDialog
@@ -37,12 +36,11 @@ public:
 
   bool HasListItems() const override { return true; }
   CFileItemPtr GetCurrentListItem(int offset = 0) override;
-  std::string GetContent();
-  static void AddItemPathToFileBrowserSources(std::vector<CMediaSource>& sources,
-                                              const CFileItem& item);
+  std::string GetContent() const;
+  static void AddItemPathToFileBrowserSources(VECSOURCES &sources, const CFileItem &item);
   void SetDiscography(CMusicDatabase& database) const;
-  void SetSongs(const std::vector<CSong>& songs) const;
-  void SetArtTypeList(CFileItemList& artlist);
+  void SetSongs(const VECSONGS &songs) const;
+  void SetArtTypeList(CFileItemList& artlist) const;
   void SetScrapedInfo(bool bScraped) { m_scraperAddInfo = bScraped;  }
   CArtist& GetArtist() { return m_artist; }
   CAlbum& GetAlbum() { return m_album; }

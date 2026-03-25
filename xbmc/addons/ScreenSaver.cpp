@@ -8,7 +8,6 @@
 
 #include "ScreenSaver.h"
 
-#include "ServiceBroker.h"
 #include "filesystem/SpecialProtocol.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
@@ -49,26 +48,23 @@ CScreenSaver::~CScreenSaver()
   delete m_ifc.screensaver;
 }
 
-bool CScreenSaver::Start()
-{
+bool CScreenSaver::Start() const {
   if (m_ifc.screensaver->toAddon->start)
     return m_ifc.screensaver->toAddon->start(m_ifc.hdl);
   return false;
 }
 
-void CScreenSaver::Stop()
-{
+void CScreenSaver::Stop() const {
   if (m_ifc.screensaver->toAddon->stop)
     m_ifc.screensaver->toAddon->stop(m_ifc.hdl);
 }
 
-void CScreenSaver::Render()
-{
+void CScreenSaver::Render() const {
   if (m_ifc.screensaver->toAddon->render)
     m_ifc.screensaver->toAddon->render(m_ifc.hdl);
 }
 
-void CScreenSaver::GetProperties(struct KODI_ADDON_SCREENSAVER_PROPS* props) const
+void CScreenSaver::GetProperties(struct KODI_ADDON_SCREENSAVER_PROPS* props)
 {
   if (!props)
     return;

@@ -5,31 +5,34 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::LCMS2 - The LCMS Color Management library
+#   LCMS2::LCMS2 - The LCMS Color Management library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
+if(NOT TARGET LCMS2::LCMS2)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_LCMS2 lcms2>=2.10 QUIET)
+  endif()
 
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+  find_path(LCMS2_INCLUDE_DIR NAMES lcms2.h
+                              HINTS ${PC_LCMS2_INCLUDEDIR}
+                              NO_CACHE)
+  find_library(LCMS2_LIBRARY NAMES lcms2 liblcms2
+                             HINTS ${PC_LCMS2_LIBDIR}
+                             NO_CACHE)
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC lcms2)
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  set(LCMS2_VERSION ${PC_LCMS2_VERSION})
 
-  SETUP_BUILD_VARS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(LCMS2
+                                    REQUIRED_VARS LCMS2_LIBRARY LCMS2_INCLUDE_DIR
+                                    VERSION_VAR LCMS2_VERSION)
 
-  SETUP_FIND_SPECS()
-
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    if(TARGET PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME_PC})
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME_PC})
-    elseif(TARGET lcms2::lcms2)
-      # Kodi target - windows prebuilt lib
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS lcms2::lcms2)
-    endif()
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAVE_LCMS2;CMS_NO_REGISTER_KEYWORD)
-
-    ADD_TARGET_COMPILE_DEFINITION()
+  if(LCMS2_FOUND)
+    add_library(LCMS2::LCMS2 UNKNOWN IMPORTED)
+    set_target_properties(LCMS2::LCMS2 PROPERTIES
+                                       IMPORTED_LOCATION "${LCMS2_LIBRARY}"
+                                       INTERFACE_INCLUDE_DIRECTORIES "${LCMS2_INCLUDE_DIR}"
+                                       INTERFACE_COMPILE_DEFINITIONS "HAVE_LCMS2=1;CMS_NO_REGISTER_KEYWORD=1")
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP LCMS2::LCMS2)
   endif()
 endif()

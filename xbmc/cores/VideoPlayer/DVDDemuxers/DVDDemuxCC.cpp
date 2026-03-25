@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,26 +8,13 @@
 
 #include "DVDDemuxCC.h"
 
-#include "DVDDemuxCC/CCBitstreamParserFactory.h"
-#include "DVDDemuxCC/CaptionBlock.h"
 #include "DVDDemuxUtils.h"
-#include "ServiceBroker.h"
 #include "cores/VideoPlayer/DVDCodecs/Overlay/contrib/cc_decoder708.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
-#include "settings/Settings.h"
-#include "settings/SettingsComponent.h"
 #include "utils/ColorUtils.h"
 #include "utils/StringUtils.h"
-#include "utils/log.h"
 
 #include <algorithm>
-#include <iterator>
-#include <ranges>
-#include <utility>
-
-namespace COLOR = KODI::UTILS::COLOR;
 
 namespace
 {
@@ -48,34 +35,34 @@ enum class ColorFormat
  * \param[in] format - the color format
  * \return the corresponding Color in rgb
  */
-constexpr COLOR::Color CCColorConversion(const uint8_t ccColor, ColorFormat format)
+constexpr UTILS::COLOR::Color CCColorConversion(const uint8_t ccColor, ColorFormat format)
 {
-  COLOR::Color color = COLOR::NONE;
+  UTILS::COLOR::Color color = UTILS::COLOR::NONE;
   switch (ccColor)
   {
     case WHITE:
-      color = COLOR::WHITE;
+      color = UTILS::COLOR::WHITE;
       break;
     case GREEN:
-      color = COLOR::GREEN;
+      color = UTILS::COLOR::GREEN;
       break;
     case BLUE:
-      color = COLOR::BLUE;
+      color = UTILS::COLOR::BLUE;
       break;
     case CYAN:
-      color = COLOR::CYAN;
+      color = UTILS::COLOR::CYAN;
       break;
     case RED:
-      color = COLOR::RED;
+      color = UTILS::COLOR::RED;
       break;
     case YELLOW:
-      color = COLOR::YELLOW;
+      color = UTILS::COLOR::YELLOW;
       break;
     case MAGENTA:
-      color = COLOR::MAGENTA;
+      color = UTILS::COLOR::MAGENTA;
       break;
     case BLACK:
-      color = COLOR::BLACK;
+      color = UTILS::COLOR::BLACK;
       break;
     default:
       break;
@@ -107,22 +94,88 @@ void ApplyStyleModifiers(std::string& ccText, const cc_attribute_t& ccAttributes
   {
     ccText = StringUtils::Format(
         "<font color=#{}>{}</u>",
-        COLOR::ConvertToHexRGB(CCColorConversion(ccAttributes.foreground, ColorFormat::RGB)),
+        UTILS::COLOR::ConvertToHexRGB(CCColorConversion(ccAttributes.foreground, ColorFormat::RGB)),
         ccText);
   }
 }
 } // namespace
 
-bool reorder_sort(const CCaptionBlock& lhs, const CCaptionBlock& rhs)
+class CBitstream
 {
-  return (lhs.m_pts > rhs.m_pts);
+public:
+  CBitstream(uint8_t *data, int bits)
+  {
+    m_data = data;
+    m_offset = 0;
+    m_len = bits;
+    m_error = false;
+  }
+  unsigned int readBits(int num)
+  {
+    int r = 0;
+    while (num > 0)
+    {
+      if (m_offset >= m_len)
+      {
+        m_error = true;
+        return 0;
+      }
+      num--;
+      if (m_data[m_offset / 8] & (1 << (7 - (m_offset & 7))))
+        r |= 1 << num;
+      m_offset++;
+    }
+    return r;
+  }
+  unsigned int readGolombUE(int maxbits = 32)
+  {
+    int lzb = -1;
+    int bits = 0;
+    for (int b = 0; !b; lzb++, bits++)
+    {
+      if (bits > maxbits)
+        return 0;
+      b = readBits(1);
+    }
+    return (1 << lzb) - 1 + readBits(lzb);
+  }
+
+private:
+  uint8_t *m_data;
+  int m_offset;
+  int m_len;
+  bool m_error;
+};
+
+class CCaptionBlock
+{
+  CCaptionBlock(const CCaptionBlock&) = delete;
+  CCaptionBlock& operator=(const CCaptionBlock&) = delete;
+public:
+  explicit CCaptionBlock(int size)
+  {
+    m_data = (uint8_t*)malloc(size);
+    m_size = size;
+    m_pts = 0.0; //silence coverity uninitialized warning, is set elsewhere
+  }
+  virtual ~CCaptionBlock()
+  {
+    free(m_data);
+  }
+  double m_pts;
+  uint8_t *m_data;
+  int m_size;
+};
+
+bool reorder_sort (CCaptionBlock *lhs, CCaptionBlock *rhs)
+{
+  return (lhs->m_pts > rhs->m_pts);
 }
 
-CDVDDemuxCC::CDVDDemuxCC(AVCodecID codec, const uint8_t* extradata, int extrasize)
+CDVDDemuxCC::CDVDDemuxCC(AVCodecID codec) : m_codec(codec)
 {
   m_hasData = false;
   m_curPts = 0.0;
-  m_parser = CCBitstreamParserFactory::CreateParser(codec, std::span(extradata, extrasize));
 }
 
 CDVDDemuxCC::~CDVDDemuxCC()
@@ -161,35 +214,148 @@ int CDVDDemuxCC::GetNrOfStreams() const
 
 DemuxPacket* CDVDDemuxCC::Read(DemuxPacket *pSrcPacket)
 {
-  DemuxPacket* pPacket = nullptr;
+  DemuxPacket *pPacket = nullptr;
+  uint32_t startcode = 0xffffffff;
+  int picType = 0;
+  int p = 0;
+  int len;
 
   if (!pSrcPacket)
   {
     pPacket = Decode();
     return pPacket;
   }
-
   if (pSrcPacket->pts == DVD_NOPTS_VALUE)
   {
     return pPacket;
   }
 
-  // Move temp buffer to reorder buffer
-  std::ranges::move(std::views::reverse(m_ccTempBuffer), std::back_inserter(m_ccReorderBuffer));
-
-  if (!m_parser)
+  while (!m_ccTempBuffer.empty())
   {
-    CLog::Log(LOGERROR, "CDVDDemuxCC::Read - No parser available");
-    return pPacket;
+    m_ccReorderBuffer.push_back(m_ccTempBuffer.back());
+    m_ccTempBuffer.pop_back();
   }
 
-  CCPictureType picType = m_parser->ParsePacket(pSrcPacket, m_ccTempBuffer, m_ccReorderBuffer);
+  while ((len = pSrcPacket->iSize - p) > 3)
+  {
+    if ((startcode & 0xffffff00) == 0x00000100)
+    {
+      if (m_codec == AV_CODEC_ID_MPEG2VIDEO)
+      {
+        int scode = startcode & 0xFF;
+        if (scode == 0x00)
+        {
+          if (len > 4)
+          {
+            uint8_t *buf = pSrcPacket->pData + p;
+            picType = (buf[1] & 0x38) >> 3;
+          }
+        }
+        else if (scode == 0xb2) // user data
+        {
+          uint8_t *buf = pSrcPacket->pData + p;
+          if (len >= 6 &&
+            buf[0] == 'G' && buf[1] == 'A' && buf[2] == '9' && buf[3] == '4' &&
+            buf[4] == 3 && (buf[5] & 0x40))
+          {
+            int cc_count = buf[5] & 0x1f;
+            if (cc_count > 0 && len >= 7 + cc_count * 3)
+            {
+              auto cc = new CCaptionBlock(cc_count * 3);
+              memcpy(cc->m_data, buf + 7, cc_count * 3);
+              cc->m_pts = pSrcPacket->pts;
+              if (picType == 1 || picType == 2)
+                m_ccTempBuffer.push_back(cc);
+              else
+                m_ccReorderBuffer.push_back(cc);
+            }
+          }
+          else if (len >= 6 &&
+                   buf[0] == 'C' && buf[1] == 'C' && buf[2] == 1)
+          {
+            int oddidx = (buf[4] & 0x80) ? 0 : 1;
+            int cc_count = (buf[4] & 0x3e) >> 1;
+            int extrafield = buf[4] & 0x01;
+            if (extrafield)
+              cc_count++;
 
-  // Decode CC data when we encounter an I-frame or P-frame (reference frames).
-  // Reference frames ensure correct temporal ordering of CC data,
-  // as B-frames (CCPictureType::OTHER) may be reordered during decoding.
-  if ((picType == CCPictureType::I_FRAME || picType == CCPictureType::P_FRAME) &&
-      !m_ccReorderBuffer.empty())
+            if (cc_count > 0 && len >= 5 + cc_count * 3 * 2)
+            {
+              auto cc = new CCaptionBlock(cc_count * 3);
+              uint8_t *src = buf + 5;
+              uint8_t *dst = cc->m_data;
+
+              for (int i = 0; i < cc_count; i++)
+              {
+                for (int j = 0; j < 2; j++)
+                {
+                  if (i == cc_count - 1 && extrafield && j == 1)
+                    break;
+
+                  if ((oddidx == j) && (src[0] == 0xFF))
+                  {
+                    dst[0] = 0x04;
+                    dst[1] = src[1];
+                    dst[2] = src[2];
+                    dst += 3;
+                  }
+                  src += 3;
+                }
+              }
+              cc->m_pts = pSrcPacket->pts;
+              m_ccReorderBuffer.push_back(cc);
+              picType = 1;
+            }
+          }
+        }
+      }
+      else if (m_codec == AV_CODEC_ID_H264)
+      {
+        int scode = startcode & 0x9F;
+        // slice data comes after SEI
+        if (scode >= 1 && scode <= 5)
+        {
+          uint8_t *buf = pSrcPacket->pData + p;
+          CBitstream bs(buf, len * 8);
+          bs.readGolombUE();
+          int sliceType = bs.readGolombUE();
+          if (sliceType == 2 || sliceType == 7) // I slice
+            picType = 1;
+          else if (sliceType == 0 || sliceType == 5) // P slice
+            picType = 2;
+          if (picType == 0)
+          {
+            while (!m_ccTempBuffer.empty())
+            {
+              m_ccReorderBuffer.push_back(m_ccTempBuffer.back());
+              m_ccTempBuffer.pop_back();
+            }
+          }
+        }
+        if (scode == 0x06) // SEI
+        {
+          uint8_t *buf = pSrcPacket->pData + p;
+          if (len >= 12 &&
+            buf[3] == 0 && buf[4] == 49 &&
+            buf[5] == 'G' && buf[6] == 'A' && buf[7] == '9' && buf[8] == '4' && buf[9] == 3)
+          {
+            uint8_t *userdata = buf + 10;
+            int cc_count = userdata[0] & 0x1f;
+            if (len >= cc_count * 3 + 10)
+            {
+              auto cc = new CCaptionBlock(cc_count * 3);
+              memcpy(cc->m_data, userdata + 2, cc_count * 3);
+              cc->m_pts = pSrcPacket->pts;
+              m_ccTempBuffer.push_back(cc);
+            }
+          }
+        }
+      }
+    }
+    startcode = startcode << 8 | pSrcPacket->pData[p++];
+  }
+
+  if ((picType == 1 || picType == 2) && !m_ccReorderBuffer.empty())
   {
     if (!m_ccDecoder)
     {
@@ -199,13 +365,12 @@ DemuxPacket* CDVDDemuxCC::Read(DemuxPacket *pSrcPacket)
     std::sort(m_ccReorderBuffer.begin(), m_ccReorderBuffer.end(), reorder_sort);
     pPacket = Decode();
   }
-
   return pPacket;
 }
 
 void CDVDDemuxCC::Handler(int service, void *userdata)
 {
-  CDVDDemuxCC *ctx = static_cast<CDVDDemuxCC*>(userdata);
+  auto ctx = static_cast<CDVDDemuxCC*>(userdata);
 
   unsigned int idx;
 
@@ -235,14 +400,8 @@ void CDVDDemuxCC::Handler(int service, void *userdata)
   {
     CDemuxStreamSubtitle stream;
     stream.source = STREAM_SOURCE_VIDEOMUX;
-    stream.name = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-        39206); // Closed Caption "CC"
-    stream.language = "und";
-
-    auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-    if (settings->GetBool(CSettings::SETTING_SUBTITLES_CAPTIONSIMPAIRED))
-      stream.flags = FLAG_HEARING_IMPAIRED;
-
+    stream.language = "cc";
+    stream.flags = FLAG_HEARING_IMPAIRED;
     stream.codec = AV_CODEC_ID_TEXT;
     stream.uniqueId = service;
     ctx->m_streams.push_back(std::move(stream));
@@ -275,20 +434,30 @@ void CDVDDemuxCC::Dispose()
   m_streams.clear();
   m_streamdata.clear();
   m_ccDecoder.reset();
-  m_ccReorderBuffer.clear();
-  m_ccTempBuffer.clear();
+
+  while (!m_ccReorderBuffer.empty())
+  {
+    delete m_ccReorderBuffer.back();
+    m_ccReorderBuffer.pop_back();
+  }
+  while (!m_ccTempBuffer.empty())
+  {
+    delete m_ccTempBuffer.back();
+    m_ccTempBuffer.pop_back();
+  }
 }
 
 DemuxPacket* CDVDDemuxCC::Decode()
 {
-  DemuxPacket* pPacket = nullptr;
+  DemuxPacket *pPacket = nullptr;
 
   while(!m_hasData && !m_ccReorderBuffer.empty())
   {
-    auto& cc = m_ccReorderBuffer.back();
-    m_curPts = cc.m_pts;
-    m_ccDecoder->Decode(cc.m_data.data(), static_cast<int>(cc.m_data.size()));
+    CCaptionBlock *cc = m_ccReorderBuffer.back();
     m_ccReorderBuffer.pop_back();
+    m_curPts = cc->m_pts;
+    m_ccDecoder->Decode(cc->m_data, cc->m_size);
+    delete cc;
   }
 
   if (m_hasData)
@@ -314,8 +483,7 @@ DemuxPacket* CDVDDemuxCC::Decode()
 
         pPacket = CDVDDemuxUtils::AllocateDemuxPacket(data.size());
         pPacket->iSize = data.size();
-        if (pPacket->iSize)
-          std::copy(data.begin(), data.end(), pPacket->pData);
+        memcpy(pPacket->pData, data.c_str(), pPacket->iSize);
 
         pPacket->iStreamId = service;
         pPacket->pts = m_streamdata[i].pts;

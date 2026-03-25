@@ -83,15 +83,6 @@ void CTextureArray::Reset()
   m_texWidth = 0;
   m_texHeight = 0;
   m_texCoordsArePixels = false;
-  m_scalingMethod = TEXTURE_SCALING::UNKNOWN;
-}
-
-void CTextureArray::SetScalingMethod(TEXTURE_SCALING scalingMethod)
-{
-  m_scalingMethod = scalingMethod;
-
-  for (const std::shared_ptr<CTexture>& texture : m_textures)
-    texture->SetScalingMethod(m_scalingMethod);
 }
 
 void CTextureArray::Add(std::shared_ptr<CTexture> texture, int delay)
@@ -118,7 +109,8 @@ void CTextureArray::Set(std::shared_ptr<CTexture> texture, int width, int height
 
 void CTextureArray::Free()
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   Reset();
 }
 
@@ -148,7 +140,7 @@ CTextureMap::~CTextureMap()
 
 bool CTextureMap::Release()
 {
-  if (m_texture.m_textures.empty())
+  if (!m_texture.m_textures.size())
     return true;
   if (!m_referenceCount)
     return true;
@@ -252,7 +244,7 @@ bool CGUITextureManager::CanLoad(const std::string &texturePath)
 
 bool CGUITextureManager::HasTexture(const std::string &textureName, std::string *path, int *bundle, int *size)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // default values
   if (bundle) *bundle = -1;
@@ -335,7 +327,7 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
     return emptyTexture;
 
   //Lock here, we will do stuff that could break rendering
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
 #ifdef _DEBUG_TEXTURES
   const auto start = std::chrono::steady_clock::now();
@@ -393,7 +385,7 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
       return emptyTexture;
     }
 
-    CTextureMap* pMap = new CTextureMap(strTextureName, 0, 0, 0);
+    auto pMap = new CTextureMap(strTextureName, 0, 0, 0);
     unsigned int maxWidth = 0;
     unsigned int maxHeight = 0;
     uint64_t maxMemoryUsage = 91238400;// 1920*1080*4*11 bytes, i.e, a total of approx. 12 full hd frames
@@ -460,7 +452,7 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
 
   if (!pTexture) return emptyTexture;
 
-  CTextureMap* pMap = new CTextureMap(strTextureName, width, height, 0);
+  auto pMap = new CTextureMap(strTextureName, width, height, 0);
   pMap->Add(std::move(pTexture), 100);
   m_vecTextures.push_back(pMap);
   m_textureIndex[pMap->GetName()] = pMap;
@@ -478,7 +470,7 @@ const CTextureArray& CGUITextureManager::Load(const std::string& strTextureName,
 
 void CGUITextureManager::ReleaseTexture(const std::string& strTextureName, bool immediately /*= false */)
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   ivecTextures i;
   i = m_vecTextures.begin();
@@ -509,7 +501,8 @@ void CGUITextureManager::ReleaseTexture(const std::string& strTextureName, bool 
 
 void CGUITextureManager::FreeUnusedTextures(unsigned int timeDelay)
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   for (auto i = m_unusedTextures.begin(); i != m_unusedTextures.end();)
   {
     auto now = std::chrono::steady_clock::now();
@@ -542,13 +535,14 @@ void CGUITextureManager::FreeUnusedTextures(unsigned int timeDelay)
 
 void CGUITextureManager::ReleaseHwTexture(unsigned int texture)
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   m_unusedHwTextures.push_back(texture);
 }
 
 void CGUITextureManager::Cleanup()
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   ivecTextures i;
   i = m_vecTextures.begin();
@@ -581,7 +575,7 @@ void CGUITextureManager::Dump() const
 
 void CGUITextureManager::Flush()
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   ivecTextures i;
   i = m_vecTextures.begin();
@@ -614,22 +608,25 @@ unsigned int CGUITextureManager::GetMemoryUsage() const
 
 void CGUITextureManager::SetTexturePath(const std::string &texturePath)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_texturePaths.clear();
   AddTexturePath(texturePath);
 }
 
 void CGUITextureManager::AddTexturePath(const std::string &texturePath)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   if (!texturePath.empty())
     m_texturePaths.push_back(texturePath);
 }
 
 void CGUITextureManager::RemoveTexturePath(const std::string &texturePath)
 {
-  std::unique_lock lock(m_section);
-  for (std::vector<std::string>::iterator it = m_texturePaths.begin(); it != m_texturePaths.end(); ++it)
+  std::lock_guard lock(m_section);
+
+  for (auto it = m_texturePaths.begin(); it != m_texturePaths.end(); ++it)
   {
     if (*it == texturePath)
     {
@@ -645,7 +642,8 @@ std::string CGUITextureManager::GetTexturePath(const std::string &textureName, b
     return textureName;
   else
   { // texture doesn't include the full path, so check all fallbacks
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
+
     for (const std::string& it : m_texturePaths)
     {
       std::string path = URIUtils::AddFileToFolder(it, "media", textureName);

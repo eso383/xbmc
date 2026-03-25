@@ -47,8 +47,7 @@ CGUIGameControllerList::CGUIGameControllerList(int parentID,
 }
 
 CGUIGameControllerList::CGUIGameControllerList(const CGUIGameControllerList& other)
-  : CGUIListContainer(other),
-    m_alignment(other.m_alignment)
+  : CGUIListContainer(other), m_alignment(other.m_alignment)
 {
   // Initialize CGUIControl
   ControlType = GUICONTROL_GAMECONTROLLERLIST;
@@ -86,7 +85,7 @@ void CGUIGameControllerList::UpdateInfo(const CGUIListItem* item)
   }
 
   // Update controller provider
-  CGUIGameControllerProvider* controllerProvider =
+  auto controllerProvider =
       dynamic_cast<CGUIGameControllerProvider*>(m_listProvider.get());
   if (controllerProvider != nullptr)
   {
@@ -188,7 +187,7 @@ void CGUIGameControllerList::UpdatePortIndex(const PERIPHERALS::PeripheralPtr& a
 
 void CGUIGameControllerList::UpdatePeripheral(const PERIPHERALS::PeripheralPtr& agentPeripheral)
 {
-  m_peripheralLocation = agentPeripheral->FileLocation();
+  m_peripheralLocation = agentPeripheral->Location();
 }
 
 std::string CGUIGameControllerList::GetPortAddress(
@@ -197,11 +196,11 @@ std::string CGUIGameControllerList::GetPortAddress(
   CAgentInput& agentInput = CServiceBroker::GetGameServices().AgentInput();
 
   // Upcast peripheral to input providers
-  KEYBOARD::IKeyboardInputProvider* const keyboardInputProvider =
+  const auto keyboardInputProvider =
       static_cast<KEYBOARD::IKeyboardInputProvider*>(agentPeripheral.get());
-  MOUSE::IMouseInputProvider* const mouseInputProvider =
+  const auto mouseInputProvider =
       static_cast<MOUSE::IMouseInputProvider*>(agentPeripheral.get());
-  JOYSTICK::IInputProvider* const joystickInputProvider =
+  const auto joystickInputProvider =
       static_cast<JOYSTICK::IInputProvider*>(agentPeripheral.get());
 
   // See if the keyboard input provider has a port address

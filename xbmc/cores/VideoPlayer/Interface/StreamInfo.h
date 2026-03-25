@@ -10,7 +10,6 @@
 
 #include "utils/Geometry.h"
 
-#include <cstdint>
 #include <string>
 
 template <typename T> class CRectGen;
@@ -28,17 +27,16 @@ enum StreamFlags
   FLAG_FORCED = 0x0040,
   FLAG_HEARING_IMPAIRED = 0x0080,
   FLAG_VISUAL_IMPAIRED = 0x0100,
-  FLAG_STILL_IMAGES = 0x100000,
-  FLAG_WEBVTT_DATA_PACKETS = 0x200000, // WebVTT packages are derived from a data format
+  FLAG_STILL_IMAGES = 0x100000
 };
 
 enum class StreamHdrType
 {
   HDR_TYPE_NONE, ///< <b>None</b>, returns an empty string when used in infolabels
   HDR_TYPE_HDR10, ///< <b>HDR10</b>, returns `hdr10` when used in infolabels
+  HDR_TYPE_HDR10PLUS, ///< <b>HDR10+</b>, returns `hdr10+` when used in infolabels
   HDR_TYPE_DOLBYVISION, ///< <b>Dolby Vision</b>, returns `dolbyvision` when used in infolabels
-  HDR_TYPE_HLG, ///< <b>HLG</b>, returns `hlg` when used in infolabels
-  HDR_TYPE_HDR10PLUS, ///< <b>HDR10+</b>, returns `hdr10plus` when used in infolabels
+  HDR_TYPE_HLG ///< <b>HLG</b>, returns `hlg` when used in infolabels
 };
 
 struct StreamInfo
@@ -47,11 +45,9 @@ struct StreamInfo
   int bitrate = 0;
   std::string language;
   std::string name;
-  std::string codecName;
-  std::string codecDesc;
+  std::string codecName; // Codec name (name definition from ffmpeg)
+  std::string codecDesc; // Codec description
   StreamFlags flags = StreamFlags::FLAG_NONE;
-
-  bool operator==(const StreamInfo&) const = default;
 
 protected:
   StreamInfo() = default;
@@ -66,9 +62,7 @@ struct AudioStreamInfo : StreamInfo
 };
 
 struct SubtitleStreamInfo : StreamInfo
-{
-  bool isExternal{false};
-};
+{};
 
 struct VideoStreamInfo : StreamInfo
 {
@@ -81,10 +75,6 @@ struct VideoStreamInfo : StreamInfo
   std::string stereoMode;
   int angles = 0;
   StreamHdrType hdrType = StreamHdrType::HDR_TYPE_NONE;
-  StreamHdrType hdrTypeAlt = StreamHdrType::HDR_TYPE_NONE;
-  std::string hdrDetail;
-  uint32_t fpsRate{0};
-  uint32_t fpsScale{0};
 };
 
 struct ProgramInfo

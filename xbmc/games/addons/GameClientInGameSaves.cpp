@@ -28,8 +28,7 @@ using namespace GAME;
 
 CGameClientInGameSaves::CGameClientInGameSaves(CGameClient* addon,
                                                const AddonInstance_Game* dllStruct)
-  : m_gameClient(addon),
-    m_dllStruct(dllStruct)
+  : m_gameClient(addon), m_dllStruct(dllStruct)
 {
   assert(m_gameClient != nullptr);
   assert(m_dllStruct != nullptr);
@@ -47,8 +46,7 @@ void CGameClientInGameSaves::Save()
   Save(GAME_MEMORY_RTC);
 }
 
-std::string CGameClientInGameSaves::GetPath(GAME_MEMORY memoryType)
-{
+std::string CGameClientInGameSaves::GetPath(GAME_MEMORY memoryType) const {
   const CGameServices& gameServices = CServiceBroker::GetGameServices();
   std::string path =
       URIUtils::AddFileToFolder(gameServices.GetSavestatesFolder(), INGAME_SAVES_DIRECTORY);

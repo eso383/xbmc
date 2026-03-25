@@ -17,19 +17,17 @@ set(HEADERS AppParamParserLinux.h
 
 if(TARGET_WEBOS)
   list(APPEND SOURCES AppParamParserWebOS.cpp
-                      PlatformWebOS.cpp
-                      WebOSTVPlatformConfig.cpp)
+                      PlatformWebOS.cpp)
   list(APPEND HEADERS AppParamParserWebOS.h
-                      PlatformWebOS.h
-                      WebOSTVPlatformConfig.h)
+                      PlatformWebOS.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::Alsa)
+if(TARGET ALSA::ALSA)
   list(APPEND SOURCES FDEventMonitor.cpp)
   list(APPEND HEADERS FDEventMonitor.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::DBus)
+if(TARGET DBus::DBus)
   list(APPEND SOURCES DBusMessage.cpp
                       DBusUtil.cpp)
   list(APPEND HEADERS DBusMessage.h

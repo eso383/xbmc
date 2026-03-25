@@ -16,6 +16,11 @@
 
 using namespace PVR;
 
+CInputStreamPVRRecording::CInputStreamPVRRecording(IVideoPlayer* pPlayer, const CFileItem& fileitem)
+  : CInputStreamPVRBase(pPlayer, fileitem)
+{
+}
+
 CInputStreamPVRRecording::~CInputStreamPVRRecording()
 {
   Close();
@@ -28,11 +33,15 @@ bool CInputStreamPVRRecording::OpenPVRStream()
     recording = CServiceBroker::GetPVRManager().Recordings()->GetByPath(m_item.GetPath());
 
   if (!recording)
-    CLog::LogF(LOGERROR, "Unable to obtain recording instance for recording {}", m_item.GetPath());
+    CLog::Log(
+        LOGERROR,
+        "CInputStreamPVRRecording - {} - unable to obtain recording instance for recording {}",
+        __FUNCTION__, m_item.GetPath());
 
-  if (recording && (GetClient().OpenRecordedStream(recording, m_streamId) == PVR_ERROR_NO_ERROR))
+  if (recording && m_client && (m_client->OpenRecordedStream(recording) == PVR_ERROR_NO_ERROR))
   {
-    CLog::LogF(LOGDEBUG, "Opened recording stream {}", m_item.GetPath());
+    CLog::Log(LOGDEBUG, "CInputStreamPVRRecording - {} - opened recording stream {}", __FUNCTION__,
+              m_item.GetPath());
     return true;
   }
   return false;
@@ -40,30 +49,40 @@ bool CInputStreamPVRRecording::OpenPVRStream()
 
 void CInputStreamPVRRecording::ClosePVRStream()
 {
-  if (GetClient().CloseRecordedStream(m_streamId) == PVR_ERROR_NO_ERROR)
+  if (m_client && (m_client->CloseRecordedStream() == PVR_ERROR_NO_ERROR))
   {
-    CLog::LogF(LOGDEBUG, "Closed recording stream {}", m_item.GetPath());
+    CLog::Log(LOGDEBUG, "CInputStreamPVRRecording - {} - closed recording stream {}", __FUNCTION__,
+              m_item.GetPath());
   }
 }
 
 int CInputStreamPVRRecording::ReadPVRStream(uint8_t* buf, int buf_size)
 {
   int iRead = -1;
-  GetClient().ReadRecordedStream(m_streamId, buf, buf_size, iRead);
+
+  if (m_client)
+    m_client->ReadRecordedStream(buf, buf_size, iRead);
+
   return iRead;
 }
 
 int64_t CInputStreamPVRRecording::SeekPVRStream(int64_t offset, int whence)
 {
   int64_t ret = -1;
-  GetClient().SeekRecordedStream(m_streamId, offset, whence, ret);
+
+  if (m_client)
+    m_client->SeekRecordedStream(offset, whence, ret);
+
   return ret;
 }
 
 int64_t CInputStreamPVRRecording::GetPVRStreamLength()
 {
   int64_t ret = -1;
-  GetClient().GetRecordedStreamLength(m_streamId, ret);
+
+  if (m_client)
+    m_client->GetRecordedStreamLength(ret);
+
   return ret;
 }
 
@@ -80,33 +99,4 @@ bool CInputStreamPVRRecording::CanPausePVRStream()
 bool CInputStreamPVRRecording::CanSeekPVRStream()
 {
   return true;
-}
-
-bool CInputStreamPVRRecording::IsRealtimePVRStream()
-{
-  bool ret = false;
-  GetClient().IsRecordedStreamRealTime(m_streamId, ret);
-  return ret;
-}
-
-void CInputStreamPVRRecording::PausePVRStream(bool paused)
-{
-  GetClient().PauseRecordedStream(m_streamId, paused);
-}
-
-bool CInputStreamPVRRecording::GetPVRStreamTimes(Times& times)
-{
-  PVR_STREAM_TIMES streamTimes = {};
-  if (GetClient().GetRecordedStreamTimes(m_streamId, &streamTimes) == PVR_ERROR_NO_ERROR)
-  {
-    times.startTime = streamTimes.startTime;
-    times.ptsStart = streamTimes.ptsStart;
-    times.ptsBegin = streamTimes.ptsBegin;
-    times.ptsEnd = streamTimes.ptsEnd;
-    return true;
-  }
-  else
-  {
-    return false;
-  }
 }

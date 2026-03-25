@@ -8,9 +8,7 @@
 
 #include "PeripheralDisk.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 
 using namespace PERIPHERALS;
 
@@ -19,8 +17,7 @@ CPeripheralDisk::CPeripheralDisk(CPeripherals& manager,
                                  CPeripheralBus* bus)
   : CPeripheral(manager, scanResult, bus)
 {
-  m_strDeviceName = scanResult.m_strDeviceName.empty()
-                        ? CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35003)
-                        : scanResult.m_strDeviceName;
+  m_strDeviceName = scanResult.m_strDeviceName.empty() ? g_localizeStrings.Get(35003)
+                                                       : scanResult.m_strDeviceName;
   m_features.push_back(FEATURE_DISK);
 }

@@ -9,7 +9,6 @@
 #include "GUIWindowPVRChannels.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIInfoManager.h"
 #include "ServiceBroker.h"
 #include "dialogs/GUIDialogContextMenu.h"
@@ -20,6 +19,7 @@
 #include "guilib/GUIMessage.h"
 #include "guilib/GUIRadioButtonControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "pvr/PVRManager.h"
@@ -35,27 +35,13 @@
 #include "pvr/guilib/PVRGUIActionsChannels.h"
 #include "pvr/guilib/PVRGUIActionsEPG.h"
 #include "pvr/guilib/PVRGUIActionsPlayback.h"
-#include "pvr/utils/PVRPathUtils.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
-#include "utils/URIUtils.h"
 #include "utils/Variant.h"
 
 #include <mutex>
 #include <string>
 
 using namespace PVR;
-
-namespace
-{
-// Numeric values are part of the Skinning API. Do not change.
-constexpr unsigned int CONTROL_BTNSHOWHIDDEN = 6;
-constexpr unsigned int CONTROL_LABEL_HEADER1 = 29;
-constexpr unsigned int CONTROL_LABEL_HEADER2 = 30;
-constexpr unsigned int CONTROL_BTNFILTERCHANNELS = 31;
-
-} // unnamed namespace
 
 CGUIWindowPVRChannelsBase::CGUIWindowPVRChannelsBase(bool bRadio,
                                                      int id,
@@ -71,20 +57,14 @@ CGUIWindowPVRChannelsBase::~CGUIWindowPVRChannelsBase()
       this);
 }
 
-std::string CGUIWindowPVRChannelsBase::GetDirectoryPath()
+std::string CGUIWindowPVRChannelsBase::GetRootPath() const
 {
-  const std::string basePath{CPVRChannelsPath(IsRadio(), m_bShowHiddenChannels,
-                                              GetChannelGroup()->GroupName(),
-                                              GetChannelGroup()->GetClientID())
-                                 .AsString()};
-  return URIUtils::PathHasParent(m_vecItems->GetPath(), basePath) ? m_vecItems->GetPath()
-                                                                  : basePath;
-}
+  //! @todo Would it make sense to change GetRootPath() declaration in CGUIMediaWindow
+  //! to be non-const to get rid of the const_cast's here?
 
-std::string CGUIWindowPVRChannelsBase::GetRootPath()
-{
-  if (InitChannelGroup())
-    return GetDirectoryPath();
+  auto pThis = const_cast<CGUIWindowPVRChannelsBase*>(this);
+  if (pThis->InitChannelGroup())
+    return pThis->GetDirectoryPath();
 
   return CGUIWindowPVRBase::GetRootPath();
 }
@@ -114,6 +94,7 @@ bool CGUIWindowPVRChannelsBase::Update(const std::string& strDirectory,
   if (bReturn)
   {
     std::unique_lock lock(m_critSection);
+
     /* empty list for hidden channels */
     if (m_vecItems->GetObjectCount() == 0 && m_bShowHiddenChannels)
     {
@@ -128,25 +109,20 @@ bool CGUIWindowPVRChannelsBase::Update(const std::string& strDirectory,
 
 void CGUIWindowPVRChannelsBase::UpdateButtons()
 {
-  auto* btnShowHidden{static_cast<CGUIRadioButtonControl*>(GetControl(CONTROL_BTNSHOWHIDDEN))};
+  auto btnShowHidden =
+      static_cast<CGUIRadioButtonControl*>(GetControl(CONTROL_BTNSHOWHIDDEN));
   if (btnShowHidden)
   {
     btnShowHidden->SetVisible(CServiceBroker::GetPVRManager()
                                   .ChannelGroups()
-                                  ->GetGroupAll(IsRadio())
+                                  ->GetGroupAll(m_bRadio)
                                   ->HasHiddenChannels());
     btnShowHidden->SetSelected(m_bShowHiddenChannels);
   }
 
   CGUIWindowPVRBase::UpdateButtons();
-
-  SET_CONTROL_LABEL(CONTROL_LABEL_HEADER1,
-                    m_bShowHiddenChannels
-                        ? CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19022)
-                        : GetChannelGroup()->GroupName());
-
-  // If we are filtering by client id / provider id, expose provider's name.
-  SET_CONTROL_LABEL(CONTROL_LABEL_HEADER2, UTILS::GetProviderNameFromPath(m_vecItems->GetPath()));
+  SET_CONTROL_LABEL(CONTROL_LABEL_HEADER1, m_bShowHiddenChannels ? g_localizeStrings.Get(19022)
+                                                                 : GetChannelGroup()->GroupName());
 }
 
 bool CGUIWindowPVRChannelsBase::OnAction(const CAction& action)
@@ -169,9 +145,6 @@ bool CGUIWindowPVRChannelsBase::OnAction(const CAction& action)
     case ACTION_CHANNEL_NUMBER_SEP:
       AppendChannelNumberCharacter(CPVRChannelNumber::SEPARATOR);
       return true;
-
-    default:
-      break;
   }
 
   return CGUIWindowPVRBase::OnAction(action);
@@ -194,11 +167,11 @@ bool CGUIWindowPVRChannelsBase::OnMessage(CGUIMessage& message)
           // Replace wildcard with real group name
           const auto group =
               CServiceBroker::GetPVRManager().ChannelGroups()->GetGroupAll(path.IsRadio());
-          SetChannelGroupPath(group->GetPath().AsString());
+          m_channelGroupPath = group->GetPath();
         }
         else
         {
-          SetChannelGroupPath(message.GetStringParam(0));
+          m_channelGroupPath = message.GetStringParam(0);
         }
       }
       break;
@@ -231,7 +204,7 @@ bool CGUIWindowPVRChannelsBase::OnMessage(CGUIMessage& message)
             case ACTION_MOUSE_LEFT_CLICK:
             case ACTION_PLAYER_PLAY:
               CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
-                  *(m_vecItems->Get(iItem)));
+                  *(m_vecItems->Get(iItem)), true);
               break;
             case ACTION_SHOW_INFO:
               CServiceBroker::GetPVRManager().Get<PVR::GUI::EPG>().ShowEPGInfo(
@@ -253,8 +226,8 @@ bool CGUIWindowPVRChannelsBase::OnMessage(CGUIMessage& message)
       }
       else if (message.GetSenderId() == CONTROL_BTNSHOWHIDDEN)
       {
-        const auto* radioButton{
-            static_cast<CGUIRadioButtonControl*>(GetControl(CONTROL_BTNSHOWHIDDEN))};
+        auto radioButton =
+            static_cast<CGUIRadioButtonControl*>(GetControl(CONTROL_BTNSHOWHIDDEN));
         if (radioButton)
         {
           m_bShowHiddenChannels = radioButton->IsSelected();
@@ -278,19 +251,17 @@ bool CGUIWindowPVRChannelsBase::OnMessage(CGUIMessage& message)
     {
       switch (static_cast<PVREvent>(message.GetParam1()))
       {
-        using enum PVREvent;
-
-        case ChannelGroup:
-        case CurrentItem:
-        case Epg:
-        case EpgActiveItem:
-        case EpgContainer:
-        case RecordingsInvalidated:
-        case Timers:
+        case PVREvent::ChannelGroup:
+        case PVREvent::CurrentItem:
+        case PVREvent::Epg:
+        case PVREvent::EpgActiveItem:
+        case PVREvent::EpgContainer:
+        case PVREvent::RecordingsInvalidated:
+        case PVREvent::Timers:
           SetInvalid();
           break;
 
-        case ChannelGroupInvalidated:
+        case PVREvent::ChannelGroupInvalidated:
           Refresh(true);
           break;
 
@@ -299,9 +270,6 @@ bool CGUIWindowPVRChannelsBase::OnMessage(CGUIMessage& message)
       }
       break;
     }
-
-    default:
-      break;
   }
 
   return bReturn || CGUIWindowPVRBase::OnMessage(message);
@@ -351,7 +319,7 @@ bool CGUIWindowPVRChannelsBase::OnContextButtonManage(const CFileItemPtr& item,
   return bReturn;
 }
 
-void CGUIWindowPVRChannelsBase::UpdateEpg(const std::shared_ptr<CFileItem>& item) const
+void CGUIWindowPVRChannelsBase::UpdateEpg(const CFileItemPtr& item)
 {
   const std::shared_ptr<const CPVRChannel> channel(item->GetPVRChannelInfoTag());
 
@@ -368,46 +336,38 @@ void CGUIWindowPVRChannelsBase::UpdateEpg(const std::shared_ptr<CFileItem>& item
 
     const std::string strMessage =
         StringUtils::Format("{}: '{}'",
-                            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                19253), // "Guide update scheduled for channel"
+                            g_localizeStrings.Get(19253), // "Guide update scheduled for channel"
                             channel->ChannelName());
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Info,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            19166), // "PVR information"
-        strMessage);
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info,
+                                          g_localizeStrings.Get(19166), // "PVR information"
+                                          strMessage);
   }
   else
   {
     const std::string strMessage =
         StringUtils::Format("{}: '{}'",
-                            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                19254), // "Guide update failed for channel"
+                            g_localizeStrings.Get(19254), // "Guide update failed for channel"
                             channel->ChannelName());
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Error,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            19166), // "PVR information"
-        strMessage);
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error,
+                                          g_localizeStrings.Get(19166), // "PVR information"
+                                          strMessage);
   }
 }
 
-void CGUIWindowPVRChannelsBase::ShowChannelManager() const
-{
+void CGUIWindowPVRChannelsBase::ShowChannelManager() const {
   CGUIDialogPVRChannelManager* dialog =
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogPVRChannelManager>(
           WINDOW_DIALOG_PVR_CHANNEL_MANAGER);
   if (!dialog)
     return;
 
-  dialog->SetRadio(IsRadio());
+  dialog->SetRadio(m_bRadio);
 
   const int iItem = m_viewControl.GetSelectedItem();
   dialog->Open(iItem >= 0 && iItem < m_vecItems->Size() ? m_vecItems->Get(iItem) : nullptr);
 }
 
-void CGUIWindowPVRChannelsBase::ShowGroupManager() const
-{
+void CGUIWindowPVRChannelsBase::ShowGroupManager() const {
   /* Load group manager dialog */
   CGUIDialogPVRGroupManager* pDlgInfo =
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogPVRGroupManager>(
@@ -415,7 +375,7 @@ void CGUIWindowPVRChannelsBase::ShowGroupManager() const
   if (!pDlgInfo)
     return;
 
-  pDlgInfo->SetRadio(IsRadio());
+  pDlgInfo->SetRadio(m_bRadio);
   pDlgInfo->Open();
 }
 
@@ -449,7 +409,19 @@ CGUIWindowPVRTVChannels::CGUIWindowPVRTVChannels()
 {
 }
 
+std::string CGUIWindowPVRTVChannels::GetDirectoryPath()
+{
+  return CPVRChannelsPath(false, m_bShowHiddenChannels, GetChannelGroup()->GroupName(),
+                          GetChannelGroup()->GetClientID());
+}
+
 CGUIWindowPVRRadioChannels::CGUIWindowPVRRadioChannels()
   : CGUIWindowPVRChannelsBase(true, WINDOW_RADIO_CHANNELS, "MyPVRChannels.xml")
 {
+}
+
+std::string CGUIWindowPVRRadioChannels::GetDirectoryPath()
+{
+  return CPVRChannelsPath(true, m_bShowHiddenChannels, GetChannelGroup()->GroupName(),
+                          GetChannelGroup()->GetClientID());
 }

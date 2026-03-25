@@ -20,15 +20,17 @@
 #include "utils/GlobalsHandling.h"
 #include "utils/Stopwatch.h"
 #include "windowing/Resolution.h"
+#include "windowing/XBMC_events.h"
 
 #include <atomic>
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
 
 class CAction;
-class CApplicationMessageHandling;
+class CAppInboundProtocol;
 class CBookmark;
 class CFileItem;
 class CFileItemList;
@@ -59,7 +61,7 @@ namespace MEDIA_DETECT
   class CAutorun;
 }
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
   class CPlayList;
 }
@@ -69,7 +71,7 @@ namespace ActiveAE
   class CActiveAE;
 }
 
-namespace KODI::VIDEO
+namespace VIDEO
 {
   class CVideoInfoScanner;
 }
@@ -86,7 +88,7 @@ class CApplication : public IWindowManagerCallback,
                      public CApplicationPlayerCallback,
                      public CApplicationSettingsHandling
 {
-  friend class CApplicationMessageHandling;
+friend class CAppInboundProtocol;
 
 public:
 
@@ -106,15 +108,14 @@ public:
   void Render() override;
 
   bool IsInitialized() const { return !m_bInitializing; }
-  void DoneInitializing() { m_bInitializing = false; }
   bool IsStopping() const { return m_bStop; }
 
   bool CreateGUI();
   bool InitWindow(RESOLUTION res = RES_INVALID);
 
   bool Stop(int exitCode);
-  const std::string& CurrentFile();
-  CFileItem& CurrentFileItem();
+  const std::string& CurrentFile() const;
+  CFileItem& CurrentFileItem() const;
   std::shared_ptr<CFileItem> CurrentFileItemPtr();
   const CFileItem& CurrentUnstackedItem();
   bool OnMessage(CGUIMessage& message) override;
@@ -123,22 +124,22 @@ public:
   int  GetMessageMask() override;
   void OnApplicationMessage(KODI::MESSAGING::ThreadMessage* pMsg) override;
 
-  bool PlayMedia(CFileItem& item, const std::string& player, KODI::PLAYLIST::Id playlistId);
+  bool PlayMedia(CFileItem& item, const std::string& player, PLAYLIST::Id playlistId);
   bool ProcessAndStartPlaylist(const std::string& strPlayList,
-                               KODI::PLAYLIST::CPlayList& playlist,
-                               KODI::PLAYLIST::Id playlistId,
+                               PLAYLIST::CPlayList& playlist,
+                               PLAYLIST::Id playlistId,
                                int track = 0);
-  bool PlayFile(const CFileItem& item, const std::string& player, bool bRestart = false);
+  bool PlayFile(CFileItem item, const std::string& player, bool bRestart = false);
   void StopPlaying();
   void Restart(bool bSamePosition = true);
   void DelayedPlayerRestart();
   void CheckDelayedPlayerRestart();
   bool IsPlayingFullScreenVideo() const;
-  bool IsFullScreen();
+  bool IsFullScreen() const;
   bool OnAction(const CAction &action);
   void CloseNetworkShares();
 
-  void ConfigureAndEnableAddons();
+  void ConfigureAndEnableAddons() const;
   void ShowAppMigrationMessage();
   void Process() override;
   void ProcessSlow();
@@ -168,8 +169,6 @@ public:
   void UpdateCurrentPlayArt();
 
   bool ExecuteXBMCAction(const std::string& action, const std::shared_ptr<CGUIListItem>& item = NULL);
-
-  bool WasPlaybackCancelled() const { return m_cancelPlayback; }
 
 #ifdef HAS_OPTICAL_DRIVE
   std::unique_ptr<MEDIA_DETECT::CAutorun> m_Autorun;
@@ -202,15 +201,16 @@ protected:
   bool OnSettingsSaving() const override;
   void PlaybackCleanup();
 
-  void SetCurrentFileItem(std::shared_ptr<CFileItem> item) { m_itemCurrentFile = std::move(item); }
-
-  void ResetPlayerEvent() { m_playerEvent.Reset(); }
+  // inbound protocol
+  bool OnEvent(XBMC_Event& newEvent);
 
   std::shared_ptr<ANNOUNCEMENT::CAnnouncementManager> m_pAnnouncementManager;
   std::unique_ptr<CGUIComponent> m_pGUI;
   std::unique_ptr<CWinSystemBase> m_pWinSystem;
   std::unique_ptr<ActiveAE::CActiveAE> m_pActiveAE;
-  std::shared_ptr<CApplicationMessageHandling> m_pMsgHandling;
+  std::shared_ptr<CAppInboundProtocol> m_pAppPort;
+  std::deque<XBMC_Event> m_portEvents;
+  CCriticalSection m_portSection;
 
   // timer information
   CStopWatch m_restartPlayerTimer;
@@ -222,12 +222,15 @@ protected:
   bool m_bInitializing = true;
 
   int m_nextPlaylistItem = -1;
-  bool m_cancelPlayback{false};
 
   std::chrono::time_point<std::chrono::steady_clock> m_lastRenderTime;
   bool m_skipGuiRender = false;
 
   std::unique_ptr<MUSIC_INFO::CMusicInfoScanner> m_musicInfoScanner;
+
+  bool PlayStack(CFileItem& item, bool bRestart);
+
+  void HandlePortEvents();
 
   std::unique_ptr<CInertialScrollingHandler> m_pInertialScrollingHandler;
 
@@ -239,9 +242,8 @@ public:
   bool m_AppFocused{true};
 
 private:
-  void PrintStartupLog();
-  void ResetCurrentItem();
-  void ScheduleIdleCleanup();
+  void PrintStartupLog() const;
+  void ResetCurrentItem() const;
 
   mutable CCriticalSection m_critSection; /*!< critical section for all changes to this class, except for changes to triggers */
 
@@ -252,9 +254,6 @@ private:
   int m_ExitCode{EXITCODE_QUIT};
   std::shared_ptr<CFileItem> m_itemCurrentFile; //!< Currently playing file
   CEvent m_playerEvent;
-  std::atomic_bool m_idleCleanupScheduled{false};
-
-  unsigned int m_maxOtherTaskTime = 6;  // Maximum time for other tasks on main thread.
 };
 
 XBMC_GLOBAL_REF(CApplication,g_application);

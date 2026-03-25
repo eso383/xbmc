@@ -15,8 +15,6 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
-#include <algorithm>
-
 using namespace XFILE;
 
 bool CMediaSource::IsWritable() const
@@ -24,7 +22,7 @@ bool CMediaSource::IsWritable() const
   return CUtil::SupportsWriteFileOperations(strPath);
 }
 
-void CMediaSource::FromNameAndPaths(std::string_view name, const std::vector<std::string>& paths)
+void CMediaSource::FromNameAndPaths(const std::string &category, const std::string &name, const std::vector<std::string> &paths)
 {
   vecPaths = paths;
   if (paths.empty())
@@ -41,27 +39,29 @@ void CMediaSource::FromNameAndPaths(std::string_view name, const std::vector<std
   }
 
   strName = name;
-  m_lockInfo = {};
+  m_iLockMode = LOCK_MODE_EVERYONE;
+  m_strLockCode = "0";
+  m_iBadPwdCount = 0;
+  m_iHasLock = LOCK_STATE_NO_LOCK;
   m_allowSharing = true;
 
   if (URIUtils::IsMultiPath(strPath))
-    m_iDriveType = SourceType::VPATH;
+    m_iDriveType = SOURCE_TYPE_VPATH;
   else if (StringUtils::StartsWithNoCase(strPath, "udf:"))
   {
-    m_iDriveType = SourceType::VIRTUAL_OPTICAL_DISC;
+    m_iDriveType = SOURCE_TYPE_VIRTUAL_DVD;
     strPath = "D:\\";
   }
   else if (URIUtils::IsISO9660(strPath))
-    m_iDriveType = SourceType::VIRTUAL_OPTICAL_DISC;
+    m_iDriveType = SOURCE_TYPE_VIRTUAL_DVD;
   else if (URIUtils::IsDVD(strPath))
-    m_iDriveType = SourceType::OPTICAL_DISC;
+    m_iDriveType = SOURCE_TYPE_DVD;
   else if (URIUtils::IsRemote(strPath))
-    m_iDriveType = SourceType::REMOTE;
+    m_iDriveType = SOURCE_TYPE_REMOTE;
   else if (URIUtils::IsHD(strPath))
-    m_iDriveType = SourceType::LOCAL;
+    m_iDriveType = SOURCE_TYPE_LOCAL;
   else
-    m_iDriveType = SourceType::UNKNOWN;
-
+    m_iDriveType = SOURCE_TYPE_UNKNOWN;
   // check - convert to url and back again to make sure strPath is accurate
   // in terms of what we expect
   strPath = CURL(strPath).Get();
@@ -70,20 +70,43 @@ void CMediaSource::FromNameAndPaths(std::string_view name, const std::vector<std
 bool CMediaSource::operator==(const CMediaSource &share) const
 {
   // NOTE: we may wish to filter this through CURL to enable better "fuzzy" matching
-  return strPath == share.strPath && strName == share.strName;
+  if (strPath != share.strPath)
+    return false;
+  if (strName != share.strName)
+    return false;
+  return true;
 }
 
-void AddOrReplace(std::vector<CMediaSource>& sources, const std::vector<CMediaSource>& extras)
+void AddOrReplace(VECSOURCES& sources, const VECSOURCES& extras)
 {
-  std::ranges::for_each(extras, [&sources](auto& extra) { AddOrReplace(sources, extra); });
+  unsigned int i;
+  for( i=0;i<extras.size();++i )
+  {
+    unsigned int j;
+    for ( j=0;j<sources.size();++j)
+    {
+      if (StringUtils::EqualsNoCase(sources[j].strPath, extras[i].strPath))
+      {
+        sources[j] = extras[i];
+        break;
+      }
+    }
+    if (j == sources.size())
+      sources.push_back(extras[i]);
+  }
 }
 
-void AddOrReplace(std::vector<CMediaSource>& sources, const CMediaSource& source)
+void AddOrReplace(VECSOURCES& sources, const CMediaSource& source)
 {
-  auto it = std::ranges::find_if(sources, [&path = source.strPath](const auto& src)
-                                 { return StringUtils::EqualsNoCase(src.strPath, path); });
-  if (it != sources.end())
-    *it = source;
-  else
+  unsigned int i;
+  for( i=0;i<sources.size();++i )
+  {
+    if (StringUtils::EqualsNoCase(sources[i].strPath, source.strPath))
+    {
+      sources[i] = source;
+      break;
+    }
+  }
+  if (i == sources.size())
     sources.push_back(source);
 }

@@ -8,58 +8,50 @@
 
 #pragma once
 
-#include "DiscDirectoryHelper.h"
 #include "IDirectory.h"
 #include "URL.h"
-#include "bluray/MPLSParser.h"
 
-#include <map>
-#include <string>
-
-#include <libbluray/bluray.h>
+#include <memory>
 
 class CFileItem;
 class CFileItemList;
 
+typedef struct bluray BLURAY;
+typedef struct bd_title_info BLURAY_TITLE_INFO;
+
 namespace XFILE
 {
-using namespace std::chrono_literals;
 
 class CBlurayDirectory : public IDirectory
 {
 public:
-  CBlurayDirectory();
+  CBlurayDirectory() = default;
   ~CBlurayDirectory() override;
-  CBlurayDirectory(const CBlurayDirectory&) = delete;
-  CBlurayDirectory& operator=(const CBlurayDirectory&) = delete;
-  CBlurayDirectory(CBlurayDirectory&&) noexcept = default;
-  CBlurayDirectory& operator=(CBlurayDirectory&&) noexcept = default;
-
-  bool GetDirectory(const CURL& url, CFileItemList& items) override;
-  bool Resolve(CFileItem& item) const override;
+  bool GetDirectory(const CURL& url, CFileItemList &items) override;
 
   bool InitializeBluray(const std::string &root);
-  static std::string GetBasePath(const CURL& url);
-  std::string GetBlurayTitle() const;
-  std::string GetBlurayID() const;
+  std::string GetBlurayTitle();
+  std::string GetBlurayID();
 
 private:
-  enum class DiscInfo : uint8_t
+  enum class DiscInfo
   {
     TITLE,
     ID
   };
 
-  void Dispose();
-  std::string GetDiscInfoString(DiscInfo info) const;
-  const BLURAY_DISC_INFO* GetDiscInfo() const;
-
-  CURL m_url;
+  void         Dispose();
+  std::string  GetDiscInfoString(DiscInfo info);
+  void         GetRoot  (CFileItemList &items);
+  void         GetTitles(bool main, CFileItemList &items);
+  std::vector<BLURAY_TITLE_INFO*> GetUserPlaylists() const;
+  std::shared_ptr<CFileItem> GetTitle(const BLURAY_TITLE_INFO* title, const std::string& label) const;
+  CURL         GetUnderlyingCURL(const CURL& url);
+  std::string  HexToString(const uint8_t * buf, int count);
+  CURL          m_url;
+  BLURAY*       m_bd = nullptr;
+  bool          m_blurayInitialized = false;
   std::string m_realPath;
-  BLURAY* m_bd{nullptr};
-  bool m_blurayInitialized{false};
-  bool m_blurayMenuSupport{false};
-
-  std::map<unsigned int, ClipInformation> m_clipCache;
 };
-} // namespace XFILE
+
+}

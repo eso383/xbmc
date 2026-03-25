@@ -8,16 +8,15 @@
 
 #pragma once
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 
-enum class Id : int
-{
-  TYPE_NONE = -1,
-  TYPE_MUSIC = 0,
-  TYPE_VIDEO = 1,
-  TYPE_PICTURE = 2
-};
+using Id = int;
+
+constexpr Id TYPE_NONE = -1; //! Playlist id of type none
+constexpr Id TYPE_MUSIC = 0; //! Playlist id of type music
+constexpr Id TYPE_VIDEO = 1; //! Playlist id of type video
+constexpr Id TYPE_PICTURE = 2; //! Playlist id of type picture
 
 /*!
  * \brief Manages playlist playing.
@@ -29,10 +28,4 @@ enum class RepeatState
   ALL
 };
 
-enum class ExcludeUsedPlaylists : bool
-{
-  DONT_EXCLUDE_USED_PLAYLISTS,
-  EXCLUDE_USED_PLAYLISTS
-};
-
-} // namespace KODI::PLAYLIST
+} // namespace PLAYLIST

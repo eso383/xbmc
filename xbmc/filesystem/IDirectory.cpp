@@ -51,11 +51,11 @@ bool IDirectory::IsAllowed(const CURL& url) const
     return true;
 
   // Check if strFile have an allowed extension
-  if (!url.HasExtension(m_strFileMask))
+  if (!URIUtils::HasExtension(url, m_strFileMask))
     return false;
 
   // We should ignore all non dvd/vcd related ifo and dat files.
-  if (url.HasExtension(".ifo"))
+  if (URIUtils::HasExtension(url, ".ifo"))
   {
     std::string fileName = URIUtils::GetFileName(url);
 
@@ -67,7 +67,7 @@ bool IDirectory::IsAllowed(const CURL& url) const
            StringUtils::EndsWithNoCase(fileName, "_0.ifo"));
   }
 
-  if (url.HasExtension(".dat"))
+  if (URIUtils::HasExtension(url, ".dat"))
   {
     std::string fileName = URIUtils::GetFileName(url);
     std::string folder = URIUtils::GetDirectory(fileName);
@@ -103,7 +103,7 @@ void IDirectory::SetMask(const std::string& strMask)
   m_strFileMask = strMask;
   // ensure it's completed with a | so that filtering is easy.
   StringUtils::ToLower(m_strFileMask);
-  if (!m_strFileMask.empty() && m_strFileMask[m_strFileMask.size() - 1] != '|')
+  if (m_strFileMask.size() && m_strFileMask[m_strFileMask.size() - 1] != '|')
     m_strFileMask += '|';
 }
 

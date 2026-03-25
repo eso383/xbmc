@@ -27,7 +27,6 @@
 #include "utils/log.h"
 
 #include <cassert>
-#include <memory>
 #include <stdexcept>
 
 #include <androidjni/ByteBuffer.h>
@@ -114,7 +113,7 @@ bool CDVDAudioCodecAndroidMediaCodec::Open(CDVDStreamInfo &hints, CDVDCodecOptio
   if (ptStreamType != CAEStreamInfo::STREAM_TYPE_NULL)
   {
     //Look if the PT decoder can be opened
-    m_decryptCodec = std::shared_ptr<CDVDAudioCodec>(new CDVDAudioCodecPassthrough(m_processInfo, ptStreamType));
+    m_decryptCodec = std::make_shared<CDVDAudioCodecPassthrough>(m_processInfo, ptStreamType);
     if (m_decryptCodec->Open(hints, options))
       goto PROCESSDECODER;
   }
@@ -289,15 +288,16 @@ PROCESSDECODER:
       {
         CLog::Log(LOGDEBUG, "CDVDAudioCodecAndroidMediaCodec::Open Prefer the Google raw decoder "
                             "over the MediaTek one");
-        m_codec = std::make_shared<CJNIMediaCodec>(
-            CJNIMediaCodec::createByCodecName("OMX.google.raw.decoder"));
+        m_codec = std::shared_ptr<CJNIMediaCodec>(
+            new CJNIMediaCodec(CJNIMediaCodec::createByCodecName("OMX.google.raw.decoder")));
       }
       else
       {
         CLog::Log(
             LOGDEBUG,
             "CDVDAudioCodecAndroidMediaCodec::Open Use the raw decoder proposed by the platform");
-        m_codec = std::make_shared<CJNIMediaCodec>(CJNIMediaCodec::createDecoderByType(m_mime));
+        m_codec = std::shared_ptr<CJNIMediaCodec>(
+            new CJNIMediaCodec(CJNIMediaCodec::createDecoderByType(m_mime)));
       }
       if (xbmc_jnienv()->ExceptionCheck())
       {
@@ -311,7 +311,7 @@ PROCESSDECODER:
         CDVDStreamInfo ffhints = hints;
         ffhints.cryptoSession = nullptr;
 
-        m_decryptCodec = std::shared_ptr<CDVDAudioCodec>(new CDVDAudioCodecFFmpeg(m_processInfo));
+        m_decryptCodec = std::make_shared<CDVDAudioCodecFFmpeg>(m_processInfo);
         if (!m_decryptCodec->Open(ffhints, options))
         {
           CLog::Log(LOGERROR, "CDVDAudioCodecAndroidMediaCodec::Open() Failed opening FFmpeg decoder");
@@ -429,6 +429,12 @@ bool CDVDAudioCodecAndroidMediaCodec::AddData(const DemuxPacket &packet)
       CJNIMediaCodecCryptoInfo *cryptoInfo(0);
       if (!!m_crypto->get_raw() && packet.cryptoInfo)
       {
+        if (CJNIBase::GetSDKVersion() < 25 &&
+            packet.cryptoInfo->mode == CJNIMediaCodec::CRYPTO_MODE_AES_CBC)
+        {
+          CLog::LogF(LOGERROR, "Device API does not support CBCS decryption");
+          return false;
+        }
         cryptoInfo = new CJNIMediaCodecCryptoInfo();
         cryptoInfo->set(
             packet.cryptoInfo->numSubSamples,

@@ -32,7 +32,7 @@ public:
   void RegisterLanguageInvocationHandler(ILanguageInvocationHandler *invocationHandler, const std::set<std::string> &extensions);
   void UnregisterLanguageInvocationHandler(ILanguageInvocationHandler *invocationHandler);
   bool HasLanguageInvoker(const std::string &script) const;
-  std::shared_ptr<ILanguageInvoker> GetLanguageInvoker(const std::string& script);
+  LanguageInvokerPtr GetLanguageInvoker(const std::string& script);
 
   /*!
   * \brief Returns addon_handle if last reusable invoker is ready to use.
@@ -62,7 +62,7 @@ public:
   * \return -1 if an error occurred, otherwise the ID of the script
   */
   int ExecuteAsync(const std::string& script,
-                   const std::shared_ptr<ILanguageInvoker>& languageInvoker,
+                   const LanguageInvokerPtr& languageInvoker,
                    const ADDON::AddonPtr& addon = ADDON::AddonPtr(),
                    const std::vector<std::string>& arguments = std::vector<std::string>(),
                    bool reuseable = false,
@@ -107,12 +107,12 @@ public:
   * \return -1 if an error occurred, 0 if the script terminated or ETIMEDOUT if the given timeout expired
   */
   int ExecuteSync(const std::string& script,
-                  const std::shared_ptr<ILanguageInvoker>& languageInvoker,
+                  const LanguageInvokerPtr& languageInvoker,
                   const ADDON::AddonPtr& addon = ADDON::AddonPtr(),
                   const std::vector<std::string>& arguments = std::vector<std::string>(),
                   uint32_t timeoutMs = 0,
                   bool waitShutdown = false);
-  bool Stop(int scriptId, bool wait = false);
+  bool Stop(int scriptId, bool wait = false) const;
   bool Stop(const std::string &scriptPath, bool wait = false);
 
   /*!

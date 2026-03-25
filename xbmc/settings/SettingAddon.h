@@ -15,7 +15,6 @@ namespace ADDON
 {
 enum class AddonType;
 }
-class TiXmlNode;
 
 class CSettingAddon : public CSettingString
 {

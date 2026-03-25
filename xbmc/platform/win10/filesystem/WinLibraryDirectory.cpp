@@ -9,7 +9,6 @@
 #include "WinLibraryDirectory.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -19,7 +18,6 @@
 #include "platform/win32/CharsetConverter.h"
 
 #include <string>
-#include <utility>
 
 #include <winrt/Windows.Storage.FileProperties.h>
 
@@ -38,7 +36,7 @@ bool CWinLibraryDirectory::GetStoragePath(std::string library, std::string& path
 {
   CURL url;
   url.SetProtocol("win-lib");
-  url.SetHostName(std::move(library));
+  url.SetHostName(library);
 
   if (!IsValid(url))
     return false;
@@ -113,14 +111,15 @@ bool CWinLibraryDirectory::GetDirectory(const CURL& url, CFileItemList& items)
     std::string itemName = FromW(item.Name().c_str());
 
     CFileItemPtr pItem(new CFileItem(itemName));
-    pItem->SetFolder((item.Attributes() & FileAttributes::Directory) == FileAttributes::Directory);
+    pItem->m_bIsFolder =
+        (item.Attributes() & FileAttributes::Directory) == FileAttributes::Directory;
     IStorageItemProperties storageItemProperties = item.as<IStorageItemProperties>();
     if (item != nullptr)
     {
-      pItem->SetTitle(FromW(storageItemProperties.DisplayName().c_str()));
+      pItem->m_strTitle = FromW(storageItemProperties.DisplayName().c_str());
     }
 
-    if (pItem->IsFolder())
+    if (pItem->m_bIsFolder)
       pItem->SetPath(path + itemName + "/");
     else
       pItem->SetPath(path + itemName);
@@ -134,9 +133,9 @@ bool CWinLibraryDirectory::GetDirectory(const CURL& url, CFileItemList& items)
     KODI::TIME::FileTime fileTime2;
     fileTime2.highDateTime = fileTime1.dwHighDateTime;
     fileTime2.lowDateTime = fileTime1.dwLowDateTime;
-    pItem->SetDateTime(fileTime2);
-    if (!pItem->IsFolder())
-      pItem->SetSize(static_cast<int64_t>(props.Size()));
+    pItem->m_dateTime = fileTime2;
+    if (!pItem->m_bIsFolder)
+      pItem->m_dwSize = static_cast<int64_t>(props.Size());
 
     items.Add(pItem);
   }
@@ -187,7 +186,7 @@ bool CWinLibraryDirectory::Remove(const CURL& url)
   catch (const winrt::hresult_error& ex)
   {
     std::string error = FromW(ex.message().c_str());
-    CLog::LogF(LOGERROR, "unable to remove folder '{}' with error: {}", url.Get(), error);
+    CLog::LogF(LOGERROR, __FUNCTION__, "unable remove folder '{}' with error", url.Get(), error);
     exists = false;
   }
   return exists;
@@ -216,7 +215,7 @@ StorageFolder CWinLibraryDirectory::GetFolder(const CURL& url)
     catch (const winrt::hresult_error& ex)
     {
       std::string error = FromW(ex.message().c_str());
-      CLog::LogF(LOGERROR, "unable to get folder '{}' with error: {}", url.GetRedacted(), error);
+      CLog::LogF(LOGERROR, "unable to get folder '{}' with error", url.GetRedacted(), error);
     }
     return nullptr;
   }

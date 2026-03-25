@@ -18,20 +18,22 @@ class CServicesSettings : public ISubSettings
 public:
   static void SettingOptionsChunkSizesFiller(const SettingConstPtr& setting,
                                              std::vector<IntegerSettingOption>& list,
-                                             int& current);
+                                             int& current,
+                                             void* data);
   static void SettingOptionsBufferModesFiller(const SettingConstPtr& setting,
                                               std::vector<IntegerSettingOption>& list,
-                                              int& current);
+                                              int& current,
+                                              void* data);
   static void SettingOptionsMemorySizesFiller(const SettingConstPtr& setting,
                                               std::vector<IntegerSettingOption>& list,
-                                              int& current);
+                                              int& current,
+                                              void* data);
   static void SettingOptionsReadFactorsFiller(const SettingConstPtr& setting,
                                               std::vector<IntegerSettingOption>& list,
-                                              int& current);
+                                              int& current,
+                                              void* data);
   static void SettingOptionsCacheChunkSizesFiller(const SettingConstPtr& setting,
                                                   std::vector<IntegerSettingOption>& list,
-                                                  int& current);
-  static void SettingOptionsSmbVersionsFiller(const SettingConstPtr& setting,
-                                              std::vector<IntegerSettingOption>& list,
-                                              int& current);
+                                                  int& current,
+                                                  void* data);
 };

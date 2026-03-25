@@ -11,16 +11,18 @@
 #include "FileItem.h"
 #include "ServiceBroker.h"
 #include "TextureCache.h"
-#include "utils/ArtUtils.h"
 #include "utils/FileUtils.h"
 
-using namespace KODI;
-
-CThumbLoader::CThumbLoader() : m_textureDatabase(std::make_unique<CTextureDatabase>())
+CThumbLoader::CThumbLoader() :
+  CBackgroundInfoLoader()
 {
+  m_textureDatabase = new CTextureDatabase();
 }
 
-CThumbLoader::~CThumbLoader() = default;
+CThumbLoader::~CThumbLoader()
+{
+  delete m_textureDatabase;
+}
 
 void CThumbLoader::OnLoaderStart()
 {
@@ -107,15 +109,15 @@ std::string CProgramThumbLoader::GetLocalThumb(const CFileItem &item)
     return "";
 
   // look for the thumb
-  if (item.IsFolder())
+  if (item.m_bIsFolder)
   {
-    const std::string folderThumb = ART::GetFolderThumb(item);
+    std::string folderThumb = item.GetFolderThumb();
     if (CFileUtils::Exists(folderThumb))
       return folderThumb;
   }
   else
   {
-    std::string fileThumb(ART::GetTBNFile(item));
+    std::string fileThumb(item.GetTBNFile());
     if (CFileUtils::Exists(fileThumb))
       return fileThumb;
   }

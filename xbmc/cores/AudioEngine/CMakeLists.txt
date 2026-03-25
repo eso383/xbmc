@@ -48,7 +48,7 @@ set(HEADERS AEResampleFactory.h
             Utils/AEUtil.h
             Utils/PackerMAT.h)
 
-if(TARGET ${APP_NAME_LC}::Alsa)
+if(TARGET ALSA::ALSA)
   list(APPEND SOURCES Sinks/AESinkALSA.cpp
                       Utils/AEELDParser.cpp)
   list(APPEND HEADERS Sinks/AESinkALSA.h
@@ -59,22 +59,23 @@ if(TARGET ${APP_NAME_LC}::Alsa)
     list(APPEND HEADERS Sinks/alsa/ALSAHControlMonitor.h)
   endif()
 
-  if(TARGET ${APP_NAME_LC}::UDEV)
+  if(TARGET UDEV::UDEV)
     list(APPEND SOURCES Sinks/alsa/ALSADeviceMonitor.cpp)
     list(APPEND HEADERS Sinks/alsa/ALSADeviceMonitor.h)
   endif()
 endif()
 
-if(TARGET ${APP_NAME_LC}::PulseAudio)
+if(TARGET PulseAudio::PulseAudio)
   list(APPEND SOURCES Sinks/AESinkPULSE.cpp)
   list(APPEND HEADERS Sinks/AESinkPULSE.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::Pipewire)
+if(PIPEWIRE_FOUND)
   list(APPEND SOURCES Sinks/pipewire/AESinkPipewire.cpp
                       Sinks/pipewire/Pipewire.cpp
                       Sinks/pipewire/PipewireContext.cpp
                       Sinks/pipewire/PipewireCore.cpp
+                      Sinks/pipewire/PipewireGlobal.cpp
                       Sinks/pipewire/PipewireNode.cpp
                       Sinks/pipewire/PipewireProxy.cpp
                       Sinks/pipewire/PipewireRegistry.cpp
@@ -84,6 +85,7 @@ if(TARGET ${APP_NAME_LC}::Pipewire)
                       Sinks/pipewire/Pipewire.h
                       Sinks/pipewire/PipewireContext.h
                       Sinks/pipewire/PipewireCore.h
+                      Sinks/pipewire/PipewireGlobal.h
                       Sinks/pipewire/PipewireNode.h
                       Sinks/pipewire/PipewireProxy.h
                       Sinks/pipewire/PipewireRegistry.h
@@ -91,7 +93,7 @@ if(TARGET ${APP_NAME_LC}::Pipewire)
                       Sinks/pipewire/PipewireThreadLoop.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::Sndio)
+if(TARGET Sndio::Sndio)
   list(APPEND SOURCES Sinks/AESinkSNDIO.cpp)
   list(APPEND HEADERS Sinks/AESinkSNDIO.h)
 endif()
@@ -103,19 +105,17 @@ endif()
 
 if(CORE_SYSTEM_NAME MATCHES windows)
   list(APPEND SOURCES Sinks/AESinkWASAPI.cpp
-                      Sinks/AESinkXAudio.cpp
-                      Sinks/windows/AESinkFactoryWin.cpp
-                      Sinks/windows/AESinkFactoryWinRT.cpp)
+                      Sinks/windows/AESinkFactoryWin.cpp)
   list(APPEND HEADERS Sinks/AESinkWASAPI.h
-                      Sinks/AESinkXAudio.h
                       Sinks/windows/AESinkFactoryWin.h)
-
   if(CORE_SYSTEM_NAME STREQUAL windowsstore)
-    list(APPEND SOURCES Sinks/windows/AESinkFactoryWin10.cpp)
-  else()
+    list(APPEND SOURCES Sinks/AESinkXAudio.cpp
+                        Sinks/windows/AESinkFactoryWin10.cpp)
+    list(APPEND SOURCES Sinks/AESinkXAudio.h)
+  elseif(CORE_SYSTEM_NAME STREQUAL windows)
     list(APPEND SOURCES Sinks/AESinkDirectSound.cpp
                         Sinks/windows/AESinkFactoryWin32.cpp)
-    list(APPEND HEADERS Sinks/AESinkDirectSound.h)
+    list(APPEND SOURCES Sinks/AESinkDirectSound.h)
   endif()
 endif()
 
@@ -151,6 +151,11 @@ endif()
 if(CORE_SYSTEM_NAME STREQUAL android)
   list(APPEND SOURCES Sinks/AESinkAUDIOTRACK.cpp)
   list(APPEND HEADERS Sinks/AESinkAUDIOTRACK.h)
+endif()
+
+if("webos" IN_LIST CORE_PLATFORM_NAME_LC)
+  list(APPEND SOURCES Sinks/AESinkStarfish.cpp)
+  list(APPEND HEADERS Sinks/AESinkStarfish.h)
 endif()
 
 if(CORE_SYSTEM_NAME STREQUAL freebsd)

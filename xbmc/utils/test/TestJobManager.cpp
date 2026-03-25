@@ -7,9 +7,9 @@
  */
 
 #include "ServiceBroker.h"
-#include "jobs/Job.h"
-#include "jobs/JobManager.h"
 #include "test/MtTestUtils.h"
+#include "utils/Job.h"
+#include "utils/JobManager.h"
 #include "utils/XTimeUtils.h"
 
 #include <atomic>
@@ -137,7 +137,7 @@ public:
 
   void FinishAndStopBlocking()
   {
-    std::unique_lock lock(m_blockMutex);
+    std::lock_guard lock(m_blockMutex);
 
     m_finish = true;
     m_block.notifyAll();
@@ -151,13 +151,13 @@ public:
   bool DoWork() override
   {
     {
-      std::unique_lock lock(m_package.jobCreatedMutex);
+      std::lock_guard lock(m_package.jobCreatedMutex);
 
       m_package.ready = true;
       m_package.jobCreatedCond.notifyAll();
     }
 
-    std::unique_lock blockLock(m_blockMutex);
+    std::lock_guard blockLock(m_blockMutex);
 
     // Block until we're told to go away
     while (!m_finish)

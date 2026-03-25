@@ -51,6 +51,14 @@ void HevcClearStartCodeEmulationPrevention3Byte(const uint8_t* buf,
 class CHevcSei
 {
 public:
+  struct Metadata
+  {
+    std::optional<Hdr10PlusMetadata> hdr10Plus;
+    std::optional<MasteringDisplayColourVolume> masteringDisplayColourVolume;
+    std::optional<ContentLightLevel> contentLightLevel;
+    std::optional<uint8_t> alternativeTransferCharacteristics;
+  };
+
   CHevcSei() = default;
   ~CHevcSei() = default;
 
@@ -65,13 +73,12 @@ public:
   static std::vector<CHevcSei> ParseSeiRbsp(const uint8_t* buf, const size_t len);
 
   // Clears emulation prevention 3 bytes and fills in the passed buf
-  static std::vector<CHevcSei> ParseSeiRbspUnclearedEmulation(const uint8_t* inData,
-                                                              const size_t inDataLen,
-                                                              std::vector<uint8_t>& buf);
+  static std::vector<CHevcSei> ParseSeiRbspUnclearedEmulation(
+    const uint8_t* inData,
+    const size_t inDataLen,
+    std::vector<uint8_t>& buf);
 
-  // Returns a HDR10+ SEI message if present in the list
-  static std::optional<const CHevcSei*> FindHdr10PlusSeiMessage(
-      const std::vector<uint8_t>& buf, const std::vector<CHevcSei>& messages);
+  static Metadata ExtractMetadata(const uint8_t* inData, const size_t inDataLen);
 
   // Returns a pair with:
   //   1) a bool for whether or not the NALU SEI payload contains a HDR10+ SEI message.
@@ -81,19 +88,7 @@ public:
   static const std::vector<uint8_t> RemoveHdr10PlusFromSeiNalu(
       const uint8_t* inData, const size_t inDataLen);
 
-  static const std::optional<const Hdr10PlusMetadata> ExtractHdr10Plus(
-    const std::vector<CHevcSei>& messages,
-    const std::vector<uint8_t>& buf);
-
-  static const std::optional<MasteringDisplayColourVolume> ExtractMasteringDisplayColourVolume(
-    const std::vector<CHevcSei>& messages,
-    const std::vector<uint8_t>& buf);
-
-  static const std::optional<ContentLightLevel> ExtractContentLightLevel(
-    const std::vector<CHevcSei>& messages,
-    const std::vector<uint8_t>& buf);
-
-private:
+ private:
   // Parses single SEI message from the reader and pushes it to the list
   static int ParseSeiMessage(CBitstreamReader& br, std::vector<CHevcSei>& messages);
 

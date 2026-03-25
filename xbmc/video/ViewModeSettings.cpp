@@ -8,10 +8,8 @@
 
 #include "ViewModeSettings.h"
 
-#include "ServiceBroker.h"
 #include "cores/VideoSettings.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/lib/SettingDefinitions.h"
 
 struct ViewModeProperties
@@ -92,14 +90,13 @@ int CViewModeSettings::GetViewModeStringIndex(int viewMode)
  */
 void CViewModeSettings::ViewModesFiller(const std::shared_ptr<const CSetting>& setting,
                                         std::vector<IntegerSettingOption>& list,
-                                        int& current)
+                                        int& current,
+                                        void* data)
 {
   // Add all appropriate view modes to the list control
   for (const auto &item : viewModes)
   {
     if (!item.hideFromList)
-      list.emplace_back(
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(item.stringIndex),
-          item.viewMode);
+      list.emplace_back(g_localizeStrings.Get(item.stringIndex), item.viewMode);
   }
 }

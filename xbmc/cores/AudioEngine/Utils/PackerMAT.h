@@ -34,12 +34,19 @@ public:
 
   bool PackTrueHD(const uint8_t* data, int size);
   std::vector<uint8_t> GetOutputFrame();
-  int GetSamplesOffset() const { return m_lastOutputSamplesOffset; }
-  bool HadDiscontinuity() const { return m_lastOutputHadDiscontinuity; }
+  
+  //============================================================================
+  // LAV seamless branching support (conditionally enabled)
+  // These methods are only meaningful when m_lavStyleEnabled = true
+  // Developer: Wire m_lavStyleEnabled to your settings system
+  //============================================================================
+  int GetSamplesOffset() const { return m_lavStyleEnabled ? m_lastOutputSamplesOffset : 0; }
+  bool HadDiscontinuity() const { return m_lavStyleEnabled ? m_lastOutputHadDiscontinuity : false; }
   void Reset();
-
-  static const std::vector<uint8_t>& GenerateSilenceFrame();
-  static const std::vector<uint8_t>& GenerateIECSilenceBurst();
+  
+  // Toggle LAV seamless branching support
+  void SetLavStyleEnabled(bool enabled) { m_lavStyleEnabled = enabled; }
+  bool IsLavStyleEnabled() const { return m_lavStyleEnabled; }
 
 private:
   struct MATState
@@ -79,18 +86,19 @@ private:
   void AppendData(const uint8_t* data, int size, Type type);
   uint32_t GetCount() const { return m_bufferCount; }
   int FillDataBuffer(const uint8_t* data, int size, Type type);
-  void QueueOutputFrame(std::vector<uint8_t> frame, int samplesOffset, bool discontinuity);
-  void QueueSilenceFramesFromPadding();
   void FlushPacket();
   TrueHDMajorSyncInfo ParseTrueHDMajorSyncHeaders(const uint8_t* p, int buffsize) const;
 
   MATState m_state{};
-  int m_lastOutputSamplesOffset{0}; // samples offset returned by last GetOutputFrame() call
-  bool m_lastOutputHadDiscontinuity{false}; // discontinuity flag for last GetOutputFrame()
+  bool m_lavStyleEnabled{false}; // Toggle LAV seamless branching support (OFF by default)
+  int m_lastOutputSamplesOffset{0}; // samples offset returned by last GetOutputFrame() call (LAV only)
+  bool m_lastOutputHadDiscontinuity{false}; // discontinuity flag for last GetOutputFrame() (LAV only)
 
   uint32_t m_bufferCount{0};
   std::vector<uint8_t> m_buffer;
   std::deque<std::vector<uint8_t>> m_outputQueue;
+  
+  // LAV tracking (only used when m_lavStyleEnabled = true)
   std::deque<int> m_offsetQueue; // samples offset for each queued MAT frame
   std::deque<bool> m_discontinuityQueue; // discontinuity flag for each queued MAT frame
   bool m_pendingDiscontinuity{false}; // set when discontinuity detected, cleared when MAT flushed

@@ -22,7 +22,6 @@
 #include "input/mouse/MouseEvent.h"
 #include "input/mouse/MouseStat.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 using namespace GUILIB;
@@ -126,18 +125,14 @@ void CGUIControl::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyreg
   bool changed = (m_controlDirtyState & DIRTY_STATE_CONTROL) != 0 || (m_bInvalidated && IsVisible());
   m_controlDirtyState = 0;
 
-  // If the control has an active animation, mark it as dirty even if culled because the
-  // animation might change the alpha at a later time so processing needs to continue
-  const bool animated = Animate(currentTime);
+  if (Animate(currentTime))
+    MarkDirtyRegion();
 
+  // if the control changed culling state from true to false, mark it
   const bool culled = m_transform.alpha <= 0.01f;
-
-  // if the control changed culling state from true to false, mark it.
-  const bool cullingChanged = m_isCulled != culled;
-
-  if (cullingChanged || animated)
+  if (m_isCulled != culled)
   {
-    m_isCulled = false; // set to false so MarkDirtyRegion() isn't a no-op
+    m_isCulled = false;
     MarkDirtyRegion();
   }
   m_isCulled = culled;
@@ -212,7 +207,7 @@ void CGUIControl::DoRender()
 
     if (m_hitColor != 0xffffffff)
     {
-      KODI::UTILS::COLOR::Color color = gfxContext.MergeAlpha(m_hitColor);
+      UTILS::COLOR::Color color = gfxContext.MergeAlpha(m_hitColor);
       CGUITexture::DrawQuad(gfxContext.GenerateAABB(hitRect), color);
     }
 
@@ -528,7 +523,7 @@ void CGUIControl::SetActions(const ActionMap &actions)
 
 void CGUIControl::SetAction(int actionID, const CGUIAction &action, bool replace /*= true*/)
 {
-  ActionMap::iterator i = m_actions.find(actionID);
+  auto i = m_actions.find(actionID);
   if (i == m_actions.end() || !i->second.HasAnyActions() || replace)
     m_actions[actionID] = action;
 }
@@ -798,12 +793,12 @@ CAnimation *CGUIControl::GetAnimation(ANIMATION_TYPE type, bool checkConditions 
         return &anim;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 bool CGUIControl::HasAnimation(ANIMATION_TYPE type)
 {
-  return (NULL != GetAnimation(type, true));
+  return (nullptr != GetAnimation(type, true));
 }
 
 void CGUIControl::UpdateStates(ANIMATION_TYPE type, ANIMATION_PROCESS currentProcess, ANIMATION_STATE currentState)
@@ -920,7 +915,7 @@ bool CGUIControl::IsAnimating(ANIMATION_TYPE animType)
 
 CGUIAction CGUIControl::GetAction(int actionID) const
 {
-  ActionMap::const_iterator i = m_actions.find(actionID);
+  auto i = m_actions.find(actionID);
   if (i != m_actions.end())
     return i->second;
   return CGUIAction();
@@ -972,6 +967,7 @@ void CGUIControl::UpdateControlStats()
   }
 }
 
+
 bool CGUIControl::IsControlRenderable()
 {
   switch (ControlType)
@@ -990,7 +986,7 @@ bool CGUIControl::IsControlRenderable()
   }
 }
 
-void CGUIControl::SetHitRect(const CRect& rect, const KODI::UTILS::COLOR::Color& color)
+void CGUIControl::SetHitRect(const CRect& rect, const UTILS::COLOR::Color& color)
 {
   m_hitRect = rect;
   m_hitColor = color;

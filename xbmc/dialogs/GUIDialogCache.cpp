@@ -12,13 +12,11 @@
 #include "dialogs/GUIDialogProgress.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "threads/SystemClock.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 
@@ -90,7 +88,7 @@ void CGUIDialogCache::SetHeader(const std::string& strHeader)
 
 void CGUIDialogCache::SetHeader(int nHeader)
 {
-  SetHeader(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(nHeader));
+  SetHeader(g_localizeStrings.Get(nHeader));
 }
 
 void CGUIDialogCache::SetMessage(const std::string& strMessage)
@@ -133,7 +131,8 @@ void CGUIDialogCache::Process()
 
       try
       {
-        std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+        std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
         m_pDlg->Progress();
         if( bSentCancel )
         {
@@ -159,14 +158,12 @@ void CGUIDialogCache::Process()
   }
 }
 
-void CGUIDialogCache::ShowProgressBar(bool bOnOff)
-{
+void CGUIDialogCache::ShowProgressBar(bool bOnOff) const {
   if (m_pDlg)
     m_pDlg->ShowProgressBar(bOnOff);
 }
 
-void CGUIDialogCache::SetPercentage(int iPercentage)
-{
+void CGUIDialogCache::SetPercentage(int iPercentage) const {
   if (m_pDlg)
     m_pDlg->SetPercentage(iPercentage);
 }

@@ -10,7 +10,6 @@
 
 #include "GUIInfoManager.h"
 #include "SeekHandler.h"
-#include "ServiceBroker.h"
 #include "application/ApplicationComponents.h"
 #include "application/ApplicationPlayer.h"
 #include "guilib/GUIComponent.h"

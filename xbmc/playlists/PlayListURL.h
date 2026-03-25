@@ -10,9 +10,10 @@
 
 #include "PlayList.h"
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
-class CPlayListURL : public CPlayList
+class CPlayListURL :
+      public CPlayList
 {
 public:
   CPlayListURL(void);

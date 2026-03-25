@@ -50,7 +50,8 @@ AVPixelFormat ConvertToPixelFormat(const VIDEOCODEC_FORMAT videoFormat)
     case VIDEOCODEC_FORMAT_YUV444P12:
       return AV_PIX_FMT_YUV444P12;
     default:
-      CLog::LogF(LOGWARNING, "Video pixel format '{}' not valid, fallback to YUV420P.",
+      CLog::LogF(LOGWARNING,
+                 "CAddonVideoCodec: Video pixel format '{}' not valid, fallback to YUV420P.",
                  videoFormat);
       return AV_PIX_FMT_YUV420P;
   }
@@ -76,7 +77,8 @@ unsigned int GetColorBitsFromVideoFormat(const VIDEOCODEC_FORMAT videoFormat)
     case VIDEOCODEC_FORMAT_YUV444P12:
       return 12;
     default:
-      CLog::LogF(LOGWARNING, "Video pixel format '{}' not valid, fallback to 8 bits color.",
+      CLog::LogF(LOGWARNING,
+                 "CAddonVideoCodec: Video pixel format '{}' not valid, fallback to 8 bits color.",
                  videoFormat);
       return 8;
   }
@@ -418,8 +420,7 @@ void CAddonVideoCodec::Reset()
     m_ifc.videocodec->toAddon->reset(m_ifc.videocodec);
 }
 
-bool CAddonVideoCodec::GetFrameBuffer(VIDEOCODEC_PICTURE &picture)
-{
+bool CAddonVideoCodec::GetFrameBuffer(VIDEOCODEC_PICTURE &picture) const {
   CVideoBuffer *videoBuffer = m_processInfo.GetVideoBufferManager().Get(AV_PIX_FMT_YUV420P, picture.decodedDataSize, nullptr);
   if (!videoBuffer)
   {

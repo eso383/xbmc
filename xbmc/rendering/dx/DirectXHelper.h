@@ -22,7 +22,6 @@ enum PCI_Vendors
   PCIV_NVIDIA = 0x10DE,
   PCIV_Intel = 0x8086,
   PCIV_MICROSOFT = 0x1414,
-  PCIV_QUALCOMM = 0x4D4F4351
 };
 
 namespace DX
@@ -85,6 +84,16 @@ namespace DX
     *den = 1000 + i;
   }
 
+  inline std::string GetErrorDescription(HRESULT hr)
+  {
+    using namespace KODI::PLATFORM::WINDOWS;
+
+    WCHAR buff[2048];
+    DXGetErrorDescriptionW(hr, buff, 2048);
+
+    return FromW(StringUtils::Format(L"{:X} - {} ({})", hr, DXGetErrorStringW(hr), buff));
+  }
+
   inline std::string GetFeatureLevelDescription(D3D_FEATURE_LEVEL featureLevel)
   {
     uint32_t fl_major = (featureLevel & 0xF000u) >> 12;
@@ -105,8 +114,6 @@ namespace DX
         return "NVIDIA";
       case PCIV_MICROSOFT:
         return "Microsoft";
-      case PCIV_QUALCOMM:
-        return "Qualcomm";
       default:
         return "unknown";
     }
@@ -131,8 +138,8 @@ namespace DX
 
   template <typename T> struct SizeGen
   {
-    SizeGen<T>() = default;
-    SizeGen<T>(T width, T height) : Width(width), Height(height) {}
+    SizeGen<T>() { Width = Height = 0; }
+    SizeGen<T>(T width, T height) { Width = width; Height = height; }
 
     bool operator !=(const SizeGen<T> &size) const
     {
@@ -167,7 +174,7 @@ namespace DX
       return *this;
     };
 
-    T Width{0}, Height{0};
+    T Width, Height;
   };
 
 #if defined(_DEBUG)
@@ -195,4 +202,18 @@ namespace DX
   const std::string DXGIColorSpaceTypeToString(DXGI_COLOR_SPACE_TYPE type);
   const std::string D3D11VideoProcessorFormatSupportToString(
       D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT value);
-  } // namespace DX
+}
+
+#ifdef TARGET_WINDOWS_DESKTOP
+namespace winrt
+{
+  namespace Windows
+  {
+    namespace Foundation
+    {
+      typedef DX::SizeGen<float>  Size;
+      typedef DX::SizeGen<int>    SizeInt;
+    }
+  }
+}
+#endif

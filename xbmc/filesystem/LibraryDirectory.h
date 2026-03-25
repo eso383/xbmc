@@ -11,8 +11,6 @@
 #include "IDirectory.h"
 #include "utils/XBMCTinyXML.h"
 
-class TiXmlElement;
-
 namespace XFILE
 {
   class CLibraryDirectory : public IDirectory

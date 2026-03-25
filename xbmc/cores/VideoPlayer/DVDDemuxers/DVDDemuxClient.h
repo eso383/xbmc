@@ -32,7 +32,7 @@ public:
   void Abort() override;
   void Flush() override;
   DemuxPacket* Read() override;
-  bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override;
+  bool SeekTime(double time, bool backwards = false, double* startpts = nullptr) override;
   void SetSpeed(int iSpeed) override;
   void FillBuffer(bool mode) override;
   CDemuxStream* GetStream(int iStreamId) const override;
@@ -47,10 +47,10 @@ public:
 protected:
   void RequestStreams();
   void SetStreamProps(CDemuxStream *stream, std::map<int, std::shared_ptr<CDemuxStream>> &map, bool forceInit);
-  bool ParsePacket(DemuxPacket* pPacket);
+  bool ParsePacket(DemuxPacket* pPacket) const;
   void DisposeStreams();
   std::shared_ptr<CDemuxStream> GetStreamInternal(int iStreamId);
-  bool IsVideoReady();
+  bool IsVideoReady() const;
 
   std::shared_ptr<CDVDInputStream> m_pInput;
   std::shared_ptr<CDVDInputStream::IDemux> m_IDemux;

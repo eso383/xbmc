@@ -8,7 +8,6 @@
 
 #include "PackerMAT.h"
 
-#include "AEPackIEC61937.h"
 #include "utils/log.h"
 
 #include <array>
@@ -99,9 +98,10 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
   // Detect stream discontinuity via outputTiming mismatch (seamless branch points).
   // LAV Filters approach: detect discontinuity BEFORE padding calculation and
   // calculate proper padding carry-forward to prevent dropped frames.
+  // Only active when m_lavStyleEnabled = true.
   if (info.outputTimingPresent)
   {
-    if (m_state.outputTimingValid && (info.outputTiming != m_state.outputTiming))
+    if (m_lavStyleEnabled && m_state.outputTimingValid && (info.outputTiming != m_state.outputTiming))
     {
       CLog::Log(LOGDEBUG, "CPackerMAT::PackTrueHD: detected stream discontinuity "
                 "(seamless branch), expected outputTiming={}, actual={}",
@@ -131,7 +131,7 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
       CLog::Log(LOGDEBUG, "CPackerMAT::PackTrueHD: carrying forward {} padding (offset {} - {})",
                 m_state.padding, m_state.nOutputTimeOffset, currentFrameOutputOffset);
 
-      // Mark discontinuity to propagate to output (LAV-style discontinuity flag)
+      // Mark discontinuity to propagate to output (LAV discontinuity flag)
       m_pendingDiscontinuity = true;
     }
     m_state.outputTiming = info.outputTiming;
@@ -151,16 +151,33 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
 
   m_state.padding += static_cast<int32_t>(spaceSize - m_state.prevMatFramesize);
 
-  // LAV Filters has no overflow safety net - it trusts the early discontinuity detection.
-  // If padding goes negative, WritePadding() will simply skip (padding <= 0 check).
-  // If padding is excessively large, it will be consumed over multiple MAT frames.
-  // We only clamp negative padding to 0 to prevent issues in WritePadding loop.
-  if (m_state.padding < 0)
-    m_state.padding = 0;
+  if (m_lavStyleEnabled)
+  {
+    // LAV Filters has no overflow safety net - it trusts the early discontinuity detection.
+    // If padding goes negative, WritePadding() will simply skip (padding <= 0 check).
+    // If padding is excessively large, it will be consumed over multiple MAT frames.
+    // We only clamp negative padding to 0 to prevent issues in WritePadding loop.
+    if (m_state.padding < 0)
+      m_state.padding = 0;
+  }
+  else
+  {
+    // Baseline (non-LAV): detect seeks and re-initialize internal state
+    // i.e. skip stream until the next major sync frame
+    if (m_state.padding > MAT_BUFFER_SIZE * 5)
+    {
+      CLog::Log(LOGDEBUG, "CPackerMAT::PackTrueHD: seek detected, re-initializing MAT packer state");
+      m_state = {};
+      m_state.init = true;
+      m_buffer.clear();
+      m_bufferCount = 0;
+      return false;
+    }
+  }
 
   // LAV: Record the offset of frame time to output time, which is used to verify
   // the size of the padding on discontinuities
-  if (m_state.outputTimingValid)
+  if (m_lavStyleEnabled && m_state.outputTimingValid)
   {
     uint32_t prevOutput = static_cast<uint16_t>(m_state.outputTiming - frameSamples);
     if (prevOutput < frameTime) // wrap around, output is always in front of frame time
@@ -196,21 +213,12 @@ bool CPackerMAT::PackTrueHD(const uint8_t* data, int size)
     // Buffer is full, submit it
     if (GetCount() == MAT_BUFFER_SIZE)
     {
-      const bool bridgeLargeGap = m_pendingDiscontinuity && (m_state.padding >= MAT_BUFFER_SIZE);
-
       FlushPacket();
 
-      // If a branch discontinuity created a very large padding correction,
-      // bridge any whole MAT-frame-sized gap with explicit silence frames.
-      // This keeps the receiver seeing normal MAT bursts rather than one large
-      // synthetic intra-burst padding event.
-      if (bridgeLargeGap) QueueSilenceFramesFromPadding();
-
-      if (m_state.padding > 0) WriteHeader();
+      // and setup a new buffer
+      WriteHeader();
     }
   }
-
-  if (GetCount() == 0) WriteHeader();
 
   // count the number of samples in this frame
   m_state.samples += frameSamples;
@@ -252,26 +260,38 @@ std::vector<uint8_t> CPackerMAT::GetOutputFrame()
   std::vector<uint8_t> buffer = std::move(m_outputQueue.front());
   m_outputQueue.pop_front();
 
-  // Store the samples offset for this frame (caller can retrieve via GetSamplesOffset)
-  if (!m_offsetQueue.empty())
+  // LAV: Store the samples offset and discontinuity flag for this frame
+  // (caller can retrieve via GetSamplesOffset() and HadDiscontinuity())
+  // Only when m_lavStyleEnabled = true
+  if (m_lavStyleEnabled)
   {
-    m_lastOutputSamplesOffset = m_offsetQueue.front();
-    m_offsetQueue.pop_front();
-  }
-  else
-  {
-    m_lastOutputSamplesOffset = 0;
-  }
+    if (!m_offsetQueue.empty())
+    {
+      m_lastOutputSamplesOffset = m_offsetQueue.front();
+      m_offsetQueue.pop_front();
+    }
+    else
+    {
+      m_lastOutputSamplesOffset = 0;
+    }
 
-  // Store the discontinuity flag for this frame (caller can retrieve via HadDiscontinuity)
-  if (!m_discontinuityQueue.empty())
-  {
-    m_lastOutputHadDiscontinuity = m_discontinuityQueue.front();
-    m_discontinuityQueue.pop_front();
+    if (!m_discontinuityQueue.empty())
+    {
+      m_lastOutputHadDiscontinuity = m_discontinuityQueue.front();
+      m_discontinuityQueue.pop_front();
+    }
+    else
+    {
+      m_lastOutputHadDiscontinuity = false;
+    }
   }
   else
   {
+    // Standard mode: Clear any queued tracking data and return defaults
+    m_lastOutputSamplesOffset = 0;
     m_lastOutputHadDiscontinuity = false;
+    m_offsetQueue.clear();
+    m_discontinuityQueue.clear();
   }
 
   return buffer;
@@ -416,52 +436,28 @@ void CPackerMAT::FlushPacket()
   const uint16_t frameSamples = 40 << (m_state.ratebits & 7);
   const uint32_t MATSamples = (frameSamples * 24);
 
-  // push MAT packet to output queue along with current samples offset and discontinuity flag
+  // push MAT packet to output queue
+  m_outputQueue.emplace_back(std::move(m_buffer));
+  
+  // LAV: also queue samples offset and discontinuity flag
   // (like LAV Filters, the offset is captured BEFORE updating, so it applies to this frame)
-  QueueOutputFrame(std::move(m_buffer), m_state.numberOfSamplesOffset, m_pendingDiscontinuity);
-  m_pendingDiscontinuity = false; // Clear after queuing
+  if (m_lavStyleEnabled)
+  {
+    m_offsetQueue.push_back(m_state.numberOfSamplesOffset);
+    m_discontinuityQueue.push_back(m_pendingDiscontinuity);
+    m_pendingDiscontinuity = false; // Clear after queuing
 
-  // we expect 24 frames per MAT frame, so calculate an offset from that
-  // this is done after delivery, because it modifies the duration of the frame,
-  //  eg. the start of the next frame
-  if (MATSamples != m_state.samples)
-    m_state.numberOfSamplesOffset += static_cast<int32_t>(m_state.samples) - static_cast<int32_t>(MATSamples);
+    // we expect 24 frames per MAT frame, so calculate an offset from that
+    // this is done after delivery, because it modifies the duration of the frame,
+    //  eg. the start of the next frame
+    if (MATSamples != m_state.samples)
+      m_state.numberOfSamplesOffset += static_cast<int32_t>(m_state.samples) - static_cast<int32_t>(MATSamples);
+  }
 
   m_state.samples = 0;
 
   m_buffer.clear();
   m_bufferCount = 0;
-}
-
-void CPackerMAT::QueueOutputFrame(std::vector<uint8_t> frame,
-                                  int samplesOffset,
-                                  bool discontinuity)
-{
-  m_outputQueue.emplace_back(std::move(frame));
-  m_offsetQueue.push_back(samplesOffset);
-  m_discontinuityQueue.push_back(discontinuity);
-}
-
-void CPackerMAT::QueueSilenceFramesFromPadding()
-{
-  if (m_state.padding < MAT_BUFFER_SIZE) return;
-
-  const int32_t paddingBefore = m_state.padding;
-  const int silenceFrames = m_state.padding / static_cast<int32_t>(MAT_BUFFER_SIZE);
-  const int32_t residualPadding = paddingBefore - silenceFrames * static_cast<int32_t>(MAT_BUFFER_SIZE);
-
-  logM(LOGDEBUG, "large branch padding gap: total=[{}] bytes, bridging with [{}] full MAT silence "
-                 "frame(s), residual=[{}] bytes",
-                 paddingBefore, silenceFrames, residualPadding);
-
-  for (int i = 0; i < silenceFrames; ++i)
-  {
-    // The branch discontinuity has already been attached to the flushed frame
-    // that led into this gap. These inserted silence frames are only transport
-    // bridge frames and should not surface as additional discontinuity events.
-    QueueOutputFrame(GenerateSilenceFrame(), 0, false);
-    m_state.padding -= MAT_BUFFER_SIZE;
-  }
 }
 
 TrueHDMajorSyncInfo CPackerMAT::ParseTrueHDMajorSyncHeaders(const uint8_t* p, int buffsize) const
@@ -537,57 +533,4 @@ TrueHDMajorSyncInfo CPackerMAT::ParseTrueHDMajorSyncHeaders(const uint8_t* p, in
   }
 
   return info;
-}
-
-const std::vector<uint8_t>& CPackerMAT::GenerateSilenceFrame()
-{
-  static const std::vector<uint8_t> frame = []()
-  {
-    // Generate a properly formatted empty MAT frame (61440 bytes).
-    // This contains the MAT start code, middle code, and end code at their
-    // required positions, with zero-padded audio data throughout.
-    //
-    // By sending a proper MAT frame structure (which gets wrapped
-    // as IEC 61937 type 0x16), the receiver sees a continuous TrueHD stream.
-    //
-    // Layout:
-    //   [0..7]         : Reserved for IEC burst header (zeros, filled by IEC packer)
-    //   [8..27]        : MAT start code (20 bytes)
-    //   [28..30715]    : Zero padding
-    //   [30716..30727] : MAT middle code (12 bytes)
-    //   [30728..61415] : Zero padding
-    //   [61416..61439] : MAT end code (24 bytes)
-
-    std::vector<uint8_t> cachedFrame(MAT_BUFFER_SIZE, 0);
-
-    // Write MAT start code at position BURST_HEADER_SIZE (8)
-    memcpy(cachedFrame.data() + BURST_HEADER_SIZE, mat_start_code.data(), mat_start_code.size());
-
-    // Write MAT middle code at position MAT_POS_MIDDLE (30716)
-    memcpy(cachedFrame.data() + MAT_POS_MIDDLE, mat_middle_code.data(), mat_middle_code.size());
-
-    // Write MAT end code at position MAT_BUFFER_LIMIT (61416)
-    memcpy(cachedFrame.data() + MAT_BUFFER_LIMIT, mat_end_code.data(), mat_end_code.size());
-
-    return cachedFrame;
-  }();
-
-  return frame;
-}
-
-const std::vector<uint8_t>& CPackerMAT::GenerateIECSilenceBurst()
-{
-  static const std::vector<uint8_t> iecBurst = []()
-  {
-    std::vector<uint8_t> cachedBurst(MAT_BUFFER_SIZE);
-
-    constexpr unsigned int iecDataOffset = 8;
-    const std::vector<uint8_t>& matFrame = GenerateSilenceFrame();
-    CAEPackIEC61937::PackTrueHD(matFrame.data() + iecDataOffset,
-                                static_cast<unsigned int>(matFrame.size()) - iecDataOffset,
-                                cachedBurst.data());
-    return cachedBurst;
-  }();
-
-  return iecBurst;
 }

@@ -58,7 +58,7 @@ CFileItemPtr CGUIDialogPeripherals::GetItem(unsigned int pos) const
 {
   CFileItemPtr item;
 
-  std::unique_lock lock(m_peripheralsMutex);
+  std::lock_guard lock(m_peripheralsMutex);
 
   if (static_cast<int>(pos) < m_peripherals.Size())
     item = m_peripherals[pos];
@@ -167,8 +167,7 @@ void CGUIDialogPeripherals::Notify(const Observable& obs, const ObservableMessag
   }
 }
 
-void CGUIDialogPeripherals::UpdatePeripheralsAsync()
-{
+void CGUIDialogPeripherals::UpdatePeripheralsAsync() const {
   CGUIMessage msg(GUI_MSG_REFRESH_LIST, GetID(), -1);
   CServiceBroker::GetAppMessenger()->SendGUIMessage(msg);
 }
@@ -177,7 +176,7 @@ void CGUIDialogPeripherals::UpdatePeripheralsSync()
 {
   int iPos = GetSelectedItem();
 
-  std::unique_lock lock(m_peripheralsMutex);
+  std::lock_guard lock(m_peripheralsMutex);
 
   CFileItemPtr selectedItem;
   if (iPos > 0)

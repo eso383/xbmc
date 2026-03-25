@@ -23,6 +23,8 @@ class IAddon;
 using AddonPtr = std::shared_ptr<IAddon>;
 using VECADDONS = std::vector<AddonPtr>;
 
+struct AddonEvent;
+
 class CBinaryAddonCache
 {
 public:
@@ -34,8 +36,9 @@ public:
   void GetInstalledAddons(VECADDONS& addons, AddonType type);
   AddonPtr GetAddonInstance(const std::string& strId, AddonType type);
 
-private:
+protected:
   void Update();
+  void OnEvent(const AddonEvent& event);
 
   CCriticalSection m_critSection;
   std::multimap<AddonType, VECADDONS> m_addons;

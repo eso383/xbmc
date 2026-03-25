@@ -37,7 +37,7 @@ public:
   void Pause();
   void Resume();
   bool Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler);
-  bool IsValidFormat(const DVDAudioFrame &audioframe);
+  bool IsValidFormat(const DVDAudioFrame &audioframe) const;
   void Destroy(bool finish);
   unsigned int AddPackets(const DVDAudioFrame &audioframe);
   double GetPlayingPts();
@@ -45,13 +45,13 @@ public:
   double GetCacheTotal(); // returns total time a stream can buffer
   double GetMaxDelay(); // returns total time of audio in AE for the stream
   double GetDelay(); // returns the time it takes to play a packet if we add one at this time
-  double GetSyncError();
+  double GetSyncError() const;
   void SetSyncErrorCorrection(double correction);
 
   /*!
    * \brief Returns the resample ratio, or 0.0 if unknown/invalid
    */
-  double GetResampleRatio();
+  double GetResampleRatio() const;
 
   void SetResampleMode(int mode);
   void Flush();
@@ -71,6 +71,7 @@ protected:
   unsigned int m_syncErrorTime;
   double m_resampleRatio = 0.0; // invalid
   CCriticalSection m_critSection;
+  unsigned int m_addPacketUnlockTime;
 
   AEDataFormat m_dataFormat;
   unsigned int m_sampleRate;

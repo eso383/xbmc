@@ -9,14 +9,12 @@
 #include "PVRGUIActionsUtils.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
+#include "filesystem/Directory.h"
 #include "pvr/PVRManager.h"
 #include "pvr/channels/PVRChannelGroupsContainer.h"
-#include "pvr/filesystem/PVRGUIDirectory.h"
 #include "pvr/guilib/PVRGUIActionsEPG.h"
 #include "pvr/guilib/PVRGUIActionsRecordings.h"
-#include "pvr/recordings/PVRRecordings.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
@@ -28,7 +26,7 @@ bool CPVRGUIActionsUtils::HasInfoForItem(const CFileItem& item) const
          item.HasPVRTimerInfoTag() || item.HasEPGSearchFilter();
 }
 
-bool CPVRGUIActionsUtils::OnInfo(const CFileItem& item) const
+bool CPVRGUIActionsUtils::OnInfo(const CFileItem& item)
 {
   if (item.HasPVRRecordingInfoTag())
   {
@@ -55,19 +53,17 @@ std::shared_ptr<CFileItem> LoadRecordingFileOrFolderItem(const CFileItem& item)
     if (item.HasPVRRecordingInfoTag() || item.HasProperty("watchedepisodes"))
       return std::make_shared<CFileItem>(item); // already loaded
 
-    if (item.IsFolder())
+    const std::string parentPath{URIUtils::GetParentPath(item.GetPath())};
+
+    //! @todo optimize, find a way to set the details of the item without loading parent directory.
+    CFileItemList items;
+    if (XFILE::CDirectory::GetDirectory(parentPath, items, "", XFILE::DIR_FLAG_DEFAULTS))
     {
-      CFileItem loadedItem{item};
-      if (CPVRGUIDirectory::GetRecordingsDirectoryInfo(loadedItem))
-        return std::make_shared<CFileItem>(loadedItem);
-    }
-    else
-    {
-      // recording without info tag; find by path
-      const std::shared_ptr<CPVRRecording> recording{
-          CServiceBroker::GetPVRManager().Recordings()->GetByPath(item.GetPath())};
-      if (recording)
-        return std::make_shared<CFileItem>(recording);
+      const std::string& path{item.GetPath()};
+      const auto it = std::find_if(items.cbegin(), items.cend(),
+                                   [&path](const auto& entry) { return entry->GetPath() == path; });
+      if (it != items.cend())
+        return *it;
     }
   }
   return {};
@@ -90,7 +86,7 @@ std::shared_ptr<CFileItem> LoadChannelItem(const CFileItem& item)
 }
 } // unnamed namespace
 
-std::shared_ptr<CFileItem> CPVRGUIActionsUtils::LoadItem(const CFileItem& item) const
+std::shared_ptr<CFileItem> CPVRGUIActionsUtils::LoadItem(const CFileItem& item)
 {
   std::shared_ptr<CFileItem> loadedItem{LoadRecordingFileOrFolderItem(item)};
   if (loadedItem)

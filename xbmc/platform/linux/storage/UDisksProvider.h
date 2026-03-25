@@ -54,12 +54,12 @@ public:
   /*! \brief Get the device display name/label
     * @return the device display name/label
   */
-  const std::string& GetDisplayName() const { return m_Label; }
+  std::string GetDisplayName() const;
 
   /*! \brief Get the device mount point
     * @return the device mount point
   */
-  const std::string& GetMountPoint() const { return m_MountPath; }
+  std::string GetMountPoint() const;
 
   /*! \brief Get a representation of the device as a readable string
     * @return device as a string
@@ -101,14 +101,8 @@ public:
   void Initialize() override;
   void Stop() override { }
 
-  void GetLocalDrives(std::vector<CMediaSource>& localDrives) override
-  {
-    GetDisks(localDrives, false);
-  }
-  void GetRemovableDrives(std::vector<CMediaSource>& removableDrives) override
-  {
-    GetDisks(removableDrives, true);
-  }
+  void GetLocalDrives(VECSOURCES &localDrives) override { GetDisks(localDrives, false); }
+  void GetRemovableDrives(VECSOURCES &removableDrives) override { GetDisks(removableDrives, true); }
 
   bool Eject(const std::string& mountpath) override;
 
@@ -127,7 +121,7 @@ private:
 
   std::vector<std::string> EnumerateDisks();
 
-  void GetDisks(std::vector<CMediaSource>& devices, bool EnumerateRemovable);
+  void GetDisks(VECSOURCES& devices, bool EnumerateRemovable) const;
 
   int m_DaemonVersion;
 

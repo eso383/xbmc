@@ -65,31 +65,31 @@ void CJSONRPC::Initialize()
   CJSONServiceDescription::AddEnum("List.Filter.Operators", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("movies", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("movies", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.Movies", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("tvshows", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("tvshows", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.TVShows", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("episodes", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("episodes", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.Episodes", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("musicvideos", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("musicvideos", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.MusicVideos", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("artists", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("artists", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.Artists", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("albums", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("albums", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.Albums", smartplaylistList);
 
   smartplaylistList.clear();
-  PLAYLIST::CSmartPlaylist::GetAvailableFields("songs", smartplaylistList);
+  CSmartPlaylist::GetAvailableFields("songs", smartplaylistList);
   CJSONServiceDescription::AddEnum("List.Filter.Fields.Songs", smartplaylistList);
 
   smartplaylistList.clear();
@@ -138,15 +138,15 @@ JSONRPC_STATUS CJSONRPC::Version(const std::string &method, ITransportLayer *tra
   result["version"]["patch"] = 0;
 
   const char* version = CJSONServiceDescription::GetVersion();
-  if (version != NULL)
+  if (version != nullptr)
   {
     std::vector<std::string> parts = StringUtils::Split(version, ".");
     if (!parts.empty())
-      result["version"]["major"] = (int)strtol(parts[0].c_str(), NULL, 10);
+      result["version"]["major"] = (int)strtol(parts[0].c_str(), nullptr, 10);
     if (parts.size() > 1)
-      result["version"]["minor"] = (int)strtol(parts[1].c_str(), NULL, 10);
+      result["version"]["minor"] = (int)strtol(parts[1].c_str(), nullptr, 10);
     if (parts.size() > 2)
-      result["version"]["patch"] = (int)strtol(parts[2].c_str(), NULL, 10);
+      result["version"]["patch"] = (int)strtol(parts[2].c_str(), nullptr, 10);
   }
 
   return OK;
@@ -250,7 +250,7 @@ std::string CJSONRPC::MethodCall(const std::string &inputString, ITransportLayer
   {
     if (inputroot.isArray())
     {
-      if (inputroot.empty())
+      if (inputroot.size() <= 0)
       {
         CLog::Log(LOGERROR, "JSONRPC: Empty batch call");
         BuildResponse(inputroot, InvalidRequest, CVariant(), outputroot);
@@ -387,7 +387,8 @@ void CJSONRPCUtils::NotifyItemUpdated(const std::shared_ptr<CFileItem>& item)
   wm.SendThreadMessage(message);
 }
 
-void CJSONRPCUtils::NotifyItemUpdated(const CVideoInfoTag& info, const KODI::ART::Artwork& artwork)
+void CJSONRPCUtils::NotifyItemUpdated(const CVideoInfoTag& info,
+                                      const std::map<std::string, std::string>& artwork)
 {
   CFileItemPtr msgItem(new CFileItem(info));
   if (!artwork.empty())

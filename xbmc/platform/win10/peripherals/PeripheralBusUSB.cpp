@@ -40,14 +40,16 @@ bool CPeripheralBusUSB::PerformDeviceScan(PeripheralScanResults &results)
 
 bool CPeripheralBusUSB::PerformDeviceScan(const GUID *guid, const PeripheralType defaultType, PeripheralScanResults &results)
 {
-  CLog::LogF(LOGDEBUG, "is not implemented");
+  bool bReturn(false);
 
-  return false;
+  CLog::Log(LOGDEBUG, "{} is not implemented", __FUNCTION__);
+
+  return bReturn;
 }
 
 bool GetProductAndVendorId(const PeripheralType type, const std::string &strDeviceLocation, int *iVendorId, int *iProductId)
 {
-  CLog::LogF(LOGDEBUG, "is not implemented");
+  CLog::Log(LOGDEBUG, "{} is not implemented", __FUNCTION__);
 
   return false;
 }

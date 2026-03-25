@@ -25,7 +25,6 @@
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "windowing/GraphicContext.h" //! @todo Remove me
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 using namespace KODI::GUILIB;

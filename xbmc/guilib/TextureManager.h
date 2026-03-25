@@ -10,7 +10,6 @@
 
 #include "GUIComponent.h"
 #include "TextureBundle.h"
-#include "TextureScaling.h"
 #include "threads/CriticalSection.h"
 
 #include <chrono>
@@ -43,8 +42,6 @@ public:
   void Free();
   unsigned int size() const;
 
-  void SetScalingMethod(TEXTURE_SCALING scalingMethod);
-
   std::vector<std::shared_ptr<CTexture>> m_textures;
   std::vector<int> m_delays;
   int m_width;
@@ -54,7 +51,6 @@ public:
   int m_texWidth;
   int m_texHeight;
   bool m_texCoordsArePixels;
-  TEXTURE_SCALING m_scalingMethod{TEXTURE_SCALING::UNKNOWN};
 };
 
 /*!
@@ -104,7 +100,7 @@ public:
   CGUITextureManager(void);
   virtual ~CGUITextureManager(void);
 
-  bool HasTexture(const std::string &textureName, std::string *path = NULL, int *bundle = NULL, int *size = NULL);
+  bool HasTexture(const std::string &textureName, std::string *path = nullptr, int *bundle = nullptr, int *size = nullptr);
   static bool CanLoad(const std::string &texturePath); ///< Returns true if the texture manager can load this texture
   const CTextureArray& Load(const std::string& strTextureName, bool checkBundleOnly = false);
   void ReleaseTexture(const std::string& strTextureName, bool immediately = false);

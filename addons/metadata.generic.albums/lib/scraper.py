@@ -375,8 +375,7 @@ class Scraper():
             for thumblist in thumbs:
                 for item in thumblist:
                     thumbnails.append(item)
-            # extra art from most accurate sources first
-            extras.reverse()
+            # the order for extra art does not matter
             extraart = []
             for extralist in extras:
                 for item in extralist:

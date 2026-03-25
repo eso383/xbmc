@@ -8,15 +8,13 @@
 
 #pragma once
 
-#include "LockMode.h"
+#include "LockType.h"
 #include "SettingsLock.h"
 
 #include <string>
+#include <vector>
 
 class TiXmlNode;
-
-constexpr int INVALID_PROFILE_ID = -1;
-constexpr int MASTER_PROFILE_ID = 0; // id of the master profile
 
 class CProfile
 {
@@ -26,13 +24,13 @@ public:
   class CLock
   {
   public:
-    CLock(LockMode type = LockMode::EVERYONE, const std::string& password = "");
+    CLock(LockType type = LOCK_MODE_EVERYONE, const std::string &password = "");
     void Validate();
 
-    LockMode mode;
+    LockType mode;
     std::string code;
     bool addonManager;
-    SettingsLock settings = SettingsLock::NONE;
+    LOCK_LEVEL::SETTINGS_LOCK settings;
     bool music;
     bool video;
     bool files;
@@ -41,9 +39,7 @@ public:
     bool games;
   };
 
-  explicit CProfile(const std::string& directory = "",
-                    const std::string& name = "",
-                    const int id = INVALID_PROFILE_ID);
+  CProfile(const std::string &directory = "", const std::string &name = "", const int id = -1);
   ~CProfile(void);
 
   void Load(const TiXmlNode *node, int nextIdProfile);
@@ -55,7 +51,7 @@ public:
   const std::string& getDirectory() const { return m_directory;}
   const std::string& getThumb() const { return m_thumb;}
   const std::string& getLockCode() const { return m_locks.code;}
-  LockMode getLockMode() const { return m_locks.mode; }
+  LockType getLockMode() const { return m_locks.mode; }
 
   bool hasDatabases() const { return m_bDatabases; }
   bool canWriteDatabases() const { return m_bCanWrite; }
@@ -66,7 +62,7 @@ public:
    \brief Returns which settings levels are locked for the current profile
    \sa LOCK_LEVEL::SETTINGS_LOCK
    */
-  SettingsLock settingsLockLevel() const { return m_locks.settings; }
+  LOCK_LEVEL::SETTINGS_LOCK settingsLockLevel() const { return m_locks.settings; }
   bool addonmanagerLocked() const { return m_locks.addonManager; }
   bool musicLocked() const { return m_locks.music; }
   bool videoLocked() const { return m_locks.video; }

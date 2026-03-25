@@ -28,7 +28,8 @@
 
 using namespace PVR;
 
-CPVREpgSearchFilter::CPVREpgSearchFilter(bool bRadio) : m_bIsRadio(bRadio)
+CPVREpgSearchFilter::CPVREpgSearchFilter(bool bRadio)
+: m_bIsRadio(bRadio)
 {
   Reset();
 }
@@ -44,7 +45,7 @@ void CPVREpgSearchFilter::Reset()
   m_bRemoveDuplicates = false;
 
   /* pvr specific filters */
-  m_iClientID = PVR_CLIENT_INVALID_UID;
+  m_iClientID = -1;
   m_iChannelGroupID = -1;
   m_iChannelUID = -1;
   m_bFreeToAirOnly = false;
@@ -58,10 +59,10 @@ void CPVREpgSearchFilter::Reset()
 
 std::string CPVREpgSearchFilter::GetPath() const
 {
-  return CPVREpgSearchPath(*this).AsString();
+  return CPVREpgSearchPath(*this).GetPath();
 }
 
-void CPVREpgSearchFilter::SetSearchTerm(std::string_view strSearchTerm)
+void CPVREpgSearchFilter::SetSearchTerm(const std::string& strSearchTerm)
 {
   if (m_searchData.m_strSearchTerm != strSearchTerm)
   {
@@ -148,29 +149,11 @@ void CPVREpgSearchFilter::SetStartDateTime(const CDateTime& startDateTime)
   }
 }
 
-void CPVREpgSearchFilter::SetStartAnyTime(bool startAnyTime)
-{
-  if (m_searchData.m_startAnyTime != startAnyTime)
-  {
-    m_searchData.m_startAnyTime = startAnyTime;
-    m_bChanged = true;
-  }
-}
-
 void CPVREpgSearchFilter::SetEndDateTime(const CDateTime& endDateTime)
 {
   if (m_searchData.m_endDateTime != endDateTime)
   {
     m_searchData.m_endDateTime = endDateTime;
-    m_bChanged = true;
-  }
-}
-
-void CPVREpgSearchFilter::SetEndAnyTime(bool endAnyTime)
-{
-  if (m_searchData.m_endAnyTime != endAnyTime)
-  {
-    m_searchData.m_endAnyTime = endAnyTime;
     m_bChanged = true;
   }
 }
@@ -256,20 +239,11 @@ void CPVREpgSearchFilter::SetDatabaseId(int iDatabaseId)
   }
 }
 
-void CPVREpgSearchFilter::SetTitle(std::string_view title)
+void CPVREpgSearchFilter::SetTitle(const std::string& title)
 {
   if (m_title != title)
   {
     m_title = title;
-    m_bChanged = true;
-  }
-}
-
-void CPVREpgSearchFilter::SetIconPath(std::string_view iconPath)
-{
-  if (m_iconPath != iconPath)
-  {
-    m_iconPath = iconPath;
     m_bChanged = true;
   }
 }
@@ -310,10 +284,10 @@ bool CPVREpgSearchFilter::MatchDuration(const std::shared_ptr<const CPVREpgInfoT
   bool bReturn(true);
 
   if (m_iMinimumDuration != EPG_SEARCH_UNSET)
-    bReturn = (tag->GetDuration() > static_cast<unsigned int>(m_iMinimumDuration) * 60);
+    bReturn = (tag->GetDuration() > m_iMinimumDuration * 60);
 
   if (bReturn && m_iMaximumDuration != EPG_SEARCH_UNSET)
-    bReturn = (tag->GetDuration() < static_cast<unsigned int>(m_iMaximumDuration) * 60);
+    bReturn = (tag->GetDuration() < m_iMaximumDuration * 60);
 
   return bReturn;
 }
@@ -362,27 +336,22 @@ bool CPVREpgSearchFilter::FilterEntry(const std::shared_ptr<const CPVREpgInfoTag
 
 void CPVREpgSearchFilter::RemoveDuplicates(std::vector<std::shared_ptr<CPVREpgInfoTag>>& results)
 {
-  for (auto it = results.begin(); it != results.end(); ++it)
+  for (auto it = results.begin(); it != results.end();)
   {
-    auto next{std::next(it)};
-    if (next != results.end())
-    {
-      results.erase(std::remove_if(next, results.end(),
-                                   [&it](const std::shared_ptr<const CPVREpgInfoTag>& entry)
-                                   {
-                                     return (*it)->Title() == entry->Title() &&
-                                            (*it)->Plot() == entry->Plot() &&
-                                            (*it)->PlotOutline() == entry->PlotOutline();
-                                   }),
-                    results.end());
-    }
+    it = results.erase(std::remove_if(results.begin(), results.end(),
+                                      [&it](const std::shared_ptr<const CPVREpgInfoTag>& entry) {
+                                        return *it != entry && (*it)->Title() == entry->Title() &&
+                                               (*it)->Plot() == entry->Plot() &&
+                                               (*it)->PlotOutline() == entry->PlotOutline();
+                                      }),
+                       results.end());
   }
 }
 
 bool CPVREpgSearchFilter::MatchChannel(const std::shared_ptr<const CPVREpgInfoTag>& tag) const
 {
   return tag && (tag->IsRadio() == m_bIsRadio) &&
-         (m_iClientID == PVR_CLIENT_INVALID_UID || tag->ClientID() == m_iClientID) &&
+         (m_iClientID == -1 || tag->ClientID() == m_iClientID) &&
          (m_iChannelUID == -1 || tag->UniqueChannelID() == m_iChannelUID) &&
          CServiceBroker::GetPVRManager().Clients()->IsCreatedClient(tag->ClientID());
 }
@@ -418,12 +387,10 @@ bool CPVREpgSearchFilter::MatchFreeToAir(const std::shared_ptr<const CPVREpgInfo
 
 bool CPVREpgSearchFilter::MatchTimers(const std::shared_ptr<const CPVREpgInfoTag>& tag) const
 {
-  return (!m_bIgnorePresentTimers ||
-          !CServiceBroker::GetPVRManager().Timers()->GetTimerForEpgTag(tag));
+  return (!m_bIgnorePresentTimers || !CServiceBroker::GetPVRManager().Timers()->GetTimerForEpgTag(tag));
 }
 
 bool CPVREpgSearchFilter::MatchRecordings(const std::shared_ptr<const CPVREpgInfoTag>& tag) const
 {
-  return (!m_bIgnorePresentRecordings ||
-          !CServiceBroker::GetPVRManager().Recordings()->GetRecordingForEpgTag(tag));
+  return (!m_bIgnorePresentRecordings || !CServiceBroker::GetPVRManager().Recordings()->GetRecordingForEpgTag(tag));
 }

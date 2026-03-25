@@ -10,11 +10,10 @@
 
 #include "ServiceBroker.h"
 #include "addons/Skin.h"
-#include "guilib/GUIComponent.h"
+#include "filesystem/File.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/guiinfo/GUIInfo.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/SkinSettings.h"
@@ -23,16 +22,12 @@
 
 using namespace KODI::GUILIB::GUIINFO;
 
-bool CSkinGUIInfo::InitCurrentItem(CFileItem* item)
+bool CSkinGUIInfo::InitCurrentItem(CFileItem *item)
 {
   return false;
 }
 
-bool CSkinGUIInfo::GetLabel(std::string& value,
-                            const CFileItem* item,
-                            int contextWindow,
-                            const CGUIInfo& info,
-                            std::string* fallback) const
+bool CSkinGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
   const auto settingsComponent = CServiceBroker::GetSettingsComponent();
   const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
@@ -47,7 +42,7 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
       bool bInfo = CSkinSettings::GetInstance().GetBool(info.GetData1());
       if (bInfo)
       {
-        value = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20122); // True
+        value = g_localizeStrings.Get(20122); // True
         return true;
       }
       break;
@@ -73,10 +68,9 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
     }
     case SKIN_ASPECT_RATIO:
     {
-      auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-      if (skin)
+      if (g_SkinInfo)
       {
-        value = skin->GetCurrentAspect();
+        value = g_SkinInfo->GetCurrentAspect();
         return true;
       }
       break;
@@ -90,23 +84,17 @@ bool CSkinGUIInfo::GetLabel(std::string& value,
     }
     case SKIN_TIMER_ELAPSEDSECS:
     {
-      auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-      value = std::to_string(skin ? skin->GetTimerElapsedSeconds(info.GetData3()) : 0.0f);
+      value = std::to_string(g_SkinInfo->GetTimerElapsedSeconds(info.GetData3()));
       return true;
     }
-    default:
-      break;
   }
 
   return false;
 }
 
-bool CSkinGUIInfo::GetInt(int& value,
-                          const CGUIListItem* gitem,
-                          int contextWindow,
-                          const CGUIInfo& info) const
+bool CSkinGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     case SKIN_INTEGER:
     {
@@ -115,20 +103,14 @@ bool CSkinGUIInfo::GetInt(int& value,
     }
     case SKIN_TIMER_ELAPSEDSECS:
     {
-      auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-      value = skin ? skin->GetTimerElapsedSeconds(info.GetData3()) : 0;
+      value = g_SkinInfo->GetTimerElapsedSeconds(info.GetData3());
       return true;
     }
-    default:
-      break;
   }
   return false;
 }
 
-bool CSkinGUIInfo::GetBool(bool& value,
-                           const CGUIListItem* gitem,
-                           int contextWindow,
-                           const CGUIInfo& info) const
+bool SkinHasFile(std::string filePath)
 {
   const auto settingsComponent = CServiceBroker::GetSettingsComponent();
   const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
@@ -145,8 +127,7 @@ bool CSkinGUIInfo::GetBool(bool& value,
     }
     case SKIN_STRING_IS_EQUAL:
     {
-      value = StringUtils::EqualsNoCase(CSkinSettings::GetInstance().GetString(info.GetData1()),
-                                        info.GetData3());
+      value = StringUtils::EqualsNoCase(CSkinSettings::GetInstance().GetString(info.GetData1()), info.GetData3());
       return true;
     }
     case SKIN_STRING:
@@ -165,12 +146,14 @@ bool CSkinGUIInfo::GetBool(bool& value,
     }
     case SKIN_TIMER_IS_RUNNING:
     {
-      auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-      value = skin ? skin->TimerIsRunning(info.GetData3()) : false;
+      value = g_SkinInfo->TimerIsRunning(info.GetData3());
       return true;
     }
-    default:
-      break;
+    case SKIN_HAS_FILE:
+    {
+      value = SkinHasFile(info.GetData3());
+      return true;
+    }
   }
 
   return false;

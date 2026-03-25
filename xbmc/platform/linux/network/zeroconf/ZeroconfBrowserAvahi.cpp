@@ -76,11 +76,11 @@ CZeroconfBrowserAvahi::~CZeroconfBrowserAvahi()
 bool CZeroconfBrowserAvahi::doAddServiceType ( const std::string& fcr_service_type )
 {
   ScopedEventLoopBlock lock ( mp_poll );
-  tBrowserMap::iterator it = m_browsers.find ( fcr_service_type );
+  auto it = m_browsers.find ( fcr_service_type );
   if ( it != m_browsers.end() )
     return false;
   else
-    it = m_browsers.insert ( std::make_pair ( fcr_service_type, ( AvahiServiceBrowser* ) 0 ) ).first;
+    it = m_browsers.insert ( std::make_pair ( fcr_service_type, ( AvahiServiceBrowser* ) nullptr ) ).first;
 
   //if the client is running, we directly create a browser for the service here
   if ( mp_client  && avahi_client_get_state ( mp_client ) ==  AVAHI_CLIENT_S_RUNNING )
@@ -107,7 +107,7 @@ bool CZeroconfBrowserAvahi::doAddServiceType ( const std::string& fcr_service_ty
 bool CZeroconfBrowserAvahi::doRemoveServiceType ( const std::string& fcr_service_type )
 {
   ScopedEventLoopBlock lock ( mp_poll );
-  tBrowserMap::iterator it = m_browsers.find ( fcr_service_type );
+  auto it = m_browsers.find ( fcr_service_type );
   if ( it == m_browsers.end() )
     return false;
   else
@@ -177,7 +177,7 @@ bool CZeroconfBrowserAvahi::doResolveService ( CZeroconfBrowser::ZeroconfService
 
 void CZeroconfBrowserAvahi::clientCallback ( AvahiClient* fp_client, AvahiClientState f_state, void* fp_data )
 {
-  CZeroconfBrowserAvahi* p_instance = static_cast<CZeroconfBrowserAvahi*> ( fp_data );
+  auto p_instance = static_cast<CZeroconfBrowserAvahi*> ( fp_data );
   switch ( f_state )
   {
     case AVAHI_CLIENT_S_RUNNING:
@@ -195,10 +195,10 @@ void CZeroconfBrowserAvahi::clientCallback ( AvahiClient* fp_client, AvahiClient
       CLog::Log ( LOGINFO, "CZeroconfBrowserAvahi::clientCallback: client failure. avahi-daemon stopped? Recreating client..." );
       //We were forced to disconnect from server. now free and recreate the client object
       avahi_client_free ( fp_client );
-      p_instance->mp_client = 0;
+      p_instance->mp_client = nullptr;
       //freeing the client also frees all groups and browsers, pointers are undefined afterwards, so fix that now
       for (auto& it : p_instance->m_browsers)
-        it.second = (AvahiServiceBrowser*)0;
+        it.second = (AvahiServiceBrowser*)nullptr;
       //clean the list of discovered services and update gui (if someone is interested)
       p_instance->m_discovered_services.clear();
       CGUIMessage message ( GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE_PATH );
@@ -223,7 +223,7 @@ void CZeroconfBrowserAvahi::browseCallback (
   const char *name, const char *type, const char *domain,
   AvahiLookupResultFlags flags, void* fp_data )
 {
-  CZeroconfBrowserAvahi* p_instance = static_cast<CZeroconfBrowserAvahi*> ( fp_data );
+  auto p_instance = static_cast<CZeroconfBrowserAvahi*> ( fp_data );
   assert ( browser );
   bool update_gui = false;
   /* Called whenever a new services becomes available on the LAN or is removed from the LAN */
@@ -247,7 +247,7 @@ void CZeroconfBrowserAvahi::browseCallback (
         info.protocol = protocol;
         p_instance->m_discovered_services.insert ( std::make_pair ( service, info ) );
         //if this browser already sent the all for now message, we need to update the gui now
-        if (p_instance->m_all_for_now_browsers.contains(browser))
+        if( p_instance->m_all_for_now_browsers.find(browser) != p_instance->m_all_for_now_browsers.end() )
           update_gui = true;
         break;
       }
@@ -261,7 +261,7 @@ void CZeroconfBrowserAvahi::browseCallback (
                   "domain '{}'\n",
                   name, type, domain);
         //if this browser already sent the all for now message, we need to update the gui now
-        if (p_instance->m_all_for_now_browsers.contains(browser))
+        if( p_instance->m_all_for_now_browsers.find(browser) != p_instance->m_all_for_now_browsers.end() )
           update_gui = true;
         break;
       }
@@ -288,14 +288,14 @@ void CZeroconfBrowserAvahi::browseCallback (
 
 CZeroconfBrowser::ZeroconfService::tTxtRecordMap GetTxtRecords(AvahiStringList *txt)
 {
-  AvahiStringList *i = NULL;
+  AvahiStringList *i = nullptr;
   CZeroconfBrowser::ZeroconfService::tTxtRecordMap recordMap;
 
   for( i = txt; i; i = i->next )
   {
     char *key, *value;
 
-    if( avahi_string_list_get_pair( i, &key, &value, NULL ) < 0 )
+    if( avahi_string_list_get_pair( i, &key, &value, nullptr) < 0 )
       continue;
 
     recordMap.insert(
@@ -320,7 +320,7 @@ void CZeroconfBrowserAvahi::resolveCallback(
 {
   assert ( r );
   assert ( userdata );
-  CZeroconfBrowserAvahi* p_instance = static_cast<CZeroconfBrowserAvahi*> ( userdata );
+  auto p_instance = static_cast<CZeroconfBrowserAvahi*> ( userdata );
   switch ( event )
   {
     case AVAHI_RESOLVER_FAILURE:
@@ -358,10 +358,10 @@ bool CZeroconfBrowserAvahi::createClient()
     avahi_client_free ( mp_client );
   }
   mp_client = avahi_client_new ( avahi_threaded_poll_get ( mp_poll ),
-                                 AVAHI_CLIENT_NO_FAIL, &clientCallback, this, 0 );
+                                 AVAHI_CLIENT_NO_FAIL, &clientCallback, this, nullptr );
   if ( !mp_client )
   {
-    mp_client = 0;
+    mp_client = nullptr;
     return false;
   }
   return true;
@@ -371,7 +371,7 @@ AvahiServiceBrowser* CZeroconfBrowserAvahi::createServiceBrowser ( const std::st
 {
   assert(fp_client);
   AvahiServiceBrowser* ret = avahi_service_browser_new ( fp_client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, fcr_service_type.c_str(),
-                                                         NULL, ( AvahiLookupFlags ) 0, browseCallback, fp_userdata );
+                                                         nullptr, ( AvahiLookupFlags ) 0, browseCallback, fp_userdata );
   if ( !ret )
   {
     CLog::Log(

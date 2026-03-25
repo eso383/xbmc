@@ -5,28 +5,22 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::PlayerAPIs   - The playerAPIs library
+#   PLAYERAPIS::PLAYERAPIS   - The playerAPIs library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  SETUP_FIND_SPECS()
-
-  find_package(PkgConfig ${SEARCH_QUIET})
+if(NOT TARGET PLAYERAPIS::PLAYERAPIS)
+  find_package(PkgConfig)
   if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PC_PLAYERAPIS libplayerAPIs${PC_${CMAKE_FIND_PACKAGE_NAME}_FIND_SPEC} ${SEARCH_QUIET})
+    pkg_check_modules(PC_PLAYERAPIS libplayerAPIs>=1.0.0 QUIET)
   endif()
 
   find_path(PLAYERAPIS_INCLUDE_DIR NAMES starfish-media-pipeline/StarfishMediaAPIs.h
-                                   HINTS ${PC_PLAYERAPIS_INCLUDEDIR})
+                                   PATHS ${PC_PLAYERAPIS_INCLUDEDIR}
+                                   NO_CACHE)
   find_library(PLAYERAPIS_LIBRARY NAMES playerAPIs
-                                  HINTS ${PC_PLAYERAPIS_LIBDIR})
+                                  PATHS ${PC_PLAYERAPIS_LIBDIR}
+                                  NO_CACHE)
 
   set(PLAYERAPIS_VERSION ${PC_PLAYERAPIS_VERSION})
-
-  if(NOT VERBOSE_FIND)
-     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY TRUE)
-   endif()
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(PlayerAPIs
@@ -34,13 +28,10 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
                                     VERSION_VAR PLAYERAPIS_VERSION)
 
   if(PLAYERAPIS_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} UNKNOWN IMPORTED)
-    set_target_properties(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} PROPERTIES
-                                                                     IMPORTED_LOCATION "${PLAYERAPIS_LIBRARY}"
-                                                                     INTERFACE_INCLUDE_DIRECTORIES "${PLAYERAPIS_INCLUDE_DIR}")
-  else()
-    if(PlayerAPIs_FIND_REQUIRED)
-      message(FATAL_ERROR "PlayerAPIs library not found.")
-    endif()
+    add_library(PLAYERAPIS::PLAYERAPIS UNKNOWN IMPORTED)
+    set_target_properties(PLAYERAPIS::PLAYERAPIS PROPERTIES
+                                                 IMPORTED_LOCATION "${PLAYERAPIS_LIBRARY}"
+                                                 INTERFACE_INCLUDE_DIRECTORIES "${PLAYERAPIS_INCLUDE_DIR}")
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP PLAYERAPIS::PLAYERAPIS)
   endif()
 endif()

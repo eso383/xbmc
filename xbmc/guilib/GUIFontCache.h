@@ -22,7 +22,6 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
-#include <span>
 #include <stdint.h>
 #include <vector>
 
@@ -41,8 +40,8 @@ template<class Position>
 struct CGUIFontCacheKey
 {
   Position m_pos;
-  std::span<const KODI::UTILS::COLOR::Color> m_colors;
-  std::span<const character_t> m_text;
+  std::vector<UTILS::COLOR::Color>& m_colors;
+  vecText& m_text;
   uint32_t m_alignment;
   float m_maxPixelWidth;
   bool m_scrolling;
@@ -51,8 +50,8 @@ struct CGUIFontCacheKey
   float m_scaleY;
 
   CGUIFontCacheKey(Position pos,
-                   std::span<const KODI::UTILS::COLOR::Color> colors,
-                   std::span<const character_t> text,
+                   std::vector<UTILS::COLOR::Color>& colors,
+                   vecText& text,
                    uint32_t alignment,
                    float maxPixelWidth,
                    bool scrolling,
@@ -76,10 +75,8 @@ template<class Position, class Value>
 struct CGUIFontCacheEntry
 {
   const CGUIFontCache<Position, Value>& m_cache;
-  std::vector<KODI::UTILS::COLOR::Color> m_color;
-  std::vector<character_t> m_text;
-  TransformMatrix m_matrix;
   CGUIFontCacheKey<Position> m_key;
+  TransformMatrix m_matrix;
   std::chrono::steady_clock::time_point m_lastUsed;
   Value m_value;
 
@@ -87,12 +84,9 @@ struct CGUIFontCacheEntry
                      const CGUIFontCacheKey<Position>& key,
                      std::chrono::steady_clock::time_point now)
     : m_cache(cache),
-      m_color(key.m_colors.begin(), key.m_colors.end()),
-      m_text(key.m_text.begin(), key.m_text.end()),
-      m_matrix(key.m_matrix),
       m_key(key.m_pos,
-            m_color,
-            m_text,
+            *new std::vector<UTILS::COLOR::Color>,
+            *new vecText,
             key.m_alignment,
             key.m_maxPixelWidth,
             key.m_scrolling,
@@ -101,6 +95,9 @@ struct CGUIFontCacheEntry
             key.m_scaleY),
       m_lastUsed(now)
   {
+    m_key.m_colors.assign(key.m_colors.begin(), key.m_colors.end());
+    m_key.m_text.assign(key.m_text.begin(), key.m_text.end());
+    m_matrix = key.m_matrix;
   }
 
   ~CGUIFontCacheEntry();
@@ -130,8 +127,8 @@ struct CGUIFontCacheKeysMatch
   bool operator()(const CGUIFontCacheKey<Position>& a, const CGUIFontCacheKey<Position>& b) const
   {
     // clang-format off
-    return std::ranges::equal(a.m_text, b.m_text) &&
-           std::ranges::equal(a.m_colors, b.m_colors) &&
+    return a.m_text == b.m_text &&
+           a.m_colors == b.m_colors &&
            a.m_alignment == b.m_alignment &&
            a.m_scrolling == b.m_scrolling &&
            a.m_maxPixelWidth == b.m_maxPixelWidth &&
@@ -160,8 +157,8 @@ public:
 
   Value& Lookup(const CGraphicContext& context,
                 Position& pos,
-                std::span<const KODI::UTILS::COLOR::Color> colors,
-                std::span<const character_t> text,
+                const std::vector<UTILS::COLOR::Color>& colors,
+                const vecText& text,
                 uint32_t alignment,
                 float maxPixelWidth,
                 bool scrolling,
@@ -180,8 +177,7 @@ struct CGUIFontCacheStaticPosition
 
 struct CGUIFontCacheStaticValue : public std::shared_ptr<std::vector<SVertex>>
 {
-  void clear()
-  {
+  void clear() const {
     if (*this)
       (*this)->clear();
   }

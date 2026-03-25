@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -17,16 +17,14 @@
 #include "utils/MathUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 #include <cstdlib>
 #include <limits>
 
 namespace
 {
-
-const char* SETTING_VIDEOSCREEN_WHITELIST_PULLDOWN{"videoscreen.whitelistpulldown"};
-const char* SETTING_VIDEOSCREEN_WHITELIST_DOUBLEREFRESHRATE{
+  auto SETTING_VIDEOSCREEN_WHITELIST_PULLDOWN{"videoscreen.whitelistpulldown"};
+  auto SETTING_VIDEOSCREEN_WHITELIST_DOUBLEREFRESHRATE{
     "videoscreen.whitelistdoublerefreshrate"};
 
 } // namespace
@@ -47,6 +45,21 @@ RESOLUTION_INFO::RESOLUTION_INFO(int width, int height, float aspect, const std:
   bFullScreen = true;
   fRefreshRate = 0;
   dwFlags = iSubtitles = 0;
+}
+
+RESOLUTION_INFO::RESOLUTION_INFO(const RESOLUTION_INFO& res)
+  : Overscan(res.Overscan),
+    guiInsets(res.guiInsets),
+    strMode(res.strMode),
+    strOutput(res.strOutput),
+    strId(res.strId)
+{
+  bFullScreen = res.bFullScreen;
+  iWidth = res.iWidth; iHeight = res.iHeight;
+  iScreenWidth = res.iScreenWidth; iScreenHeight = res.iScreenHeight;
+  iSubtitles = res.iSubtitles; dwFlags = res.dwFlags;
+  fPixelRatio = res.fPixelRatio; fRefreshRate = res.fRefreshRate;
+  iBlanking = res.iBlanking;
 }
 
 float RESOLUTION_INFO::DisplayRatio() const
@@ -75,7 +88,7 @@ RESOLUTION CResolutionUtils::ChooseBestResolution(float fps, int width, int heig
 void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int height, bool is3D, RESOLUTION &resolution)
 {
   RESOLUTION_INFO curr = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(resolution);
-  const RenderStereoMode stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+  RENDER_STEREO_MODE stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
   uint32_t dwFlags = D3DPRESENTFLAG_PROGRESSIVE;
   const RESOLUTION_INFO desktop_info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(CDisplaySettings::GetInstance().GetCurrentResolution());
   std::vector<CVariant> indexList = CServiceBroker::GetSettingsComponent()->GetSettings()->GetList(CSettings::SETTING_VIDEOSCREEN_WHITELIST);
@@ -85,17 +98,17 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
   if (is3D)
   {
     switch (stereo_mode) {
-      case RenderStereoMode::SPLIT_VERTICAL:
+      case RENDER_STEREO_MODE_SPLIT_VERTICAL:
         CLog::Log(LOGDEBUG, "[WHITELIST] Search for 3D SidebySide mode with {:d}x{:d}{} @ {:.3f} Hz",
           curr.iScreenWidth, curr.iScreenHeight, dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "", fps);
         dwFlags |= D3DPRESENTFLAG_MODE3DSBS;
         break;
-      case RenderStereoMode::SPLIT_HORIZONTAL:
+      case RENDER_STEREO_MODE_SPLIT_HORIZONTAL:
         CLog::Log(LOGDEBUG, "[WHITELIST] Search for 3D TopBottom mode with {:d}x{:d}{} @ {:.3f} Hz",
           curr.iScreenWidth, curr.iScreenHeight, dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "", fps);
         dwFlags |= D3DPRESENTFLAG_MODE3DTB;
         break;
-      case RenderStereoMode::HARDWAREBASED:
+      case RENDER_STEREO_MODE_HARDWAREBASED:
         CLog::Log(LOGDEBUG, "[WHITELIST] Search for 3D Frame Packaging mode with {:d}x{:d}{} @ {:.3f} Hz",
           curr.iScreenWidth, curr.iScreenHeight, dwFlags & D3DPRESENTFLAG_INTERLACED ? "i" : "", fps);
         dwFlags |= D3DPRESENTFLAG_MODE3DFP;
@@ -115,6 +128,7 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
               "[WHITELIST] Using the default whitelist because the user whitelist is empty");
     std::vector<RESOLUTION> candidates;
     RESOLUTION_INFO info;
+    std::string resString;
     CServiceBroker::GetWinSystem()->GetGfxContext().GetAllowedResolutions(candidates);
     for (const auto& c : candidates)
     {
@@ -123,12 +137,8 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
            (info.iScreenHeight >= curr.iScreenHeight && info.iScreenWidth >= curr.iScreenWidth)) &&
            (info.dwFlags & dwFlags) == dwFlags)
       {
-        // do not add half refreshrates (25, 29.97 by default) as kodi cannot cope with
-        // them on playback start. Especially interlaced content is not properly detected
-        // and this causes ugly double switching.
-        // This won't allow 25p / 30p playback on native refreshrate by default
-        if ((info.fRefreshRate > 30) || (MathUtils::FloatEquals(info.fRefreshRate, 24.0f, 0.1f)))
-          indexList.push_back(CDisplaySettings::GetInstance().GetStringFromRes(c));
+        resString = CDisplaySettings::GetInstance().GetStringFromRes(c);
+        indexList.emplace_back(resString);
       }
     }
   }
@@ -144,10 +154,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
     const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
 
     // allow resolutions that are exact and have the correct refresh rate
-    // allow hardware decoder surface padding due to codec block alignment and GPU requirements
-    // note: height has greater tolerance due to 32/64px boundaries e.g. 1080→1088 or 2160→2176
+    // allow macroblock alignment / padding errors (e.g. 1080 mod16 == 8)
     if (((height == info.iScreenHeight && width <= info.iScreenWidth + 8) ||
-         (width == info.iScreenWidth && height <= info.iScreenHeight + 32)) &&
+         (width == info.iScreenWidth && height <= info.iScreenHeight + 8)) &&
         (info.dwFlags & dwFlags) == dwFlags &&
         MathUtils::FloatEquals(info.fRefreshRate, fps, 0.01f))
     {
@@ -162,6 +171,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
         penalty = pen;
       }
     }
+    if (found && !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+          SETTING_VIDEOSCREEN_WHITELIST_DOUBLEREFRESHRATE))
+      return;
   }
 
   if (!found)
@@ -179,10 +191,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
       const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
 
       // allow resolutions that are exact and have double the refresh rate
-      // allow hardware decoder surface padding due to codec block alignment and GPU requirements
-      // note: height has greater tolerance due to 32/64px boundaries e.g. 1080→1088 or 2160→2176
+      // allow macroblock alignment / padding errors (e.g. 1080 mod16 == 8)
       if (((height == info.iScreenHeight && width <= info.iScreenWidth + 8) ||
-           (width == info.iScreenWidth && height <= info.iScreenHeight + 32)) &&
+           (width == info.iScreenWidth && height <= info.iScreenHeight + 8)) &&
           (info.dwFlags & dwFlags) == dwFlags &&
           MathUtils::FloatEquals(info.fRefreshRate, fps * 2, 0.01f))
       {
@@ -219,10 +230,9 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
       const RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo(i);
 
       // allow resolutions that are exact and have 2.5 times the refresh rate
-      // allow hardware decoder surface padding due to codec block alignment and GPU requirements
-      // note: height has greater tolerance due to 32/64px boundaries e.g. 1080→1088 or 2160→2176
+      // allow macroblock alignment / padding errors (e.g. 1080 mod16 == 8)
       if (((height == info.iScreenHeight && width <= info.iScreenWidth + 8) ||
-           (width == info.iScreenWidth && height <= info.iScreenHeight + 32)) &&
+           (width == info.iScreenWidth && height <= info.iScreenHeight + 8)) &&
           (info.dwFlags & dwFlags) == dwFlags &&
           MathUtils::FloatEquals(info.fRefreshRate, fps * 2.5f, 0.01f))
       {

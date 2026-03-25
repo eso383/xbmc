@@ -12,16 +12,12 @@
 #include "favourites/FavouritesService.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/WindowTranslator.h"
-#include "music/MusicFileItemClassify.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "storage/MediaManager.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-
-using namespace KODI;
 
 namespace CONTEXTMENU
 {
@@ -29,7 +25,7 @@ namespace CONTEXTMENU
   bool CEjectDisk::IsVisible(const CFileItem& item) const
   {
 #ifdef HAS_OPTICAL_DRIVE
-    return item.IsRemovable() && (item.IsDVD() || MUSIC::IsCDDA(item));
+    return item.IsRemovable() && (item.IsDVD() || item.IsCDDA());
 #else
     return false;
 #endif
@@ -47,7 +43,7 @@ namespace CONTEXTMENU
   bool CEjectDrive::IsVisible(const CFileItem& item) const
   {
     // Must be HDD
-    return item.IsRemovable() && !item.IsDVD() && !MUSIC::IsCDDA(item);
+    return item.IsRemovable() && !item.IsDVD() && !item.IsCDDA();
   }
 
   bool CEjectDrive::Execute(const std::shared_ptr<CFileItem>& item) const
@@ -75,10 +71,9 @@ int GetTargetWindowID(const CFileItem& item)
 
 std::string CAddRemoveFavourite::GetLabel(const CFileItem& item) const
 {
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-      CServiceBroker::GetFavouritesService().IsFavourited(item, GetTargetWindowID(item))
-          ? 14077 /* Remove from favourites */
-          : 14076); /* Add to favourites */
+  return g_localizeStrings.Get(CServiceBroker::GetFavouritesService().IsFavourited(item, GetTargetWindowID(item))
+                               ? 14077   /* Remove from favourites */
+                               : 14076); /* Add to favourites */
 }
 
 bool CAddRemoveFavourite::IsVisible(const CFileItem& item) const

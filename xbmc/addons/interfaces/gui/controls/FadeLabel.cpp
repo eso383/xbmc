@@ -38,14 +38,14 @@ void Interface_GUIControlFadeLabel::set_visible(KODI_HANDLE kodiBase,
                                                 KODI_GUI_CONTROL_HANDLE handle,
                                                 bool visible)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIFadeLabelControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIFadeLabelControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlFadeLabel::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -56,14 +56,15 @@ void Interface_GUIControlFadeLabel::add_label(KODI_HANDLE kodiBase,
                                               KODI_GUI_CONTROL_HANDLE handle,
                                               const char* label)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIFadeLabelControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIFadeLabelControl*>(handle);
   if (!addon || !control || !label)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}', label='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(label), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlFadeLabel::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}', label='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(label),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -74,34 +75,35 @@ void Interface_GUIControlFadeLabel::add_label(KODI_HANDLE kodiBase,
 
 char* Interface_GUIControlFadeLabel::get_label(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIFadeLabelControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIFadeLabelControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlFadeLabel::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return nullptr;
   }
 
   CGUIMessage msg(GUI_MSG_ITEM_SELECTED, control->GetParentID(), control->GetID());
   control->OnMessage(msg);
-  return strdup(msg.GetLabel().c_str());
+  std::string text = msg.GetLabel();
+  return strdup(text.c_str());
 }
 
 void Interface_GUIControlFadeLabel::set_scrolling(KODI_HANDLE kodiBase,
                                                   KODI_GUI_CONTROL_HANDLE handle,
                                                   bool scroll)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIFadeLabelControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIFadeLabelControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlFadeLabel::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -110,14 +112,14 @@ void Interface_GUIControlFadeLabel::set_scrolling(KODI_HANDLE kodiBase,
 
 void Interface_GUIControlFadeLabel::reset(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIFadeLabelControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIFadeLabelControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlFadeLabel::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 

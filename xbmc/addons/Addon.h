@@ -38,13 +38,6 @@ public:
   ~CAddon() override = default;
 
   /**
-   * @brief Get all info for this add-on
-   *
-   * @return A CAddonInfo with all of the add-on's info, or empty if unknown
-   */
-  AddonInfoPtr AddonInfo() { return m_addonInfo; }
-
-  /**
    * @brief To get the main type of this addon
    *
    * This is the first type defined in **addon.xml** and can be different to the
@@ -95,7 +88,7 @@ public:
    *
    * **Example:**
    * ~~~~~~~~~~~~~{.cpp}
-   * To get e.g. <extension ... name="blablabla" /> from addon.xml
+   * // To get e.g. <extension ... name="blablabla" /> from addon.xml
    * std::string name = Type(ADDON_...)->GetValue("@name").asString();
    * ~~~~~~~~~~~~~
    *
@@ -116,7 +109,7 @@ public:
   std::string Author() const override;
   std::string ChangeLog() const override;
   std::string Icon() const override;
-  KODI::ART::Artwork Art() const override;
+  ArtMap Art() const override;
   std::vector<std::string> Screenshots() const override;
   std::string Disclaimer() const override;
   AddonLifecycleState LifecycleState() const override;

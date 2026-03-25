@@ -8,7 +8,6 @@
 
 #include "CPUInfoLinux.h"
 
-#include "utils/Set.h"
 #include "utils/StringUtils.h"
 #include "utils/Temperature.h"
 
@@ -96,14 +95,13 @@ CCPUInfoLinux::CCPUInfoLinux()
   if (freqPath.Exists())
     m_freqPath = freqStr;
 
-  static constexpr auto modules = make_set<std::string_view>({
+  const std::array<std::string, 5> modules = {
       "coretemp",
       "k10temp",
       "scpi_sensors",
       "imx_thermal_zone",
       "cpu_thermal",
-      "soc_thermal",
-  });
+  };
 
   for (int i = 0; i < 20; i++)
   {
@@ -116,16 +114,22 @@ CCPUInfoLinux::CCPUInfoLinux()
     if (!name.has_value())
       continue;
 
-    if (modules.contains(*name))
+    for (const auto& module : modules)
     {
-      std::string tempStr{"/sys/class/hwmon/hwmon" + std::to_string(i) + "/temp1_input"};
-      CSysfsPath tempPath{tempStr};
-      if (!tempPath.Exists())
-        continue;
+      if (module == name)
+      {
+        std::string tempStr{"/sys/class/hwmon/hwmon" + std::to_string(i) + "/temp1_input"};
+        CSysfsPath tempPath{tempStr};
+        if (!tempPath.Exists())
+          continue;
 
-      m_tempPath = tempStr;
-      break;
+        m_tempPath = tempStr;
+        break;
+      }
     }
+
+    if (!m_tempPath.empty())
+      break;
   }
 
   m_cpuCount = sysconf(_SC_NPROCESSORS_ONLN);

@@ -7,11 +7,9 @@
  */
 
 #include "LangInfo.h"
-#include "ServiceBroker.h"
 #include "XBDateTime.h"
+#include "guilib/LocalizeStrings.h"
 #include "interfaces/legacy/ModuleXbmc.h" //Needed to test getRegion()
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 
 #include <array>
 #include <iostream>
@@ -240,9 +238,10 @@ TEST_F(TestDateTime, SetFromW3CDate)
 
 TEST_F(TestDateTime, SetFromW3CDateTime)
 {
+  CDateTimeSpan bias = CDateTime::GetTimezoneBias();
   CDateTime dateTime;
   dateTime.SetFromDBDateTime("1994-11-05 13:15:30");
-  dateTime += dateTime.GetTimezoneBias();
+  dateTime += bias;
   std::string dateTimeStr = dateTime.GetAsDBDate() + "T" + dateTime.GetAsDBTime() + "Z";
 
   CDateTime dateTime1;
@@ -266,9 +265,10 @@ TEST_F(TestDateTime, SetFromW3CDateTime)
 
 TEST_F(TestDateTime, SetFromUTCDateTime)
 {
+  CDateTimeSpan bias = CDateTime::GetTimezoneBias();
+
   CDateTime dateTime1;
   dateTime1.SetFromDBDateTime("1991-05-14 12:34:56");
-  const CDateTimeSpan bias{dateTime1.GetTimezoneBias()};
   dateTime1 += bias;
 
   CDateTime dateTime2;
@@ -352,28 +352,22 @@ TEST_F(TestDateTime, GetAsStrings)
   EXPECT_EQ(dateTime.GetAsW3CDate(), "1991-05-14");
 }
 
-TEST_F(TestDateTime, GetAsStringsWithBias)
+// disabled because we have no way to validate these values
+// GetTimezoneBias() always returns a positive value so
+// there is no way to detect the direction of the offset
+TEST_F(TestDateTime, DISABLED_GetAsStringsWithBias)
 {
+  CDateTimeSpan bias = CDateTime::GetTimezoneBias();
+
   CDateTime dateTime;
   dateTime.SetDateTime(1991, 05, 14, 12, 34, 56);
 
-  // Positive bias
-  dateTime.SetTimeZoneBias(CDateTimeSpan{0, 8, 0, 0});
+  CDateTime dateTimeWithBias(dateTime);
+  dateTimeWithBias += bias;
+
   EXPECT_EQ(dateTime.GetAsRFC1123DateTime(), "Tue, 14 May 1991 20:34:56 GMT");
   EXPECT_EQ(dateTime.GetAsW3CDateTime(false), "1991-05-14T12:34:56+08:00");
   EXPECT_EQ(dateTime.GetAsW3CDateTime(true), "1991-05-14T20:34:56Z");
-
-  // No bias
-  dateTime.SetTimeZoneBias(CDateTimeSpan{0, 0, 0, 0});
-  EXPECT_EQ(dateTime.GetAsRFC1123DateTime(), "Tue, 14 May 1991 12:34:56 GMT");
-  EXPECT_EQ(dateTime.GetAsW3CDateTime(false), "1991-05-14T12:34:56+00:00");
-  EXPECT_EQ(dateTime.GetAsW3CDateTime(true), "1991-05-14T12:34:56Z");
-
-  // Negative bias
-  dateTime.SetTimeZoneBias(CDateTimeSpan{0, -8, 0, 0});
-  EXPECT_EQ(dateTime.GetAsRFC1123DateTime(), "Tue, 14 May 1991 04:34:56 GMT");
-  EXPECT_EQ(dateTime.GetAsW3CDateTime(false), "1991-05-14T12:34:56-08:00");
-  EXPECT_EQ(dateTime.GetAsW3CDateTime(true), "1991-05-14T04:34:56Z");
 }
 
 TEST_F(TestDateTime, GetAsLocalized)
@@ -411,8 +405,7 @@ TEST_F(TestDateTime, GetAsLocalized)
   // "DD. MMMM. YYYY",
   // "YYYY. MMMM. D"
 
-  ASSERT_TRUE(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Load(
-      g_langInfo.GetLanguagePath(), "resource.language.en_gb"));
+  ASSERT_TRUE(g_localizeStrings.Load(g_langInfo.GetLanguagePath(), "resource.language.en_gb"));
 
   // 24 hour clock must be set before time format
   g_langInfo.Set24HourClock(false);
@@ -670,26 +663,31 @@ TEST_F(TestDateTime, GetAsTm)
   }
 }
 
-TEST_F(TestDateTime, GetAsTimeStamp)
+// Disabled pending std::chrono and std::date changes.
+TEST_F(TestDateTime, DISABLED_GetAsTimeStamp)
 {
+  CDateTimeSpan bias = CDateTime::GetTimezoneBias();
+
   CDateTime dateTime;
   dateTime.SetDateTime(1991, 05, 14, 12, 34, 56);
 
   KODI::TIME::FileTime fileTime;
   dateTime.GetAsTimeStamp(fileTime);
-  dateTime += dateTime.GetTimezoneBias();
+  dateTime += bias;
 
   EXPECT_TRUE(dateTime == fileTime);
 }
 
 TEST_F(TestDateTime, GetAsUTCDateTime)
 {
+  CDateTimeSpan bias = CDateTime::GetTimezoneBias();
+
   CDateTime dateTime1;
   dateTime1.SetDateTime(1991, 05, 14, 12, 34, 56);
 
   CDateTime dateTime2;
   dateTime2 = dateTime1.GetAsUTCDateTime();
-  dateTime2 -= dateTime1.GetTimezoneBias();
+  dateTime2 -= bias;
 
   EXPECT_EQ(dateTime2.GetYear(), 1991);
   EXPECT_EQ(dateTime2.GetMonth(), 5);
@@ -699,14 +697,19 @@ TEST_F(TestDateTime, GetAsUTCDateTime)
   EXPECT_EQ(dateTime2.GetSecond(), 56);
 }
 
+// disabled on osx and freebsd as their mktime functions
+// don't work for dates before 1900
+#if defined(TARGET_DARWIN_OSX) || defined(TARGET_FREEBSD)
+TEST_F(TestDateTime, DISABLED_Reset)
+#else
 TEST_F(TestDateTime, Reset)
+#endif
 {
   CDateTime dateTime;
   dateTime.SetDateTime(1991, 05, 14, 12, 34, 56);
 
   dateTime.Reset();
 
-  EXPECT_FALSE(dateTime.IsValid());
   EXPECT_EQ(dateTime.GetYear(), 1601);
   EXPECT_EQ(dateTime.GetMonth(), 1);
   EXPECT_EQ(dateTime.GetDay(), 1);

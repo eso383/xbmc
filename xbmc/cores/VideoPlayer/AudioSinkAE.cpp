@@ -14,6 +14,8 @@
 #include "cores/AudioEngine/Interfaces/AE.h"
 #include "cores/AudioEngine/Utils/AEAudioFormat.h"
 #include "cores/AudioEngine/Utils/AEStreamData.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
 
@@ -36,11 +38,12 @@ CAudioSinkAE::CAudioSinkAE(CDVDClock *clock) : m_pClock(clock)
   m_timeOfPts = 0.0; //silence coverity uninitialized warning, is set elsewhere
   m_syncError = 0.0;
   m_syncErrorTime = 0;
+  m_addPacketUnlockTime = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_audioAddPacketUnlockTime;
 }
 
 CAudioSinkAE::~CAudioSinkAE()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 }
 
 bool CAudioSinkAE::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler)
@@ -50,7 +53,8 @@ bool CAudioSinkAE::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool
             audioframe.passthrough ? "pass-through" : "no pass-through");
 
   // if passthrough isset do something else
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   unsigned int options = needresampler && !audioframe.passthrough ? AESTREAM_FORCE_RESAMPLE : 0;
   options |= AESTREAM_PAUSED;
 
@@ -75,7 +79,7 @@ bool CAudioSinkAE::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool
 
 void CAudioSinkAE::Destroy(bool finish)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (m_pAudioStream)
   {
@@ -83,7 +87,7 @@ void CAudioSinkAE::Destroy(bool finish)
     m_pAudioStream.reset();
   }
 
-  m_pAudioStream = NULL;
+  m_pAudioStream = nullptr;
   m_sampleRate = 0;
   m_iBitsPerSample = 0;
   m_bPassthrough = false;
@@ -155,7 +159,7 @@ unsigned int CAudioSinkAE::AddPackets(const DVDAudioFrame &audioframe)
     }
 
     lock.unlock();
-    KODI::TIME::Sleep(1ms);
+    usleep(m_addPacketUnlockTime);
     lock.lock();
   } while (!m_bAbort);
 
@@ -167,28 +171,32 @@ unsigned int CAudioSinkAE::AddPackets(const DVDAudioFrame &audioframe)
 
 void CAudioSinkAE::Drain()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
     m_pAudioStream->Drain(true);
 }
 
 void CAudioSinkAE::SetVolume(float volume)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
     m_pAudioStream->SetVolume(volume);
 }
 
 void CAudioSinkAE::SetDynamicRangeCompression(long drc)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
     m_pAudioStream->SetAmplification(powf(10.0f, (float)drc / 2000.0f));
 }
 
 void CAudioSinkAE::Pause()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
     m_pAudioStream->Pause();
   CLog::Log(LOGDEBUG,"CDVDAudio::Pause - pausing audio stream");
@@ -197,7 +205,8 @@ void CAudioSinkAE::Pause()
 
 void CAudioSinkAE::Resume()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
     m_pAudioStream->Resume();
   CLog::Log(LOGDEBUG,"CDVDAudio::Resume - resume audio stream");
@@ -205,7 +214,7 @@ void CAudioSinkAE::Resume()
 
 double CAudioSinkAE::GetDelay()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   double delay = 0.05; // Conservative fallback — 50ms instead of 300ms to avoid
                        // inflating m_playingPts during init/teardown races.
@@ -219,7 +228,8 @@ void CAudioSinkAE::Flush()
 {
   m_bAbort = true;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_pAudioStream)
   {
     m_pAudioStream->Flush();
@@ -235,8 +245,7 @@ void CAudioSinkAE::AbortAddPackets()
   m_bAbort = true;
 }
 
-bool CAudioSinkAE::IsValidFormat(const DVDAudioFrame &audioframe)
-{
+bool CAudioSinkAE::IsValidFormat(const DVDAudioFrame &audioframe) const {
   if (!m_pAudioStream)
     return false;
 
@@ -258,7 +267,8 @@ bool CAudioSinkAE::IsValidFormat(const DVDAudioFrame &audioframe)
 
 double CAudioSinkAE::GetCacheTime()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_pAudioStream)
     return 0.0;
 
@@ -267,7 +277,8 @@ double CAudioSinkAE::GetCacheTime()
 
 double CAudioSinkAE::GetCacheTotal()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_pAudioStream)
     return 0.0;
   return m_pAudioStream->GetCacheTotal();
@@ -275,7 +286,8 @@ double CAudioSinkAE::GetCacheTotal()
 
 double CAudioSinkAE::GetMaxDelay()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_pAudioStream)
     return 0.0;
   return m_pAudioStream->GetMaxDelay();
@@ -301,8 +313,7 @@ double CAudioSinkAE::GetPlayingPts()
   return m_playingPts;
 }
 
-double CAudioSinkAE::GetSyncError()
-{
+double CAudioSinkAE::GetSyncError() const {
   return m_syncError;
 }
 
@@ -311,14 +322,14 @@ void CAudioSinkAE::SetSyncErrorCorrection(double correction)
   m_syncError += correction;
 }
 
-double CAudioSinkAE::GetResampleRatio()
-{
+double CAudioSinkAE::GetResampleRatio() const {
   return m_resampleRatio;
 }
 
 void CAudioSinkAE::SetResampleMode(int mode)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   if(m_pAudioStream)
   {
     m_pAudioStream->SetResampleMode(mode);

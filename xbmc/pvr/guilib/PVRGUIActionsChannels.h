@@ -11,11 +11,11 @@
 #include "pvr/IPVRComponent.h"
 #include "pvr/PVRChannelNumberInputHandler.h"
 #include "pvr/guilib/PVRGUIChannelNavigator.h"
+#include "pvr/settings/PVRSettings.h"
 #include "threads/CriticalSection.h"
 
 #include <memory>
 #include <string>
-#include <string_view>
 #include <vector>
 
 class CFileItem;
@@ -24,7 +24,6 @@ namespace PVR
 {
 class CPVRChannel;
 class CPVRChannelGroupMember;
-class CPVRSettings;
 
 class CPVRChannelSwitchingInputHandler : public CPVRChannelNumberInputHandler
 {
@@ -39,12 +38,12 @@ private:
    * @brief Switch to the channel with the given number.
    * @param channelNumber the channel number
    */
-  void SwitchToChannel(const CPVRChannelNumber& channelNumber) const;
+  void SwitchToChannel(const CPVRChannelNumber& channelNumber);
 
   /*!
    * @brief Switch to the previously played channel.
    */
-  void SwitchToPreviousChannel() const;
+  void SwitchToPreviousChannel();
 };
 
 class CPVRGUIActionsChannels : public IPVRComponent
@@ -70,6 +69,12 @@ public:
    * @param handler The handler to deregister.
    */
   void DeregisterChannelNumberInputHandler(CPVRChannelNumberInputHandler* handler);
+
+  /*!
+   * @brief CEventStream callback for channel number input changes.
+   * @param event The event.
+   */
+  void Notify(const PVRChannelNumberInputChangedEvent& event);
 
   /*!
    * @brief Hide a channel, always showing a confirmation dialog.
@@ -151,7 +156,7 @@ public:
    * @param bRadio True to set the selected path for PVR radio, false for Live TV.
    * @param path The new path to set.
    */
-  void SetSelectedChannelPath(bool bRadio, std::string_view path);
+  void SetSelectedChannelPath(bool bRadio, const std::string& path);
 
 private:
   CPVRGUIActionsChannels(const CPVRGUIActionsChannels&) = delete;
@@ -163,7 +168,7 @@ private:
   CEventSource<PVRChannelNumberInputChangedEvent> m_events;
 
   mutable CCriticalSection m_critSection;
-  std::unique_ptr<CPVRSettings> m_settings;
+  CPVRSettings m_settings;
   std::string m_selectedChannelPathTV;
   std::string m_selectedChannelPathRadio;
 };

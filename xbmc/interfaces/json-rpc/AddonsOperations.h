@@ -35,6 +35,7 @@ namespace JSONRPC
     static void FillDetails(const std::shared_ptr<ADDON::IAddon>& addon,
                             const CVariant& fields,
                             CVariant& result,
-                            bool append);
+                            ADDON::CAddonDatabase& addondb,
+                            bool append = false);
   };
 }

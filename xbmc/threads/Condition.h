@@ -56,7 +56,7 @@ namespace XbmcThreads
     {
       int count = lock.count;
       lock.count = 0;
-      bool ret = cond.wait_for(lock.get_underlying(), duration, std::move(predicate));
+      bool ret = cond.wait_for(lock.get_underlying(), duration, predicate);
       lock.count = count;
       return ret;
     }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2023 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -9,35 +9,27 @@
 #include "VideoItemArtworkHandler.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "MediaSource.h"
 #include "ServiceBroker.h"
+#include "TextureDatabase.h"
 #include "filesystem/Directory.h"
-#include "imagefiles/ImageFileURL.h"
-#include "music/Artist.h"
+#include "guilib/LocalizeStrings.h"
 #include "music/MusicDatabase.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/ArtUtils.h"
 #include "utils/FileExtensionProvider.h"
 #include "utils/FileUtils.h"
-#include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
 #include "video/VideoDatabase.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoInfoScanner.h"
 #include "video/VideoInfoTag.h"
 #include "video/VideoThumbLoader.h"
 #include "video/tags/VideoTagExtractionHelper.h"
 
+using namespace VIDEO;
 using namespace XFILE;
-
-namespace KODI::VIDEO
-{
 
 namespace
 {
@@ -115,7 +107,7 @@ std::string CVideoItemArtworkHandler::GetLocalArt() const
 
 std::string CVideoItemArtworkHandler::GetDefaultIcon() const
 {
-  return m_item->IsFolder() ? "DefaultFolder.png" : "DefaultPicture.png";
+  return m_item->m_bIsFolder ? "DefaultFolder.png" : "DefaultPicture.png";
 }
 
 void CVideoItemArtworkHandler::AddItemPathToFileBrowserSources(std::vector<CMediaSource>& sources)
@@ -126,12 +118,11 @@ void CVideoItemArtworkHandler::AddItemPathToFileBrowserSources(std::vector<CMedi
     itemDir = m_item->GetVideoInfoTag()->GetPath();
 
   const CFileItem itemTmp(itemDir, false);
-  if (IsVideo(itemTmp))
+  if (itemTmp.IsVideo())
     itemDir = URIUtils::GetParentPath(itemDir);
 
-  AddItemPathStringToFileBrowserSources(
-      sources, itemDir,
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36041) /* * Item folder */);
+  AddItemPathStringToFileBrowserSources(sources, itemDir,
+                                        g_localizeStrings.Get(36041) /* * Item folder */);
 }
 
 void CVideoItemArtworkHandler::PersistArt(const std::string& art)
@@ -145,8 +136,6 @@ void CVideoItemArtworkHandler::PersistArt(const std::string& art)
 
   videodb.SetArtForItem(m_item->GetVideoInfoTag()->m_iDbId, m_item->GetVideoInfoTag()->m_type,
                         m_artType, art);
-
-  videodb.UpdateArtForItem(m_item->GetVideoInfoTag()->m_iDbId, m_artType);
 }
 
 void CVideoItemArtworkHandler::AddItemPathStringToFileBrowserSources(
@@ -154,9 +143,10 @@ void CVideoItemArtworkHandler::AddItemPathStringToFileBrowserSources(
 {
   if (!itemDir.empty() && CDirectory::Exists(itemDir))
   {
-    CMediaSource& itemSource = sources.emplace_back();
+    CMediaSource itemSource;
     itemSource.strName = label;
     itemSource.strPath = itemDir;
+    sources.emplace_back(itemSource);
   }
 }
 
@@ -428,13 +418,12 @@ void CVideoItemArtworkMovieSetHandler::AddItemPathToFileBrowserSources(
 {
   AddItemPathStringToFileBrowserSources(
       sources, VIDEO::CVideoInfoScanner::GetMovieSetInfoFolder(m_item->GetLabel()),
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36041) /* * Item folder */);
+      g_localizeStrings.Get(36041) /* * Item folder */);
   AddItemPathStringToFileBrowserSources(
       sources,
       CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
           CSettings::SETTING_VIDEOLIBRARY_MOVIESETSFOLDER),
-      "* " + CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                 20226) /* Movie set information folder */);
+      "* " + g_localizeStrings.Get(20226) /* Movie set information folder */);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -478,14 +467,14 @@ std::vector<std::string> CVideoItemArtworkFanartHandler::GetRemoteArt() const
     if (URIUtils::IsProtocol(thumb, "image"))
       continue;
 
-    remoteArt.emplace_back(IMAGE_FILES::URLFromFile(thumb));
+    remoteArt.emplace_back(CTextureUtils::GetWrappedThumbURL(thumb));
   }
   return remoteArt;
 }
 
 std::string CVideoItemArtworkFanartHandler::GetLocalArt() const
 {
-  return ART::GetLocalFanart(*m_item);
+  return m_item->GetLocalFanart();
 }
 
 std::string CVideoItemArtworkFanartHandler::UpdateEmbeddedArt(const std::string& art)
@@ -563,5 +552,3 @@ std::unique_ptr<IVideoItemArtworkHandler> IVideoItemArtworkHandlerFactory::Creat
 
   return artHandler;
 }
-
-} // namespace KODI::VIDEO

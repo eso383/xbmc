@@ -9,7 +9,6 @@
 #include "FrameBufferObject.h"
 
 #include "ServiceBroker.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/RenderSystem.h"
 #include "utils/GLUtils.h"
 #include "utils/log.h"
@@ -27,7 +26,7 @@ CFrameBufferObject::CFrameBufferObject()
 
 bool CFrameBufferObject::IsSupported()
 {
-  if (CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_framebuffer_object))
+  if(CServiceBroker::GetRenderSystem()->IsExtSupported("GL_EXT_framebuffer_object"))
     m_supported = true;
   else
     m_supported = false;
@@ -79,7 +78,7 @@ bool CFrameBufferObject::CreateAndBindToTexture(GLenum target, int width, int he
 
   glGenTextures(1, &m_texid);
   glBindTexture(target, m_texid);
-  glTexImage2D(target, 0, format,  width, height, 0, GL_RGBA, type, NULL);
+  glTexImage2D(target, 0, format,  width, height, 0, GL_RGBA, type, nullptr);
   glTexParameteri(target, GL_TEXTURE_WRAP_S, clampmode);
   glTexParameteri(target, GL_TEXTURE_WRAP_T, clampmode);
   glTexParameteri(target, GL_TEXTURE_MAG_FILTER, filter);
@@ -102,16 +101,14 @@ bool CFrameBufferObject::CreateAndBindToTexture(GLenum target, int width, int he
   return true;
 }
 
-void CFrameBufferObject::SetFiltering(GLenum target, GLenum mode)
-{
+void CFrameBufferObject::SetFiltering(GLenum target, GLenum mode) const {
   glBindTexture(target, m_texid);
   glTexParameteri(target, GL_TEXTURE_MAG_FILTER, mode);
   glTexParameteri(target, GL_TEXTURE_MIN_FILTER, mode);
 }
 
 // Begin rendering to FBO
-bool CFrameBufferObject::BeginRender()
-{
+bool CFrameBufferObject::BeginRender() const {
   if (IsValid() && IsBound())
   {
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);

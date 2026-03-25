@@ -17,7 +17,7 @@
 #include "video/VideoInfoTag.h"
 #include "video/dialogs/GUIDialogVideoInfo.h"
 
-using namespace KODI::UTILS::GUILIB;
+using namespace UTILS::GUILIB;
 
 bool CGUIContentUtils::HasInfoForItem(const CFileItem& item)
 {

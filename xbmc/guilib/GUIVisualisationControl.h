@@ -30,7 +30,7 @@ public:
   virtual ~CAudioBuffer();
   const float* Get() const;
   int Size() const;
-  void Set(const float* psBuffer, int iSize);
+  void Set(const float* psBuffer, int iSize) const;
 
 private:
   CAudioBuffer(const CAudioBuffer&) = delete;
@@ -68,7 +68,7 @@ public:
   std::string Name() const;
   void UpdateTrack();
   bool HasPresets() const;
-  void SetPreset(int idx);
+  void SetPreset(int idx) const;
   bool IsLocked() const;
   int GetActivePreset() const;
   std::string GetActivePresetName() const;

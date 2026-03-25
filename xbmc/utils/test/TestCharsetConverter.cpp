@@ -251,7 +251,7 @@ TEST_F(TestCharsetConverter, isValidUtf8_4)
 TEST_F(TestCharsetConverter, wToUTF8)
 {
   refstrw1 = L"ｔｅｓｔ＿ｗＴｏＵＴＦ８";
-  refstra1 = "ｔｅｓｔ＿ｗＴｏＵＴＦ８";
+  refstra1 = u8"ｔｅｓｔ＿ｗＴｏＵＴＦ８";
   varstra1.clear();
   g_charsetConverter.wToUTF8(refstrw1, varstra1);
   EXPECT_STREQ(refstra1.c_str(), varstra1.c_str());

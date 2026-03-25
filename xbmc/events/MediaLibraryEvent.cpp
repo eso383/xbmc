@@ -11,9 +11,8 @@
 #include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/URIUtils.h"
 
 CMediaLibraryEvent::CMediaLibraryEvent(const MediaType& mediaType, const std::string& mediaPath, const CVariant& label, const CVariant& description, EventLevel level /* = EventLevel::Information */)
@@ -46,7 +45,7 @@ std::string CMediaLibraryEvent::GetExecutionLabel() const
   if (!executionLabel.empty())
     return executionLabel;
 
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24140);
+  return g_localizeStrings.Get(24140);
 }
 
 bool CMediaLibraryEvent::Execute() const

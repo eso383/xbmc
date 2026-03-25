@@ -106,13 +106,11 @@ CVideoBufferDRMPRIMEFFmpeg::~CVideoBufferDRMPRIMEFFmpeg()
   av_frame_free(&m_pFrame);
 }
 
-void CVideoBufferDRMPRIMEFFmpeg::SetRef(AVFrame* frame)
-{
+void CVideoBufferDRMPRIMEFFmpeg::SetRef(AVFrame* frame) const {
   av_frame_move_ref(m_pFrame, frame);
 }
 
-void CVideoBufferDRMPRIMEFFmpeg::Unref()
-{
+void CVideoBufferDRMPRIMEFFmpeg::Unref() const {
   av_frame_unref(m_pFrame);
 }
 
@@ -130,7 +128,7 @@ CVideoBufferPoolDRMPRIMEFFmpeg::~CVideoBufferPoolDRMPRIMEFFmpeg()
 
 CVideoBuffer* CVideoBufferPoolDRMPRIMEFFmpeg::Get()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   CVideoBufferDRMPRIMEFFmpeg* buf = nullptr;
   if (!m_free.empty())
@@ -154,7 +152,7 @@ CVideoBuffer* CVideoBufferPoolDRMPRIMEFFmpeg::Get()
 
 void CVideoBufferPoolDRMPRIMEFFmpeg::Return(int id)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   m_all[id]->Unref();
   auto it = m_used.begin();

@@ -9,9 +9,9 @@
 #include "ProfilesOperations.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIPassword.h"
 #include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
 #include "profiles/ProfileManager.h"
 #include "settings/SettingsComponent.h"
@@ -47,12 +47,12 @@ JSONRPC_STATUS CProfilesOperations::GetProfiles(const std::string &method, ITran
         std::string profilename = (*profileiter)["label"].asString();
         int index = profileManager->GetProfileIndex(profilename);
         const CProfile *profile = profileManager->GetProfile(index);
-        LockMode locktype = LockMode::UNKNOWN;
+        LockType locktype = LOCK_MODE_UNKNOWN;
         if (index == 0)
           locktype = profileManager->GetMasterProfile().getLockMode();
         else
           locktype = profile->getLockMode();
-        (*profileiter)["lockmode"] = static_cast<int>(locktype);
+        (*profileiter)["lockmode"] = locktype;
       }
       break;
     }
@@ -65,14 +65,14 @@ JSONRPC_STATUS CProfilesOperations::GetCurrentProfile(const std::string &method,
   const std::shared_ptr<CProfileManager> profileManager = CServiceBroker::GetSettingsComponent()->GetProfileManager();
 
   const CProfile& currentProfile = profileManager->GetCurrentProfile();
-  CVariant profileVariant = CVariant(CVariant::VariantTypeObject);
+  auto profileVariant = CVariant(CVariant::VariantTypeObject);
   profileVariant["label"] = currentProfile.getName();
   for (CVariant::const_iterator_array propertyiter = parameterObject["properties"].begin_array(); propertyiter != parameterObject["properties"].end_array(); ++propertyiter)
   {
     if (propertyiter->isString())
     {
       if (propertyiter->asString() == "lockmode")
-        profileVariant["lockmode"] = static_cast<int>(currentProfile.getLockMode());
+        profileVariant["lockmode"] = currentProfile.getLockMode();
       else if (propertyiter->asString() == "thumbnail")
         profileVariant["thumbnail"] = currentProfile.getThumb();
     }
@@ -90,12 +90,12 @@ JSONRPC_STATUS CProfilesOperations::LoadProfile(const std::string &method, ITran
   std::string profilename = parameterObject["profile"].asString();
   int index = profileManager->GetProfileIndex(profilename);
 
-  if (index <= INVALID_PROFILE_ID)
+  if (index < 0)
     return InvalidParams;
 
   // get the profile
   const CProfile *profile = profileManager->GetProfile(index);
-  if (profile == NULL)
+  if (profile == nullptr)
     return InvalidParams;
 
   bool bPrompt = parameterObject["prompt"].asBoolean();
@@ -105,8 +105,8 @@ JSONRPC_STATUS CProfilesOperations::LoadProfile(const std::string &method, ITran
   // if the profile does not require a password or
   // the user is prompted and provides the correct password
   // we can load the requested profile
-  if (profile->getLockMode() == LockMode::EVERYONE ||
-      (bPrompt && g_passwordManager.IsProfileLockUnlocked(index, bCanceled, bPrompt)))
+  if (profile->getLockMode() == LOCK_MODE_EVERYONE ||
+     (bPrompt && g_passwordManager.IsProfileLockUnlocked(index, bCanceled, bPrompt)))
     bLoadProfile = true;
   else if (!bCanceled)  // Password needed and user provided it
   {

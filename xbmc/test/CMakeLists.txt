@@ -1,13 +1,11 @@
-set(SOURCES TestAutoSwitch.cpp
-            TestBasicEnvironment.cpp
-            TestCueDocument.cpp
-            TestDateTime.cpp
-            TestDateTimeSpan.cpp
+set(SOURCES TestBasicEnvironment.cpp
             TestFileItem.cpp
-            TestMediaSource.cpp
+            TestTextureUtils.cpp
             TestURL.cpp
             TestUtil.cpp
-            TestUtils.cpp)
+            TestUtils.cpp
+            TestDateTime.cpp
+            TestDateTimeSpan.cpp)
 
 set(HEADERS TestBasicEnvironment.h
             TestUtils.h)

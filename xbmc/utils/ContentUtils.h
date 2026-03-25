@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "media/MediaType.h"
+
 #include <memory>
 #include <string>
 

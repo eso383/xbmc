@@ -9,7 +9,6 @@
 #include "DialogGameVideoSelect.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "cores/RetroPlayer/guibridge/GUIGameRenderManager.h"
 #include "cores/RetroPlayer/guibridge/GUIGameVideoHandle.h"
@@ -124,11 +123,7 @@ bool CDialogGameVideoSelect::OnMessage(CGUIMessage& message)
     }
     case GUI_MSG_REFRESH_LIST:
     {
-      if (message.GetControlId() == CONTROL_VIDEO_THUMBS)
-      {
-        RefreshList();
-        return true;
-      }
+      RefreshList();
       break;
     }
     default:
@@ -140,7 +135,7 @@ bool CDialogGameVideoSelect::OnMessage(CGUIMessage& message)
 
 void CDialogGameVideoSelect::FrameMove()
 {
-  CGUIBaseContainer* thumbs = dynamic_cast<CGUIBaseContainer*>(GetControl(CONTROL_VIDEO_THUMBS));
+  auto thumbs = dynamic_cast<CGUIBaseContainer*>(GetControl(CONTROL_VIDEO_THUMBS));
   if (thumbs != nullptr)
     OnItemFocus(thumbs->GetSelectedItem());
 
@@ -206,8 +201,7 @@ void CDialogGameVideoSelect::Update()
   // CServiceBroker::GetWinSystem()->GetGfxContext().Unlock();
 }
 
-void CDialogGameVideoSelect::Clear()
-{
+void CDialogGameVideoSelect::Clear() const {
   m_viewControl->Clear();
   m_vecItems->Clear();
 }
@@ -241,8 +235,7 @@ void CDialogGameVideoSelect::SaveSettings()
   }
 }
 
-void CDialogGameVideoSelect::OnDescriptionChange(const std::string& description)
-{
+void CDialogGameVideoSelect::OnDescriptionChange(const std::string& description) const {
   CGUIMessage msg(GUI_MSG_LABEL_SET, GetID(), CONTROL_VIDEO_THUMBS);
   msg.SetLabel(description);
   CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(msg, GetID());

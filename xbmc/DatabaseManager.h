@@ -35,9 +35,8 @@ public:
 
   /*! \brief Initialize the database manager
    Checks that all databases are up to date, otherwise updates them.
-   \return true if all databases are initialized successfully, false otherwise.
    */
-  bool Initialize();
+  void Initialize();
 
   /*! \brief Check whether we can open a database.
 
@@ -50,34 +49,19 @@ public:
    */
   bool CanOpen(const std::string &name);
 
-  /*! \brief Check whether manager is connecting to the databases currently.
-   \return true if connecting, false otherwise.
-   */
-  bool IsConnecting() const { return m_connecting; }
-
-  /*! \brief Check whether manager is upgrading the databases currently.
-   \return true if upgrading, false otherwise.
-   */
   bool IsUpgrading() const { return m_bIsUpgrading; }
 
   void LocalizationChanged();
 
 private:
   std::atomic<bool> m_bIsUpgrading;
-  std::atomic<bool> m_connecting{false};
 
-  enum class DBStatus
-  {
-    CLOSED,
-    UPDATING,
-    READY,
-    FAILED
-  };
-  void UpdateStatus(const std::string& name, DBStatus status);
-  void UpdateDatabase(CDatabase &db, DatabaseSettings *settings = NULL);
+  enum DB_STATUS { DB_CLOSED, DB_UPDATING, DB_READY, DB_FAILED };
+  void UpdateStatus(const std::string &name, DB_STATUS status);
+  void UpdateDatabase(CDatabase &db, DatabaseSettings *settings = nullptr);
   bool Update(CDatabase &db, const DatabaseSettings &settings);
   bool UpdateVersion(CDatabase &db, const std::string &dbName);
 
   CCriticalSection            m_section;     ///< Critical section protecting m_dbStatus.
-  std::map<std::string, DBStatus> m_dbStatus; ///< Our database status map.
+  std::map<std::string, DB_STATUS> m_dbStatus;    ///< Our database status map.
 };

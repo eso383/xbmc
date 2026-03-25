@@ -26,7 +26,9 @@
 #define SWIPE_MAX_VARIANCE_ANGLE 0.36397023f
 
 CGenericTouchSwipeDetector::CGenericTouchSwipeDetector(ITouchActionHandler* handler, float dpi)
-  : IGenericTouchGestureDetector(handler, dpi)
+  : IGenericTouchGestureDetector(handler, dpi),
+    m_directions(TouchMoveDirectionLeft | TouchMoveDirectionRight | TouchMoveDirectionUp |
+                 TouchMoveDirectionDown)
 {
 }
 

@@ -140,7 +140,7 @@ public class SyncProgramsJobService extends JobService
 
     protected Boolean doInBackground(Long... channelIds)
     {
-      XBMCJsonRPC json = new XBMCJsonRPC(mContext);
+      XBMCJsonRPC json = new XBMCJsonRPC();
       if (!json.Ping())
         return false;
       json = null;
@@ -191,7 +191,7 @@ public class SyncProgramsJobService extends JobService
         {
           Channel channel = Channel.fromCursor(cursor);
           
-          XBMCJsonRPC jsonrpc = new XBMCJsonRPC(mContext);
+          XBMCJsonRPC jsonrpc = new XBMCJsonRPC();
           if (uri.isEmpty())
           {
             // Suggestion channel

@@ -662,10 +662,6 @@
       "samplerate": {
         "type": "integer",
         "required": true
-      },
-      "bitspersample": {
-        "type": "integer",
-        "required": true
       }
     }
   },
@@ -1949,8 +1945,7 @@
         "userrating",
         "ratings",
         "runtime",
-        "uniqueid",
-        "trailer"
+        "uniqueid"
       ]
     }
   },
@@ -2387,9 +2382,6 @@
       },
       "uniqueid": {
         "$ref": "Media.UniqueID"
-      },
-      "trailer": {
-        "type": "string"
       }
     }
   },
@@ -2584,7 +2576,6 @@
         "progress",
         "progresspercentage",
         "genre",
-        "episode",
         "episodename",
         "episodenum",
         "episodepart",
@@ -2608,7 +2599,6 @@
         "isplayable",
         "clientid",
         "hasreminder",
-        "season",
         "seasonnum"
       ]
     }
@@ -2650,12 +2640,8 @@
       "episodename": {
         "type": "string"
       },
-      "episode": {
-        "type": "integer"
-      },
       "episodenum": {
-        "type": "integer",
-        "description": "Deprecated - Use episode"
+        "type": "integer"
       },
       "episodepart": {
         "type": "integer"
@@ -2721,12 +2707,8 @@
       "hasreminder": {
         "type": "boolean"
       },
-      "season": {
-        "type": "integer"
-      },
       "seasonnum": {
-        "type": "integer",
-        "description": "Deprecated - Use season"
+        "type": "integer"
       }
     }
   },
@@ -3899,8 +3881,6 @@
         "firstaired",
         "season",
         "episode",
-        "episodepart",
-        "episodename",
         "showtitle",
         "thumbnail",
         "file",
@@ -5087,26 +5067,5 @@
       }
     },
     "additionalProperties": false
-  },
-  "Player.Chapter": {
-    "type": "object",
-    "description": "Single chapter of the currently playing video",
-    "properties": {
-      "index": {
-        "type": "integer",
-        "required": true,
-        "description": "One-based chapter index"
-      },
-      "name": {
-        "type": "string",
-        "required": false,
-        "description": "Chapter name if available"
-      },
-      "time": {
-        "type": "integer",
-        "required": true,
-        "description": "Chapter position in seconds from start"
-      }
-    }
   }
 }

@@ -17,7 +17,6 @@
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "messaging/helpers/DialogHelper.h"
-#include "music/MusicFileItemClassify.h"
 #include "music/MusicThumbLoader.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -25,7 +24,6 @@
 #include "utils/StringUtils.h"
 #include "utils/TimeUtils.h"
 #include "utils/log.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoThumbLoader.h"
 
 #include <mutex>
@@ -35,7 +33,6 @@
 #include <Platinum/Source/Platinum/Platinum.h>
 
 using namespace KODI::MESSAGING;
-using namespace KODI;
 
 using KODI::MESSAGING::HELPERS::DialogResponse;
 using namespace std::chrono_literals;
@@ -52,7 +49,7 @@ public:
                         PLT_DeviceDataReference& device,
                         IPlayerCallback& callback)
     : m_control(control),
-      m_transport(NULL),
+      m_transport(nullptr),
       m_device(device),
       m_callback(callback),
       m_posinfo({}),
@@ -89,13 +86,15 @@ public:
 
   NPT_String GetTransportState() const
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
+
     return m_trainfo.cur_transport_state;
   }
 
   NPT_String GetTransportStatus() const
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
+
     return m_trainfo.cur_transport_status;
   }
 
@@ -104,7 +103,7 @@ public:
                             PLT_MediaInfo* info,
                             void* userdata) override
   {
-    if (NPT_FAILED(res) || info == NULL)
+    if (NPT_FAILED(res) || info == nullptr)
       m_logger->error("OnGetMediaInfoResult failed");
   }
 
@@ -113,7 +112,7 @@ public:
                                 PLT_TransportInfo* info,
                                 void* userdata) override
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
 
     if (NPT_FAILED(res))
     {
@@ -142,9 +141,9 @@ public:
                                PLT_PositionInfo* info,
                                void* userdata) override
   {
-    std::unique_lock lock(m_section);
+    std::lock_guard lock(m_section);
 
-    if (NPT_FAILED(res) || info == NULL)
+    if (NPT_FAILED(res) || info == nullptr)
     {
       m_logger->error("OnGetMediaInfoResult failed");
       m_posinfo = PLT_PositionInfo();
@@ -215,8 +214,7 @@ static NPT_Result WaitOnEvent(CEvent& event, XbmcThreads::EndTime<>& timeout)
 
 int CUPnPPlayer::PlayFile(const CFileItem& file,
                           const CPlayerOptions& options,
-                          XbmcThreads::EndTime<>& timeout)
-{
+                          XbmcThreads::EndTime<>& timeout) const {
   CFileItem item(file);
   NPT_Reference<CThumbLoader> thumb_loader;
   NPT_Reference<PLT_MediaObject> obj;
@@ -226,12 +224,12 @@ int CUPnPPlayer::PlayFile(const CFileItem& file,
 
   NPT_CHECK_POINTER_LABEL_SEVERE(m_delegate, failed);
 
-  if (VIDEO::IsVideoDb(file))
+  if (file.IsVideoDb())
     thumb_loader = NPT_Reference<CThumbLoader>(new CVideoThumbLoader());
-  else if (MUSIC::IsMusicDb(item))
+  else if (item.IsMusicDb())
     thumb_loader = NPT_Reference<CThumbLoader>(new CMusicThumbLoader());
 
-  obj = BuildObject(item, path, false, thumb_loader, NULL, CUPnP::GetServer(), UPnPPlayer);
+  obj = BuildObject(item, path, false, thumb_loader, nullptr, CUPnP::GetServer(), UPnPPlayer);
   if (obj.IsNull())
     goto failed;
 
@@ -362,7 +360,7 @@ bool CUPnPPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options)
   XbmcThreads::EndTime<> timeout(10s);
 
   /* if no path we want to attach to a already playing player */
-  if (file.GetPath().empty())
+  if (file.GetPath() == "")
   {
     NPT_CHECK_LABEL_SEVERE(
         m_control->GetTransportInfo(m_delegate->m_device, m_delegate->m_instance, m_delegate.get()),
@@ -386,11 +384,11 @@ bool CUPnPPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options)
   m_stopremote = true;
   m_started = true;
 
-  if (VIDEO::IsVideo(file))
+  if (file.IsVideo())
   {
     m_hasVideo = true;
   }
-  else if (MUSIC::IsAudio(file))
+  else if (file.IsAudio())
   {
     m_hasAudio = true;
   }
@@ -420,12 +418,12 @@ bool CUPnPPlayer::QueueNextFile(const CFileItem& file)
   NPT_String path(file.GetPath().c_str());
   NPT_String tmp;
 
-  if (VIDEO::IsVideoDb(file))
+  if (file.IsVideoDb())
     thumb_loader = NPT_Reference<CThumbLoader>(new CVideoThumbLoader());
-  else if (MUSIC::IsMusicDb(item))
+  else if (item.IsMusicDb())
     thumb_loader = NPT_Reference<CThumbLoader>(new CMusicThumbLoader());
 
-  obj = BuildObject(item, path, false, thumb_loader, NULL, CUPnP::GetServer(), UPnPPlayer);
+  obj = BuildObject(item, path, false, thumb_loader, nullptr, CUPnP::GetServer(), UPnPPlayer);
   if (!obj.IsNull())
   {
     NPT_CHECK_LABEL_SEVERE(PLT_Didl::ToDidl(*obj, "", tmp), failed);
@@ -603,16 +601,14 @@ failed:
   m_logger->error("- unable to set volume");
 }
 
-int64_t CUPnPPlayer::GetTime()
-{
+int64_t CUPnPPlayer::GetTime() const {
   NPT_CHECK_POINTER_LABEL_SEVERE(m_delegate, failed);
   return m_delegate->m_posinfo.rel_time.ToMillis();
 failed:
   return 0;
 }
 
-int64_t CUPnPPlayer::GetTotalTime()
-{
+int64_t CUPnPPlayer::GetTotalTime() const {
   NPT_CHECK_POINTER_LABEL_SEVERE(m_delegate, failed);
   return m_delegate->m_posinfo.track_duration.ToMillis();
 failed:

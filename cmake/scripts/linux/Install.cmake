@@ -1,4 +1,4 @@
-if(TARGET ${APP_NAME_LC}::X)
+if(X_FOUND)
   set(USE_X11 1)
 else()
   set(USE_X11 0)
@@ -13,7 +13,7 @@ set(APP_INCLUDE_DIR ${includedir}/${APP_NAME_LC})
 
 # Set XBMC_STANDALONE_SH_PULSE so we can insert PulseAudio block into kodi-standalone
 if(EXISTS ${CMAKE_SOURCE_DIR}/tools/Linux/kodi-standalone.sh.pulse)
-  if(ENABLE_PULSEAUDIO AND TARGET ${APP_NAME_LC}::PulseAudio)
+  if(ENABLE_PULSEAUDIO AND TARGET PulseAudio::PulseAudio)
     file(READ "${CMAKE_SOURCE_DIR}/tools/Linux/kodi-standalone.sh.pulse" pulse_content)
     set(XBMC_STANDALONE_SH_PULSE ${pulse_content})
   endif()
@@ -50,7 +50,7 @@ if(NOT HEADERS_ONLY)
 install(TARGETS ${APP_NAME_LC}
         DESTINATION ${libdir}/${APP_NAME_LC}
         COMPONENT kodi-bin)
-if(TARGET ${APP_NAME_LC}::X AND TARGET ${APP_NAME_LC}::XRandR)
+if(TARGET X::X AND TARGET XRandR::XRandR)
   install(TARGETS ${APP_NAME_LC}-xrandr
           DESTINATION ${libdir}/${APP_NAME_LC}
           COMPONENT kodi-bin)
@@ -200,7 +200,7 @@ install(FILES ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/scripts/${APP_NAME}Config.cm
         COMPONENT kodi-addon-dev)
 
 if(ENABLE_EVENTCLIENTS)
-  find_package(PythonInterpreter REQUIRED ${SEARCH_QUIET})
+  find_package(PythonInterpreter REQUIRED)
   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from sysconfig import get_path; print(get_path('platlib', scheme='posix_prefix', vars={'platbase':'${CMAKE_INSTALL_PREFIX}'}))"
                   OUTPUT_VARIABLE PYTHON_LIB_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
   # Install kodi-eventclients-common BT python files
@@ -277,7 +277,7 @@ if(ENABLE_EVENTCLIENTS)
           DESTINATION ${bindir}
           COMPONENT kodi-eventclients-ps3)
 
-  if(TARGET ${APP_NAME_LC}::Bluetooth AND TARGET ${APP_NAME_LC}::CWiid AND TARGET ${APP_NAME_LC}::GLU)
+  if(TARGET Bluetooth::Bluetooth AND CWIID_FOUND AND GLU_FOUND)
     # Install kodi-eventclients-wiiremote
     install(PROGRAMS ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/WiiRemote/${APP_NAME_LC}-wiiremote
             DESTINATION ${bindir}

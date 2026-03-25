@@ -11,7 +11,6 @@
 #include "input/WindowTranslator.h" //! @todo
 #include "input/actions/ActionIDs.h"
 #include "input/actions/ActionTranslator.h"
-#include "utils/Map.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
@@ -24,10 +23,13 @@ using namespace KEYMAP;
 
 namespace
 {
-using ActionName = std::string_view;
+using ActionName = std::string;
 using TouchCommandID = unsigned int;
+} // namespace
 
-constexpr auto TouchCommands = make_map<ActionName, TouchCommandID>({
+#define TOUCH_COMMAND_NONE 0
+
+static const std::map<ActionName, TouchCommandID> TouchCommands = {
     {"tap", ACTION_TOUCH_TAP},
     {"longpress", ACTION_TOUCH_LONGPRESS},
     {"pan", ACTION_GESTURE_PAN},
@@ -36,11 +38,7 @@ constexpr auto TouchCommands = make_map<ActionName, TouchCommandID>({
     {"swipeleft", ACTION_GESTURE_SWIPE_LEFT},
     {"swiperight", ACTION_GESTURE_SWIPE_RIGHT},
     {"swipeup", ACTION_GESTURE_SWIPE_UP},
-    {"swipedown", ACTION_GESTURE_SWIPE_DOWN},
-});
-} // namespace
-
-#define TOUCH_COMMAND_NONE 0
+    {"swipedown", ACTION_GESTURE_SWIPE_DOWN}};
 
 void CTouchTranslator::MapActions(int windowID, const tinyxml2::XMLNode* pTouch)
 {
@@ -72,7 +70,7 @@ void CTouchTranslator::MapActions(int windowID, const tinyxml2::XMLNode* pTouch)
     {
       // check if there already is a mapping for the parsed action
       // and remove it if necessary
-      TouchActionMap::iterator actionIt = map.find(touchActionKey);
+      auto actionIt = map.find(touchActionKey);
       if (actionIt != map.end())
         map.erase(actionIt);
 
@@ -166,7 +164,10 @@ unsigned int CTouchTranslator::TranslateTouchCommand(const tinyxml2::XMLElement*
     strTouchCommand += attrVal;
 
   // Lookup command
-  unsigned int touchCommandId = TouchCommands.get(strTouchCommand).value_or(TOUCH_COMMAND_NONE);
+  unsigned int touchCommandId = TOUCH_COMMAND_NONE;
+  auto it = TouchCommands.find(strTouchCommand);
+  if (it != TouchCommands.end())
+    touchCommandId = it->second;
 
   if (touchCommandId == TOUCH_COMMAND_NONE)
   {

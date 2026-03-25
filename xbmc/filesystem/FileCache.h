@@ -46,9 +46,9 @@ namespace XFILE
     int64_t GetPosition() override;
     int64_t GetLength() override;
 
-    int IoControl(IOControl request, void* param) override;
+    int IoControl(EIoControl request, void* param) override;
 
-    IFile *GetFileImp();
+    IFile *GetFileImp() const;
 
     const std::string GetProperty(XFILE::FileProperty type, const std::string &name = "") const override;
 

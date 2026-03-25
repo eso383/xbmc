@@ -158,20 +158,17 @@ void CInputProcessorKeyboard::ConvertAndSendKey(std::uint32_t scancode, bool pre
   }
 
   const XBMCKey xbmcKey{m_keymap->XBMCKeyForKeycode(xkbCode)};
-  if (xbmcKey == XBMCKey::XBMCK_LAST)
+  if (xbmcKey == XBMCKey::XBMCK_UNKNOWN && utf32 == 0)
   {
     // Such an event would carry no useful information in it and thus can be safely dropped here
     // This prevents starting an unnecessary timer for key presses
-    CLog::Log(LOGDEBUG, LOGWINDOWING, "Key event ignored (scancode: {})", scancode);
+    CLog::Log(LOGDEBUG, "Unknown key event ignored (scancode: {})", scancode);
     return;
   }
 
   XBMC_Event event{SendKey(scancode, xbmcKey, static_cast<std::uint16_t> (utf32), pressed)};
 
-  // In the past this checked `CXkbcommonKeymap::ShouldKeycodeRepeat()`, but this prevents
-  // handling of long-presses, see #23273. So instead we repeat always and Kodi handles
-  // it internally further up in `CKeyboardStat::TranslateKey()`.
-  if (pressed && m_keyRepeatInterval > 0)
+  if (pressed && m_keymap->ShouldKeycodeRepeat(xkbCode) && m_keyRepeatInterval > 0)
   {
     // Can't modify keyToRepeat until we're sure the thread isn't accessing it
     m_keyRepeatTimer.Stop(true);
@@ -211,9 +208,10 @@ void CInputProcessorKeyboard::KeyRepeatTimeout()
 {
   // Reset ourselves
   m_keyRepeatTimer.RestartAsync(std::chrono::milliseconds(m_keyRepeatInterval));
-  // Send `XBMC_KEYDOWN` again without `XBMC_KEYUP` in between, we'll figure out
-  // further up the chain if we want to handle this as a repeat or long-press.
+  // Simulate repeat: Key up and down
   XBMC_Event event = m_keyToRepeat;
+  event.type = XBMC_KEYUP;
+  m_handler.OnKeyboardEvent(event);
   event.type = XBMC_KEYDOWN;
   m_handler.OnKeyboardEvent(event);
 }

@@ -9,7 +9,6 @@
 #include "KeyboardLayoutManager.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "filesystem/Directory.h"
@@ -93,7 +92,7 @@ bool CKeyboardLayoutManager::Load(const std::string& path /* = "" */)
       CKeyboardLayout layout;
       if (!layout.Load(layoutElement))
         CLog::Log(LOGWARNING, "CKeyboardLayoutManager: failed to load {}", layoutPath);
-      else if (m_layouts.contains(layout.GetIdentifier()))
+      else if (m_layouts.find(layout.GetIdentifier()) != m_layouts.end())
         CLog::Log(LOGWARNING,
                   "CKeyboardLayoutManager: duplicate layout with identifier \"{}\" in {}",
                   layout.GetIdentifier(), layoutPath);
@@ -121,7 +120,7 @@ bool CKeyboardLayoutManager::GetLayout(const std::string& name, CKeyboardLayout&
   if (name.empty())
     return false;
 
-  KeyboardLayouts::const_iterator it = m_layouts.find(name);
+  auto it = m_layouts.find(name);
   if (it == m_layouts.end())
     return false;
 
@@ -138,9 +137,10 @@ inline bool LayoutSort(const StringSettingOption& i, const StringSettingOption& 
 } // namespace
 
 void CKeyboardLayoutManager::SettingOptionsKeyboardLayoutsFiller(
-    const SettingConstPtr& /*setting*/,
+    const SettingConstPtr& setting,
     std::vector<StringSettingOption>& list,
-    std::string& /*current*/)
+    std::string& current,
+    void* data)
 {
   for (const auto& it : CServiceBroker::GetKeyboardLayoutManager()->m_layouts)
   {

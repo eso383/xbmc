@@ -33,19 +33,18 @@ int IFile::Stat(struct __stat64* buffer)
   errno = ENOENT;
   return -1;
 }
-IFile::ReadLineResult IFile::ReadLine(char* szLine, std::size_t bufferSize)
+bool IFile::ReadString(char *szLine, int iLineLength)
 {
-  if (Seek(0, SEEK_CUR) < 0)
-    return {ReadLineResult::FAILURE, 0};
+  if(Seek(0, SEEK_CUR) < 0) return false;
 
   int64_t iFilePos = GetPosition();
-  size_t iBytesRead = Read((unsigned char*)szLine, bufferSize - 1);
+  int iBytesRead = Read( (unsigned char*)szLine, iLineLength - 1);
   if (iBytesRead <= 0)
-    return {ReadLineResult::FAILURE, 0};
+    return false;
 
   szLine[iBytesRead] = 0;
 
-  for (size_t i = 0; i < iBytesRead; i++)
+  for (int i = 0; i < iBytesRead; i++)
   {
     if ('\n' == szLine[i])
     {
@@ -60,7 +59,7 @@ IFile::ReadLineResult IFile::ReadLine(char* szLine, std::size_t bufferSize)
         szLine[i + 1] = 0;
         Seek(iFilePos + i + 1, SEEK_SET);
       }
-      return {ReadLineResult::OK, i + 1};
+      break;
     }
     else if ('\r' == szLine[i])
     {
@@ -75,14 +74,14 @@ IFile::ReadLineResult IFile::ReadLine(char* szLine, std::size_t bufferSize)
         szLine[i + 1] = 0;
         Seek(iFilePos + i + 1, SEEK_SET);
       }
-      return {ReadLineResult::OK, i + 1};
+      break;
     }
   }
-  return {ReadLineResult::TRUNCATED, iBytesRead};
+  return true;
 }
 
 CRedirectException::CRedirectException() :
-  m_pNewFileImp(NULL), m_pNewUrl(NULL)
+  m_pNewFileImp(nullptr), m_pNewUrl(nullptr)
 {
 }
 

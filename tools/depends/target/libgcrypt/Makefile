@@ -1,6 +1,13 @@
 include ../../Makefile.include LIBGCRYPT-VERSION ../../download-files.include
 DEPS = ../../Makefile.include Makefile LIBGCRYPT-VERSION ../../download-files.include
 
+ifeq ($(OS),android)
+  # Just blanket disable neon support for non arm64 arch
+  ifneq ($(findstring arm64, $(CPU)), arm64)
+    CONFIGURE_FLAGS+= --disable-neon-support
+  endif
+endif
+
 ifeq ($(findstring apple-darwin, $(HOST)), apple-darwin)
   # required to fix asm link failure due C_SYMBOL_NAME macro not prepending _ to exported symbol
   # exported symbols only have s single _ instead of double __
@@ -13,11 +20,6 @@ ifeq ($(findstring apple-darwin, $(HOST)), apple-darwin)
     CONFIGURE_FLAGS+= ac_cv_func_getentropy=no
   endif
 endif
-
-# Disable random jitter entropy due to failure on multiple platform/arches
-# ./jitterentropy-base.c:58:3: error: "The CPU Jitter random number generator must not be compiled with optimizations. 
-#                                       See documentation. Use the compiler switch -O0 for compiling jitterentropy.c."
-CONFIGURE_FLAGS+= --disable-jent-support
 
 export GPG_ERROR_CONFIG=$(PREFIX)/bin/gpg-error-config
 

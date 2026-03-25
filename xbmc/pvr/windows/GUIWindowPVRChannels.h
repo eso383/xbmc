@@ -22,7 +22,7 @@ public:
   CGUIWindowPVRChannelsBase(bool bRadio, int id, const std::string& xmlFile);
   ~CGUIWindowPVRChannelsBase() override;
 
-  std::string GetRootPath() override;
+  std::string GetRootPath() const override;
   bool OnMessage(CGUIMessage& message) override;
   void GetContextButtons(int itemNumber, CContextButtons& buttons) override;
   bool OnContextButton(int itemNumber, CONTEXT_BUTTON button) override;
@@ -34,16 +34,14 @@ public:
   void GetChannelNumbers(std::vector<std::string>& channelNumbers) override;
   void OnInputDone() override;
 
-protected:
-  std::string GetDirectoryPath() override;
-
 private:
   bool OnContextButtonManage(const CFileItemPtr& item, CONTEXT_BUTTON button);
 
   void ShowChannelManager() const;
   void ShowGroupManager() const;
-  void UpdateEpg(const std::shared_ptr<CFileItem>& item) const;
+  void UpdateEpg(const CFileItemPtr& item);
 
+protected:
   bool m_bShowHiddenChannels = false;
 };
 
@@ -51,11 +49,17 @@ class CGUIWindowPVRTVChannels : public CGUIWindowPVRChannelsBase
 {
 public:
   CGUIWindowPVRTVChannels();
+
+protected:
+  std::string GetDirectoryPath() override;
 };
 
 class CGUIWindowPVRRadioChannels : public CGUIWindowPVRChannelsBase
 {
 public:
   CGUIWindowPVRRadioChannels();
+
+protected:
+  std::string GetDirectoryPath() override;
 };
 } // namespace PVR

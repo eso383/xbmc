@@ -22,8 +22,8 @@
 #include "utils/log.h"
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
-#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -31,16 +31,15 @@ using namespace KODI::MESSAGING;
 
 using namespace PVR;
 
-bool CPVRGUIActionsClients::ProcessSettingsMenuHooks() const
-{
+bool CPVRGUIActionsClients::ProcessSettingsMenuHooks() const {
   const CPVRClientMap clients = CServiceBroker::GetPVRManager().Clients()->GetCreatedClients();
 
   std::vector<std::pair<std::shared_ptr<CPVRClient>, CPVRClientMenuHook>> settingsHooks;
-  for (const auto& client : std::views::values(clients))
+  for (const auto& client : clients)
   {
-    const auto hooks = client->GetMenuHooks()->GetSettingsHooks();
-    std::ranges::transform(hooks, std::back_inserter(settingsHooks),
-                           [&client](const auto& hook) { return std::make_pair(client, hook); });
+    const auto hooks = client.second->GetMenuHooks()->GetSettingsHooks();
+    std::transform(hooks.cbegin(), hooks.cend(), std::back_inserter(settingsHooks),
+                   [&client](const auto& hook) { return std::make_pair(client.second, hook); });
   }
 
   if (settingsHooks.empty())
@@ -68,12 +67,12 @@ bool CPVRGUIActionsClients::ProcessSettingsMenuHooks() const
     pDialog->Reset();
     pDialog->SetHeading(CVariant{19196}); // "PVR client specific actions"
 
-    for (const auto& [client, hook] : settingsHooks)
+    for (const auto& hook : settingsHooks)
     {
       if (clients.size() == 1)
-        pDialog->Add(hook.GetLabel());
+        pDialog->Add(hook.second.GetLabel());
       else
-        pDialog->Add(client->GetFullClientName() + ": " + hook.GetLabel());
+        pDialog->Add(hook.first->GetFriendlyName() + ": " + hook.second.GetLabel());
     }
 
     pDialog->Open();

@@ -9,7 +9,6 @@
 #include "GUIFontTTF.h"
 #include "windowing/GraphicContext.h"
 
-#include <map>
 #include <stdint.h>
 #include <vector>
 
@@ -66,10 +65,8 @@ class CGUIFontCacheImpl
       {
         if (ageit->second == it)
         {
-          auto node = ageMap.extract(ageit);
-          node.key() = now;
-          node.mapped() = it;
-          ageMap.insert(std::move(node));
+          ageMap.erase(ageit);
+          ageMap.insert(typename AgeMap::value_type(now, it));
           it->second->m_lastUsed = now;
           return;
         }
@@ -87,8 +84,8 @@ public:
   explicit CGUIFontCacheImpl(CGUIFontCache<Position, Value>* parent) : m_parent(parent) {}
   Value& Lookup(const CGraphicContext& context,
                 Position& pos,
-                std::span<const KODI::UTILS::COLOR::Color> colors,
-                std::span<const character_t> text,
+                const std::vector<UTILS::COLOR::Color>& colors,
+                const vecText& text,
                 uint32_t alignment,
                 float maxPixelWidth,
                 bool scrolling,
@@ -100,6 +97,8 @@ public:
 template<class Position, class Value>
 CGUIFontCacheEntry<Position, Value>::~CGUIFontCacheEntry()
 {
+  delete &m_key.m_colors;
+  delete &m_key.m_text;
   m_value.clear();
 }
 
@@ -107,11 +106,9 @@ template<class Position, class Value>
 void CGUIFontCacheEntry<Position, Value>::Assign(const CGUIFontCacheKey<Position>& key,
                                                  std::chrono::steady_clock::time_point now)
 {
-  m_color.assign(key.m_colors.begin(), key.m_colors.end());
-  m_text.assign(key.m_text.begin(), key.m_text.end());
   m_key.m_pos = key.m_pos;
-  m_key.m_colors = m_color;
-  m_key.m_text = m_text;
+  m_key.m_colors.assign(key.m_colors.begin(), key.m_colors.end());
+  m_key.m_text.assign(key.m_text.begin(), key.m_text.end());
   m_key.m_alignment = key.m_alignment;
   m_key.m_maxPixelWidth = key.m_maxPixelWidth;
   m_key.m_scrolling = key.m_scrolling;
@@ -134,8 +131,8 @@ CGUIFontCache<Position, Value>::~CGUIFontCache() = default;
 template<class Position, class Value>
 Value& CGUIFontCache<Position, Value>::Lookup(const CGraphicContext& context,
                                               Position& pos,
-                                              std::span<const KODI::UTILS::COLOR::Color> colors,
-                                              std::span<const character_t> text,
+                                              const std::vector<UTILS::COLOR::Color>& colors,
+                                              const vecText& text,
                                               uint32_t alignment,
                                               float maxPixelWidth,
                                               bool scrolling,
@@ -152,16 +149,17 @@ Value& CGUIFontCache<Position, Value>::Lookup(const CGraphicContext& context,
 template<class Position, class Value>
 Value& CGUIFontCacheImpl<Position, Value>::Lookup(const CGraphicContext& context,
                                                   Position& pos,
-                                                  std::span<const KODI::UTILS::COLOR::Color> colors,
-                                                  std::span<const character_t> text,
+                                                  const std::vector<UTILS::COLOR::Color>& colors,
+                                                  const vecText& text,
                                                   uint32_t alignment,
                                                   float maxPixelWidth,
                                                   bool scrolling,
                                                   std::chrono::steady_clock::time_point now,
                                                   bool& dirtyCache)
 {
-  const CGUIFontCacheKey<Position> key(pos, colors, text, alignment, maxPixelWidth, scrolling,
-                                       context.GetGUIMatrix(), context.GetGUIScaleX(),
+  const CGUIFontCacheKey<Position> key(pos, const_cast<std::vector<UTILS::COLOR::Color>&>(colors),
+                                       const_cast<vecText&>(text), alignment, maxPixelWidth,
+                                       scrolling, context.GetGUIMatrix(), context.GetGUIScaleX(),
                                        context.GetGUIScaleY());
 
   auto i = m_list.FindKey(key);
@@ -228,8 +226,8 @@ template CGUIFontCacheStaticValue& CGUIFontCache<
     CGUIFontCacheStaticPosition,
     CGUIFontCacheStaticValue>::Lookup(const CGraphicContext& context,
                                       CGUIFontCacheStaticPosition&,
-                                      std::span<const KODI::UTILS::COLOR::Color> colors,
-                                      std::span<const character_t> text,
+                                      const std::vector<UTILS::COLOR::Color>&,
+                                      const vecText&,
                                       uint32_t,
                                       float,
                                       bool,
@@ -246,8 +244,8 @@ template CGUIFontCacheDynamicValue& CGUIFontCache<
     CGUIFontCacheDynamicPosition,
     CGUIFontCacheDynamicValue>::Lookup(const CGraphicContext& context,
                                        CGUIFontCacheDynamicPosition&,
-                                       std::span<const KODI::UTILS::COLOR::Color> colors,
-                                       std::span<const character_t> text,
+                                       const std::vector<UTILS::COLOR::Color>&,
+                                       const vecText&,
                                        uint32_t,
                                        float,
                                        bool,

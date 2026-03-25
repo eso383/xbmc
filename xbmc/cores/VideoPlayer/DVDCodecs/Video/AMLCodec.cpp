@@ -184,7 +184,7 @@ void dumpfile_write(am_private_t *para, void* buf, int bufsiz)
 {
   if (!buf)
   {
-    logM(LOGERROR, "wtf ? buf is null, bufsiz({:d})", bufsiz);
+    CLog::Log(LOGERROR, "dumpfile_write: wtf ? buf is null, bufsiz({:d})", bufsiz);
     return;
   }
 
@@ -245,7 +245,7 @@ static vformat_t codecid_to_vformat(enum AVCodecID id)
       break;
   }
 
-  logM(LOGDEBUG, "id({:d}) -> vformat({:d})", (int)id, format);
+  CLog::Log(LOGDEBUG, "codecid_to_vformat, id({:d}) -> vformat({:d})", (int)id, format);
   return format;
 }
 
@@ -357,7 +357,7 @@ static vdec_type_t codec_tag_to_vdec_type(unsigned int codec_tag)
       break;
   }
 
-  logM(LOGDEBUG, "codec_tag({:d}) -> vdec_type({:d})", codec_tag, dec_type);
+  CLog::Log(LOGDEBUG, "codec_tag_to_vdec_type, codec_tag({:d}) -> vdec_type({:d})", codec_tag, dec_type);
   return dec_type;
 }
 
@@ -398,7 +398,7 @@ int check_in_pts(am_private_t *para, am_packet_t& pkt)
       (UINT64_0 != pkt.avpts) &&
       (para->m_dll->codec_checkin_pts_us64(pkt.codec, pkt.avpts) != 0))
   {
-    logM(LOGERROR, "ERROR check in pts error!");
+    CLog::Log(LOGERROR, "ERROR check in pts error!");
     return PLAYER_PTS_ERROR;
   }
   return PLAYER_SUCCESS;
@@ -410,7 +410,7 @@ static int write_header(am_private_t *para, am_packet_t& pkt)
 
     if (pkt.hdr && pkt.hdr->size > 0) {
         if ((nullptr == pkt.codec) || (nullptr == pkt.hdr->data)) {
-            logM(LOGDEBUG, "codec null!");
+            CLog::Log(LOGDEBUG, "[write_header]codec null!");
             return PLAYER_EMPTY_P;
         }
         //some wvc1 es data not need to add header
@@ -425,7 +425,7 @@ static int write_header(am_private_t *para, am_packet_t& pkt)
             write_bytes = para->m_dll->codec_write(pkt.codec, pkt.hdr->data + len, pkt.hdr->size - len);
             if (write_bytes < 0 || write_bytes > (pkt.hdr->size - len)) {
                 if (-errno != AVERROR(EAGAIN)) {
-                    logM(LOGDEBUG, "ERROR:write header failed!");
+                    CLog::Log(LOGDEBUG, "ERROR:write header failed!");
                     return PLAYER_WR_FAILED;
                 } else {
                     continue;
@@ -453,12 +453,12 @@ int write_av_packet(am_private_t *para, am_packet_t& pkt)
         if (pkt.isvalid) {
             ret = check_in_pts(para, pkt);
             if (ret != PLAYER_SUCCESS) {
-                logM(LOGERROR, "check in pts failed");
+                CLog::Log(LOGERROR, "check in pts failed");
                 return PLAYER_WR_FAILED;
             }
         }
         if (write_header(para, pkt) == PLAYER_WR_FAILED) {
-            logM(LOGERROR, "write header failed!");
+            CLog::Log(LOGERROR, "[{}]write header failed!", __FUNCTION__);
             return PLAYER_WR_FAILED;
         }
         pkt.newflag = 0;
@@ -475,22 +475,17 @@ int write_av_packet(am_private_t *para, am_packet_t& pkt)
         write_bytes = para->m_dll->codec_write(pkt.codec, buf, size);
         if (write_bytes < 0 || write_bytes > size) {
             if (-errno == AVERROR(EAGAIN)) {
-                // Codec buffer full — adjust pointers for any partial write
-                // and return immediately so the caller's loop can re-check.
-                // The caller (Decode) loops with a 100-iteration cap, and each
-                // iteration calls write_av_packet which will hit this path again
-                // if still full. Sleeping 1ms (down from 5ms) reduces worst-case
-                // blocking from 500ms to 100ms, keeping the video thread responsive
-                // to pause/seek commands during buffer pressure.
+                // adjust for any data we already wrote into codec.
+                // we sleep a bit then exit as we will get called again
+                // with the same pkt because pkt.isvalid has not been cleared.
                 pkt.data += len;
                 pkt.data_size -= len;
-                usleep(1000); // 1ms instead of 5ms — let caller loop handle retries
-                logM(LOGDEBUG, "Codec buffer full (EAGAIN), try after 1 ms, size({:d}) len({:d})",
-                                           size, len);
+                usleep(RW_WAIT_TIME);
+                CLog::Log(LOGDEBUG, "Codec buffer full, try after {:d} ms, len({:d})",
+                  RW_WAIT_TIME / 1000, len);
                 return PLAYER_SUCCESS;
             }
-            logM(LOGERROR, "write codec data failed, write_bytes({:d}), errno({:d}), size({:d})",
-                                       write_bytes, errno, size);
+            CLog::Log(LOGERROR, "write codec data failed, write_bytes({:d}), errno({:d}), size({:d})", write_bytes, errno, size);
             return PLAYER_WR_FAILED;
         } else {
             dumpfile_write(para, buf, write_bytes);
@@ -525,7 +520,7 @@ static int m4s2_dx50_mp4v_add_header(am_private_t *para, unsigned char *buf, int
 
       hdr->data = (char*)malloc(size);
       if (!hdr->data) {
-          logM(LOGDEBUG, "NOMEM!");
+          CLog::Log(LOGDEBUG, "[m4s2_dx50_add_header] NOMEM!");
           return PLAYER_FAILED;
       }
   }
@@ -537,7 +532,7 @@ static int m4s2_dx50_mp4v_add_header(am_private_t *para, unsigned char *buf, int
 
 static int m4s2_dx50_mp4v_write_header(am_private_t *para, am_packet_t& pkt)
 {
-    logNoFormatM(LOGDEBUG);
+    CLog::Log(LOGDEBUG, "m4s2_dx50_mp4v_write_header");
     return m4s2_dx50_mp4v_add_header(para, para->extradata.GetData(), para->extradata.GetSize(), pkt);
 }
 
@@ -583,7 +578,7 @@ static int mjpeg_data_prefeeding(am_packet_t& pkt)
         memcpy(pkt.hdr->data, &mjpeg_addon_data, sizeof(mjpeg_addon_data));
         pkt.hdr->size = sizeof(mjpeg_addon_data);
     } else {
-        logM(LOGDEBUG, "Not enough memory!");
+        CLog::Log(LOGDEBUG, "[mjpeg_data_prefeeding]Not enough memory!");
         return PLAYER_FAILED;
     }
     return PLAYER_SUCCESS;
@@ -614,7 +609,7 @@ static int divx3_data_prefeeding(am_packet_t& pkt, unsigned w, unsigned h)
         memcpy(pkt.hdr->data, divx311_add, sizeof(divx311_add));
         pkt.hdr->size = sizeof(divx311_add);
     } else {
-        logM(LOGDEBUG, "Not enough memory!");
+        CLog::Log(LOGDEBUG, "[divx3_data_prefeeding]Not enough memory!");
         return PLAYER_FAILED;
     }
     return PLAYER_SUCCESS;
@@ -622,7 +617,7 @@ static int divx3_data_prefeeding(am_packet_t& pkt, unsigned w, unsigned h)
 
 static int divx3_write_header(am_private_t *para, am_packet_t& pkt)
 {
-    logNoFormatM(LOGDEBUG);
+    CLog::Log(LOGDEBUG, "divx3_write_header");
     divx3_data_prefeeding(pkt, para->video_width, para->video_height);
     pkt.codec = &para->vcodec;
     pkt.newflag = 1;
@@ -699,7 +694,7 @@ int mpeg12_add_frame_dec_info(am_private_t *para)
   ret = av_grow_packet(&(pkt.avpkt), 4);
   if (ret < 0)
   {
-    logM(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
+    CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
     return ret;
   }
 
@@ -794,10 +789,10 @@ int av1_parser_frame(
         // Note: aom_read_obu_header_and_size() takes care of checking that this
         // doesn't cause 'data' to advance past 'data_end'.
 
-        if (data_end - data - bytes_read < payload_size)
+        if ((size_t)(data_end - data - bytes_read) < payload_size)
             return -1;
 
-        logM(LOGDEBUG, "\tobu {} len {:d}+{:d}", obu_type_name[obu_header.type], bytes_read, payload_size);
+        CLog::Log(LOGDEBUG, "\tobu {} len {:d}+{:d}", obu_type_name[obu_header.type], bytes_read, payload_size);
 
         obu_size = bytes_read + payload_size + 4;
 
@@ -888,13 +883,13 @@ int av1_parser_frame(
                 meta_type = OBU_METADATA_TYPE_AOM_RESERVED_0;
 
             p = data + bytes_read;
-            logM(LOGDEBUG, "\tmeta type {} {:d}+{:d}", meta_type_name[type], bytes_read, payload_size - bytes_read);
+            CLog::Log(LOGDEBUG, "\tmeta type {} {:d}+{:d}", meta_type_name[type], bytes_read, payload_size - bytes_read);
 
             if (meta_type == OBU_METADATA_TYPE_ITUT_T35 && meta_buf != nullptr) {
                 if ((p[0] == 0xb5) /* country code */
                     && ((p[1] == 0x00) && (p[2] == 0x3b)) /* terminal_provider_code */
                     && ((p[3] == 0x00) && (p[4] == 0x00) && (p[5] == 0x08) && (p[6] == 0x00))) { /* terminal_provider_oriented_code */
-                    logM(LOGDEBUG, "\t\tdolbyvison rpu");
+                    CLog::Log(LOGDEBUG, "\t\tdolbyvison rpu");
                     meta_buf[0] = meta_buf[1] = meta_buf[2] = 0;
                     meta_buf[3] = 0x01;
                     meta_buf[4] = 0x19;
@@ -904,7 +899,7 @@ int av1_parser_frame(
                         rpu_size |= (p[11] & 0x0f) << 4;
                         rpu_size |= (p[12] >> 4) & 0x0f;
                         if (p[12] & 0x08) {
-                            logM(LOGDEBUG, "\tmeta rpu in obu exceed 512 bytes");
+                            CLog::Log(LOGDEBUG, "\tmeta rpu in obu exceed 512 bytes");
                             break;
                         }
                         for (i = 0; i < rpu_size; i++) {
@@ -926,20 +921,20 @@ int av1_parser_frame(
                 }
             }
             else if (meta_type == OBU_METADATA_TYPE_HDR_CLL) {
-                logM(LOGDEBUG, "\t\thdr10 cll:");
-                logM(LOGDEBUG, "\t\tmax_cll = {:x}", (p[0] << 8) | p[1]);
-                logM(LOGDEBUG, "\t\tmax_fall = {:x}", (p[2] << 8) | p[3]);
+                CLog::Log(LOGDEBUG, "\t\thdr10 cll:");
+                CLog::Log(LOGDEBUG, "\t\tmax_cll = {:x}", (p[0] << 8) | p[1]);
+                CLog::Log(LOGDEBUG, "\t\tmax_fall = {:x}", (p[2] << 8) | p[3]);
             }
             else if (meta_type == OBU_METADATA_TYPE_HDR_MDCV) {
-                logM(LOGDEBUG, "\t\thdr10 primaries[r,g,b] =");
+                CLog::Log(LOGDEBUG, "\t\thdr10 primaries[r,g,b] =");
                 for (i = 0; i < 3; i++) {
-                    logM(LOGDEBUG, "\t\t {:x}, {:x}",
+                    CLog::Log(LOGDEBUG, "\t\t {:x}, {:x}",
                         (p[i * 4] << 8) | p[i * 4 + 1],
                         (p[i * 4 + 2] << 8) | p[i * 4 + 3]);
                 }
-                logM(LOGDEBUG, "\t\twhite point = {:x}, {:x}", (p[12] << 8) | p[13], (p[14] << 8) | p[15]);
-                logM(LOGDEBUG, "\t\tmaxl = {:x}", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
-                logM(LOGDEBUG, "\t\tminl = {:x}", (p[20] << 24) | (p[21] << 16) | (p[22] << 8) | p[23]);
+                CLog::Log(LOGDEBUG, "\t\twhite point = {:x}, {:x}", (p[12] << 8) | p[13], (p[14] << 8) | p[15]);
+                CLog::Log(LOGDEBUG, "\t\tmaxl = {:x}", (p[16] << 24) | (p[17] << 16) | (p[18] << 8) | p[19]);
+                CLog::Log(LOGDEBUG, "\t\tminl = {:x}", (p[20] << 24) | (p[21] << 16) | (p[22] << 8) | p[23]);
             }
                 break;
         case OBU_TILE_LIST:
@@ -963,7 +958,7 @@ int av1_add_frame_dec_info(am_private_t *para)
   am_packet_t& pkt = para->am_pkt;
 
   unsigned int dst_frame_size = 0;
-  auto dst_data = (uint8_t *)calloc(1, pkt.data_size + 4096);
+  uint8_t *dst_data = (uint8_t *)calloc(1, pkt.data_size + 4096);
   av1_parser_frame(0, pkt.data, pkt.data + pkt.data_size, dst_data, &dst_frame_size, nullptr, nullptr);
 
   if (dst_frame_size - pkt.data_size > 0)
@@ -975,7 +970,7 @@ int av1_add_frame_dec_info(am_private_t *para)
     ret = av_grow_packet(&(pkt.avpkt), dst_frame_size - pkt.data_size);
     if (ret < 0)
     {
-      logM(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
+      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
       return ret;
     }
 
@@ -994,7 +989,7 @@ int vp9_update_frame_header(am_packet_t& pkt)
   unsigned char *buf = pkt.data;
   unsigned char marker;
   int frame_number;
-  int mag, index_sz, offset[9], size[8], tframesize[9];
+  int cur_frame, cur_mag, mag, index_sz, offset[9], size[8], tframesize[9];
   int mag_ptr;
   int ret;
   unsigned char *old_header = nullptr;
@@ -1013,22 +1008,22 @@ int vp9_update_frame_header(am_packet_t& pkt)
     frame_number = (marker & 0x7) + 1;
     mag = ((marker >> 3) & 0x3) + 1;
     index_sz = 2 + mag * frame_number;
-    logM(LOGDEBUG, "frame_number : {:d}, mag : {:d}; index_sz : {:d}", frame_number, mag, index_sz);
+    CLog::Log(LOGDEBUG, " frame_number : {:d}, mag : {:d}; index_sz : {:d}", frame_number, mag, index_sz);
     offset[0] = 0;
     mag_ptr = dsize - mag * frame_number - 2;
     if (buf[mag_ptr] != marker)
     {
-      logM(LOGDEBUG, "Wrong marker2 : 0x{:X} --> 0x{:X}", marker, buf[mag_ptr]);
+      CLog::Log(LOGDEBUG, " Wrong marker2 : 0x{:X} --> 0x{:X}", marker, buf[mag_ptr]);
       return PLAYER_SUCCESS;
     }
 
     mag_ptr++;
 
-    for (int cur_frame = 0; cur_frame < frame_number; cur_frame++)
+    for (cur_frame = 0; cur_frame < frame_number; cur_frame++)
     {
       size[cur_frame] = 0; // or size[0] = bytes_in_buffer - 1; both OK
 
-      for (int cur_mag = 0; cur_mag < mag; cur_mag++)
+      for (cur_mag = 0; cur_mag < mag; cur_mag++)
       {
         size[cur_frame] = size[cur_frame]|(buf[mag_ptr] << (cur_mag*8));
         mag_ptr++;
@@ -1055,7 +1050,7 @@ int vp9_update_frame_header(am_packet_t& pkt)
 
   if (total_datasize > dsize)
   {
-    logM(LOGDEBUG, "DATA overflow : 0x{:X} --> 0x{:X}", total_datasize, dsize);
+    CLog::Log(LOGDEBUG, "DATA overflow : 0x{:X} --> 0x{:X}", total_datasize, dsize);
     return PLAYER_SUCCESS;
   }
 
@@ -1070,7 +1065,7 @@ int vp9_update_frame_header(am_packet_t& pkt)
     ret = av_grow_packet(&(pkt.avpkt), need_more);
     if (ret < 0)
     {
-      logM(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
+      CLog::Log(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
       return ret;
     }
 
@@ -1078,7 +1073,7 @@ int vp9_update_frame_header(am_packet_t& pkt)
     pkt.data_size = pkt.avpkt.size;
   }
 
-  for (int cur_frame = frame_number - 1; cur_frame >= 0; cur_frame--)
+  for (cur_frame = frame_number - 1; cur_frame >= 0; cur_frame--)
   {
     AVPacket *avpkt = &(pkt.avpkt);
     int framesize = size[cur_frame];
@@ -1114,11 +1109,11 @@ int vp9_update_frame_header(am_packet_t& pkt)
     }
     else if (old_header > fdata + 16 + framesize)
     {
-      logM(LOGDEBUG, "data has gaps,set to 0");
+      CLog::Log(LOGDEBUG, "data has gaps,set to 0");
       memset(fdata + 16 + framesize, 0, (old_header - fdata + 16 + framesize));
     }
     else if (old_header < fdata + 16 + framesize)
-      logM(LOGDEBUG, "ERROR!!! data over writed!!!! over write {:d}", fdata + 16 + framesize - old_header);
+      CLog::Log(LOGDEBUG, "ERROR!!! data over writed!!!! over write {:d}", fdata + 16 + framesize - old_header);
 
     old_header = fdata;
   }
@@ -1128,10 +1123,10 @@ int vp9_update_frame_header(am_packet_t& pkt)
 
 static int wmv3_write_header(am_private_t *para, am_packet_t& pkt)
 {
-    logNoFormatM(LOGDEBUG);
+    CLog::Log(LOGDEBUG, "wmv3_write_header");
 
-    unsigned check_sum = 0;
-    unsigned data_len = para->extrasize + 4;
+    unsigned i, check_sum = 0;
+    unsigned data_len = para->extradata.GetSize() + 4;
 
     pkt.hdr->data[0] = 0;
     pkt.hdr->data[1] = 0;
@@ -1152,7 +1147,7 @@ static int wmv3_write_header(am_private_t *para, am_packet_t& pkt)
     pkt.hdr->data[14] = 0xff;
     pkt.hdr->data[15] = 0x88;
 
-    for (unsigned i = 4 ; i < 16 ; i++) {
+    for (i = 4 ; i < 16 ; i++) {
         check_sum += pkt.hdr->data[i];
     }
 
@@ -1169,7 +1164,7 @@ static int wmv3_write_header(am_private_t *para, am_packet_t& pkt)
     pkt.hdr->data[25] =  para->video_height & 0xff;
 
     memcpy(pkt.hdr->data + 26, para->extradata.GetData(), para->extradata.GetSize());
-    pkt.hdr->size = para->extrasize + 26;
+    pkt.hdr->size = para->extradata.GetSize() + 26;
     pkt.codec = &para->vcodec;
     pkt.newflag = 1;
     return write_av_packet(para, pkt);
@@ -1177,10 +1172,9 @@ static int wmv3_write_header(am_private_t *para, am_packet_t& pkt)
 
 static int wvc1_write_header(am_private_t *para, am_packet_t& pkt)
 {
-    logNoFormatM(LOGDEBUG);
-
+    CLog::Log(LOGDEBUG, "wvc1_write_header");
     memcpy(pkt.hdr->data, para->extradata.GetData() + 1, para->extradata.GetSize() - 1);
-    pkt.hdr->size = para->extrasize - 1;
+    pkt.hdr->size = para->extradata.GetSize() - 1;
     pkt.codec = &para->vcodec;
     pkt.newflag = 1;
     return write_av_packet(para, pkt);
@@ -1188,8 +1182,7 @@ static int wvc1_write_header(am_private_t *para, am_packet_t& pkt)
 
 static int mpeg_add_header(am_private_t *para, am_packet_t& pkt)
 {
-    logNoFormatM(LOGDEBUG);
-
+    CLog::Log(LOGDEBUG, "mpeg_add_header");
 #define STUFF_BYTES_LENGTH     (256)
     int size;
     unsigned char packet_wrapper[] = {
@@ -1201,13 +1194,13 @@ static int mpeg_add_header(am_private_t *para, am_packet_t& pkt)
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff
     };
 
-    size = para->extrasize + sizeof(packet_wrapper);
+    size = para->extradata.GetSize() + sizeof(packet_wrapper);
     packet_wrapper[4] = size >> 8 ;
     packet_wrapper[5] = size & 0xff ;
     memcpy(pkt.hdr->data, packet_wrapper, sizeof(packet_wrapper));
     size = sizeof(packet_wrapper);
     memcpy(pkt.hdr->data + size, para->extradata.GetData(), para->extradata.GetSize());
-    size += para->extrasize;
+    size += para->extradata.GetSize();
     memset(pkt.hdr->data + size, 0xff, STUFF_BYTES_LENGTH);
     size += STUFF_BYTES_LENGTH;
     pkt.hdr->size = size;
@@ -1247,7 +1240,7 @@ int pre_header_feeding(am_private_t *para, am_packet_t& pkt)
                 return ret;
             }
         } else if (CODEC_TAG_WMV3 == para->video_codec_tag) {
-            logM(LOGDEBUG, "CODEC_TAG_WMV3 == para->video_codec_tag");
+            CLog::Log(LOGDEBUG, "CODEC_TAG_WMV3 == para->video_codec_tag");
             ret = wmv3_write_header(para, pkt);
             if (ret != PLAYER_SUCCESS) {
                 return ret;
@@ -1258,12 +1251,12 @@ int pre_header_feeding(am_private_t *para, am_packet_t& pkt)
             if (para->extradata.GetSize() > 4 && !para->extradata.GetData()[0] && !para->extradata.GetData()[1] &&
                 para->extradata.GetData()[2] == 0x01 && para->extradata.GetData()[3] == 0x0f && ((para->extradata.GetData()[4] & 0x03) == 0x03))
             {
-                logM(LOGDEBUG, "CODEC_TAG_WVC1 == para->video_codec_tag, using wmv3_write_header");
+                CLog::Log(LOGDEBUG, "CODEC_TAG_WVC1 == para->video_codec_tag, using wmv3_write_header");
                 ret = wmv3_write_header(para, pkt);
             }
             else
             {
-                logM(LOGDEBUG, "CODEC_TAG_WVC1 == para->video_codec_tag");
+                CLog::Log(LOGDEBUG, "CODEC_TAG_WVC1 == para->video_codec_tag");
                 ret = wvc1_write_header(para, pkt);
             }
             if (ret != PLAYER_SUCCESS) {
@@ -1295,7 +1288,7 @@ int pre_header_feeding(am_private_t *para, am_packet_t& pkt)
             pkt.hdr = (hdr_buf_t*)malloc(sizeof(hdr_buf_t));
             pkt.hdr->data = (char*)malloc(HDR_BUF_SIZE);
             if (!pkt.hdr->data) {
-                logM(LOGDEBUG, "NOMEM!");
+                CLog::Log(LOGDEBUG, "[pre_header_feeding] NOMEM!");
                 return PLAYER_NOMEM;
             }
         }
@@ -1332,7 +1325,7 @@ int divx3_prefix(am_packet_t& pkt)
     if (pkt.hdr == nullptr) {
         pkt.hdr = (hdr_buf_t*)malloc(sizeof(hdr_buf_t));
         if (!pkt.hdr) {
-            logM(LOGDEBUG, "[hdr] NOMEM!");
+            CLog::Log(LOGDEBUG, "[divx3_prefix] NOMEM!");
             return PLAYER_FAILED;
         }
 
@@ -1342,7 +1335,7 @@ int divx3_prefix(am_packet_t& pkt)
 
     pkt.hdr->data = (char*)malloc(DIVX311_CHUNK_HEAD_SIZE + 4);
     if (pkt.hdr->data == nullptr) {
-        logM(LOGDEBUG, "[data] NOMEM!");
+        CLog::Log(LOGDEBUG, "[divx3_prefix] NOMEM!");
         return PLAYER_FAILED;
     }
 
@@ -1359,7 +1352,7 @@ int divx3_prefix(am_packet_t& pkt)
     return PLAYER_SUCCESS;
 }
 
-int set_header_info(am_private_t *para, bool decStreamTypeFrame)
+int set_header_info(am_private_t *para)
 {
   am_packet_t& pkt = para->am_pkt;
 
@@ -1395,7 +1388,7 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
           }
 
           if (pkt.avpkt.flags) {
-              pkt.hdr->data = (char*)malloc(para->extrasize + 26 + 22);
+              pkt.hdr->data = (char*)malloc(para->extradata.GetSize() + 26 + 22);
               if (pkt.hdr->data == nullptr) {
                   return PLAYER_FAILED;
               }
@@ -1405,7 +1398,7 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
               pkt.hdr->data[2] = 1;
               pkt.hdr->data[3] = 0x10;
 
-              data_len = para->extrasize + 4;
+              data_len = para->extradata.GetSize() + 4;
               pkt.hdr->data[4] = 0;
               pkt.hdr->data[5] = (data_len >> 16) & 0xff;
               pkt.hdr->data[6] = 0x88;
@@ -1439,7 +1432,7 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
               memcpy(pkt.hdr->data + 26, para->extradata.GetData(), para->extradata.GetSize());
 
               check_sum = 0;
-              data_len = para->extrasize + 26;
+              data_len = para->extradata.GetSize() + 26;
           } else {
               pkt.hdr->data = (char*)malloc(22);
               if (pkt.hdr->data == nullptr) {
@@ -1490,7 +1483,7 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
           if (pkt.hdr == nullptr) {
               pkt.hdr = (hdr_buf_t*)malloc(sizeof(hdr_buf_t));
               if (!pkt.hdr) {
-                  logM(LOGDEBUG, "[wvc1] NOMEM!");
+                    CLog::Log(LOGDEBUG, "[wvc1_prefix] NOMEM!");
                   return PLAYER_FAILED;
               }
 
@@ -1500,7 +1493,7 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
 
           pkt.hdr->data = (char*)malloc(4);
           if (pkt.hdr->data == nullptr) {
-              logM(LOGDEBUG, "[wvc1] NOMEM!");
+                CLog::Log(LOGDEBUG, "[wvc1_prefix] NOMEM!");
               return PLAYER_FAILED;
           }
 
@@ -1514,9 +1507,9 @@ int set_header_info(am_private_t *para, bool decStreamTypeFrame)
   }
   else if (para->video_format == VFORMAT_VP9)
     vp9_update_frame_header(pkt);
-  else if (decStreamTypeFrame && (para->video_format == VFORMAT_AV1))
+  else if (para->vcodec.dec_mode == STREAM_TYPE_FRAME && para->video_format == VFORMAT_AV1)
     av1_add_frame_dec_info(para);
-  else if (decStreamTypeFrame && (para->video_format == VFORMAT_MPEG12))
+  else if (para->vcodec.dec_mode == STREAM_TYPE_FRAME && para->video_format == VFORMAT_MPEG12)
     mpeg12_add_frame_dec_info(para);
 
   return PLAYER_SUCCESS;
@@ -1533,7 +1526,7 @@ static inline int calc_chunk_size(int size)
 //drivers/frame_provider/decoder/utils/vdec_input.c
 #define MIN_FRAME_PADDING_SIZE ((int)(L1_CACHE_BYTES))
 
-  auto need_padding_size = MIN_FRAME_PADDING_SIZE;
+  int need_padding_size = MIN_FRAME_PADDING_SIZE;
   if (size < PAGE_SIZE) {
     need_padding_size += PAGE_SIZE - ((size + need_padding_size) & (PAGE_SIZE - 1));
   } else {
@@ -1559,7 +1552,7 @@ CAMLCodec::CAMLCodec(CProcessInfo &processInfo, CDVDStreamInfo &hints)
   am_private = new am_private_t();
   m_dll = new DllLibAmCodec;
   if (!m_dll->Load())
-    logM(LOGWARNING, "libamcodec.so not found");
+    CLog::Log(LOGWARNING, "CAMLCodec::CAMLCodec libamcodec.so not found");
   am_private->m_dll = m_dll;
   am_private->vcodec.handle             = -1; //init to invalid
   am_private->vcodec.cntl_handle        = -1;
@@ -1572,6 +1565,16 @@ CAMLCodec::~CAMLCodec()
   delete am_private;
   am_private = nullptr;
   delete m_dll, m_dll = nullptr;
+}
+
+float CAMLCodec::OMXPtsToSeconds(int omxpts)
+{
+  return static_cast<float>(omxpts) / PTS_FREQ;
+}
+
+int CAMLCodec::OMXDurationToNs(int duration)
+{
+  return static_cast<int>(static_cast<float>(duration) / PTS_FREQ * 1000000 );
 }
 
 int CAMLCodec::GetAmlDuration() const
@@ -1644,40 +1647,31 @@ void CAMLCodec::SetProcessInfoVideoDetails()
 
 bool CAMLCodec::OpenDecoder(bool restart)
 {
-  logNoFormatM(LOGINFO);
-
   m_speed = DVD_PLAYSPEED_NORMAL;
   m_drain = false;
   m_cur_pts = DVD_NOPTS_VALUE;
   m_dst_rect.SetRect(0, 0, 0, 0);
+  m_zoom = -1.0f;
+  m_contrast = -1;
+  m_brightness = -1;
+  m_vadj1_enabled = false;
+  CDVDStreamInfo &hints = m_hints;  // Fudge to avoid large chnage delta renaming hints to m_hints.
   m_state = 0;
   ResetFrameTimeoutClock();
 
   auto advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
 
   m_decoder_timeout = advancedSettings->m_videoDecoderTimeout;
+  m_decoder_bypass_buffer_ready = advancedSettings->m_videoDecoderBypassBufferReady;
   m_decoder_buffer = advancedSettings->m_videoDecoderBuffer;
   m_decoder_stream_buffer = advancedSettings->m_videoDecoderStreamBuffer;
   m_decoder_minimum_buffer = advancedSettings->m_videoDecoderMinimumBuffer;
   m_decoder_minimum_stream_buffer = advancedSettings->m_videoDecoderMinimumStreamBuffer;
-  m_decoder_h264_offset = static_cast<uint64_t>(advancedSettings->m_videoDecoderH264Offset * 1000);
-
   m_buffer_level_ready = false;
-
-  logM(LOGINFO, "Decoder settings: timeout:[{:d}s] "
-                "buffer:[{:.1f}%] stream buffer:[{:.1f}%] "
-                "minimum buffer:[{:.1f}%] minimum stream buffer:[{:.1f}%] "
-                "h264 offset:[{:d}usec]",
-    m_decoder_timeout,
-    m_decoder_buffer,
-    m_decoder_stream_buffer,
-    m_decoder_minimum_buffer,
-    m_decoder_minimum_stream_buffer,
-    m_decoder_h264_offset);
 
   if (!OpenAmlVideo())
   {
-    logM(LOGERROR, "cannot open amlvideo device");
+    CLog::Log(LOGERROR, "CAMLCodec::OpenDecoder - cannot open amlvideo device");
     return false;
   }
 
@@ -1689,74 +1683,73 @@ bool CAMLCodec::OpenDecoder(bool restart)
   am_private->stream_type      = AM_STREAM_ES;
 
   // handle hints.
-  am_private->video_width      = m_hints.width;
-  am_private->video_height     = m_hints.height;
-  am_private->video_codec_id   = m_hints.codec;
-  am_private->video_codec_tag  = m_hints.codec_tag;
+  am_private->video_width      = hints.width;
+  am_private->video_height     = hints.height;
+  am_private->video_codec_id   = hints.codec;
+  am_private->video_codec_tag  = hints.codec_tag;
 
   am_private->video_pid        = -1;
 
   // handle video ratio
   AVRational video_ratio       = av_d2q(1, SHRT_MAX);
 
-  am_private->video_ratio      = (video_ratio.num << 16) | video_ratio.den;
+  am_private->video_ratio      = ((int32_t)video_ratio.num << 16) | video_ratio.den;
   am_private->video_ratio64    = ((int64_t)video_ratio.num << 32) | video_ratio.den;
 
   // handle video rate
-  if (m_hints.fpsrate > 0 && m_hints.fpsscale != 0)
+  if (hints.fpsrate > 0 && hints.fpsscale != 0)
   {
     // then ffmpeg avg_frame_rate next
-    am_private->video_rate = 0.5f + (float)UNIT_FREQ * m_hints.fpsscale / m_hints.fpsrate;
+    am_private->video_rate = 0.5f + (float)UNIT_FREQ * hints.fpsscale / hints.fpsrate;
   }
   else
     am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 30000;
 
   // check for 1920x1080, interlaced, 25 fps
   // incorrectly reported as 50 fps (yes, video_rate == 1920)
-  if (m_hints.width == 1920 && am_private->video_rate == 1920)
+  if (hints.width == 1920 && am_private->video_rate == 1920)
   {
-    logM(LOGDEBUG, "video_rate exception");
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
     am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 25000;
   }
 
   // check for SD h264 content incorrectly reported as 60 fsp
   // mp4/avi containers :(
-  if (m_hints.codec == AV_CODEC_ID_H264 && m_hints.width <= 720 && am_private->video_rate == 1602)
+  if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720 && am_private->video_rate == 1602)
   {
-    logM(LOGDEBUG, "video_rate exception");
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
     am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
   }
 
   // check for SD h264 content incorrectly reported as some form of 30 fsp
   // mp4/avi containers :(
-  if ((m_hints.codec == AV_CODEC_ID_H264) && (m_hints.width <= 720))
+  if (hints.codec == AV_CODEC_ID_H264 && hints.width <= 720)
   {
     if (am_private->video_rate >= 3200 && am_private->video_rate <= 3210)
     {
-      logM(LOGDEBUG, "video_rate exception");
+      CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder video_rate exception");
       am_private->video_rate = 0.5f + (float)UNIT_FREQ * 1001 / 24000;
     }
   }
 
   // handle orientation
   am_private->video_rotation_degree = 0;
-  if (m_hints.orientation == 90)
+  if (hints.orientation == 90)
     am_private->video_rotation_degree = 1;
-  else if (m_hints.orientation == 180)
+  else if (hints.orientation == 180)
     am_private->video_rotation_degree = 2;
-  else if (m_hints.orientation == 270)
+  else if (hints.orientation == 270)
     am_private->video_rotation_degree = 3;
-
   // handle extradata
-  am_private->video_format = codecid_to_vformat(m_hints.codec);
+  am_private->video_format      = codecid_to_vformat(hints.codec);
 
-  if (IsH264() &&
-      ((m_hints.width > 1920) || (m_hints.height > 1088)) &&
-      (aml_support_h264_4k2k() == AML_HAS_H264_4K2K))
+  if ((am_private->video_format == VFORMAT_H264)
+    && (hints.width > 1920 || hints.height > 1088)
+    && (aml_support_h264_4k2k() == AML_HAS_H264_4K2K))
   {
     am_private->video_format = VFORMAT_H264_4K2K;
   }
-  else if (IsH264() &&
+  else if ((am_private->video_format == VFORMAT_H264) &&
           ((am_private->video_codec_tag == CODEC_TAG_AMVC) ||
            (am_private->video_codec_tag == CODEC_TAG_MVC1)))
   {
@@ -1766,7 +1759,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
   switch (am_private->video_format)
   {
     default:
-      am_private->extradata = m_hints.extradata;
+      am_private->extradata = hints.extradata;
       break;
     case VFORMAT_REAL:
     case VFORMAT_MPEG12:
@@ -1779,26 +1772,27 @@ bool CAMLCodec::OpenDecoder(bool restart)
   if (am_private->video_codec_type == VIDEO_DEC_FORMAT_UNKNOW)
     am_private->video_codec_type = codec_tag_to_vdec_type(am_private->video_codec_id);
 
-  logM(LOGINFO, "width({:d}), height({:d}), codec({:d}), codec_tag({:d}), bitdepth({:d})",
-       m_hints.width, m_hints.height, m_hints.codec, m_hints.codec_tag, m_hints.bitdepth);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder "
+    "hints.width({:d}), hints.height({:d}), hints.codec({:d}), hints.codec_tag({:d}), hints.bitdepth({:d})",
+    hints.width, hints.height, hints.codec, hints.codec_tag, hints.bitdepth);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.fpsrate({:d}), hints.fpsscale({:d}), video_rate({:d})",
+    hints.fpsrate, hints.fpsscale, am_private->video_rate);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.aspect({:f}), video_ratio.num({:d}), video_ratio.den({:d})",
+    hints.aspect, video_ratio.num, video_ratio.den);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hints.orientation({:d}), hints.forced_aspect({:d}), hints.extrasize({:d})",
+    hints.orientation, hints.forced_aspect, hints.extradata.GetSize());
 
-  logM(LOGINFO, "fpsrate({:d}), fpsscale({:d}), video_rate({:d})",
-       m_hints.fpsrate, m_hints.fpsscale, am_private->video_rate);
+  std::string hdrType = CStreamDetails::HdrTypeToString(hints.hdrType);
+  if (hdrType.size())
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder hdr type: {}", hdrType);
 
-  logM(LOGINFO, "aspect({:f}), video_ratio.num({:d}), video_ratio.den({:d})",
-       m_hints.aspect, video_ratio.num, video_ratio.den);
+  if (hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder DOVI: version {:d}.{:d}, profile {:d}, el type {:d}",
+      hints.dovi.dv_version_major, hints.dovi.dv_version_minor, hints.dovi.dv_profile, hints.dovi_el_type);
 
-  logM(LOGINFO, "orientation({:d}), forced_aspect({:d}), extrasize({:d})",
-       m_hints.orientation, m_hints.forced_aspect, m_hints.extradata.GetSize());
-
-  if (m_hints.hdrType != StreamHdrType::HDR_TYPE_NONE)
-    logM(LOGINFO, "hdr type:[{}]", CStreamDetails::HdrTypeToString(m_hints.hdrType));
-
-  if (m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
-    logM(LOGINFO, "DOVI: version[{:d}.{:d}] profile[{:d}], el type[{:d}]",
-         m_hints.dovi.dv_version_major, m_hints.dovi.dv_version_minor, m_hints.dovi.dv_profile, m_hints.dovi_el_type);
-
-  m_processInfo.SetVideoDAR(m_hints.aspect);
+  m_processInfo.SetVideoDAR(hints.aspect);
+  CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder decoder timeout: {:d}s",
+    m_decoder_timeout);
 
   // default video codec params
   am_private->gcodec.noblock     = 0;
@@ -1818,16 +1812,21 @@ bool CAMLCodec::OpenDecoder(bool restart)
   if (!restart) aml_dv_open(m_hints.hdrType, m_hints.bitdepth);
 
   // Now have the HDRType resolved, ok to set the transfer pq - so renderer can set the shaders as needed.
-  aml_set_transfer_pq(m_hints.hdrType, m_hints.bitdepth);
-  aml_set_osd_pq_bypass(m_hints.hdrType);
+  aml_set_transfer_pq(hints.hdrType, hints.bitdepth);
+  CSysfsPath dolby_vision_mode{"/sys/module/amdolby_vision/parameters/dolby_vision_mode"};
+  unsigned int existing_mode = dolby_vision_mode.Get<unsigned int>().value();
+  if ((existing_mode == DOLBY_VISION_OUTPUT_MODE_HDR10) && (hints.hdrType == StreamHdrType::HDR_TYPE_HDR10))
+    aml_set_osd_pq_bypass(StreamHdrType::HDR_TYPE_NONE);
+  else  
+    aml_set_osd_pq_bypass(hints.hdrType);
 
   SetProcessInfoVideoDetails();
 
   // Setup Codec for DV Content
-  if ((m_hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable())
+  if ((hints.hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) && aml_is_dv_enable())
   {
     am_private->gcodec.dv_enable = 1;
-    if (((m_hints.dovi.dv_profile == 4) || (m_hints.dovi.dv_profile == 7)) && (m_hints.dovi_el_type == DOVIELType::TYPE_FEL))
+    if (((hints.dovi.dv_profile == 4) || (hints.dovi.dv_profile == 7)) && (hints.dovi_el_type != DOVIELType::TYPE_MEL))
     {
       aml_dv_enable_fel();                              // Make sure enable fel is set.
       am_private->gcodec.dec_mode = STREAM_TYPE_STREAM; // Use stream path if FEL
@@ -1900,6 +1899,7 @@ bool CAMLCodec::OpenDecoder(bool restart)
       am_private->gcodec.param  = (void*)EXTERNAL_PTS;
       if (m_hints.ptsinvalid)
         am_private->gcodec.param = (void*)(EXTERNAL_PTS | SYNC_OUTSIDE);
+      // aml_hevc_nal_skip_policy((am_private->gcodec.dec_mode == STREAM_TYPE_STREAM) ? 1 : 2);
       break;
     case VFORMAT_VP9:
       am_private->gcodec.format = VIDEO_DEC_FORMAT_VP9;
@@ -1913,10 +1913,8 @@ bool CAMLCodec::OpenDecoder(bool restart)
   // translate from generic to firmware version dependent
   m_dll->codec_init_para(&am_private->gcodec, &am_private->vcodec);
 
-  logM(LOGINFO, "dec mode stream type [{}]", GetDecStreamTypeName());
-
-  if (std::string config_data = GetHDRStaticMetadata();
-      !config_data.empty())
+  std::string config_data = GetHDRStaticMetadata();
+  if (!config_data.empty())
   {
     am_private->vcodec.config_len = static_cast<int>(config_data.size());
     am_private->vcodec.config = (char*)malloc(config_data.size() + 1);
@@ -1924,13 +1922,13 @@ bool CAMLCodec::OpenDecoder(bool restart)
     am_private->vcodec.config[am_private->vcodec.config_len] = '\0';
   }
 
-  if (IsDecStreamTypeSingle())
-    SetVfmMap("default", "decoder ppmgr deinterlace amlvideo amvideo");
+  if (am_private->vcodec.dec_mode == STREAM_TYPE_SINGLE)
+    SetVfmMap("default", "decoder ppmgr amlvideo deinterlace amvideo");
 
-  if (int ret = m_dll->codec_init(&am_private->vcodec);
-      ret != CODEC_ERROR_NONE)
+  int ret = m_dll->codec_init(&am_private->vcodec);
+  if (ret != CODEC_ERROR_NONE)
   {
-    logM(LOGERROR, "codec init failed, ret=0x{:x}", -ret);
+    CLog::Log(LOGDEBUG, "CAMLCodec::OpenDecoder codec init failed, ret=0x{:x}", -ret);
     return false;
   }
 
@@ -1964,28 +1962,6 @@ bool CAMLCodec::OpenDecoder(bool restart)
   CSysfsPath("/sys/class/video/freerun_mode", 1);
 
   m_opened = true;
-
-  m_vdecName = QueryDecoderName();
-
-  logM(LOGINFO, "amcodec init ok: decoder:{} handle:{} cntl:{} sub:{} audio_utils:{} | gcodec dec_mode:{} stream_type:{} video_path:{} dv_enable:{} format:{} param:0x{:x}",
-                m_vdecName,
-                am_private->vcodec.handle,
-                am_private->vcodec.cntl_handle,
-                am_private->vcodec.sub_handle,
-                am_private->vcodec.audio_utils_handle,
-                static_cast<unsigned int>(am_private->gcodec.dec_mode),
-                static_cast<unsigned int>(am_private->gcodec.stream_type),
-                static_cast<unsigned int>(am_private->gcodec.video_path),
-                am_private->gcodec.dv_enable,
-                am_private->gcodec.format,
-                static_cast<unsigned int>(reinterpret_cast<std::uintptr_t>(am_private->gcodec.param)));
-
-  logM(LOGINFO, "amcodec ABI sizes: codec_para_t:{} buf_status:{} vdec_info:{} vdec_status:{}",
-                sizeof(codec_para_t),
-                sizeof(struct buf_status),
-                sizeof(struct vdec_info),
-                sizeof(struct vdec_status));
-
   // vcodec is open, update speed if it was
   // changed before VideoPlayer called OpenDecoder.
   SetSpeed(m_speed);
@@ -1994,30 +1970,54 @@ bool CAMLCodec::OpenDecoder(bool restart)
   return true;
 }
 
-std::string CAMLCodec::QueryDecoderName() const
-{
-  if (!am_private || (am_private->vcodec.handle < 0))
-    return "undefined";
-
-  struct vdec_info vi{};
-  if ((m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) != 0) ||
-      (vi.vdec_name[0] == '\0'))
-    return "undefined";
-
-  return vi.vdec_name;
-}
-
 bool CAMLCodec::OpenAmlVideo()
 {
-  auto amlVideoFile = std::make_shared<PosixFile>();
+  PosixFilePtr amlVideoFile = std::make_shared<PosixFile>();
   if (!amlVideoFile->Open("/dev/video10", O_RDONLY | O_NONBLOCK))
   {
-    logM(LOGERROR, "cannot open V4L amlvideo device /dev/video10: {}", strerror(errno));
+    CLog::Log(LOGERROR, "CAMLCodec::OpenAmlVideo - cannot open V4L amlvideo device /dev/video10: {}", strerror(errno));
     return false;
   }
 
   m_amlVideoFile = amlVideoFile;
   m_defaultVfmMap = GetVfmMap("default");
+
+  return true;
+}
+
+bool CAMLCodec::Enable_vadj1(void)
+{
+  struct vpp_pq_ctrl_s vpp_pq_ctrl = {};
+  struct pq_ctrl_s pq_ctrl = {};
+  vpp_pq_ctrl.length = sizeof(struct pq_ctrl_s);
+  vpp_pq_ctrl.ptr = (void *)&pq_ctrl;
+
+  PosixFilePtr amvecm = std::make_shared<PosixFile>();
+  if (!amvecm->Open("/dev/amvecm", O_RDWR))
+  {
+    CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - cannot open amvecm driver /dev/amvecm: {}", strerror(errno));
+    return false;
+  }
+
+  if (amvecm->IOControl(AMVECM_IOC_G_PQ_CTRL, &vpp_pq_ctrl) < 0)
+  {
+    CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - AMVECM_IOC_G_PQ_CTRL failed: {}", strerror(errno));
+    return false;
+  }
+
+  // enable vadj1 brightness and contrast control
+  if (pq_ctrl.vadj1_en != 1)
+  {
+    pq_ctrl.vadj1_en = 1;
+
+    if (amvecm->IOControl(AMVECM_IOC_S_PQ_CTRL, &vpp_pq_ctrl) < 0)
+    {
+      CLog::Log(LOGERROR, "CAMLCodec::Enable_vadj1 - AMVECM_IOC_S_PQ_CTRL failed: {}", strerror(errno));
+      return false;
+    }
+
+    CLog::Log(LOGDEBUG, "CAMLCodec::Enable_vadj1 - vadj1 brightness/contrast control got enabled");
+  }
 
   return true;
 }
@@ -2056,7 +2056,7 @@ void CAMLCodec::SetVfmMap(const std::string &name, const std::string &map) const
 
 void CAMLCodec::CloseDecoder(bool restart)
 {
-  logNoFormatM(LOGINFO);
+  CLog::Log(LOGDEBUG, "CAMLCodec::CloseDecoder");
 
   SetPollDevice(-1);
 
@@ -2087,17 +2087,17 @@ void CAMLCodec::CloseDecoder(bool restart)
 
   CloseAmlVideo();
 
-  if (!restart) aml_dv_close();
-
-  // Ensure kernel OSD PQ bypass doesn't remain enabled after playback ends.
-  if (!restart) aml_set_osd_pq_bypass(StreamHdrType::HDR_TYPE_NONE);
+  if (!restart)
+  {
+    aml_dv_close();
+  }
 }
 
 void CAMLCodec::CloseAmlVideo()
 {
   m_amlVideoFile.reset();
 
-  if (IsDecStreamTypeSingle())
+  if (am_private->vcodec.dec_mode == STREAM_TYPE_SINGLE)
     SetVfmMap("default", m_defaultVfmMap);
 
   m_amlVideoFile = nullptr;
@@ -2105,7 +2105,7 @@ void CAMLCodec::CloseAmlVideo()
 
 void CAMLCodec::Reset()
 {
-  logNoFormatM(LOGDEBUG);
+  CLog::Log(LOGDEBUG, "CAMLCodec::Reset");
 
   if (!m_opened)
     return;
@@ -2150,33 +2150,38 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   int data_len, free_len;
   int chunk_size = calc_chunk_size(iSize);
   float new_buffer_level = GetBufferLevel(chunk_size, data_len, free_len);
+  bool streambuffer(am_private->gcodec.dec_mode == STREAM_TYPE_STREAM);
 
   if (!m_buffer_level_ready) {
-    m_buffer_level_ready = IsDecStreamTypeStream()
-                             ? (new_buffer_level > m_decoder_stream_buffer)
-                             : (new_buffer_level > m_decoder_buffer);
+    m_buffer_level_ready = m_decoder_bypass_buffer_ready ||
+                           (streambuffer 
+                              ? new_buffer_level > m_decoder_stream_buffer
+                              : new_buffer_level > m_decoder_buffer);
 
-    m_minimum_buffer_level = IsDecStreamTypeStream()
+    m_minimum_buffer_level = streambuffer 
                                ? m_decoder_minimum_stream_buffer
                                : m_decoder_minimum_buffer;
   }
 
   if (!m_opened || !pData || free_len == 0 || new_buffer_level >= 100.0f)
   {
-    logComponentM(LOGDEBUG, LOGVIDEO, "skip add data dl:{:d} fl:{:d} sz:{:d}({:d}) lv:{:.1f}% dts:{:.3f} pts:{:.3f}",
-                  data_len,
-                  free_len,
-                  iSize,
-                  chunk_size,
-                  new_buffer_level,
-                  dts / DVD_TIME_BASE,
-                  pts / DVD_TIME_BASE);
+    CLog::Log(LOGDEBUG, LOGVIDEO,
+      "CAMLCodec::{}: skip add data dl:{:d} fl:{:d} sz:{:d}({:d}) lv:{:.1f}% dts:{:.3f} pts:{:.3f}", __FUNCTION__,
+      data_len,
+      free_len,
+      static_cast<unsigned int>(iSize),
+      chunk_size,
+      new_buffer_level,
+      dts / DVD_TIME_BASE,
+      pts / DVD_TIME_BASE);
+
     return false;
   }
 
   if (am_private->hdr_buf.size > 0)
   {
-    logM(LOGDEBUG, "feed extradata on first frame. extradata size: {:d}", am_private->hdr_buf.size);
+    CLog::Log(LOGDEBUG, "CAMLCodec::{}: feed extradata on first frame. extradata size: {:d}", __FUNCTION__,
+      am_private->hdr_buf.size);
 
     am_packet_t& pkt = am_private->am_pkt;
     pkt.data = pData;
@@ -2186,10 +2191,10 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
 
     av_buffer_unref(&pkt.avpkt.buf);
 
-    if (int ret = av_grow_packet(&(pkt.avpkt), am_private->hdr_buf.size);
-        ret < 0)
+    int ret = av_grow_packet(&(pkt.avpkt), am_private->hdr_buf.size);
+    if (ret < 0)
     {
-      logM(LOGDEBUG, "ERROR!!! grow_packet for apk failed.!!!");
+      CLog::Log(LOGDEBUG, "CAMLCodec::{}: ERROR!!! grow_packet for apk failed.!!!", __FUNCTION__);
       return ret;
     }
 
@@ -2246,7 +2251,7 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
   // some formats need header/data tweaks.
   // the actual write occurs once in write_av_packet
   // and is controlled by am_pkt.newflag.
-  set_header_info(am_private, IsDecStreamTypeFrame());
+  set_header_info(am_private);
 
   // loop until we write all into codec, am_pkt.isvalid
   // will get set to zero once everything is consumed.
@@ -2259,7 +2264,7 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
       break;
 
     if (am_private->am_pkt.isvalid)
-      logM(LOGDEBUG, "Decode: write_av_packet looping");
+      CLog::Log(LOGDEBUG, "CAMLCodec::{} Decode: write_av_packet looping", __FUNCTION__);
     loop++;
   }
   if (loop == 100)
@@ -2268,21 +2273,19 @@ bool CAMLCodec::AddData(uint8_t *pData, size_t iSize, double dts, double pts)
     Reset();
     return false;
   }
-  // Removed unconditional usleep(2000) for packets > 50KB.
-  // The codec has its own buffer management (EAGAIN backpressure above);
-  // this arbitrary delay just slowed down initial fill and seek response
-  // for 4K content with large keyframes.
+  if (iSize > 50000)
+    usleep(2000); // wait 2ms to process larger packets
 
   if (iSize > 0)
-    logComponentM(LOGDEBUG, LOGVIDEO, "dl:{:d} fl:{:d} sz:{:d}({:d}) lv:{:.1f}% dts:{:.3f} pts:{:.3f}",
-                                      data_len + chunk_size,
-                                      free_len - chunk_size,
-                                      iSize,
-                                      chunk_size,
-                                      new_buffer_level,
-                                      dts / DVD_TIME_BASE,
-                                      pts / DVD_TIME_BASE);
-
+    CLog::Log(LOGDEBUG, LOGVIDEO,
+      "CAMLCodec::{}: dl:{:d} fl:{:d} sz:{:d}({:d}) lv:{:.1f}% dts:{:.3f} pts:{:.3f}", __FUNCTION__,
+      data_len + chunk_size,
+      free_len - chunk_size,
+      static_cast<unsigned int>(iSize),
+      chunk_size,
+      new_buffer_level,
+      dts / DVD_TIME_BASE,
+      pts / DVD_TIME_BASE);
   return true;
 }
 
@@ -2290,7 +2293,7 @@ int CAMLCodec::m_pollDevice;
 
 int CAMLCodec::PollFrame()
 {
-  std::lock_guard lock(pollSyncMutex);
+  std::lock_guard<std::mutex> lock(pollSyncMutex);
 
   if (m_pollDevice < 0)
     return 0;
@@ -2299,24 +2302,17 @@ int CAMLCodec::PollFrame()
   codec_poll_fd[0].fd = m_pollDevice;
   codec_poll_fd[0].events = POLLOUT;
 
-  auto now = std::chrono::system_clock::now();
-  int events = poll(codec_poll_fd, 1, 0);
+  std::chrono::time_point<std::chrono::system_clock> now(std::chrono::system_clock::now());
+  poll(codec_poll_fd, 1, 50);
   g_aml_sync_event.Set();
-
-  if (events > 0)
-  {
-    logComponentM(LOGDEBUG, LOGAVTIMING, "elapsed:[{:.3f}] events:[{:d}]",
-                                         std::chrono::duration<double, std::milli>(std::chrono::system_clock::now() - now).count(),
-                                         events);
-  }
-
+  int elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - now).count();
+  CLog::Log(LOGDEBUG, LOGAVTIMING, "CAMLCodec::PollFrame elapsed:{:.3f}ms", elapsed / 1000.0);
   return 1;
 }
 
 void CAMLCodec::SetPollDevice(int dev)
 {
-  std::lock_guard lock(pollSyncMutex);
-
+  std::lock_guard<std::mutex> lock(pollSyncMutex);
   m_pollDevice = dev;
 }
 
@@ -2325,7 +2321,7 @@ int CAMLCodec::ReleaseFrame(const uint32_t index, bool drop)
   if (!m_amlVideoFile) return 0;
 
   int ret;
-  auto vbuf = v4l2_buffer();
+  v4l2_buffer vbuf = v4l2_buffer();
   vbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   vbuf.memory = V4L2_MEMORY_MMAP;
   vbuf.index = index;
@@ -2333,14 +2329,14 @@ int CAMLCodec::ReleaseFrame(const uint32_t index, bool drop)
   if (drop)
     vbuf.flags |= V4L2_BUF_FLAG_DONE;
 
-  logM(LOGDEBUG, "index:[{:d}], drop:[{:d}]", index, static_cast<int>(drop));
+  CLog::Log(LOGDEBUG, LOGVIDEO, "CAMLCodec::ReleaseFrame idx:{:d}, drop:{:d}", index, static_cast<int>(drop));
 
   {
     std::scoped_lock lock(m_ioControlMutex);
     ret = (m_amlVideoFile->IOControl(VIDIOC_QBUF, &vbuf) < 0) ? errno : 0;
   }
 
-  if (ret < 0) logM(LOGERROR, "VIDIOC_QBUF failed: [{}] [{}]", ret, strerror(ret));
+  if (ret < 0) logM(LOGERROR, "CAMLCodec", "VIDIOC_QBUF failed: [{}] [{}]", ret, strerror(ret));
 
   return ret;
 }
@@ -2359,7 +2355,7 @@ float CAMLCodec::GetBufferLevel(int new_chunk, int &data_len, int &free_len) con
   if (!m_opened || !am_private || am_private->vcodec.handle < 0)
     return 0.0f;
 
-  struct buf_status bs{};
+  struct buf_status bs;
   float level = 0.0f;
   if (m_dll->codec_get_vbuf_state(&am_private->vcodec, &bs) != 0)
     return 0.0f;
@@ -2370,7 +2366,7 @@ float CAMLCodec::GetBufferLevel(int new_chunk, int &data_len, int &free_len) con
   if (bs.free_len > 0)
   {
     if (bs.size)
-      level = 100.0f / (float)bs.size * (bs.data_len + new_chunk);
+      level = (float)(100.0f / (float)bs.size * (bs.data_len + new_chunk));
   }
   else
     level = 100.0f;
@@ -2392,7 +2388,7 @@ bool CAMLCodec::TryDequeueCaptureBuffer(v4l2_buffer& vbuf)
     const int err = errno;
     if (err == EAGAIN || err == ENODEV) return false;
 
-    logM(LOGERROR, "VIDIOC_DQBUF failed: [{}] [{}]", err, strerror(err));
+    logM(LOGERROR, "CAMLCodec", "VIDIOC_DQBUF failed: [{}] [{}]", err, strerror(err));
     return false;
   }
 
@@ -2407,14 +2403,12 @@ bool CAMLCodec::GetNextDequeuedBuffer()
   auto pts = static_cast<uint64_t>(static_cast<uint32_t>(vbuf.timestamp.tv_sec)) << 32;
   pts += static_cast<uint32_t>(vbuf.timestamp.tv_usec);
 
-  if (IsH264()) pts += m_decoder_h264_offset;
-
   m_last_pts = m_cur_pts;
   m_cur_pts = pts;
   m_bufferIndex = vbuf.index;
 
   if ((m_last_pts != DVD_NOPTS_VALUE) && (m_cur_pts <= m_last_pts))
-    logM(LOGWARNING, "current pts:[{}] <= last pts:[{}]", m_cur_pts, m_last_pts);
+    logM(LOGWARNING, "CAMLCodec", "current pts:[{}] <= last pts:[{}]", m_cur_pts, m_last_pts);
 
   return true;
 }
@@ -2429,6 +2423,8 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
 
   const float buffer_level = GetBufferLevel();
 
+  bool streambuffer(am_private->gcodec.dec_mode == STREAM_TYPE_STREAM);
+
   if (((m_buffer_level_ready && (buffer_level > m_minimum_buffer_level)) || m_drain) &&
       GetNextDequeuedBuffer())
   {
@@ -2437,25 +2433,48 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
 
     videoPicture.iFlags = 0;
 
-    m_minimum_buffer_level = (IsDecStreamTypeStream() ? m_minimum_buffer_level : 0.0f);
+    m_minimum_buffer_level = (streambuffer ? m_minimum_buffer_level : 0.0f);
 
-    videoPicture.iDuration = static_cast<double>(am_private->video_rate * DVD_TIME_BASE) / UNIT_FREQ;
+
+    const double rate_duration = static_cast<double>(am_private->video_rate * DVD_TIME_BASE) / UNIT_FREQ;
+    const double picture_duration = static_cast<double>(m_cur_pts - m_last_pts);
+    const double duration_ratio = picture_duration / rate_duration;
+    const bool is_sel_25hz_interlaced = (((m_hints.codec == AV_CODEC_ID_VC1) ||
+                                          (m_hints.codec == AV_CODEC_ID_WMV3) ||
+                                          (m_hints.codec == AV_CODEC_ID_H264)) &&
+                                         (m_processInfo.GetVideoFps() == 25.0f) &&
+                                         m_processInfo.GetVideoInterlaced());
+
+    if (m_last_pts == DVD_NOPTS_VALUE)
+      videoPicture.iDuration = rate_duration;
+    else if ((m_speed == DVD_PLAYSPEED_NORMAL) &&
+             !is_sel_25hz_interlaced &&             
+             (m_cur_pts < m_last_pts))
+    {
+      m_cur_pts = m_last_pts + rate_duration;
+      videoPicture.iDuration = rate_duration;
+    }
+    else if ((m_speed == DVD_PLAYSPEED_NORMAL) &&
+             ((duration_ratio < 0.2) || ((duration_ratio > 1.5) && (duration_ratio < 4.0))))
+    {
+      m_cur_pts = m_last_pts + rate_duration;
+      videoPicture.iDuration = rate_duration;
+    }
+    else
+      videoPicture.iDuration = picture_duration;
+
     videoPicture.dts = DVD_NOPTS_VALUE;
     videoPicture.pts = static_cast<double>(m_cur_pts);
 
     if (am_private && am_private->vcodec.handle >= 0)
     {
-      struct vdec_info vi{};
+      struct vdec_info vi;
       if (m_dll->codec_get_vdec_info(&am_private->vcodec, &vi) == 0 && vi.ratio_control)
       {
         m_hints.aspect = 65536.0 / vi.ratio_control;
         m_processInfo.SetVideoDAR(m_hints.aspect);
       }
     }
-
-    logM(LOGDEBUG, "index:[{:d}] pts:[{:.3f}] dur:[{:.3f}ms] ar:[{:.2f}] elf:[{:d}ms] buffer level:[{:.1f}%]",
-                   m_bufferIndex, (videoPicture.pts / DVD_TIME_BASE), (videoPicture.iDuration / 1000), m_hints.aspect,
-                   elapsed_since_last_frame.count(), buffer_level);
 
     videoPicture.stereoMode = m_hints.stereo_mode;
     if ((videoPicture.stereoMode == "block_lr") && m_processInfo.GetVideoSettings().m_StereoInvert)
@@ -2483,18 +2502,18 @@ CDVDVideoCodec::VCReturn CAMLCodec::GetPicture(VideoPicture& videoPicture)
       if (elapsed_since_last_frame < drain_idle_timeout)
         return CDVDVideoCodec::VC_NONE;
 
-      logM(LOGWARNING, "drain idle - no progress for [{:d}ms] with buffer level [{:.1f}%], ending drain",
-                       elapsed_since_last_frame.count(), buffer_level);
+      logM(LOGWARNING, "CAMLCodec", "drain idle - no progress for [{:d}ms] with buffer level [{:.1f}%], ending drain",
+                                    elapsed_since_last_frame.count(), buffer_level);
     }
     return CDVDVideoCodec::VC_EOF;
   }
 
-  if (buffer_level > (IsDecStreamTypeStream() ? 100.0f : 10.0f))
+  if (buffer_level > (streambuffer ? 100.0f : 10.0f))
     return CDVDVideoCodec::VC_NONE;
 
   if (elapsed_since_last_frame > std::chrono::seconds(m_decoder_timeout))
   {
-    logM(LOGERROR, "decoder timeout - elf:[{:d}ms]", elapsed_since_last_frame.count());
+    logM(LOGERROR, "CAMLCodec", "decoder timeout - elf:[{:d}ms]", elapsed_since_last_frame.count());
     ResetFrameTimeoutClock();
     return CDVDVideoCodec::VC_FLUSHED;
   }
@@ -2518,7 +2537,7 @@ void CAMLCodec::SetSpeed(int speed)
   if (m_speed == speed)
     return;
 
-  logM(LOGDEBUG, "speed({:d})", speed);
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetSpeed, speed({:d})", speed);
 
   // update internal vars regardless
   // of if we are open or not.
@@ -2537,7 +2556,7 @@ void CAMLCodec::SetSpeed(int speed)
       ResetFrameTimeoutClock();
       break;
     default:
-      if (IsH264() || (am_private->video_format == VFORMAT_H264_4K2K))
+      if ((am_private->video_format == VFORMAT_H264) || (am_private->video_format == VFORMAT_H264_4K2K))
         m_dll->codec_set_cntl_mode(&am_private->vcodec, TRICKMODE_FFFB);
       else
         m_dll->codec_set_cntl_mode(&am_private->vcodec, TRICKMODE_I);
@@ -2557,40 +2576,90 @@ void CAMLCodec::ShowMainVideo(const bool show)
   saved_disable_video = disable_video;
 }
 
-void CAMLCodec::SetVideoRect(const CRect &DestRect)
+void CAMLCodec::SetVideoZoom(const float zoom)
+{
+  // input zoom range is 0.5 to 2.0 with a default of 1.0.
+  // output zoom range is 2 to 300 with default of 100.
+  // we limit that to a range of 50 to 200 with default of 100.
+  int aml_zoom = 100 * zoom;
+  CSysfsPath("/sys/class/video/zoom", aml_zoom);
+}
+
+void CAMLCodec::SetVideoContrast(const int contrast)
+{
+  // input contrast range is 0 to 100 with default of 50.
+  // output contrast range is -127 to 127 with default of 0.
+  int aml_contrast = (127 * (contrast - 50)) / 50;
+  CSysfsPath("/sys/class/amvecm/contrast1", aml_contrast);
+}
+void CAMLCodec::SetVideoBrightness(const int brightness)
+{
+  // input brightness range is 0 to 100 with default of 50.
+  // output brightness range is -255 to 255 with default of 0.
+  int aml_brightness = (255 * (brightness - 50)) / 50;
+  CSysfsPath("/sys/class/amvecm/brightness1", aml_brightness);
+}
+void CAMLCodec::SetVideoSaturation(const int saturation)
+{
+  // output saturation range is -127 to 127 with default of 127.
+  CSysfsPath("/sys/class/video/saturation", saturation);
+}
+
+void CAMLCodec::SetVideoRect(const CRect &SrcRect, const CRect &DestRect)
 {
   // this routine gets called every video frame
   // and is in the context of the renderer thread so
   // do not do anything stupid here.
   bool update = false;
 
-  // video rate adjustment.
-  if (unsigned int video_rate = GetDecoderVideoRate();
-      (video_rate > 0) && (video_rate != am_private->video_rate))
+  // video zoom adjustment.
+  float zoom = m_processInfo.GetVideoSettings().m_CustomZoomAmount;
+  if ((int)(zoom * 1000) != (int)(m_zoom * 1000))
   {
-    logM(LOGDEBUG, "decoder fps has changed, video_rate adjusted from {:d} to {:d}", am_private->video_rate, video_rate);
+    m_zoom = zoom;
+  }
+  // enable vadj1
+  if (!m_vadj1_enabled)
+    m_vadj1_enabled = Enable_vadj1();
+  // video contrast adjustment.
+  int contrast = m_processInfo.GetVideoSettings().m_Contrast;
+  if (contrast != m_contrast)
+  {
+    SetVideoContrast(contrast);
+    m_contrast = contrast;
+  }
+  // video brightness adjustment.
+  int brightness = m_processInfo.GetVideoSettings().m_Brightness;
+  if (brightness != m_brightness)
+  {
+    SetVideoBrightness(brightness);
+    m_brightness = brightness;
+  }
+  // video rate adjustment.
+  unsigned int video_rate = GetDecoderVideoRate();
+  if (video_rate > 0 && video_rate != am_private->video_rate)
+  {
+    CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect: decoder fps has changed, video_rate adjusted from {:d} to {:d}", am_private->video_rate, video_rate);
     am_private->video_rate = video_rate;
   }
 
   // video view mode
-  if (int view_mode = m_processInfo.GetVideoSettings().m_ViewMode;
-      m_view_mode != view_mode)
+  int view_mode = m_processInfo.GetVideoSettings().m_ViewMode;
+  if (m_view_mode != view_mode)
   {
     m_view_mode = view_mode;
     update = true;
   }
 
-  // GUI stereo mode
-  if (RenderStereoMode guiStereoMode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
-      m_guiStereoMode != guiStereoMode)
+  // GUI stereo mode/view.
+  RENDER_STEREO_MODE guiStereoMode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+  if (m_guiStereoMode != guiStereoMode)
   {
     m_guiStereoMode = guiStereoMode;
     update = true;
   }
-
-  // GUI stereo view
-  if (RenderStereoView guiStereoView = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView();
-      m_guiStereoView != guiStereoView)
+  RENDER_STEREO_VIEW guiStereoView = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView();
+  if (m_guiStereoView != guiStereoView)
   {
     // left/right/top/bottom eye,
     // this might change every other frame.
@@ -2611,8 +2680,8 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
     case 1:
     case 3:
       {
-        float scale = dst_rect.Height() / dst_rect.Width();
-        auto diff = (int) ((dst_rect.Height()*scale - dst_rect.Width()) / 2);
+        float scale = static_cast<float>(dst_rect.Height()) / dst_rect.Width();
+        int diff = (int) ((dst_rect.Height()*scale - dst_rect.Width()) / 2);
         dst_rect = CRect(DestRect.x1 - diff, DestRect.y1, DestRect.x2 + diff, DestRect.y2);
       }
   }
@@ -2648,7 +2717,7 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
     dst_rect.y2 *= yscale;
   }
 
-  if (m_guiStereoMode == RenderStereoMode::MONO)
+  if (m_guiStereoMode == RENDER_STEREO_MODE_MONO)
   {
     std::string videoStereoMode = m_processInfo.GetVideoStereoMode();
     if (videoStereoMode == "left_right" || videoStereoMode == "righ_left")
@@ -2656,15 +2725,15 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
     else if (videoStereoMode == "top_bottom" || videoStereoMode == "bottom_top")
       dst_rect.y2 *= 2.0f;
   }
-  else if (m_guiStereoMode == RenderStereoMode::SPLIT_VERTICAL)
+  else if (m_guiStereoMode == RENDER_STEREO_MODE_SPLIT_VERTICAL)
   {
     dst_rect.x2 *= 2.0f;
   }
-  else if (m_guiStereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
+  else if (m_guiStereoMode == RENDER_STEREO_MODE_SPLIT_HORIZONTAL)
   {
     dst_rect.y2 *= 2.0f;
   }
-  else if (m_guiStereoMode == RenderStereoMode::HARDWAREBASED)
+  else if (m_guiStereoMode == RENDER_STEREO_MODE_HARDWAREBASED)
   {
     // 3D frame packed output: get the screen height from the graphic context
     // (will work in fullscreen mode only)
@@ -2682,13 +2751,13 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
           mvc_view_mode = m_processInfo.GetVideoStereoMode() == "block_lr" ? 3 : 2;
           switch (m_guiStereoMode)
           {
-            case RenderStereoMode::HARDWAREBASED:
+            case RENDER_STEREO_MODE_HARDWAREBASED:
               aml_set_3d_video_mode(MODE_3D_ENABLE | MODE_3D_FA, true, mvc_view_mode);
               break;
-            case RenderStereoMode::SPLIT_VERTICAL:
+            case RENDER_STEREO_MODE_SPLIT_VERTICAL:
               aml_set_3d_video_mode(MODE_3D_OUT_LR | MODE_3D_FA | MODE_3D_ENABLE, false, mvc_view_mode);
               break;
-            case RenderStereoMode::SPLIT_HORIZONTAL:
+            case RENDER_STEREO_MODE_SPLIT_HORIZONTAL:
               aml_set_3d_video_mode(MODE_3D_OUT_TB | MODE_3D_FA | MODE_3D_ENABLE, false, mvc_view_mode);
               break;
             default:
@@ -2703,24 +2772,26 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
     }
   }
 
-  logM(LOGDEBUG, "display({:d},{:d},{:d},{:d})",
-                 (int)m_display_rect.x1,      (int)m_display_rect.y1,
-                 (int)m_display_rect.Width(), (int)m_display_rect.Height());
-
-  logM(LOGDEBUG, "gui({:d},{:d},{:d},{:d})",
-                 (int)gui.x1,      (int)gui.y1,
-                 (int)gui.Width(), (int)gui.Height());
-
-  logM(LOGDEBUG, "m_dst_rect({:d},{:d},{:d},{:d})",
-                 (int)m_dst_rect.x1,      (int)m_dst_rect.y1,
-                 (int)m_dst_rect.Width(), (int)m_dst_rect.Height());
-
-  logM(LOGDEBUG, "dst_rect({:d},{:d},{:d},{:d})",
-                 (int)dst_rect.x1,      (int)dst_rect.y1,
-                 (int)dst_rect.Width(), (int)dst_rect.Height());
-
-  logM(LOGDEBUG, "m_guiStereoMode({:d})", m_guiStereoMode);
-  logM(LOGDEBUG, "m_guiStereoView({:d})", m_guiStereoView);
+#if 1
+  std::string s_dst_rect = StringUtils::Format("{:d},{:d},{:d},{:d}",
+    (int)dst_rect.x1, (int)dst_rect.y1,
+    (int)dst_rect.Width(), (int)dst_rect.Height());
+  std::string s_m_dst_rect = StringUtils::Format("{:d},{:d},{:d},{:d}",
+    (int)m_dst_rect.x1, (int)m_dst_rect.y1,
+    (int)m_dst_rect.Width(), (int)m_dst_rect.Height());
+  std::string s_display = StringUtils::Format("{:d},{:d},{:d},{:d}",
+    (int)m_display_rect.x1, (int)m_display_rect.y1,
+    (int)m_display_rect.Width(), (int)m_display_rect.Height());
+  std::string s_gui = StringUtils::Format("{:d},{:d},{:d},{:d}",
+    (int)gui.x1, (int)gui.y1,
+    (int)gui.Width(), (int)gui.Height());
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:display({})", s_display.c_str());
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:gui({})", s_gui.c_str());
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:m_dst_rect({})", s_m_dst_rect.c_str());
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:dst_rect({})", s_dst_rect.c_str());
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:m_guiStereoMode({:d})", m_guiStereoMode);
+  CLog::Log(LOGDEBUG, "CAMLCodec::SetVideoRect:m_guiStereoView({:d})", m_guiStereoView);
+#endif
 
   // goofy 0/1 based difference in aml axis coordinates.
   // fix them.
@@ -2740,6 +2811,11 @@ void CAMLCodec::SetVideoRect(const CRect &DestRect)
   ShowMainVideo(true);
 }
 
+void CAMLCodec::SetVideoRate(int videoRate) const {
+  if (am_private)
+    am_private->video_rate = videoRate;
+}
+
 unsigned int CAMLCodec::GetDecoderVideoRate() const {
   if (m_speed != DVD_PLAYSPEED_NORMAL || m_pollDevice < 0)
     return 0;
@@ -2754,36 +2830,56 @@ unsigned int CAMLCodec::GetDecoderVideoRate() const {
     return 0;
 }
 
-std::string CAMLCodec::GetHDRStaticMetadata() const {
-  // add static HDR metadata for VP9 content
-  if (am_private->video_format == VFORMAT_VP9 && m_hints.masteringMetadata)
+std::string CAMLCodec::GetHDRStaticMetadata() const
+{
+  std::stringstream stream;
+  std::string config_data;
+
+  switch(am_private->video_format)
   {
-    // for more information, see CTA+861.3-A standard document
-    static const double MAX_CHROMATICITY = 50000;
-    static const double MAX_LUMINANCE = 10000;
-    std::stringstream stream;
-    stream << "HDRStaticInfo:1";
-    stream << ";mR.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][0]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mR.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][1]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mG.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][0]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mG.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][1]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mB.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][0]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mB.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][1]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mW.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[0]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mW.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[1]) * MAX_CHROMATICITY + 0.5);
-    stream << ";mMaxDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->max_luminance) * MAX_LUMINANCE + 0.5);
-    stream << ";mMinDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->min_luminance) * MAX_LUMINANCE + 0.5);
-    if (m_hints.contentLightMetadata)
-    {
-      stream << ";mCLLPresent:1";
-      stream << ";mMaxCLL:" << m_hints.contentLightMetadata->MaxCLL;
-      stream << ";mMaxFALL:" << m_hints.contentLightMetadata->MaxFALL;
-    }
-    if (m_hints.colorTransferCharacteristic != AVCOL_TRC_UNSPECIFIED)
-      stream << ";mTransfer:" << m_hints.colorTransferCharacteristic;
-    std::string config_data = stream.str();
-    logM(LOGDEBUG, "Created the following config: {}", config_data.c_str());
-    return config_data;
+    // add static HDR metadata for VP9 content
+    case VFORMAT_VP9:
+      if (m_hints.masteringMetadata)
+      {
+        // for more information, see CTA+861.3-A standard document
+        static const double MAX_CHROMATICITY = 50000;
+        static const double MAX_LUMINANCE = 10000;
+        stream << "HDRStaticInfo:1";
+        stream << ";mR.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][0]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mR.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[0][1]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mG.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][0]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mG.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[1][1]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mB.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][0]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mB.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->display_primaries[2][1]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mW.x:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[0]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mW.y:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->white_point[1]) * MAX_CHROMATICITY + 0.5);
+        stream << ";mMaxDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->max_luminance) * MAX_LUMINANCE + 0.5);
+        stream << ";mMinDL:" << static_cast<int>(av_q2d(m_hints.masteringMetadata->min_luminance) * MAX_LUMINANCE + 0.5);
+        if (m_hints.contentLightMetadata)
+        {
+          stream << ";mCLLPresent:1";
+          stream << ";mMaxCLL:" << m_hints.contentLightMetadata->MaxCLL;
+          stream << ";mMaxFALL:" << m_hints.contentLightMetadata->MaxFALL;
+        }
+        if (m_hints.colorTransferCharacteristic != AVCOL_TRC_UNSPECIFIED)
+          stream << ";mTransfer:" << static_cast<int>(m_hints.colorTransferCharacteristic);
+        config_data = stream.str();
+      }
+      break;
+    case VFORMAT_AV1:
+      stream << "av1_max_pic_w:" << m_hints.width;
+      stream << ";av1_max_pic_h:" << m_hints.height;
+      stream << ";";
+      [[fallthrough]];
+    case VFORMAT_H264:
+      [[fallthrough]];
+    case VFORMAT_H264_4K2K:
+      config_data = stream.str();
+      break;
+    default:
+      break;
   }
-  return std::string();
+  if (!config_data.empty())
+    CLog::Log(LOGDEBUG, "CAMLCodec::GetHDRStaticMetadata - Created the following config: {}", config_data);
+  return config_data;
 }

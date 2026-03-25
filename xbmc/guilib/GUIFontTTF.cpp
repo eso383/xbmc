@@ -160,8 +160,7 @@ public:
     return face;
   };
 
-  FT_Stroker GetStroker()
-  {
+  FT_Stroker GetStroker() const {
     if (!m_library)
       return nullptr;
 
@@ -266,7 +265,7 @@ bool CGUIFontTTF::Load(
   if (!m_face)
     return false;
 
-  m_hbFont = hb_ft_font_create(m_face, 0);
+  m_hbFont = hb_ft_font_create(m_face, nullptr);
   if (!m_hbFont)
     return false;
   /*
@@ -362,8 +361,8 @@ void CGUIFontTTF::End()
 void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
                                    float x,
                                    float y,
-                                   std::span<const KODI::UTILS::COLOR::Color> colors,
-                                   std::span<const character_t> text,
+                                   const std::vector<UTILS::COLOR::Color>& colors,
+                                   const vecText& text,
                                    uint32_t alignment,
                                    float maxPixelWidth,
                                    bool scrolling,
@@ -419,7 +418,7 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
           ? m_dynamicCache.Lookup(context, dynamicPos, colors, text, alignment, maxPixelWidth,
                                   scrolling, std::chrono::steady_clock::now(), dirtyCache)
           : unusedVertexBuffer;
-  std::shared_ptr<std::vector<SVertex>> tempVertices = std::make_shared<std::vector<SVertex>>();
+  auto tempVertices = std::make_shared<std::vector<SVertex>>();
   std::shared_ptr<std::vector<SVertex>>& vertices =
       hardwareClipping ? tempVertices
                        : static_cast<std::shared_ptr<std::vector<SVertex>>&>(m_staticCache.Lookup(
@@ -619,9 +618,6 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
       }
 
       cursorX += ch->m_advance;
-
-      if ((alignment & XBFONT_JUSTIFIED) && (text[itGlyph->m_glyphInfo.cluster] & 0xffff) == L' ')
-        cursorX += spacePerSpaceCharacter;
     }
 
     // Reserve vector space: 4 vertex for each glyph
@@ -632,7 +628,7 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
     {
       // If starting text on a new line, determine justification effects
       // Get the current letter in the CStdString
-      KODI::UTILS::COLOR::Color color = (text[itGlyph->m_glyphInfo.cluster] & 0xff0000) >> 16;
+      UTILS::COLOR::Color color = (text[itGlyph->m_glyphInfo.cluster] & 0xff0000) >> 16;
       if (color >= colors.size())
         color = 0;
       color = colors[color];
@@ -742,15 +738,15 @@ void CGUIFontTTF::DrawTextInternal(CGraphicContext& context,
   End();
 }
 
-float CGUIFontTTF::GetTextWidthInternal(std::span<const character_t> text)
+
+float CGUIFontTTF::GetTextWidthInternal(const vecText& text)
 {
   const std::vector<Glyph> glyphs = GetHarfBuzzShapedGlyphs(text);
   return GetTextWidthInternal(text, glyphs);
 }
 
 // this routine assumes a single line (i.e. it was called from GUITextLayout)
-float CGUIFontTTF::GetTextWidthInternal(std::span<const character_t> text,
-                                        const std::vector<Glyph>& glyphs)
+float CGUIFontTTF::GetTextWidthInternal(const vecText& text, const std::vector<Glyph>& glyphs)
 {
   float width = 0;
   for (auto it = glyphs.begin(); it != glyphs.end(); it++)
@@ -811,9 +807,7 @@ unsigned int CGUIFontTTF::GetMaxFontHeight() const
   return m_maxFontHeight + SPACING_BETWEEN_CHARACTERS_IN_TEXTURE;
 }
 
-std::vector<CGUIFontTTF::Glyph> CGUIFontTTF::GetHarfBuzzShapedGlyphs(
-    std::span<const character_t> text)
-{
+std::vector<CGUIFontTTF::Glyph> CGUIFontTTF::GetHarfBuzzShapedGlyphs(const vecText& text) const {
   std::vector<Glyph> glyphs;
   if (text.empty())
   {
@@ -1036,7 +1030,7 @@ bool CGUIFontTTF::CacheCharacter(FT_UInt glyphIndex, uint32_t style, Character* 
     return false;
   }
 
-  FT_BitmapGlyph bitGlyph = (FT_BitmapGlyph)glyph;
+  auto bitGlyph = (FT_BitmapGlyph)glyph;
   FT_Bitmap bitmap = bitGlyph->bitmap;
   bool isEmptyGlyph = (bitmap.width == 0 || bitmap.rows == 0);
 
@@ -1125,7 +1119,7 @@ void CGUIFontTTF::RenderCharacter(CGraphicContext& context,
                                   float posX,
                                   float posY,
                                   const Character* ch,
-                                  KODI::UTILS::COLOR::Color color,
+                                  UTILS::COLOR::Color color,
                                   bool roundX,
                                   std::vector<SVertex>& vertices)
 {
@@ -1214,7 +1208,7 @@ void CGUIFontTTF::RenderCharacter(CGraphicContext& context,
   const float tb = texture.y2 * m_textureScaleY;
 #else
   // when scaling by shader, we have to grow the vertex and texture coords
-  // by .5 or we would omit pixels when animating.
+  // by .5 or we would ommit pixels when animating.
   const float tl = (texture.x1 - .5f) * m_textureScaleX;
   const float tr = (texture.x2 + .5f) * m_textureScaleX;
   const float tt = (texture.y1 - .5f) * m_textureScaleY;
@@ -1323,8 +1317,7 @@ void CGUIFontTTF::ObliqueGlyph(FT_GlyphSlot slot)
 }
 
 // Embolden code - original taken from freetype2 (ftsynth.c)
-void CGUIFontTTF::SetGlyphStrength(FT_GlyphSlot slot, int glyphStrength)
-{
+void CGUIFontTTF::SetGlyphStrength(FT_GlyphSlot slot, int glyphStrength) const {
   if (slot->format != FT_GLYPH_FORMAT_OUTLINE)
     return;
 

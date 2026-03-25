@@ -11,11 +11,11 @@
 #include "JSONUtils.h"
 #include "ServiceBroker.h"
 #include "TextureCache.h"
+#include "addons/AddonDatabase.h"
 #include "addons/AddonManager.h"
 #include "addons/PluginSource.h"
 #include "addons/addoninfo/AddonInfo.h"
 #include "addons/addoninfo/AddonType.h"
-#include "imagefiles/ImageFileURL.h"
 #include "messaging/ApplicationMessenger.h"
 #include "utils/FileUtils.h"
 #include "utils/StringUtils.h"
@@ -35,7 +35,7 @@ JSONRPC_STATUS CAddonsOperations::GetAddons(const std::string &method, ITranspor
   // ignore the "content" parameter if the type is specified but not a plugin or script
   if (addonType != AddonType::UNKNOWN && addonType != AddonType::PLUGIN &&
       addonType != AddonType::SCRIPT)
-    content = CPluginSource::Content::UNKNOWN;
+    content = CPluginSource::UNKNOWN;
 
   if (addonType >= AddonType::VIDEO && addonType <= AddonType::EXECUTABLE)
   {
@@ -45,19 +45,19 @@ JSONRPC_STATUS CAddonsOperations::GetAddons(const std::string &method, ITranspor
     switch (addonType)
     {
       case AddonType::VIDEO:
-        content = CPluginSource::Content::VIDEO;
+        content = CPluginSource::VIDEO;
         break;
       case AddonType::AUDIO:
-        content = CPluginSource::Content::AUDIO;
+        content = CPluginSource::AUDIO;
         break;
       case AddonType::IMAGE:
-        content = CPluginSource::Content::IMAGE;
+        content = CPluginSource::IMAGE;
         break;
       case AddonType::GAME:
-        content = CPluginSource::Content::GAME;
+        content = CPluginSource::GAME;
         break;
       case AddonType::EXECUTABLE:
-        content = CPluginSource::Content::EXECUTABLE;
+        content = CPluginSource::EXECUTABLE;
         break;
       default:
         break;
@@ -106,13 +106,13 @@ JSONRPC_STATUS CAddonsOperations::GetAddons(const std::string &method, ITranspor
   for (int index = 0; index < (int)addons.size(); index++)
   {
     std::shared_ptr<CPluginSource> plugin;
-    if (content != CPluginSource::Content::UNKNOWN)
+    if (content != CPluginSource::UNKNOWN)
       plugin = std::dynamic_pointer_cast<CPluginSource>(addons.at(index));
 
     if ((addons.at(index)->Type() <= AddonType::UNKNOWN ||
          addons.at(index)->Type() >= AddonType::MAX_TYPES) ||
-        ((content != CPluginSource::Content::UNKNOWN && plugin == NULL) ||
-         (plugin != NULL && !plugin->Provides(content))))
+        ((content != CPluginSource::UNKNOWN && plugin == nullptr) ||
+         (plugin != nullptr && !plugin->Provides(content))))
     {
       addons.erase(addons.begin() + index);
       index--;
@@ -122,8 +122,9 @@ JSONRPC_STATUS CAddonsOperations::GetAddons(const std::string &method, ITranspor
   int start, end;
   HandleLimits(parameterObject, result, addons.size(), start, end);
 
+  CAddonDatabase addondb;
   for (int index = start; index < end; index++)
-    FillDetails(addons.at(index), parameterObject["properties"], result["addons"], true);
+    FillDetails(addons.at(index), parameterObject["properties"], result["addons"], addondb, true);
 
   return OK;
 }
@@ -133,11 +134,12 @@ JSONRPC_STATUS CAddonsOperations::GetAddonDetails(const std::string &method, ITr
   std::string id = parameterObject["addonid"].asString();
   AddonPtr addon;
   if (!CServiceBroker::GetAddonMgr().GetAddon(id, addon, OnlyEnabled::CHOICE_NO) ||
-      addon.get() == NULL || addon->Type() <= AddonType::UNKNOWN ||
+      addon.get() == nullptr || addon->Type() <= AddonType::UNKNOWN ||
       addon->Type() >= AddonType::MAX_TYPES)
     return InvalidParams;
 
-  FillDetails(addon, parameterObject["properties"], result["addon"], false);
+  CAddonDatabase addondb;
+  FillDetails(addon, parameterObject["properties"], result["addon"], addondb);
 
   return OK;
 }
@@ -178,7 +180,7 @@ JSONRPC_STATUS CAddonsOperations::ExecuteAddon(const std::string &method, ITrans
   std::string id = parameterObject["addonid"].asString();
   AddonPtr addon;
   if (!CServiceBroker::GetAddonMgr().GetAddon(id, addon, OnlyEnabled::CHOICE_YES) ||
-      addon.get() == NULL || addon->Type() < AddonType::VISUALIZATION ||
+      addon.get() == nullptr || addon->Type() < AddonType::VISUALIZATION ||
       addon->Type() >= AddonType::MAX_TYPES)
     return InvalidParams;
 
@@ -270,9 +272,10 @@ static CVariant Serialize(const AddonPtr& addon)
 void CAddonsOperations::FillDetails(const std::shared_ptr<ADDON::IAddon>& addon,
                                     const CVariant& fields,
                                     CVariant& result,
-                                    bool append)
+                                    CAddonDatabase& addondb,
+                                    bool append /* = false */)
 {
-  if (addon.get() == NULL)
+  if (addon.get() == nullptr)
     return;
 
   CVariant addonInfo = Serialize(addon);
@@ -303,7 +306,7 @@ void CAddonsOperations::FillDetails(const std::shared_ptr<ADDON::IAddon>& addon,
       bool needsRecaching;
       std::string image = CServiceBroker::GetTextureCache()->CheckCachedImage(url, needsRecaching);
       if (!image.empty() || CFileUtils::Exists(url))
-        object[field] = IMAGE_FILES::URLFromFile(url);
+        object[field] = CTextureUtils::GetWrappedImageURL(url);
       else
         object[field] = "";
     }

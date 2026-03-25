@@ -29,7 +29,7 @@ class CUPnPRenderer : public PLT_MediaRenderer
 public:
     CUPnPRenderer(const char*  friendly_name,
                   bool         show_ip = false,
-                  const char*  uuid = NULL,
+                  const char*  uuid = nullptr,
                   unsigned int port = 0);
 
     ~CUPnPRenderer() override;
@@ -62,10 +62,10 @@ public:
 private:
     NPT_Result SetupServices() override;
     NPT_Result SetupIcons() override;
-    NPT_Result GetMetadata(NPT_String& meta);
+    NPT_Result GetMetadata(NPT_String& meta) const;
     NPT_Result PlayMedia(const NPT_String& uri,
                          const NPT_String& meta,
-                         PLT_Action* action = NULL);
+                         PLT_Action* action = nullptr);
     NPT_Result Reset(PLT_Service* avt);
     NPT_String GetTransportState();
     NPT_Mutex m_state;

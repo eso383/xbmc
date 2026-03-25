@@ -95,8 +95,7 @@ private:
   void OnSettings() const;
   void OnSelect();
   void OnToggleAutoUpdates();
-  int AskForVersion(
-      const std::vector<std::pair<ADDON::CAddonVersion, std::string>>& versions) const;
+  int AskForVersion(std::vector<std::pair<ADDON::CAddonVersion, std::string>>& versions) const;
 
   /*!
    * @brief Returns true if current addon can be opened (i.e is a plugin)

@@ -178,7 +178,7 @@ HttpParser::addBytes( const char* bytes, unsigned len )
 const char*
 HttpParser::getMethod() const
 {
-  return _data.data();
+    return &_data[0];
 }
 
 const char*
@@ -207,7 +207,7 @@ HttpParser::getBody() const
     if ( _contentLength > 0 ) {
         return &_data[_contentStart];
     } else  {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -215,7 +215,7 @@ HttpParser::getBody() const
 const char*
 HttpParser::getValue( const char* key ) const
 {
-    for( IntArray::const_iterator iter = _keys.begin();
+    for(auto iter = _keys.begin();
             iter != _keys.end(); ++iter  )
     {
         unsigned index = *iter;
@@ -225,7 +225,7 @@ HttpParser::getValue( const char* key ) const
 
     }
 
-    return NULL;
+    return nullptr;
 }
 
 unsigned

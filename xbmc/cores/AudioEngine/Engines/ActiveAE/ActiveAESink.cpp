@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2026 Team Kodi
+ *  Copyright (C) 2010-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -77,7 +77,7 @@ AEDeviceType CActiveAESink::GetDeviceType(const std::string &device)
 
   for (auto itt = m_sinkInfoList.begin(); itt != m_sinkInfoList.end(); ++itt)
   {
-    for (AEDeviceInfoList::iterator itt2 = itt->m_deviceInfoList.begin(); itt2 != itt->m_deviceInfoList.end(); ++itt2)
+    for (auto itt2 = itt->m_deviceInfoList.begin(); itt2 != itt->m_deviceInfoList.end(); ++itt2)
     {
       CAEDeviceInfo& info = *itt2;
       if (info.m_deviceName == dev.name)
@@ -91,7 +91,7 @@ bool CActiveAESink::HasPassthroughDevice()
 {
   for (auto itt = m_sinkInfoList.begin(); itt != m_sinkInfoList.end(); ++itt)
   {
-    for (AEDeviceInfoList::iterator itt2 = itt->m_deviceInfoList.begin(); itt2 != itt->m_deviceInfoList.end(); ++itt2)
+    for (auto itt2 = itt->m_deviceInfoList.begin(); itt2 != itt->m_deviceInfoList.end(); ++itt2)
     {
       CAEDeviceInfo& info = *itt2;
       if (info.m_deviceType != AE_DEVTYPE_PCM && !info.m_streamTypes.empty())
@@ -200,8 +200,7 @@ bool CActiveAESink::NeedIECPacking()
   return true;
 }
 
-bool CActiveAESink::DeviceExist(std::string driver, const std::string& device)
-{
+bool CActiveAESink::DeviceExist(std::string driver, const std::string& device) const {
   if (driver.empty() && m_sink)
     driver = m_sink->GetName();
 
@@ -598,11 +597,6 @@ void CActiveAESink::StateMachine(int signal, Protocol *port, Message *msg)
   } // for
 }
 
-void CActiveAESink::OnStartup()
-{
-  SetTask(ThreadTask::AUDIO);
-}
-
 void CActiveAESink::Process()
 {
   Message *msg = nullptr;
@@ -667,7 +661,7 @@ void CActiveAESink::Process()
     {
       msg = m_controlPort.GetMessage();
       msg->signal = CSinkControlProtocol::TIMEOUT;
-      port = 0;
+      port = nullptr;
       // signal timeout to state machine
       StateMachine(msg->signal, port, msg);
       if (!m_bStateMachineSelfTrigger)
@@ -677,11 +671,6 @@ void CActiveAESink::Process()
       }
     }
   }
-}
-
-void CActiveAESink::OnExit()
-{
-  RevertTask();
 }
 
 void CActiveAESink::EnumerateSinkList(bool force, std::string driver)
@@ -763,10 +752,6 @@ std::string CActiveAESink::ValidateOuputDevice(const std::string& device, bool p
         if (!passthrough && d.m_onlyPassthrough)
           continue;
 
-        // filter L-PCM device when passthrough on Amlogic S5/T7
-        if (passthrough && (d.m_deviceName.substr(0, d.m_deviceName.find(':')) == "surround71"))
-          continue;
-
         if (d.m_deviceName == dev.name)
           return d.ToDeviceString(sink.m_sinkName);
       }
@@ -787,10 +772,6 @@ std::string CActiveAESink::ValidateOuputDevice(const std::string& device, bool p
           continue;
 
         if (!passthrough && d.m_onlyPassthrough)
-          continue;
-
-        // filter L-PCM device when passthrough on Amlogic S5/T7
-        if (passthrough && (d.m_deviceName.substr(0, d.m_deviceName.find(':')) == "surround71"))
           continue;
 
         if (d.GetFriendlyName() == dev.friendlyName)
@@ -815,10 +796,6 @@ std::string CActiveAESink::ValidateOuputDevice(const std::string& device, bool p
           continue;
 
         if (!passthrough && d.m_onlyPassthrough)
-          continue;
-
-        // filter L-PCM device when passthrough on Amlogic S5/T7
-        if (passthrough && (d.m_deviceName.substr(0, d.m_deviceName.find(':')) == "surround71"))
           continue;
 
         if (firstDevice.empty())
@@ -850,10 +827,6 @@ std::string CActiveAESink::ValidateOuputDevice(const std::string& device, bool p
       if (!passthrough && d.m_onlyPassthrough)
         continue;
 
-      // filter L-PCM device when passthrough on Amlogic S5/T7
-      if (passthrough && (d.m_deviceName.substr(0, d.m_deviceName.find(':')) == "surround71"))
-        continue;
-
       if (firstDevice.empty())
         firstDevice = d.ToDeviceString(sink.m_sinkName);
 
@@ -873,9 +846,9 @@ void CActiveAESink::EnumerateOutputDevices(AEDeviceList &devices, bool passthrou
   for (auto itt = m_sinkInfoList.begin(); itt != m_sinkInfoList.end(); ++itt)
   {
     AESinkInfo sinkInfo = *itt;
-    for (AEDeviceInfoList::iterator itt2 = sinkInfo.m_deviceInfoList.begin(); itt2 != sinkInfo.m_deviceInfoList.end(); ++itt2)
+    for (auto itt2 = sinkInfo.m_deviceInfoList.begin(); itt2 != sinkInfo.m_deviceInfoList.end(); ++itt2)
     {
-      const CAEDeviceInfo& devInfo = *itt2;
+      CAEDeviceInfo devInfo = *itt2;
       if (passthrough && devInfo.m_deviceType == AE_DEVTYPE_PCM)
         continue;
 
@@ -912,7 +885,7 @@ void CActiveAESink::GetDeviceFriendlyName(const std::string& device)
   for (auto itt = m_sinkInfoList.begin(); itt != m_sinkInfoList.end(); ++itt)
   {
     AESinkInfo sinkInfo = *itt;
-    for (AEDeviceInfoList::iterator itt2 = sinkInfo.m_deviceInfoList.begin(); itt2 != sinkInfo.m_deviceInfoList.end(); ++itt2)
+    for (auto itt2 = sinkInfo.m_deviceInfoList.begin(); itt2 != sinkInfo.m_deviceInfoList.end(); ++itt2)
     {
       CAEDeviceInfo& devInfo = *itt2;
       if (devInfo.m_deviceName == device)
@@ -1072,18 +1045,13 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
       else if (samples->pkt->pause_burst_ms > 0)
       {
         // construct a pause burst if we have already output valid audio
+#if defined(HAS_LIBAMCODEC)
         bool burst = m_extStreaming;
+#else
+        bool burst = m_extStreaming && m_hasIecBurst;
+#endif
         if (!m_packer->PackPause(m_sinkFormat.m_streamInfo, samples->pkt->pause_burst_ms, burst))
-        {
-          logM(LOGDEBUG, "reusing passthrough pause burst (millis [{}] extStreaming [{}] hasIecBurst [{}])",
-                         samples->pkt->pause_burst_ms, m_extStreaming, m_hasIecBurst);
           skipSwap = true;
-        }
-        else
-        {
-          logM(LOGDEBUG, "built passthrough pause burst (millis [{}] burst [{}] extStreaming [{}] hasIecBurst [{}])",
-                         samples->pkt->pause_burst_ms, burst, m_extStreaming, m_hasIecBurst);
-        }
       }
       else
         m_packer->Reset();
@@ -1127,10 +1095,7 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
 
   while (frames > 0)
   {
-    if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
-      maxFrames = frames;
-    else
-      maxFrames = std::min(frames, m_sinkFormat.m_frames);
+    maxFrames = std::min(frames, m_sinkFormat.m_frames);
     written = m_sink->AddPackets(buffer, maxFrames, totalFrames - frames);
 
     if (written > 0 && isPassthroughAudioPacket)
@@ -1138,10 +1103,6 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
 
     if (written == 0)
     {
-      if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
-        logM(LOGDEBUG, "passthrough write stalled (frames [{}] totalFrames [{}] retry [{}] hasIecBurst [{}])",
-                       frames, totalFrames, retry, m_hasIecBurst);
-
       CThread::Sleep(
           std::chrono::milliseconds(500 * m_sinkFormat.m_frames / m_sinkFormat.m_sampleRate));
       retry++;
@@ -1161,12 +1122,7 @@ unsigned int CActiveAESink::OutputSamples(CSampleBuffer* samples)
         return 0;
       }
       else
-      {
-        if (m_requestedFormat.m_dataFormat == AE_FMT_RAW)
-          logM(LOGDEBUG, "retrying passthrough write (retry [{}] maxRetries [{}])",
-                         retry, maxRetries);
         continue;
-      }
     }
     else if (written > maxFrames)
     {
@@ -1205,13 +1161,12 @@ void CActiveAESink::SwapInit(CSampleBuffer* samples)
 
 #define PI 3.1415926536f
 
-void CActiveAESink::GenerateNoise()
-{
+void CActiveAESink::GenerateNoise() const {
   int nb_floats = m_sampleOfSilence.pkt->max_nb_samples;
   nb_floats *= m_sampleOfSilence.pkt->config.channels;
   size_t size = nb_floats*sizeof(float);
 
-  float *noise = static_cast<float*>(KODI::MEMORY::AlignedMalloc(size, 32));
+  auto noise = static_cast<float*>(KODI::MEMORY::AlignedMalloc(size, 32));
   if (!noise)
     throw std::bad_alloc();
 

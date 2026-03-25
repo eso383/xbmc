@@ -17,10 +17,10 @@
 #include "application/ApplicationComponents.h"
 #include "application/ApplicationPowerHandling.h"
 #include "guilib/GUIComponent.h"
+#include "guilib/GUITexture.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 
@@ -41,6 +41,10 @@ void CGUIWindowScreensaver::Process(unsigned int currentTime, CDirtyRegionList& 
 
 void CGUIWindowScreensaver::Render()
 {
+  // FIXME/TODO: Screensaver addons should make the screen black instead
+  // keeping this just for compatibility reasons since it's now a dialog.
+  CGUITexture::DrawQuad(m_renderRegion, UTILS::COLOR::BLACK);
+
   if (m_addon)
   {
     auto& context = CServiceBroker::GetWinSystem()->GetGfxContext();

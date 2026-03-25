@@ -10,17 +10,14 @@
 
 #include "Directory.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "network/ZeroconfBrowser.h"
-#include "utils/ArtUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
 #include <cassert>
 #include <stdexcept>
 
-using namespace KODI;
 using namespace XFILE;
 
 CZeroconfDirectory::CZeroconfDirectory()
@@ -80,7 +77,7 @@ bool GetDirectoryFromTxtRecords(const CZeroconfBrowser::ZeroconfService& zerocon
     std::string password;
 
     //search for a path key entry
-    CZeroconfBrowser::ZeroconfService::tTxtRecordMap::iterator it = txtRecords.find(TXT_RECORD_PATH_KEY);
+    auto it = txtRecords.find(TXT_RECORD_PATH_KEY);
 
     //if we found the key - be sure there is a value there
     if( it != txtRecords.end() && !it->second.empty() )
@@ -139,8 +136,8 @@ bool GetDirectoryFromTxtRecords(const CZeroconfBrowser::ZeroconfService& zerocon
 
       item->SetLabelPreformatted(true);
       //just set the default folder icon
-      ART::FillInDefaultIcon(*item);
-      item->SetIsShareOrDrive(true);
+      item->FillInDefaultIcon();
+      item->m_bIsShareOrDrive=true;
       items.Add(item);
       ret = true;
     }
@@ -175,7 +172,7 @@ bool CZeroconfDirectory::GetDirectory(const CURL& url, CFileItemList &items)
         item->SetLabel(it.GetName() + " (" + protocol + ")");
         item->SetLabelPreformatted(true);
         //just set the default folder icon
-        ART::FillInDefaultIcon(*item);
+        item->FillInDefaultIcon();
         items.Add(item);
       }
     }

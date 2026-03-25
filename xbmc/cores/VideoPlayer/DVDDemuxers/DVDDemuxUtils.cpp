@@ -51,7 +51,7 @@ void CDVDDemuxUtils::FreeDemuxPacket(DemuxPacket* pPacket)
 
 DemuxPacket* CDVDDemuxUtils::AllocateDemuxPacket(int iDataSize)
 {
-  DemuxPacket* pPacket = new DemuxPacket();
+  auto pPacket = new DemuxPacket();
 
   if (iDataSize > 0)
   {
@@ -68,7 +68,7 @@ DemuxPacket* CDVDDemuxUtils::AllocateDemuxPacket(int iDataSize)
     if (!pPacket->pData)
     {
       FreeDemuxPacket(pPacket);
-      return NULL;
+      return nullptr;
     }
 
     // reset the last 8 bytes to 0;

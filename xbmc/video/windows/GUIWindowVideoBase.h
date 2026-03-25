@@ -11,16 +11,25 @@
 #include "playlists/PlayListTypes.h"
 #include "video/VideoDatabase.h"
 #include "video/VideoThumbLoader.h"
+#include "video/guilib/VideoAction.h"
 #include "windows/GUIMediaWindow.h"
+
+namespace
+{
+class CVideoSelectActionProcessor;
+class CVideoPlayActionProcessor;
+} // unnamed namespace
 
 class CGUIWindowVideoBase : public CGUIMediaWindow, public IBackgroundLoaderObserver
 {
+  friend class ::CVideoSelectActionProcessor;
+  friend class ::CVideoPlayActionProcessor;
+
 public:
   CGUIWindowVideoBase(int id, const std::string &xmlFile);
   ~CGUIWindowVideoBase(void) override;
   bool OnMessage(CGUIMessage& message) override;
   bool OnAction(const CAction &action) override;
-  bool OnPopupMenu(int iItem) override;
 
   /*! \brief Gets called to process the "info" action for the given file item
    Default implementation shows a dialog containing information for the movie/episode/...
@@ -57,9 +66,6 @@ public:
                             CVideoDatabase& database,
                             bool allowReplaceLabels = true);
 
-  bool PlayItem(const std::shared_ptr<CFileItem>& item, const std::string& player);
-  void OnQueueItem(const std::shared_ptr<CFileItem>& item, int iItem, bool first = false);
-
 protected:
   void OnScan(const std::string& strPath, bool scanAll = false);
   bool Update(const std::string &strDirectory, bool updateFilterPath = true) override;
@@ -73,6 +79,7 @@ protected:
   void GetContextButtons(int itemNumber, CContextButtons &buttons) override;
   bool OnContextButton(int itemNumber, CONTEXT_BUTTON button) override;
   virtual void OnQueueItem(int iItem, bool first = false);
+  void OnQueueItem(const std::shared_ptr<CFileItem>& item, int iItem, bool first = false);
   virtual void OnDeleteItem(const CFileItemPtr& pItem);
   void OnDeleteItem(int iItem) override;
   virtual void DoSearch(const std::string& strSearch, CFileItemList& items) {}
@@ -84,14 +91,21 @@ protected:
    \return true if the action is performed, false otherwise
    */
   bool OnItemInfo(int item);
+  /*! \brief perform a given action on a file
+   \param item the selected item
+   \param action the action to perform
+   \return true if the action is performed, false otherwise
+   */
+  bool OnFileAction(int item, VIDEO::GUILIB::Action action, const std::string& player);
+
   void OnRestartItem(int iItem, const std::string &player = "");
   bool OnPlayOrResumeItem(int iItem, const std::string& player = "");
   bool OnPlayMedia(int iItem, const std::string &player = "") override;
   bool OnPlayMedia(const std::shared_ptr<CFileItem>& item, const std::string& player);
   bool OnPlayAndQueueMedia(const CFileItemPtr& item, const std::string& player = "") override;
   using CGUIMediaWindow::LoadPlayList;
-  void LoadPlayList(const std::string& strPlayList,
-                    KODI::PLAYLIST::Id playlistId = KODI::PLAYLIST::Id::TYPE_VIDEO);
+  void LoadPlayList(const std::string& strPlayList, PLAYLIST::Id playlistId = PLAYLIST::TYPE_VIDEO) const;
+  bool PlayItem(const std::shared_ptr<CFileItem>& item, const std::string& player);
 
   /*!
    \brief Lookup the information of an item and display an Info dialog
@@ -104,15 +118,15 @@ protected:
 
   void OnSearch();
   void OnSearchItemFound(const CFileItem* pSelItem);
-  int GetScraperForItem(CFileItem* item,
-                        ADDON::ScraperPtr& info,
-                        KODI::VIDEO::SScanSettings& settings);
+  int GetScraperForItem(CFileItem *item, ADDON::ScraperPtr &info, VIDEO::SScanSettings& settings);
 
   static bool OnUnAssignContent(const std::string &path, int header, int text);
 
   static bool StackingAvailable(const CFileItemList &items);
 
-  void UpdateVideoVersionItems();
+  bool OnPlayStackPart(const std::shared_ptr<CFileItem>& item, unsigned int partNumber);
+
+  void UpdateVideoVersionItems() const;
   void UpdateVideoVersionItemsLabel(const std::string& directory);
 
   CGUIDialogProgress* m_dlgProgress;
@@ -122,19 +136,11 @@ protected:
   bool m_stackingAvailable;
 
 private:
-  enum class ShowInfoResult
-  {
-    RESULT_ERROR, // some error occurred
-    RESULT_OK_UPDATED, // no error, data updated
-    RESULT_OK_NOT_UPDATED, // no error, data not updated
-  };
-
   /*!
    \brief Lookup the information of an item and display an Info dialog
    \param item the item to lookup
    \param content
-   \return the result.
+   \return true: the information of the item was modified. false: no change.
    */
-  ShowInfoResult ShowInfo(const std::shared_ptr<CFileItem>& item,
-                          const std::shared_ptr<ADDON::CScraper>& content);
+  bool ShowInfo(const CFileItemPtr& item, const ADDON::ScraperPtr& content);
 };

@@ -44,6 +44,12 @@ public:
      */
   std::vector<std::shared_ptr<CPVRProvider>> GetProvidersList() const;
 
+  /*!
+     * Get the number of providers in this container
+     * @return The total number of providers
+     */
+  std::size_t GetNumProviders() const;
+
 protected:
   void InsertEntry(const std::shared_ptr<CPVRProvider>& newProvider, ProviderUpdateMode updateMode);
 
@@ -57,18 +63,6 @@ class CPVRProviders : public CPVRProvidersContainer
 public:
   CPVRProviders() = default;
   ~CPVRProviders() = default;
-
-  /*!
-   * Get all enabled providers
-   * @return The list of all enabled providers
-   */
-  std::vector<std::shared_ptr<CPVRProvider>> GetProviders() const;
-
-  /*!
-   * Get the number of enabled providers
-   * @return The total number of enabled providers
-   */
-  std::size_t GetNumProviders() const;
 
   /**
    * @brief Update all providers from PVR database and from given clients.
@@ -118,7 +112,7 @@ public:
   /**
      * @brief Persist user changes to the current state of the providers in the DB.
      */
-  bool PersistUserChanges(const std::vector<std::shared_ptr<CPVRProvider>>& providers) const;
+  bool PersistUserChanges(const std::vector<std::shared_ptr<CPVRProvider>>& providers);
 
   /*!
      * @brief Get a provider given it's database ID
@@ -131,7 +125,7 @@ public:
     * @brief Erase stale texture db entries and image files.
     * @return number of cleaned up images.
     */
-  int CleanupCachedImages();
+  int CleanupCachedImages() const;
 
 private:
   void RemoveEntry(const std::shared_ptr<CPVRProvider>& provider);

@@ -24,7 +24,7 @@ enum IEC958_mode_codec {
   CODEC_CNT
 };
 
-// sound/soc/amlogic/auge/card.h
+// sound/soc/amlogic/auge/spdif_hw.h
 enum spdif_id {
   HDMITX_SRC_SPDIF, HDMITX_SRC_SPDIF_B,
   HDMITX_SRC_NUM
@@ -54,23 +54,23 @@ public:
   void Flush() override;
 
 private:
-  CAEChannelInfo GetChannelLayoutRaw(const AEAudioFormat& format);
-  CAEChannelInfo GetChannelLayoutLegacy(const AEAudioFormat& format, unsigned int minChannels, unsigned int maxChannels);
+  CAEChannelInfo GetChannelLayoutRaw(const AEAudioFormat& format) const;
+  CAEChannelInfo GetChannelLayoutLegacy(const AEAudioFormat& format, unsigned int minChannels, unsigned int maxChannels) const;
   CAEChannelInfo GetChannelLayout(const AEAudioFormat& format, unsigned int channels);
 
   static AEChannel ALSAChannelToAEChannel(unsigned int alsaChannel);
   static unsigned int AEChannelToALSAChannel(AEChannel aeChannel);
-  static CAEChannelInfo ALSAchmapToAEChannelMap(snd_pcm_chmap_t* alsaMap);
+  static CAEChannelInfo ALSAchmapToAEChannelMap(const snd_pcm_chmap_t* alsaMap);
   static snd_pcm_chmap_t* AEChannelMapToALSAchmap(const CAEChannelInfo& info);
-  static snd_pcm_chmap_t* CopyALSAchmap(snd_pcm_chmap_t* alsaMap);
-  static std::string ALSAchmapToString(snd_pcm_chmap_t* alsaMap);
+  static snd_pcm_chmap_t* CopyALSAchmap(const snd_pcm_chmap_t* alsaMap);
+  static std::string ALSAchmapToString(const snd_pcm_chmap_t* alsaMap);
   static unsigned int ALSAchmapActiveCount(const snd_pcm_chmap_t& chmap);
   static CAEChannelInfo GetAlternateLayoutForm(const CAEChannelInfo& info);
-  snd_pcm_chmap_t* SelectALSAChannelMap(const CAEChannelInfo& info);
+  snd_pcm_chmap_t* SelectALSAChannelMap(const CAEChannelInfo& info) const;
 
   void aml_configure_simple_control(std::string &device, const enum IEC958_mode_codec codec);
 
-  void GetAESParams(const AEAudioFormat& format, std::string& params);
+  void GetAESParams(const AEAudioFormat& format, std::string& params) const;
   void HandleError(const char* name, int err);
 
   AEAudioFormat m_format;

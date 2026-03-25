@@ -78,8 +78,8 @@ public:
   void LoadFonts(const std::string& fontSet);
   CGUIFont* LoadTTF(const std::string& strFontName,
                     const std::string& strFilename,
-                    KODI::UTILS::COLOR::Color textColor,
-                    KODI::UTILS::COLOR::Color shadowColor,
+                    UTILS::COLOR::Color textColor,
+                    UTILS::COLOR::Color shadowColor,
                     const int iSize,
                     const int iStyle,
                     bool border = false,
@@ -100,13 +100,14 @@ public:
 
   static void SettingOptionsFontsFiller(const std::shared_ptr<const CSetting>& setting,
                                         std::vector<StringSettingOption>& list,
-                                        std::string& current);
+                                        std::string& current,
+                                        void* data);
 
   /*!
    * \brief Get the list of user fonts as family names from cache
    * \return The list of available fonts family names
    */
-  std::vector<std::string> GetUserFontsFamilyNames();
+  std::vector<std::string> GetUserFontsFamilyNames() const;
 
 protected:
   void ReloadTTFFonts();
@@ -116,7 +117,7 @@ protected:
                                        const RESOLUTION_INFO& sourceRes,
                                        bool preserveAspect);
   void LoadFonts(const TiXmlNode* fontNode);
-  CGUIFontTTF* GetFontFile(const std::string& fontIdent);
+  CGUIFontTTF* GetFontFile(const std::string& fontIdent) const;
   static void GetStyle(const TiXmlNode* fontNode, int& iStyle);
 
   std::vector<std::unique_ptr<CGUIFont>> m_vecFonts;

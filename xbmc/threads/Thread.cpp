@@ -1,7 +1,7 @@
 /*
  *  Copyright (c) 2002 Frodo
  *      Portions Copyright (c) by the authors of ffmpeg and xvid
- *  Copyright (C) 2002-2026 Team Kodi
+ *  Copyright (C) 2002-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -21,9 +21,6 @@
 #include <iostream>
 #include <mutex>
 #include <stdlib.h>
-#include <pthread.h>
-#include <sched.h>
-#include <unistd.h>
 
 #include <fmt/format.h>
 #if FMT_VERSION >= 90000
@@ -50,16 +47,6 @@ struct fmt::formatter<std::thread::id> : fmt::formatter<std::string>
 #endif
 
 static thread_local CThread* currentThread;
-
-static std::atomic<int> g_reservedCpu{-1};
-
-void CThread::SetGlobalExcludedCpu(int cpu)
-{
-  if (cpu >= 0)
-    g_reservedCpu.store(cpu, std::memory_order_relaxed);
-  else
-    g_reservedCpu.store(-1, std::memory_order_relaxed);
-}
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -116,7 +103,7 @@ void CThread::Create(bool bAutoDelete)
   m_StartEvent.Reset();
 
   // lock?
-  //std::unique_lock l(m_CriticalSection);
+  //std::unique_lock<CCriticalSection> l(m_CriticalSection);
 
   std::promise<bool> prom;
   m_future = prom.get_future();
@@ -127,7 +114,7 @@ void CThread::Create(bool bAutoDelete)
     //   is fully initialized. Interestingly, using a std::atomic doesn't
     //   have the appropriate memory barrier behavior to accomplish the
     //   same thing so a full system mutex needs to be used.
-    std::unique_lock blockLambdaTillDone(m_CriticalSection);
+    std::unique_lock<CCriticalSection> blockLambdaTillDone(m_CriticalSection);
     m_thread = new std::thread([](CThread* pThread, std::promise<bool> promise)
     {
       try
@@ -139,7 +126,8 @@ void CThread::Create(bool bAutoDelete)
           // lambda's call stack prior to the thread that kicked off this lambda
           // having it set. Once this lock is released, the CThread::Create function
           // that kicked this off is done so everything should be set.
-          std::unique_lock waitForThreadInternalsToBeSet(pThread->m_CriticalSection);
+          std::unique_lock<CCriticalSection> waitForThreadInternalsToBeSet(
+              pThread->m_CriticalSection);
         }
 
         // This is used in various helper methods like GetCurrentThread so it needs
@@ -156,34 +144,6 @@ void CThread::Create(bool bAutoDelete)
         pThread->m_impl = IThreadImpl::CreateThreadImpl(pThread->m_thread->native_handle());
         pThread->m_impl->SetThreadInfo(pThread->m_ThreadName);
 
-        // If the application reserved a single core (by pinning the main kodi.bin thread),
-        // keep other Kodi threads off that core to reduce scheduling jitter.
-        const int reservedCpu = g_reservedCpu.load(std::memory_order_relaxed);
-        if (reservedCpu >= 0)
-        {
-          cpu_set_t mask;
-          CPU_ZERO(&mask);
-          if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &mask) == 0)
-          {
-            // Preserve the main pinned kodi.bin thread.
-            const bool isMainPinnedKodiThread =
-                (pThread->m_ThreadName == "kodi.bin") && CPU_ISSET(reservedCpu, &mask) &&
-                (CPU_COUNT(&mask) == 1);
-
-            if (!isMainPinnedKodiThread && CPU_ISSET(reservedCpu, &mask))
-            {
-              CPU_CLR(reservedCpu, &mask);
-              if (CPU_COUNT(&mask) == 0)
-              {
-                const int onlineCpus = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
-                for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
-                  CPU_SET(cpu, &mask);
-              }
-              pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &mask);
-            }
-          }
-        }
-
         CLog::Log(LOGDEBUG, "Thread {} start, auto delete: {}", pThread->m_ThreadName,
                   (pThread->m_bAutoDelete ? "true" : "false"));
 
@@ -196,7 +156,7 @@ void CThread::Create(bool bAutoDelete)
           CLog::Log(LOGDEBUG, "Thread {} {} terminating (autodelete)", pThread->m_ThreadName,
                     std::this_thread::get_id());
           delete pThread;
-          pThread = NULL;
+          pThread = nullptr;
         }
         else
           CLog::Log(LOGDEBUG, "Thread {} {} terminating", pThread->m_ThreadName,
@@ -213,46 +173,6 @@ void CThread::Create(bool bAutoDelete)
 
       promise.set_value(true);
     }, this, std::move(prom));
-
-    // On Linux, new threads inherit the creating thread's CPU affinity mask.
-    // Since CoreELEC/Amlogic configurations often pin the main Kodi thread (kodi.bin)
-    // to a single core, threads created by it would otherwise be stuck on that core.
-    // Avoid that by widening child thread affinity to all online CPUs except the
-    // creator's single pinned CPU.
-    char creatorName[16] = {0};
-    pthread_getname_np(pthread_self(), creatorName, sizeof(creatorName));
-    if (strcmp(creatorName, "kodi.bin") == 0)
-    {
-      cpu_set_t creatorMask;
-      CPU_ZERO(&creatorMask);
-      if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &creatorMask) == 0)
-      {
-        const int onlineCpus = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
-        int pinnedCpu = -1;
-        int count = 0;
-        for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
-        {
-          if (CPU_ISSET(cpu, &creatorMask))
-          {
-            pinnedCpu = cpu;
-            ++count;
-          }
-        }
-
-        if (count == 1 && pinnedCpu >= 0)
-        {
-          g_reservedCpu.store(pinnedCpu, std::memory_order_relaxed);
-          cpu_set_t childMask;
-          CPU_ZERO(&childMask);
-          for (int cpu = 0; cpu < onlineCpus && cpu < CPU_SETSIZE; ++cpu)
-          {
-            if (cpu != pinnedCpu)
-              CPU_SET(cpu, &childMask);
-          }
-          pthread_setaffinity_np(m_thread->native_handle(), sizeof(cpu_set_t), &childMask);
-        }
-      }
-    }
   } // let the lambda proceed
 
   m_StartEvent.Wait(); // wait for the thread just spawned to set its internals
@@ -273,19 +193,8 @@ bool CThread::IsRunning() const
     return false;
 }
 
-bool CThread::SetPriority(const ThreadPriority& priority)
-{
+bool CThread::SetPriority(const ThreadPriority& priority) const {
   return m_impl->SetPriority(priority);
-}
-
-bool CThread::SetTask(const ThreadTask& task)
-{
-  return m_impl->SetTask(task);
-}
-
-bool CThread::RevertTask()
-{
-  return m_impl->RevertTask();
 }
 
 bool CThread::IsAutoDelete() const
@@ -299,7 +208,9 @@ void CThread::StopThread(bool bWait /*= true*/)
 
   m_bStop = true;
   m_StopEvent.Set();
+
   std::unique_lock lock(m_CriticalSection);
+
   std::thread* lthread = m_thread;
   if (lthread != nullptr && bWait && !IsCurrentThread())
   {
@@ -333,6 +244,7 @@ CThread* CThread::GetCurrentThread()
 bool CThread::Join(std::chrono::milliseconds duration)
 {
   std::unique_lock l(m_CriticalSection);
+
   std::thread* lthread = m_thread;
   if (lthread != nullptr)
   {

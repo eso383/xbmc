@@ -8,8 +8,6 @@
 
 #include "FileDirectoryFactory.h"
 
-#include "music/MusicFileItemClassify.h"
-
 #if defined(HAS_ISO9660PP)
 #include "ISO9660Directory.h"
 #endif
@@ -41,7 +39,6 @@
 #include "utils/log.h"
 
 using namespace ADDON;
-using namespace KODI;
 using namespace KODI::ADDONS;
 using namespace XFILE;
 using namespace PLAYLIST;
@@ -50,11 +47,11 @@ CFileDirectoryFactory::CFileDirectoryFactory(void) = default;
 
 CFileDirectoryFactory::~CFileDirectoryFactory(void) = default;
 
-// return NULL + set pItem->IsFolder() to remove it completely from list.
+// return NULL + set pItem->m_bIsFolder to remove it completely from list.
 IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem, const std::string& strMask)
 {
   if (url.IsProtocol("stack")) // disqualify stack as we need to work with each of the parts instead
-    return NULL;
+    return nullptr;
 
   /**
    * Check available binary addons which can contain files with underlaid
@@ -84,13 +81,13 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
           strExtension, CExtsMimeSupportList::FilterSelect::hasTracks);
       for (const auto& addonInfo : addonInfos)
       {
-        std::unique_ptr<CAudioDecoder> result = std::make_unique<CAudioDecoder>(addonInfo.second);
+        auto result = std::make_unique<CAudioDecoder>(addonInfo.second);
         if (!result->CreateDecoder() || !result->ContainsFiles(url))
         {
-          CLog::LogF(LOGWARNING,
-                     "Addon '{}' support extension '{}' but creation failed (seems not supported), "
-                     "trying other addons and Kodi",
-                     addonInfo.second->ID(), strExtension);
+          CLog::Log(LOGINFO,
+                    "CFileDirectoryFactory::{}: Addon '{}' support extension '{}' but creation "
+                    "failed (seems not supported), trying other addons and Kodi",
+                    __func__, addonInfo.second->ID(), strExtension);
           continue;
         }
         return result.release();
@@ -105,41 +102,31 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
       if (vfsAddon->HasFileDirectories())
       {
         auto exts = StringUtils::Split(vfsAddon->GetExtensions(), "|");
-        if (std::ranges::find(exts, strExtension) != exts.end())
+        if (std::find(exts.begin(), exts.end(), strExtension) != exts.end())
         {
-          CVFSEntryIFileDirectoryWrapper* wrap = new CVFSEntryIFileDirectoryWrapper(vfsAddon);
+          auto wrap = new CVFSEntryIFileDirectoryWrapper(vfsAddon);
           if (wrap->ContainsFiles(url))
           {
-            // Paths returned may contain encoded urls but with capitals (eg. %2A rather than %2a)
-            // CURL will always use lower case for encoded chars, so we need to normalize here
-            // Otherwise there may be file/path mismatches later on
-            for (auto& item : wrap->GetItems())
-            {
-              CURL itemUrl{item->GetPath()};
-              if (URIUtils::HasParentInHostname(itemUrl))
-                item->SetPath(itemUrl.Get());
-            }
-
-            if (wrap->GetItems().Size() == 1)
+            if (wrap->m_items.Size() == 1)
             {
               // one STORED file - collapse it down
-              *pItem = *wrap->GetItems()[0];
+              *pItem = *wrap->m_items[0];
             }
             else
             {
               // compressed or more than one file -> create a dir
-              pItem->SetPath(wrap->GetItems().GetPath());
+              pItem->SetPath(wrap->m_items.GetPath());
             }
 
             // Check for folder, if yes return also wrap.
             // Needed to fix for e.g. RAR files with only one file inside
-            pItem->SetFolder(URIUtils::HasSlashAtEnd(pItem->GetPath()));
-            if (pItem->IsFolder())
+            pItem->m_bIsFolder = URIUtils::HasSlashAtEnd(pItem->GetPath());
+            if (pItem->m_bIsFolder)
               return wrap;
           }
           else
           {
-            pItem->SetFolder(true);
+            pItem->m_bIsFolder = true;
           }
 
           delete wrap;
@@ -157,7 +144,7 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
   if (pItem->IsDiscImage())
   {
 #if defined(HAS_ISO9660PP)
-    CISO9660Directory* iso = new CISO9660Directory();
+    auto iso = new CISO9660Directory();
     if (iso->Exists(pItem->GetURL()))
       return iso;
 
@@ -179,8 +166,8 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
     CFileItemList items;
     CDirectory::GetDirectory(zipURL, items, strMask, DIR_FLAG_DEFAULTS);
     if (items.Size() == 0) // no files
-      pItem->SetFolder(true);
-    else if (items.Size() == 1 && items[0]->GetDepth() == 0 && !items[0]->IsFolder())
+      pItem->m_bIsFolder = true;
+    else if (items.Size() == 1 && items[0]->m_idepth == 0 && !items[0]->m_bIsFolder)
     {
       // one STORED file - collapse it down
       *pItem = *items[0];
@@ -200,8 +187,8 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
     CFileItemList items;
     CDirectory::GetDirectory(zipURL, items, strMask, DIR_FLAG_DEFAULTS);
     if (items.Size() == 0) // no files
-      pItem->SetFolder(true);
-    else if (items.Size() == 1 && items[0]->GetDepth() == 0 && !items[0]->IsFolder())
+      pItem->m_bIsFolder = true;
+    else if (items.Size() == 1 && items[0]->m_idepth == 0 && !items[0]->m_bIsFolder)
     {
       // one STORED file - collapse it down
       *pItem = *items[0];
@@ -211,7 +198,7 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
       pItem->SetURL(zipURL);
       return new CZipDirectory;
     }
-    return NULL;
+    return nullptr;
   }
   if (url.IsFileType("xbt"))
   {
@@ -245,19 +232,19 @@ IFileDirectory* CFileDirectoryFactory::Create(const CURL& url, CFileItem* pItem,
         return pDir;
     }
     delete pDir;
-    return NULL;
+    return nullptr;
   }
 
-  if (MUSIC::IsAudioBook(*pItem))
+  if (pItem->IsAudioBook())
   {
     if (!pItem->HasMusicInfoTag() || pItem->GetEndOffset() <= 0)
     {
-      auto pDir = std::make_unique<CAudioBookFileDirectory>();
+      std::unique_ptr<CAudioBookFileDirectory> pDir(new CAudioBookFileDirectory);
       if (pDir->ContainsFiles(url))
         return pDir.release();
     }
-    return NULL;
+    return nullptr;
   }
-  return NULL;
+  return nullptr;
 }
 

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "LockType.h"
 #include "settings/lib/ISettingCallback.h"
 #include "settings/lib/SettingLevel.h"
 
@@ -17,7 +18,8 @@
 class CFileItem;
 class CMediaSource;
 class CProfileManager;
-enum class LockMode;
+
+typedef std::vector<CMediaSource> VECSOURCES;
 
 class CGUIPassword : public ISettingCallback
 {
@@ -41,8 +43,8 @@ public:
    \return If access is granted, returns \e true
    */
   bool IsItemUnlocked(CMediaSource* pItem, const std::string &strType);
-  bool CheckLock(LockMode btnType, const std::string& strPassword, int iHeading);
-  bool CheckLock(LockMode btnType, const std::string& strPassword, int iHeading, bool& bCanceled);
+  bool CheckLock(LockType btnType, const std::string& strPassword, int iHeading);
+  bool CheckLock(LockType btnType, const std::string& strPassword, int iHeading, bool& bCanceled);
   bool IsProfileLockUnlocked(int iProfile=-1);
   bool IsProfileLockUnlocked(int iProfile, bool& bCanceled, bool prompt = true);
   bool IsMasterLockUnlocked(bool bPromptUser);
@@ -58,13 +60,11 @@ public:
    */
   bool CheckSettingLevelLock(const SettingLevel& level, bool enforce = false);
   bool CheckMenuLock(int iWindowID);
-  bool IsVideoUnlocked();
-  bool IsMusicUnlocked();
   bool SetMasterLockMode(bool bDetails=true);
   bool LockSource(const std::string& strType, const std::string& strName, bool bState);
   void LockSources(bool lock);
   void RemoveSourceLocks();
-  bool IsDatabasePathUnlocked(const std::string& strPath, std::vector<CMediaSource>& sources);
+  bool IsDatabasePathUnlocked(const std::string& strPath, VECSOURCES& vecSources);
 
   /*! \brief Helper function to test if a matching mediasource is currently unlocked
    for a given media file
@@ -96,9 +96,7 @@ private:
                            const std::string& strType) const;
 
   std::string m_strMediaSourcePath;
-  int VerifyPassword(LockMode btnType,
-                     const std::string& strPassword,
-                     const std::string& strHeading);
+  int VerifyPassword(LockType btnType, const std::string& strPassword, const std::string& strHeading);
 };
 
 extern CGUIPassword g_passwordManager;

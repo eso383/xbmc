@@ -14,7 +14,7 @@
 #include "utils/Variant.h"
 #include "utils/log.h"
 
-using namespace KODI;
+using namespace VIDEO;
 using namespace KODI::MESSAGING;
 using namespace std::chrono_literals;
 
@@ -36,8 +36,7 @@ CVideoInfoDownloader::~CVideoInfoDownloader()
 // return value: 0 = we failed, -1 = we failed and reported an error, 1 = success
 int CVideoInfoDownloader::InternalFindMovie(const std::string &movieTitle, int movieYear,
                                             MOVIELIST& movielist,
-                                            bool cleanChars /* = true */)
-{
+                                            bool cleanChars /* = true */) const {
   try
   {
     movielist = m_info->FindMovie(*m_http, movieTitle, movieYear, cleanChars);
@@ -142,12 +141,11 @@ int CVideoInfoDownloader::FindMovie(const std::string &movieTitle, int movieYear
   return success;
 }
 
-bool CVideoInfoDownloader::GetArtwork(CVideoInfoTag &details)
-{
+bool CVideoInfoDownloader::GetArtwork(CVideoInfoTag &details) const {
   return m_info->GetArtwork(*m_http, details);
 }
 
-bool CVideoInfoDownloader::GetDetails(const ADDON::CScraper::UniqueIDs& uniqueIDs,
+bool CVideoInfoDownloader::GetDetails(const std::unordered_map<std::string, std::string>& uniqueIDs,
                                       const CScraperUrl& url,
                                       CVideoInfoTag& movieDetails,
                                       CGUIDialogProgress* pProgress /* = NULL */)
@@ -220,8 +218,8 @@ bool CVideoInfoDownloader::GetEpisodeDetails(const CScraperUrl &url,
 }
 
 bool CVideoInfoDownloader::GetEpisodeList(const CScraperUrl& url,
-                                          VIDEO::EPISODELIST& movieDetails,
-                                          CGUIDialogProgress* pProgress /* = NULL */)
+                                          EPISODELIST& movieDetails,
+                                          CGUIDialogProgress *pProgress /* = NULL */)
 {
   //CLog::Log(LOGDEBUG,"CVideoInfoDownloader::GetDetails({})", url.m_strURL);
   m_url = url;

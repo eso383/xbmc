@@ -43,19 +43,22 @@ const std::string &Pipe::GetName()
 
 void Pipe::AddRef()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   m_nRefCount++;
 }
 
 void Pipe::DecRef()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   m_nRefCount--;
 }
 
 int  Pipe::RefCount()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   return m_nRefCount;
 }
 
@@ -64,8 +67,7 @@ void Pipe::SetEof()
   m_bEof = true;
 }
 
-bool Pipe::IsEof()
-{
+bool Pipe::IsEof() const {
   return m_bEof;
 }
 
@@ -76,7 +78,7 @@ bool Pipe::IsEmpty()
 
 void Pipe::Flush()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
 
   if (!m_bOpen || !m_bReadyForRead || m_bEof)
   {
@@ -153,6 +155,7 @@ int  Pipe::Read(char *buf, int nMaxSize, int nWaitMillis)
 bool Pipe::Write(const char *buf, int nSize, int nWaitMillis)
 {
   std::unique_lock lock(m_lock);
+
   if (!m_bOpen)
     return false;
   bool bOk = false;
@@ -217,7 +220,8 @@ void Pipe::CheckStatus()
 
 void Pipe::Close()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   m_bOpen = false;
   m_readEvent.Set();
   m_writeEvent.Set();
@@ -225,7 +229,8 @@ void Pipe::Close()
 
 void Pipe::AddListener(IPipeListener *l)
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   for (size_t i=0; i<m_listeners.size(); i++)
   {
     if (m_listeners[i] == l)
@@ -236,8 +241,9 @@ void Pipe::AddListener(IPipeListener *l)
 
 void Pipe::RemoveListener(IPipeListener *l)
 {
-  std::unique_lock lock(m_lock);
-  std::vector<XFILE::IPipeListener *>::iterator i = m_listeners.begin();
+  std::lock_guard lock(m_lock);
+
+  auto i = m_listeners.begin();
   while(i != m_listeners.end())
   {
     if ( (*i) == l)
@@ -249,7 +255,8 @@ void Pipe::RemoveListener(IPipeListener *l)
 
 int	Pipe::GetAvailableRead()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   return m_buffer.getMaxReadSize();
 }
 
@@ -263,7 +270,8 @@ PipesManager &PipesManager::GetInstance()
 
 std::string   PipesManager::GetUniquePipeName()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   return StringUtils::Format("pipe://{}/", m_nGenIdHelper++);
 }
 
@@ -273,27 +281,30 @@ XFILE::Pipe *PipesManager::CreatePipe(const std::string &name, int nMaxPipeSize)
   if (pName.empty())
     pName = GetUniquePipeName();
 
-  std::unique_lock lock(m_lock);
-  if (m_pipes.contains(pName))
-    return NULL;
+  std::lock_guard lock(m_lock);
 
-  XFILE::Pipe *p = new XFILE::Pipe(pName, nMaxPipeSize);
+  if (m_pipes.find(pName) != m_pipes.end())
+    return nullptr;
+
+  auto p = new XFILE::Pipe(pName, nMaxPipeSize);
   m_pipes[pName] = p;
   return p;
 }
 
 XFILE::Pipe *PipesManager::OpenPipe(const std::string &name)
 {
-  std::unique_lock lock(m_lock);
-  if (!m_pipes.contains(name))
-    return NULL;
+  std::lock_guard lock(m_lock);
+
+  if (m_pipes.find(name) == m_pipes.end())
+    return nullptr;
   m_pipes[name]->AddRef();
   return m_pipes[name];
 }
 
 void         PipesManager::ClosePipe(XFILE::Pipe *pipe)
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   if (!pipe)
     return ;
 
@@ -308,7 +319,8 @@ void         PipesManager::ClosePipe(XFILE::Pipe *pipe)
 
 bool         PipesManager::Exists(const std::string &name)
 {
-  std::unique_lock lock(m_lock);
-  return (m_pipes.contains(name));
+  std::lock_guard lock(m_lock);
+  
+  return (m_pipes.find(name) != m_pipes.end());
 }
 

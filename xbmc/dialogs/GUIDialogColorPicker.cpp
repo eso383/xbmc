@@ -9,14 +9,11 @@
 #include "GUIDialogColorPicker.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
-#include "ServiceBroker.h"
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIColorManager.h"
 #include "guilib/GUIMessage.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/ActionIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/ColorUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
@@ -145,13 +142,11 @@ void CGUIDialogColorPicker::Reset()
   m_vecList->Clear();
 }
 
-void CGUIDialogColorPicker::AddItem(const CFileItem& item)
-{
+void CGUIDialogColorPicker::AddItem(const CFileItem& item) const {
   m_vecList->Add(std::make_shared<CFileItem>(item));
 }
 
-void CGUIDialogColorPicker::SetItems(const CFileItemList& pList)
-{
+void CGUIDialogColorPicker::SetItems(const CFileItemList& pList) const {
   // need to make internal copy of list to be sure dialog is owner of it
   m_vecList->Clear();
   m_vecList->Copy(pList);
@@ -162,15 +157,14 @@ void CGUIDialogColorPicker::LoadColors()
   LoadColors(CSpecialProtocol::TranslatePathConvertCase("special://xbmc/system/dialogcolors.xml"));
 }
 
-void CGUIDialogColorPicker::LoadColors(const std::string& filePath)
-{
+void CGUIDialogColorPicker::LoadColors(const std::string& filePath) const {
   CGUIColorManager colorManager;
-  std::vector<std::pair<std::string, KODI::UTILS::COLOR::ColorInfo>> colors;
+  std::vector<std::pair<std::string, UTILS::COLOR::ColorInfo>> colors;
   if (colorManager.LoadColorsListFromXML(filePath, colors, true))
   {
     for (auto& color : colors)
     {
-      CFileItem* item = new CFileItem(color.first);
+      auto item = new CFileItem(color.first);
       item->SetLabel2(StringUtils::Format("{:08X}", color.second.colorARGB));
       m_vecList->Add(CFileItemPtr(item));
     }
@@ -180,7 +174,7 @@ void CGUIDialogColorPicker::LoadColors(const std::string& filePath)
               __FUNCTION__);
 }
 
-const std::string& CGUIDialogColorPicker::GetSelectedColor() const
+std::string CGUIDialogColorPicker::GetSelectedColor() const
 {
   return m_selectedColor;
 }
@@ -232,13 +226,10 @@ void CGUIDialogColorPicker::OnInitWindow()
   m_viewControl.SetItems(*m_vecList);
   m_viewControl.SetCurrentView(CONTROL_ICON_LIST);
 
-  SET_CONTROL_LABEL(
-      CONTROL_NUMBER_OF_ITEMS,
-      StringUtils::Format("{} {}", m_vecList->Size(),
-                          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(127)));
+  SET_CONTROL_LABEL(CONTROL_NUMBER_OF_ITEMS,
+                    StringUtils::Format("{} {}", m_vecList->Size(), g_localizeStrings.Get(127)));
 
-  SET_CONTROL_LABEL(CONTROL_CANCEL_BUTTON,
-                    CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(222));
+  SET_CONTROL_LABEL(CONTROL_CANCEL_BUTTON, g_localizeStrings.Get(222));
 
   CGUIDialogBoxBase::OnInitWindow();
 

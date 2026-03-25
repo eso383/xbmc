@@ -40,14 +40,14 @@ void Interface_GUIControlAddonRendering::set_callbacks(
     void (*stopCB)(KODI_GUI_CLIENT_HANDLE),
     bool (*dirtyCB)(KODI_GUI_CLIENT_HANDLE))
 {
-  auto* addon = static_cast<CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIAddonRenderingControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIAddonRenderingControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlAddonRendering::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -66,19 +66,19 @@ void Interface_GUIControlAddonRendering::set_callbacks(
 void Interface_GUIControlAddonRendering::destroy(KODI_HANDLE kodiBase,
                                                  KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIAddonRenderingControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIAddonRenderingControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', "
-               "handle='{}') on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlAddonRendering::{} - invalid handler data (kodiBase='{}', "
+              "handle='{}') on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
   Interface_GUIGeneral::lock();
-  control->Delete();
+  static_cast<CGUIAddonRenderingControl*>(handle)->Delete();
   Interface_GUIGeneral::unlock();
 }
 
@@ -89,10 +89,13 @@ CGUIAddonRenderingControl::CGUIAddonRenderingControl(CGUIRenderingControl* contr
 
 bool CGUIAddonRenderingControl::Create(int x, int y, int w, int h, void* device)
 {
-  if (CBCreate && CBCreate(m_clientHandle, x, y, w, h, device))
+  if (CBCreate)
   {
-    ++m_refCount;
-    return true;
+    if (CBCreate(m_clientHandle, x, y, w, h, device))
+    {
+      ++m_refCount;
+      return true;
+    }
   }
   return false;
 }

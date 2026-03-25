@@ -20,7 +20,6 @@
 #include "input/keymaps/ButtonTranslator.h"
 #include "messaging/ApplicationMessenger.h"
 #include "utils/Variant.h"
-#include "windowing/XBMC_events.h"
 
 using namespace KODI;
 using namespace JSONRPC;
@@ -111,7 +110,7 @@ JSONRPC_STATUS CInputOperations::ButtonEvent(const std::string& method,
     return InvalidParams;
   }
 
-  XBMC_Event* newEvent = new XBMC_Event;
+  auto newEvent = new XBMC_Event;
   newEvent->type = XBMC_BUTTON;
   newEvent->keybutton.button = keycode;
   newEvent->keybutton.holdtime = holdtime;

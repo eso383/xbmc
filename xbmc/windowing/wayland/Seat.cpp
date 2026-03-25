@@ -136,7 +136,10 @@ void CSeat::SetCursor(std::uint32_t serial, wayland::surface_t const &surface, s
 {
   if (m_pointer)
   {
+    // set_cursor on webOS completely breaks pointer input
+#ifndef TARGET_WEBOS
     m_pointer.set_cursor(serial, surface, hotspotX, hotspotY);
+#endif
   }
 }
 
@@ -179,11 +182,6 @@ void CSeat::HandleKeyboardCapability()
       handler->OnKeyboardModifiers(this, serial, modsDepressed, modsLatched, modsLocked, group);
     }
   };
-  InstallKeyboardRepeatInfo();
-}
-
-void CSeat::InstallKeyboardRepeatInfo()
-{
   m_keyboard.on_repeat_info() = [this](std::int32_t rate, std::int32_t delay)
   {
     for (auto handler : m_rawKeyboardHandlers)
@@ -192,6 +190,7 @@ void CSeat::InstallKeyboardRepeatInfo()
     }
   };
 }
+
 
 void CSeat::HandlePointerCapability()
 {

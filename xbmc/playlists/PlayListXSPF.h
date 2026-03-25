@@ -10,7 +10,7 @@
 
 #include "PlayList.h"
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 class CPlayListXSPF : public CPlayList
 {

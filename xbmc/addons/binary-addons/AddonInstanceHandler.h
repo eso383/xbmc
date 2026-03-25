@@ -22,11 +22,13 @@ namespace ADDON
 {
 
 class CAddonDll;
+using AddonDllPtr = std::shared_ptr<CAddonDll>;
 
 class CAddonInfo;
 using AddonInfoPtr = std::shared_ptr<CAddonInfo>;
 
 class CBinaryAddonBase;
+using BinaryAddonBasePtr = std::shared_ptr<CBinaryAddonBase>;
 
 class IAddonInstanceHandler
 {
@@ -65,7 +67,7 @@ public:
 
   ADDON_TYPE UsedType() const { return m_type; }
   AddonInstanceId InstanceId() const { return m_instanceId; }
-  const std::string& UniqueWorkID() const { return m_uniqueWorkID; }
+  const std::string& UniqueWorkID() { return m_uniqueWorkID; }
 
   std::string ID() const;
   AddonInstanceId InstanceID() const;
@@ -78,7 +80,7 @@ public:
 
   ADDON_STATUS CreateInstance();
   void DestroyInstance();
-  const std::shared_ptr<CAddonDll>& Addon() const { return m_addon; }
+  const AddonDllPtr& Addon() const { return m_addon; }
   AddonInfoPtr GetAddonInfo() const { return m_addonInfo; }
 
   virtual void OnPreInstall() {}
@@ -87,12 +89,10 @@ public:
   virtual void OnPostUnInstall() {}
 
 protected:
+  KODI_ADDON_INSTANCE_INFO m_info{};
   KODI_ADDON_INSTANCE_STRUCT m_ifc{};
 
 private:
-  IAddonInstanceHandler(const IAddonInstanceHandler&) = delete;
-  IAddonInstanceHandler& operator=(const IAddonInstanceHandler&) = delete;
-
   std::shared_ptr<CSetting> GetSetting(const std::string& setting) const;
 
   static char* get_instance_user_path(const KODI_ADDON_INSTANCE_BACKEND_HDL hdl);
@@ -123,17 +123,13 @@ private:
                                           const char* id,
                                           const char* value);
 
-  KODI_ADDON_INSTANCE_INFO m_info;
-  KODI_ADDON_INSTANCE_FUNC_CB m_callbacks;
-  KODI_ADDON_INSTANCE_FUNC m_functions;
-
   const ADDON_TYPE m_type;
   const AddonInstanceId m_instanceId;
   std::string m_uniqueWorkID;
   KODI_HANDLE m_parentInstance;
   AddonInfoPtr m_addonInfo;
-  std::shared_ptr<CBinaryAddonBase> m_addonBase;
-  std::shared_ptr<CAddonDll> m_addon;
+  BinaryAddonBasePtr m_addonBase;
+  AddonDllPtr m_addon;
   static CCriticalSection m_cdSec;
 };
 

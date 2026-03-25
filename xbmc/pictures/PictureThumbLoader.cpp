@@ -9,7 +9,6 @@
 #include "PictureThumbLoader.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "Picture.h"
 #include "ServiceBroker.h"
 #include "TextureCache.h"
@@ -18,19 +17,14 @@
 #include "filesystem/MultiPathDirectory.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "imagefiles/ImageFileURL.h"
-#include "playlists/PlayListFileItemClassify.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/ArtUtils.h"
 #include "utils/FileExtensionProvider.h"
 #include "utils/FileUtils.h"
 #include "utils/URIUtils.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoThumbLoader.h"
 
-using namespace KODI;
 using namespace XFILE;
 
 CPictureThumbLoader::CPictureThumbLoader() : CThumbLoader()
@@ -64,7 +58,8 @@ bool CPictureThumbLoader::LoadItem(CFileItem* pItem)
 
 bool CPictureThumbLoader::LoadItemCached(CFileItem* pItem)
 {
-  if (pItem->IsShareOrDrive() || pItem->IsParentFolder())
+  if (pItem->m_bIsShareOrDrive
+  ||  pItem->IsParentFolder())
     return false;
 
   if (pItem->HasArt("thumb") && m_regenerateThumbs)
@@ -79,14 +74,11 @@ bool CPictureThumbLoader::LoadItemCached(CFileItem* pItem)
   }
 
   std::string thumb;
-  if (pItem->IsPicture() && !pItem->IsZIP() && !pItem->IsRAR() && !pItem->IsCBZ() &&
-      !pItem->IsCBR() && !PLAYLIST::IsPlayList(*pItem))
+  if (pItem->IsPicture() && !pItem->IsZIP() && !pItem->IsRAR() && !pItem->IsCBZ() && !pItem->IsCBR() && !pItem->IsPlayList())
   { // load the thumb from the image file
-    thumb = pItem->HasArt("thumb") ? pItem->GetArt("thumb")
-                                   : IMAGE_FILES::URLFromFile(pItem->GetPath());
+    thumb = pItem->HasArt("thumb") ? pItem->GetArt("thumb") : CTextureUtils::GetWrappedThumbURL(pItem->GetPath());
   }
-  else if (VIDEO::IsVideo(*pItem) && !pItem->IsZIP() && !pItem->IsRAR() && !pItem->IsCBZ() &&
-           !pItem->IsCBR() && !PLAYLIST::IsPlayList(*pItem))
+  else if (pItem->IsVideo() && !pItem->IsZIP() && !pItem->IsRAR() && !pItem->IsCBZ() && !pItem->IsCBR() && !pItem->IsPlayList())
   { // video
     CVideoThumbLoader loader;
     loader.LoadItem(pItem);
@@ -100,7 +92,7 @@ bool CPictureThumbLoader::LoadItemCached(CFileItem* pItem)
     CServiceBroker::GetTextureCache()->BackgroundCacheImage(thumb);
     pItem->SetArt("thumb", thumb);
   }
-  ART::FillInDefaultIcon(*pItem);
+  pItem->FillInDefaultIcon();
   return true;
 }
 
@@ -127,8 +119,8 @@ void CPictureThumbLoader::ProcessFoldersAndArchives(CFileItem *pItem)
       return;
     }
   }
-  if ((pItem->IsFolder() || pItem->IsCBR() || pItem->IsCBZ()) && !pItem->IsShareOrDrive() &&
-      !pItem->IsParentFolder() && !pItem->IsPath("add"))
+  if ((pItem->m_bIsFolder || pItem->IsCBR() || pItem->IsCBZ()) && !pItem->m_bIsShareOrDrive
+      && !pItem->IsParentFolder() && !pItem->IsPath("add"))
   {
     // first check for a folder.jpg
     std::string thumb = "folder.jpg";
@@ -167,8 +159,7 @@ void CPictureThumbLoader::ProcessFoldersAndArchives(CFileItem *pItem)
       // count the number of images
       for (int i=0; i < items.Size();)
       {
-        if (!items[i]->IsPicture() || items[i]->IsZIP() || items[i]->IsRAR() ||
-            PLAYLIST::IsPlayList(*items[i]))
+        if (!items[i]->IsPicture() || items[i]->IsZIP() || items[i]->IsRAR() || items[i]->IsPlayList())
         {
           items.Remove(i);
         }
@@ -184,7 +175,7 @@ void CPictureThumbLoader::ProcessFoldersAndArchives(CFileItem *pItem)
           for (int i=0;i<items.Size();++i)
           {
             CFileItemPtr item = items[i];
-            if (item->IsFolder())
+            if (item->m_bIsFolder)
             {
               ProcessFoldersAndArchives(item.get());
               pItem->SetArt("thumb", items[i]->GetArt("thumb"));
@@ -201,20 +192,20 @@ void CPictureThumbLoader::ProcessFoldersAndArchives(CFileItem *pItem)
 
       if (items.Size() < 4 || pItem->IsCBR() || pItem->IsCBZ())
       { // less than 4 items, so just grab the first thumb
-        items.Sort(SortBy::LABEL, SortOrder::ASCENDING);
-        std::string thumb = IMAGE_FILES::URLFromFile(items[0]->GetPath());
+        items.Sort(SortByLabel, SortOrderAscending);
+        std::string thumb = CTextureUtils::GetWrappedThumbURL(items[0]->GetPath());
         db.SetTextureForPath(pItem->GetPath(), "thumb", thumb);
         CServiceBroker::GetTextureCache()->BackgroundCacheImage(thumb);
         pItem->SetArt("thumb", thumb);
       }
       else
       {
-        std::string thumb = IMAGE_FILES::URLFromFile(pItem->GetPath(), "picturefolder");
+        std::string thumb = CTextureUtils::GetWrappedImageURL(pItem->GetPath(), "picturefolder");
         db.SetTextureForPath(pItem->GetPath(), "thumb", thumb);
         pItem->SetArt("thumb", thumb);
       }
     }
     // refill in the icon to get it to update
-    ART::FillInDefaultIcon(*pItem);
+    pItem->FillInDefaultIcon();
   }
 }

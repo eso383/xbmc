@@ -12,13 +12,11 @@
 #include "TextureCache.h"
 #include "TextureDatabase.h"
 #include "URL.h"
-#include "imagefiles/ImageFileURL.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
 
 #include <algorithm>
-#include <string_view>
 
 using namespace PVR;
 
@@ -49,12 +47,12 @@ int CPVRCachedImages::Cleanup(const std::vector<PVRImagePattern>& urlPatterns,
         StringUtils::Format("{}@{}", pattern.owner, CURL::Encode(pattern.path));
 
     std::string escapedPattern;
-    for (const auto& pos : encodedPattern)
+    for (size_t i = 0; i < encodedPattern.size(); ++i)
     {
-      if (pos == '%' || pos == '^')
+      if (encodedPattern[i] == '%' || encodedPattern[i] == '^')
         escapedPattern += '^';
 
-      escapedPattern += pos;
+      escapedPattern += encodedPattern[i];
     }
 
     const std::string where =
@@ -72,11 +70,10 @@ int CPVRCachedImages::Cleanup(const std::vector<PVRImagePattern>& urlPatterns,
   for (unsigned int i = 0; i < items.size(); ++i)
   {
     // Unwrap the image:// URL returned from texture db.
-    const std::string textureURL =
-        IMAGE_FILES::CImageFileURL(items[i]["url"].asString()).GetTargetFile();
+    const std::string textureURL = UnwrapImageURL(items[i]["url"].asString());
 
-    if (std::ranges::none_of(urlsToCheck,
-                             [&textureURL](std::string_view url) { return url == textureURL; }))
+    if (std::none_of(urlsToCheck.cbegin(), urlsToCheck.cend(),
+                     [&textureURL](const std::string& url) { return url == textureURL; }))
     {
       CLog::LogFC(LOGDEBUG, LOGPVR, "Removing stale cached image: '{}'", textureURL);
       CServiceBroker::GetTextureCache()->ClearCachedImage(items[i]["textureid"].asInteger());
@@ -89,4 +86,9 @@ int CPVRCachedImages::Cleanup(const std::vector<PVRImagePattern>& urlPatterns,
   }
 
   return iCleanedImages;
+}
+
+std::string CPVRCachedImages::UnwrapImageURL(const std::string& url)
+{
+  return StringUtils::StartsWith(url, "image://") ? CURL(url).GetHostName() : url;
 }

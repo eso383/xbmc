@@ -10,9 +10,10 @@
 
 #include "PlayList.h"
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
-class CPlayListXML : public CPlayList
+class CPlayListXML :
+      public CPlayList
 {
 public:
   CPlayListXML(void);

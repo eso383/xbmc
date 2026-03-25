@@ -31,8 +31,8 @@ constexpr auto MAC_LENGTH = 6; // fixed MAC length used in CNetworkInterface
 }
 
 CNetworkInterfaceWin32::CNetworkInterfaceWin32(const IP_ADAPTER_ADDRESSES& adapter)
-  : m_adapter(adapter)
 {
+  m_adapter = adapter;
 }
 
 CNetworkInterfaceWin32::~CNetworkInterfaceWin32(void)
@@ -128,7 +128,8 @@ void CNetworkWin32::CleanInterfaceList()
 
 std::vector<CNetworkInterface*>& CNetworkWin32::GetInterfaceList(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   if(m_netrefreshTimer.GetElapsedSeconds() >= 5.0f)
     queryInterfaceList();
 
@@ -159,7 +160,7 @@ void CNetworkWin32::queryInterfaceList()
     }
   }
   else
-    CLog::LogF(LOGDEBUG, "GetAdaptersAddresses() failed ...");
+    CLog::Log(LOGDEBUG, "{} - GetAdaptersAddresses() failed ...", __FUNCTION__);
 }
 
 std::vector<std::string> CNetworkWin32::GetNameServers(void)
@@ -232,9 +233,9 @@ bool CNetworkWin32::PingHost(const struct sockaddr& host, unsigned int timeout_m
 
   DWORD lastErr = GetLastError();
   if (lastErr != ERROR_SUCCESS && lastErr != IP_REQ_TIMED_OUT)
-    CLog::LogF(LOGERROR, "{} failed - {}",
-               host.sa_family == AF_INET ? "IcmpSendEcho2" : "Icmp6SendEcho2",
-               CWIN32Util::WUSysMsg(lastErr));
+    CLog::Log(LOGERROR, "{} - {} failed - {}", __FUNCTION__,
+              host.sa_family == AF_INET ? "IcmpSendEcho2" : "Icmp6SendEcho2",
+              CWIN32Util::WUSysMsg(lastErr));
 
   IcmpCloseHandle (hIcmpFile);
 

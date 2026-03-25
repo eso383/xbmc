@@ -13,21 +13,23 @@
 #include <string>
 #include <vector>
 
-namespace KODI::UTILS::FONT
+namespace UTILS
 {
-constexpr const char* SUPPORTED_EXTENSIONS_MASK = ".ttf|.ttc|.otf";
+namespace FONT
+{
+constexpr auto SUPPORTED_EXTENSIONS_MASK = ".ttf|.ttc|.otf";
 
 // The default application font
-constexpr const char* FONT_DEFAULT_FILENAME = "arial.ttf";
+constexpr auto FONT_DEFAULT_FILENAME = "arial.ttf";
 
 namespace FONTPATH
 {
 // Directory where Kodi bundled fonts files are located
-constexpr const char* SYSTEM = "special://xbmc/media/Fonts/";
+constexpr auto SYSTEM = "special://xbmc/media/Fonts/";
 // Directory where user defined fonts are located
-constexpr const char* USER = "special://home/media/Fonts/";
+constexpr auto USER = "special://home/media/Fonts/";
 // Temporary font path (where MKV fonts are extracted and temporarily stored)
-constexpr const char* TEMP = "special://temp/fonts/";
+constexpr auto TEMP = "special://temp/fonts/";
 
 /*!
  *  \brief Provided a font filename returns the complete path for the font in
@@ -85,4 +87,5 @@ bool IsSupportedFontExtension(const std::string& filepath);
  */
 void ClearTemporaryFonts();
 
-} // namespace KODI::UTILS::FONT
+} // namespace FONT
+} // namespace UTILS

@@ -12,7 +12,6 @@
 #include "UDFDirectory.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "Util.h"
 #include "filesystem/UDFBlockInput.h"
@@ -73,7 +72,7 @@ bool CUDFDirectory::GetDirectory(const CURL& url, CFileItemList& items)
         std::string strDir(strRoot + filename);
         URIUtils::AddSlashAtEnd(strDir);
         pItem->SetPath(strDir);
-        pItem->SetFolder(true);
+        pItem->m_bIsFolder = true;
 
         items.Add(pItem);
       }
@@ -88,8 +87,8 @@ bool CUDFDirectory::GetDirectory(const CURL& url, CFileItemList& items)
 
       CFileItemPtr pItem(new CFileItem(filename));
       pItem->SetPath(strRoot + filename);
-      pItem->SetFolder(false);
-      pItem->SetSize(udfread_file_size(file));
+      pItem->m_bIsFolder = false;
+      pItem->m_dwSize = udfread_file_size(file);
       items.Add(pItem);
 
       udfread_file_close(file);

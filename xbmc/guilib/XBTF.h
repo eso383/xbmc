@@ -15,9 +15,8 @@
 
 #include <stdint.h>
 
-inline const std::string XBTF_MAGIC = "XBTF";
-inline const std::string XBTF_VERSION = "3";
-static const char XBTF_VERSION_MIN = '2';
+static const std::string XBTF_MAGIC = "XBTF";
+static const std::string XBTF_VERSION = "2";
 
 #include "TextureFormats.h"
 
@@ -30,7 +29,7 @@ public:
   void SetWidth(uint32_t width);
 
   XB_FMT GetFormat(bool raw = false) const;
-  void SetFormat(uint32_t format);
+  void SetFormat(XB_FMT format);
 
   uint32_t GetHeight() const;
   void SetHeight(uint32_t height);
@@ -52,15 +51,10 @@ public:
   bool IsPacked() const;
   bool HasAlpha() const;
 
-  KD_TEX_FMT GetKDFormat() const;
-  KD_TEX_FMT GetKDFormatType() const;
-  KD_TEX_ALPHA GetKDAlpha() const;
-  KD_TEX_SWIZ GetKDSwizzle() const;
-
 private:
   uint32_t m_width;
   uint32_t m_height;
-  uint32_t m_format;
+  XB_FMT m_format;
   uint64_t m_packedSize;
   uint64_t m_unpackedSize;
   uint64_t m_offset;

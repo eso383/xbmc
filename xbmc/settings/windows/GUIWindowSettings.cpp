@@ -10,9 +10,10 @@
 
 #include "guilib/WindowIDs.h"
 
-CGUIWindowSettings::CGUIWindowSettings() : CGUIWindow(WINDOW_SETTINGS_MENU, "Settings.xml")
+CGUIWindowSettings::CGUIWindowSettings(void)
+    : CGUIWindow(WINDOW_SETTINGS_MENU, "Settings.xml")
 {
   m_loadType = KEEP_IN_MEMORY;
 }
 
-CGUIWindowSettings::~CGUIWindowSettings() = default;
+CGUIWindowSettings::~CGUIWindowSettings(void) = default;

@@ -9,7 +9,6 @@
 #include "PeripheralAddon.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "PeripheralAddonTranslator.h"
 #include "addons/addoninfo/AddonInfo.h"
 #include "addons/addoninfo/AddonType.h"
@@ -52,8 +51,7 @@ using namespace XFILE;
 #endif
 
 CPeripheralAddon::CPeripheralAddon(const ADDON::AddonInfoPtr& addonInfo, CPeripherals& manager)
-  : IAddonInstanceHandler(ADDON_INSTANCE_PERIPHERAL, addonInfo),
-    m_manager(manager)
+  : IAddonInstanceHandler(ADDON_INSTANCE_PERIPHERAL, addonInfo), m_manager(manager)
 {
   m_bProvidesJoysticks =
       addonInfo->Type(ADDON::AddonType::PERIPHERALDLL)->GetValue("@provides_joysticks").asBoolean();
@@ -103,7 +101,7 @@ void CPeripheralAddon::ResetProperties(void)
 
 bool CPeripheralAddon::CreateAddon(void)
 {
-  std::unique_lock<CSharedSection> lock(m_dllSection);
+  std::lock_guard lock(m_dllSection);
 
   // Reset all properties to defaults
   ResetProperties();
@@ -131,19 +129,22 @@ bool CPeripheralAddon::CreateAddon(void)
 void CPeripheralAddon::DestroyAddon()
 {
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_peripherals.clear();
   }
 
   {
-    std::unique_lock lock(m_buttonMapMutex);
+    std::lock_guard lock(m_buttonMapMutex);
+
     // only clear buttonMaps but don't delete them as they are owned by a
     // CAddonJoystickInputHandling instance
     m_buttonMaps.clear();
   }
 
   {
-    std::unique_lock<CSharedSection> lock(m_dllSection);
+    std::lock_guard lock(m_dllSection);
+
     DestroyInstance();
   }
 }
@@ -189,8 +190,9 @@ bool CPeripheralAddon::Register(unsigned int peripheralIndex, const PeripheralPt
   if (!peripheral)
     return false;
 
-  std::unique_lock lock(m_critSection);
-  if (!m_peripherals.contains(peripheralIndex))
+  std::lock_guard lock(m_critSection);
+
+  if (m_peripherals.find(peripheralIndex) == m_peripherals.end())
   {
     if (peripheral->Type() == PERIPHERAL_JOYSTICK)
     {
@@ -213,7 +215,8 @@ void CPeripheralAddon::UnregisterRemovedDevices(const PeripheralScanResults& res
   std::vector<unsigned int> removedIndexes;
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     for (auto& it : m_peripherals)
     {
       const PeripheralPtr& peripheral = it.second;
@@ -231,9 +234,9 @@ void CPeripheralAddon::UnregisterRemovedDevices(const PeripheralScanResults& res
   {
     auto it = m_peripherals.find(index);
     const PeripheralPtr& peripheral = it->second;
-    CLog::Log(LOGINFO, "{} - {} device removed from {}: {} ({}:{})", __FUNCTION__,
-              PeripheralTypeTranslator::TypeToString(peripheral->Type()),
-              peripheral->FileLocation(), peripheral->DeviceName(), peripheral->VendorIdAsString(),
+    CLog::Log(LOGINFO, "{} - device removed from {}/{}: {} ({}:{})", __FUNCTION__,
+              PeripheralTypeTranslator::TypeToString(peripheral->Type()), peripheral->Location(),
+              peripheral->DeviceName(), peripheral->VendorIdAsString(),
               peripheral->ProductIdAsString());
     UnregisterButtonMap(peripheral.get());
     peripheral->OnDeviceRemoved();
@@ -252,14 +255,17 @@ bool CPeripheralAddon::HasFeature(const PeripheralFeature feature) const
 
 void CPeripheralAddon::GetFeatures(std::vector<PeripheralFeature>& features) const
 {
-  if (m_bProvidesJoysticks && std::ranges::find(features, FEATURE_JOYSTICK) == features.end())
+  if (m_bProvidesJoysticks &&
+      std::find(features.begin(), features.end(), FEATURE_JOYSTICK) == features.end())
     features.push_back(FEATURE_JOYSTICK);
 }
 
 PeripheralPtr CPeripheralAddon::GetPeripheral(unsigned int index) const
 {
   PeripheralPtr peripheral;
-  std::unique_lock lock(m_critSection);
+
+  std::lock_guard lock(m_critSection);
+
   auto it = m_peripherals.find(index);
   if (it != m_peripherals.end())
     peripheral = it->second;
@@ -270,7 +276,8 @@ PeripheralPtr CPeripheralAddon::GetByPath(const std::string& strPath) const
 {
   PeripheralPtr result;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   for (const auto& it : m_peripherals)
   {
     if (StringUtils::EqualsNoCase(strPath, it.second->FileLocation()))
@@ -302,7 +309,9 @@ unsigned int CPeripheralAddon::GetPeripheralsWithFeature(PeripheralVector& resul
                                                          const PeripheralFeature feature) const
 {
   unsigned int iReturn = 0;
-  std::unique_lock lock(m_critSection);
+
+  std::lock_guard lock(m_critSection);
+
   for (const auto& it : m_peripherals)
   {
     if (it.second->HasFeature(feature))
@@ -316,7 +325,8 @@ unsigned int CPeripheralAddon::GetPeripheralsWithFeature(PeripheralVector& resul
 
 unsigned int CPeripheralAddon::GetNumberOfPeripherals(void) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return static_cast<unsigned int>(m_peripherals.size());
 }
 
@@ -324,7 +334,9 @@ unsigned int CPeripheralAddon::GetNumberOfPeripheralsWithId(const int iVendorId,
                                                             const int iProductId) const
 {
   unsigned int iReturn = 0;
-  std::unique_lock lock(m_critSection);
+
+  std::lock_guard lock(m_critSection);
+
   for (const auto& it : m_peripherals)
   {
     if (it.second->VendorId() == iVendorId && it.second->ProductId() == iProductId)
@@ -336,7 +348,8 @@ unsigned int CPeripheralAddon::GetNumberOfPeripheralsWithId(const int iVendorId,
 
 void CPeripheralAddon::GetDirectory(const std::string& strPath, CFileItemList& items) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   for (const auto& it : m_peripherals)
   {
     const PeripheralPtr& peripheral = it.second;
@@ -835,7 +848,7 @@ void CPeripheralAddon::PowerOffJoystick(unsigned int index)
 
 void CPeripheralAddon::RegisterButtonMap(CPeripheral* device, IButtonMap* buttonMap)
 {
-  std::unique_lock lock(m_buttonMapMutex);
+  std::lock_guard lock(m_buttonMapMutex);
 
   UnregisterButtonMap(buttonMap);
   m_buttonMaps.emplace_back(device, buttonMap);
@@ -843,7 +856,7 @@ void CPeripheralAddon::RegisterButtonMap(CPeripheral* device, IButtonMap* button
 
 void CPeripheralAddon::UnregisterButtonMap(IButtonMap* buttonMap)
 {
-  std::unique_lock lock(m_buttonMapMutex);
+  std::lock_guard lock(m_buttonMapMutex);
 
   for (auto it = m_buttonMaps.begin(); it != m_buttonMaps.end(); ++it)
   {
@@ -857,7 +870,7 @@ void CPeripheralAddon::UnregisterButtonMap(IButtonMap* buttonMap)
 
 void CPeripheralAddon::UnregisterButtonMap(CPeripheral* device)
 {
-  std::unique_lock lock(m_buttonMapMutex);
+  std::lock_guard lock(m_buttonMapMutex);
 
   m_buttonMaps.erase(
       std::remove_if(m_buttonMaps.begin(), m_buttonMaps.end(),
@@ -868,7 +881,7 @@ void CPeripheralAddon::UnregisterButtonMap(CPeripheral* device)
 
 void CPeripheralAddon::RefreshButtonMaps(const std::string& strDeviceName /* = "" */)
 {
-  std::unique_lock lock(m_buttonMapMutex);
+  std::lock_guard lock(m_buttonMapMutex);
 
   for (auto it = m_buttonMaps.begin(); it != m_buttonMaps.end(); ++it)
   {
@@ -891,8 +904,7 @@ bool CPeripheralAddon::ProvidesButtonMaps(const ADDON::AddonInfoPtr& addonInfo)
       .asBoolean();
 }
 
-void CPeripheralAddon::TriggerDeviceScan()
-{
+void CPeripheralAddon::TriggerDeviceScan() const {
   m_manager.TriggerDeviceScan(PERIPHERAL_BUS_ADDON);
 }
 
@@ -942,7 +954,7 @@ void CPeripheralAddon::GetJoystickInfo(const CPeripheral* device,
 
   if (device->Type() == PERIPHERAL_JOYSTICK)
   {
-    const CPeripheralJoystick* joystick = static_cast<const CPeripheralJoystick*>(device);
+    auto joystick = static_cast<const CPeripheralJoystick*>(device);
     joystickInfo.SetProvider(joystick->Provider());
     joystickInfo.SetButtonCount(joystick->ButtonCount());
     joystickInfo.SetHatCount(joystick->HatCount());

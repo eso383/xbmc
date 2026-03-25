@@ -9,34 +9,29 @@
 #include "FavouritesUtils.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "dialogs/GUIDialogFileBrowser.h"
-#include "favourites/FavouritesService.h"
 #include "favourites/FavouritesURL.h"
 #include "favourites/GUIWindowFavourites.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIKeyboardFactory.h"
+#include "guilib/GUIMessage.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "storage/MediaManager.h"
+#include "utils/ExecString.h"
 #include "utils/Variant.h"
-#include "utils/guilib/GUIBuiltinsUtils.h"
 #include "view/GUIViewState.h"
 
 #include <string>
-
-using namespace KODI::UTILS::GUILIB;
 
 namespace FAVOURITES_UTILS
 {
 bool ChooseAndSetNewName(CFileItem& item)
 {
   std::string label = item.GetLabel();
-  if (CGUIKeyboardFactory::ShowAndGetInput(
-          label, CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16008)},
-          false)) // Enter new title
+  if (CGUIKeyboardFactory::ShowAndGetInput(label, CVariant{g_localizeStrings.Get(16008)},
+                                           false)) // Enter new title
   {
     item.SetLabel(label);
     return true;
@@ -51,24 +46,20 @@ bool ChooseAndSetNewThumbnail(CFileItem& item)
   {
     const auto current = std::make_shared<CFileItem>("thumb://Current", false);
     current->SetArt("thumb", item.GetArt("thumb"));
-    current->SetLabel(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20016)); // Current thumb
+    current->SetLabel(g_localizeStrings.Get(20016)); // Current thumb
     prefilledItems.Add(current);
   }
 
   const auto none = std::make_shared<CFileItem>("thumb://None", false);
   none->SetArt("icon", item.GetArt("icon"));
-  none->SetLabel(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20018)); // No thumb
+  none->SetLabel(g_localizeStrings.Get(20018)); // No thumb
   prefilledItems.Add(none);
 
   std::string thumb;
-  std::vector<CMediaSource> sources;
+  VECSOURCES sources;
   CServiceBroker::GetMediaManager().GetLocalDrives(sources);
-  if (CGUIDialogFileBrowser::ShowAndGetImage(
-          prefilledItems, sources,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1030),
-          thumb)) // Browse for image
+  if (CGUIDialogFileBrowser::ShowAndGetImage(prefilledItems, sources, g_localizeStrings.Get(1030),
+                                             thumb)) // Browse for image
   {
     item.SetArt("thumb", thumb);
     return true;
@@ -123,21 +114,41 @@ bool ShouldEnableMoveItems()
   if (CServiceBroker::GetFavouritesService().Size() <= 1)
     return false;
 
-  const auto& mgr = CServiceBroker::GetGUI()->GetWindowManager();
-  const CGUIWindowFavourites* window = mgr.GetWindow<CGUIWindowFavourites>(WINDOW_FAVOURITES);
+  auto& mgr = CServiceBroker::GetGUI()->GetWindowManager();
+  CGUIWindowFavourites* window = mgr.GetWindow<CGUIWindowFavourites>(WINDOW_FAVOURITES);
   if (window && window->IsActive())
   {
     const CGUIViewState* state = window->GetViewState();
-    if (state && state->GetSortMethod().sortBy != SortBy::USER_PREFERENCE)
+    if (state && state->GetSortMethod().sortBy != SortByUserPreference)
       return false; // in favs window, allow move only if current sort method is by user preference
   }
   return true;
 }
 
-bool ExecuteAction(const CFavouritesURL& favURL, const std::shared_ptr<CFileItem>& item)
+namespace
+{
+bool ExecuteAction(const std::string& execString)
+{
+  if (!execString.empty())
+  {
+    CGUIMessage message(GUI_MSG_EXECUTE, 0, 0);
+    message.SetStringParam(execString);
+    CServiceBroker::GetGUI()->GetWindowManager().SendMessage(message);
+    return true;
+  }
+  return false;
+}
+} // unnamed namespace
+
+bool ExecuteAction(const CExecString& execString)
+{
+  return ExecuteAction(execString.GetExecString());
+}
+
+bool ExecuteAction(const CFavouritesURL& favURL)
 {
   if (favURL.IsValid())
-    return CGUIBuiltinsUtils::ExecuteAction(favURL.GetExecString(), item);
+    return ExecuteAction(favURL.GetExecString());
 
   return false;
 }

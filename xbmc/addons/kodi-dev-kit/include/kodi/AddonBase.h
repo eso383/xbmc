@@ -75,92 +75,6 @@ struct ATTR_DLL_LOCAL CPrivateBase
   static AddonGlobalInterface* m_interface;
 };
 
-/*!
- * @brief Internally used helper to dynamically allocate and fill a char array.
- */
-inline char* AllocAndCopyString(const char* source)
-{
-  if (source)
-  {
-    const size_t len{strlen(source) + 1};
-    char* target = new char[len];
-    memcpy(target, source, len);
-    return target;
-  }
-  return nullptr;
-}
-
-/*!
- * @brief Internally used helper to delete a string that was allocated via AllocAndCopyString.
- */
-inline void FreeString(const char* str)
-{
-  delete[] str;
-}
-
-/*!
- * @brief Internally used helper to dynamically reallocate and fill a char array.
- */
-inline void ReallocAndCopyString(const char** stringToRealloc, const char* stringToCopy)
-{
-  FreeString(*stringToRealloc);
-  *stringToRealloc = AllocAndCopyString(stringToCopy);
-}
-
-/*!
- * @brief Internally used helper to convert c-struct data contained in a vector to an array of c-struct pointers.
- */
-template<typename CPP_CLASS, typename C_STRUCT>
-inline static C_STRUCT** AllocAndCopyPointerArray(std::vector<CPP_CLASS>& sourceVector,
-                                                  unsigned int& targetArraySize)
-{
-  targetArraySize = static_cast<unsigned int>(sourceVector.size());
-  if (targetArraySize > 0)
-  {
-    C_STRUCT** targetArray = new C_STRUCT* [targetArraySize] {};
-
-    unsigned int i{0};
-    for (auto& entry : sourceVector)
-    {
-      // Assign data to target array. Take pointer ownership.
-      C_STRUCT** arrayElem{&targetArray[i]};
-      *arrayElem = entry.release();
-      ++i;
-    }
-    return targetArray;
-  }
-  return nullptr;
-}
-
-/*!
- * @brief Internally used helper to free an array of of c-struct pointers.
- */
-template<typename CPP_CLASS, typename C_STRUCT>
-inline static void FreeDynamicPointerArray(C_STRUCT** targetArray, unsigned int targetArraySize)
-{
-  for (unsigned int i = 0; i < targetArraySize; ++i)
-  {
-    C_STRUCT** arrayElem{&targetArray[i]};
-    CPP_CLASS::FreeResources(*arrayElem);
-    delete *arrayElem;
-  }
-  delete[] targetArray;
-}
-
-/*!
- * @brief Internally used helper to free an array of of c-struct pointers.
- */
-template<typename CPP_CLASS, typename C_STRUCT>
-inline static void FreeStaticPointerArray(C_STRUCT** targetArray, unsigned int targetArraySize)
-{
-  for (unsigned int i = 0; i < targetArraySize; ++i)
-  {
-    C_STRUCT** arrayElem{&targetArray[i]};
-    delete *arrayElem;
-  }
-  delete[] targetArray;
-}
-
 /*
  * Internally used helper class to manage processing of a "C" structure in "CPP"
  * class.
@@ -207,19 +121,14 @@ class CStructHdl
 public:
   CStructHdl() : m_cStructure(new C_STRUCT()), m_owner(true) {}
 
-  CStructHdl(const CStructHdl& cppClass)
-    : m_cStructure(new C_STRUCT(*cppClass.m_cStructure)),
-      m_owner(true)
+  CStructHdl(const CPP_CLASS& cppClass)
+    : m_cStructure(new C_STRUCT(*cppClass.m_cStructure)), m_owner(true)
   {
   }
 
-  explicit CStructHdl(const C_STRUCT* cStructure)
-    : m_cStructure(new C_STRUCT(*cStructure)),
-      m_owner(true)
-  {
-  }
+  CStructHdl(const C_STRUCT* cStructure) : m_cStructure(new C_STRUCT(*cStructure)), m_owner(true) {}
 
-  explicit CStructHdl(C_STRUCT* cStructure) : m_cStructure(cStructure) { assert(cStructure); }
+  CStructHdl(C_STRUCT* cStructure) : m_cStructure(cStructure) { assert(cStructure); }
 
   const CStructHdl& operator=(const CStructHdl& right)
   {
@@ -271,111 +180,6 @@ public:
   operator const C_STRUCT*() const { return m_cStructure; }
 
   const C_STRUCT* GetCStructure() const { return m_cStructure; }
-
-  C_STRUCT* release()
-  {
-    m_owner = false;
-    return m_cStructure;
-  }
-
-protected:
-  C_STRUCT* m_cStructure = nullptr;
-
-private:
-  bool m_owner = false;
-};
-
-template<class CPP_CLASS, typename C_STRUCT>
-class DynamicCStructHdl
-{
-public:
-  DynamicCStructHdl() : m_cStructure(new C_STRUCT()), m_owner(true)
-  {
-    memset(m_cStructure, 0, sizeof(C_STRUCT));
-  }
-
-  DynamicCStructHdl(const DynamicCStructHdl& cppClass)
-    : m_cStructure(new C_STRUCT(*cppClass.m_cStructure)),
-      m_owner(true)
-  {
-    CPP_CLASS::AllocResources(cppClass.m_cStructure, m_cStructure);
-  }
-
-  explicit DynamicCStructHdl(const C_STRUCT* cStructure)
-    : m_cStructure(new C_STRUCT(*cStructure)),
-      m_owner(true)
-  {
-    CPP_CLASS::AllocResources(cStructure, m_cStructure);
-  }
-
-  explicit DynamicCStructHdl(C_STRUCT* cStructure) : m_cStructure(cStructure)
-  {
-    assert(cStructure);
-  }
-
-  const DynamicCStructHdl& operator=(const DynamicCStructHdl& right)
-  {
-    if (this == &right)
-      return *this;
-
-    CPP_CLASS::FreeResources(m_cStructure);
-    if (m_cStructure && !m_owner)
-    {
-      memcpy(m_cStructure, right.m_cStructure, sizeof(C_STRUCT));
-    }
-    else
-    {
-      if (m_owner)
-        delete m_cStructure;
-      m_owner = true;
-      m_cStructure = new C_STRUCT(*right.m_cStructure);
-    }
-    CPP_CLASS::AllocResources(right.m_cStructure, m_cStructure);
-    return *this;
-  }
-
-  const DynamicCStructHdl& operator=(const C_STRUCT& right)
-  {
-    assert(&right);
-
-    if (m_cStructure == &right)
-      return *this;
-
-    CPP_CLASS::FreeResources(m_cStructure);
-    if (m_cStructure && !m_owner)
-    {
-      memcpy(m_cStructure, &right, sizeof(C_STRUCT));
-    }
-    else
-    {
-      if (m_owner)
-        delete m_cStructure;
-      m_owner = true;
-      m_cStructure = new C_STRUCT(*right);
-    }
-    CPP_CLASS::AllocResources(&right, m_cStructure);
-    return *this;
-  }
-
-  virtual ~DynamicCStructHdl()
-  {
-    if (m_owner)
-    {
-      CPP_CLASS::FreeResources(m_cStructure);
-      delete m_cStructure;
-    }
-  }
-
-  operator C_STRUCT*() { return m_cStructure; }
-  operator const C_STRUCT*() const { return m_cStructure; }
-
-  const C_STRUCT* GetCStructure() const { return m_cStructure; }
-
-  C_STRUCT* release()
-  {
-    m_owner = false;
-    return m_cStructure;
-  }
 
 protected:
   C_STRUCT* m_cStructure = nullptr;
@@ -461,7 +265,7 @@ public:
   ///@{
 
   /// @brief To get settings value as string.
-  const std::string& GetString() const { return str; }
+  std::string GetString() const { return str; }
 
   /// @brief To get settings value as integer.
   int GetInt() const { return std::atoi(str.c_str()); }
@@ -590,14 +394,12 @@ public:
     return ADDON_STATUS_UNKNOWN;
   }
 
-  inline bool IsInstanceSettingUsingDefault(const std::string& settingName)
-  {
+  inline bool IsInstanceSettingUsingDefault(const std::string& settingName) const {
     return m_instance->info->functions->is_instance_setting_using_default(m_instance->info->kodi,
                                                                           settingName.c_str());
   }
 
-  inline std::string GetInstanceUserPath(const std::string& append = "")
-  {
+  inline std::string GetInstanceUserPath(const std::string& append = "") const {
     using namespace kodi::addon;
 
     char* str = m_instance->info->functions->get_instance_user_path(
@@ -618,8 +420,7 @@ public:
     return ret;
   }
 
-  inline bool CheckInstanceSettingString(const std::string& settingName, std::string& settingValue)
-  {
+  inline bool CheckInstanceSettingString(const std::string& settingName, std::string& settingValue) const {
     char* buffer = nullptr;
     bool ret = m_instance->info->functions->get_instance_setting_string(
         m_instance->info->kodi, settingName.c_str(), &buffer);
@@ -641,14 +442,12 @@ public:
   }
 
   inline void SetInstanceSettingString(const std::string& settingName,
-                                       const std::string& settingValue)
-  {
+                                       const std::string& settingValue) const {
     m_instance->info->functions->set_instance_setting_string(
         m_instance->info->kodi, settingName.c_str(), settingValue.c_str());
   }
 
-  inline bool CheckInstanceSettingInt(const std::string& settingName, int& settingValue)
-  {
+  inline bool CheckInstanceSettingInt(const std::string& settingName, int& settingValue) const {
     KODI_ADDON_INSTANCE_FUNC_CB* cb = m_instance->info->functions;
     return cb->get_instance_setting_int(m_instance->info->kodi, settingName.c_str(), &settingValue);
   }
@@ -660,14 +459,12 @@ public:
     return settingValue;
   }
 
-  inline void SetInstanceSettingInt(const std::string& settingName, int settingValue)
-  {
+  inline void SetInstanceSettingInt(const std::string& settingName, int settingValue) const {
     m_instance->info->functions->set_instance_setting_int(m_instance->info->kodi,
                                                           settingName.c_str(), settingValue);
   }
 
-  inline bool CheckInstanceSettingBoolean(const std::string& settingName, bool& settingValue)
-  {
+  inline bool CheckInstanceSettingBoolean(const std::string& settingName, bool& settingValue) const {
     return m_instance->info->functions->get_instance_setting_bool(
         m_instance->info->kodi, settingName.c_str(), &settingValue);
   }
@@ -679,14 +476,12 @@ public:
     return settingValue;
   }
 
-  inline void SetInstanceSettingBoolean(const std::string& settingName, bool settingValue)
-  {
+  inline void SetInstanceSettingBoolean(const std::string& settingName, bool settingValue) const {
     m_instance->info->functions->set_instance_setting_bool(m_instance->info->kodi,
                                                            settingName.c_str(), settingValue);
   }
 
-  inline bool CheckInstanceSettingFloat(const std::string& settingName, float& settingValue)
-  {
+  inline bool CheckInstanceSettingFloat(const std::string& settingName, float& settingValue) const {
     return m_instance->info->functions->get_instance_setting_float(
         m_instance->info->kodi, settingName.c_str(), &settingValue);
   }
@@ -698,8 +493,7 @@ public:
     return settingValue;
   }
 
-  inline void SetInstanceSettingFloat(const std::string& settingName, float settingValue)
-  {
+  inline void SetInstanceSettingFloat(const std::string& settingName, float settingValue) const {
     m_instance->info->functions->set_instance_setting_float(m_instance->info->kodi,
                                                             settingName.c_str(), settingValue);
   }
@@ -957,7 +751,7 @@ private:
   static inline ADDON_STATUS ADDONBASE_CreateInstance(const KODI_ADDON_HDL hdl,
                                                       struct KODI_ADDON_INSTANCE_STRUCT* instance)
   {
-    CAddonBase* base = static_cast<CAddonBase*>(hdl);
+    auto base = static_cast<CAddonBase*>(hdl);
 
     ADDON_STATUS status = ADDON_STATUS_NOT_IMPLEMENTED;
 
@@ -1029,7 +823,7 @@ private:
   static inline void ADDONBASE_DestroyInstance(const KODI_ADDON_HDL hdl,
                                                struct KODI_ADDON_INSTANCE_STRUCT* instance)
   {
-    CAddonBase* base = static_cast<CAddonBase*>(hdl);
+    auto base = static_cast<CAddonBase*>(hdl);
 
     if (CPrivateBase::m_interface->globalSingleInstance == nullptr && instance->hdl != base)
     {

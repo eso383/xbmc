@@ -9,22 +9,20 @@
 #include "DirectoryNodeTitleTvShows.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "QueryParams.h"
 #include "video/VideoDatabase.h"
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
-CDirectoryNodeTitleTvShows::CDirectoryNodeTitleTvShows(const std::string& strName,
-                                                       CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::TITLE_TVSHOWS, strName, pParent)
+CDirectoryNodeTitleTvShows::CDirectoryNodeTitleTvShows(const std::string& strName, CDirectoryNode* pParent)
+  : CDirectoryNode(NODE_TYPE_TITLE_TVSHOWS, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeTitleTvShows::GetChildType() const
+NODE_TYPE CDirectoryNodeTitleTvShows::GetChildType() const
 {
-  return NodeType::SEASONS;
+  return NODE_TYPE_SEASONS;
 }
 
 std::string CDirectoryNodeTitleTvShows::GetLocalizedName() const

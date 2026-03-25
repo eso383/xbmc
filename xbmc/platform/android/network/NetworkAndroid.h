@@ -47,6 +47,7 @@ protected:
 
 class CNetworkAndroid : public CNetworkBase, public jni::CJNIXBMCConnectivityManagerNetworkCallback
 {
+  friend class CXBMCApp;
 
 public:
   CNetworkAndroid();

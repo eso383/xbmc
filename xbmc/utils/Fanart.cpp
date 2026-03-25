@@ -10,7 +10,7 @@
 
 #include "StringUtils.h"
 #include "URIUtils.h"
-#include "utils/XBMCTinyXML2.h"
+#include "utils/XBMCTinyXML.h"
 #include "utils/XMLUtils.h"
 
 #include <algorithm>
@@ -29,24 +29,17 @@ void CFanart::Pack()
 {
   // Take our data and pack it into the m_xml string
   m_xml.clear();
-  tinyxml2::XMLDocument doc(false);
-  auto fanartElement = doc.NewElement("fanart");
-  auto* fanartNode = doc.InsertEndChild(fanartElement);
+  TiXmlElement fanart("fanart");
   for (std::vector<SFanartData>::const_iterator it = m_fanart.begin(); it != m_fanart.end(); ++it)
   {
-    auto* thumbNode = doc.NewElement("thumb");
-    thumbNode->SetAttribute("colors", it->strColors.c_str());
-    thumbNode->SetAttribute("preview", it->strPreview.c_str());
-    auto* thumbText = doc.NewText(it->strImage.c_str());
-    thumbNode->InsertEndChild(thumbText);
-    fanartNode->InsertEndChild(thumbNode);
+    TiXmlElement thumb("thumb");
+    thumb.SetAttribute("colors", it->strColors.c_str());
+    thumb.SetAttribute("preview", it->strPreview.c_str());
+    TiXmlText text(it->strImage);
+    thumb.InsertEndChild(text);
+    fanart.InsertEndChild(thumb);
   }
-
-  // Setup printer for compact output (ie machine readable minimal whitespace)
-  tinyxml2::XMLPrinter printer(NULL, true);
-  doc.Print(&printer);
-
-  m_xml = printer.CStr();
+  m_xml << fanart;
 }
 
 void CFanart::AddFanart(const std::string& image, const std::string& preview, const std::string& colors)
@@ -66,16 +59,16 @@ void CFanart::Clear()
 
 bool CFanart::Unpack()
 {
-  CXBMCTinyXML2 doc;
+  CXBMCTinyXML doc;
   doc.Parse(m_xml);
 
   m_fanart.clear();
 
-  auto* fanart = doc.FirstChildElement("fanart");
+  TiXmlElement *fanart = doc.FirstChildElement("fanart");
   while (fanart)
   {
     std::string url = XMLUtils::GetAttribute(fanart, "url");
-    auto* fanartThumb = fanart->FirstChildElement("thumb");
+    TiXmlElement *fanartThumb = fanart->FirstChildElement("thumb");
     while (fanartThumb)
     {
       if (!fanartThumb->NoChildren())
@@ -83,12 +76,12 @@ bool CFanart::Unpack()
         SFanartData data;
         if (url.empty())
         {
-          data.strImage = fanartThumb->FirstChild()->Value();
+          data.strImage = fanartThumb->FirstChild()->ValueStr();
           data.strPreview = XMLUtils::GetAttribute(fanartThumb, "preview");
         }
         else
         {
-          data.strImage = URIUtils::AddFileToFolder(url, fanartThumb->FirstChild()->Value());
+          data.strImage = URIUtils::AddFileToFolder(url, fanartThumb->FirstChild()->ValueStr());
           if (fanartThumb->Attribute("preview"))
             data.strPreview = URIUtils::AddFileToFolder(url, fanartThumb->Attribute("preview"));
         }
@@ -168,7 +161,7 @@ bool CFanart::ParseColors(const std::string &colorsIn, std::string &colorsOut)
       std::vector<std::string> strTriplets = StringUtils::Split(strColors[i+1], ",");
       if (strTriplets.size() == 3)
       { // convert
-        if (!colorsOut.empty())
+        if (colorsOut.size())
           colorsOut += ",";
         colorsOut += StringUtils::Format("FF{:2x}{:2x}{:2x}", std::stol(strTriplets[0]),
                                          std::stol(strTriplets[1]), std::stol(strTriplets[2]));

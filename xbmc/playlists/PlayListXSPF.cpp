@@ -13,19 +13,21 @@
 #include "URL.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
-#include "utils/XBMCTinyXML2.h"
+#include "utils/XBMCTinyXML.h"
 #include "utils/log.h"
+
+using namespace PLAYLIST;
 
 namespace
 {
 
-constexpr char const* LOCATION_TAGNAME = "location";
-constexpr char const* PLAYLIST_TAGNAME = "playlist";
-constexpr char const* TITLE_TAGNAME = "title";
-constexpr char const* TRACK_TAGNAME = "track";
-constexpr char const* TRACKLIST_TAGNAME = "trackList";
+constexpr auto LOCATION_TAGNAME = "location";
+constexpr auto PLAYLIST_TAGNAME = "playlist";
+constexpr auto TITLE_TAGNAME = "title";
+constexpr auto TRACK_TAGNAME = "track";
+constexpr auto TRACKLIST_TAGNAME = "trackList";
 
-std::string GetXMLText(const tinyxml2::XMLElement* pXmlElement)
+std::string GetXMLText(const TiXmlElement* pXmlElement)
 {
   std::string result;
   if (pXmlElement)
@@ -39,25 +41,22 @@ std::string GetXMLText(const tinyxml2::XMLElement* pXmlElement)
 
 }
 
-namespace KODI::PLAYLIST
-{
-
 CPlayListXSPF::CPlayListXSPF(void) = default;
 
 CPlayListXSPF::~CPlayListXSPF(void) = default;
 
 bool CPlayListXSPF::Load(const std::string& strFileName)
 {
-  CXBMCTinyXML2 xmlDoc;
+  CXBMCTinyXML xmlDoc;
 
   if (!xmlDoc.LoadFile(strFileName))
   {
-    CLog::Log(LOGERROR, "Error parsing XML file {} ({}): {}", strFileName, xmlDoc.ErrorLineNum(),
-              xmlDoc.ErrorStr());
+    CLog::Log(LOGERROR, "Error parsing XML file {} ({}, {}): {}", strFileName, xmlDoc.ErrorRow(),
+              xmlDoc.ErrorCol(), xmlDoc.ErrorDesc());
     return false;
   }
 
-  auto* pPlaylist = xmlDoc.FirstChildElement(PLAYLIST_TAGNAME);
+  TiXmlElement* pPlaylist = xmlDoc.FirstChildElement(PLAYLIST_TAGNAME);
   if (!pPlaylist)
   {
     CLog::Log(LOGERROR, "Error parsing XML file {}: missing root element {}", strFileName,
@@ -65,7 +64,7 @@ bool CPlayListXSPF::Load(const std::string& strFileName)
     return false;
   }
 
-  auto* pTracklist = pPlaylist->FirstChildElement(TRACKLIST_TAGNAME);
+  TiXmlElement* pTracklist = pPlaylist->FirstChildElement(TRACKLIST_TAGNAME);
   if (!pTracklist)
   {
     CLog::Log(LOGERROR, "Error parsing XML file {}: missing element {}", strFileName,
@@ -78,7 +77,7 @@ bool CPlayListXSPF::Load(const std::string& strFileName)
 
   m_strPlayListName = GetXMLText(pPlaylist->FirstChildElement(TITLE_TAGNAME));
 
-  auto* pCurTrack = pTracklist->FirstChildElement(TRACK_TAGNAME);
+  TiXmlElement* pCurTrack = pTracklist->FirstChildElement(TRACK_TAGNAME);
   while (pCurTrack)
   {
     std::string location = GetXMLText(pCurTrack->FirstChildElement(LOCATION_TAGNAME));
@@ -131,5 +130,3 @@ bool CPlayListXSPF::Load(const std::string& strFileName)
 
   return true;
 }
-
-} // namespace KODI::PLAYLIST

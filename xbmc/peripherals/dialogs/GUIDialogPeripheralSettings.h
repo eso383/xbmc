@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "games/controllers/ControllerTypes.h"
 #include "settings/dialogs/GUIDialogSettingsManualBase.h"
 
 class CFileItem;
@@ -29,9 +28,6 @@ public:
   // specializations of CGUIControl
   bool OnMessage(CGUIMessage& message) override;
 
-  // Implementation of CGUIWindow
-  void OnDeinitWindow(int nextWindowID) override;
-
   void RegisterPeripheralManager(CPeripherals& manager);
   void UnregisterPeripheralManager();
 
@@ -49,8 +45,6 @@ protected:
 
   // specialization of CGUIDialogSettingsManualBase
   void InitializeSettings() override;
-
-  void UpdateIcon(const KODI::GAME::ControllerPtr& controller);
 
   // Dialog state
   CPeripherals* m_manager{nullptr};

@@ -10,15 +10,17 @@
 #  include <windows.h>
 #endif
 
-#include "ServiceBroker.h"
+#include <errno.h>
+#include <stdlib.h>
+
+#include <gtest/gtest.h>
 #include "URL.h"
 #include "filesystem/CurlFile.h"
 #include "filesystem/File.h"
 #include "interfaces/json-rpc/JSONRPC.h"
-#include "network/DNSNameCache.h"
 #include "network/WebServer.h"
-#include "network/httprequesthandler/HTTPJsonRpcHandler.h"
 #include "network/httprequesthandler/HTTPVfsHandler.h"
+#include "network/httprequesthandler/HTTPJsonRpcHandler.h"
 #include "settings/MediaSourceSettings.h"
 #include "test/TestUtils.h"
 #include "utils/JSONVariantParser.h"
@@ -26,11 +28,7 @@
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 
-#include <errno.h>
 #include <random>
-#include <stdlib.h>
-
-#include <gtest/gtest.h>
 
 using namespace XFILE;
 
@@ -66,8 +64,6 @@ protected:
 protected:
   void SetUp() override
   {
-    CServiceBroker::RegisterDNSNameCache(std::make_shared<CDNSNameCache>());
-
     SetupMediaSources();
 
     webserver.Start(webserverPort, "", "");
@@ -84,8 +80,6 @@ protected:
     webserver.UnregisterRequestHandler(&m_jsonRpcHandler);
 
     TearDownMediaSources();
-
-    CServiceBroker::UnregisterDNSNameCache();
   }
 
   void SetupMediaSources()
@@ -95,8 +89,8 @@ protected:
     source.strPath = sourcePath;
     source.vecPaths.push_back(sourcePath);
     source.m_allowSharing = true;
-    source.m_iDriveType = SourceType::LOCAL;
-    source.GetLockInfo().SetMode(LockMode::EVERYONE);
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_LOCAL;
+    source.m_iLockMode = LOCK_MODE_EVERYONE;
     source.m_ignore = true;
 
     CMediaSourceSettings::GetInstance().AddShare("videos", source);
@@ -186,7 +180,7 @@ protected:
 
     // check the protocol line for the expected HTTP status
     std::string httpStatusString = StringUtils::Format(" {} ", httpStatus);
-    const std::string& protocolLine = httpHeader.GetProtoLine();
+    std::string protocolLine = httpHeader.GetProtoLine();
     ASSERT_TRUE(protocolLine.find(httpStatusString) != std::string::npos);
 
     // Content-Type must be "text/html"
@@ -221,7 +215,7 @@ protected:
 
     // check the protocol line for the expected HTTP status
     std::string httpStatusString = StringUtils::Format(" {} ", MHD_HTTP_PARTIAL_CONTENT);
-    const std::string& protocolLine = httpHeader.GetProtoLine();
+    std::string protocolLine = httpHeader.GetProtoLine();
     ASSERT_TRUE(protocolLine.find(httpStatusString) != std::string::npos);
 
     // Accept-Ranges must be "bytes"

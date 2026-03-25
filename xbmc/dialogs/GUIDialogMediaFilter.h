@@ -21,11 +21,8 @@
 
 class CDbUrl;
 class CSetting;
-namespace KODI::PLAYLIST
-{
 class CSmartPlaylist;
 class CSmartPlaylistRule;
-} // namespace KODI::PLAYLIST
 struct StringSettingOption;
 
 class CGUIDialogMediaFilter : public CGUIDialogSettingsManualBase
@@ -37,8 +34,7 @@ public:
   // specializations of CGUIControl
   bool OnMessage(CGUIMessage &message) override;
 
-  static void ShowAndEditMediaFilter(const std::string& path,
-                                     KODI::PLAYLIST::CSmartPlaylist& filter);
+  static void ShowAndEditMediaFilter(const std::string &path, CSmartPlaylist &filter);
 
   struct Filter
   {
@@ -48,9 +44,9 @@ public:
     SettingType settingType;
     std::string controlType;
     std::string controlFormat;
-    CDatabaseQueryRule::SearchOperator ruleOperator;
+    CDatabaseQueryRule::SEARCH_OPERATOR ruleOperator;
     std::shared_ptr<CSetting> setting = nullptr;
-    KODI::PLAYLIST::CSmartPlaylistRule* rule = nullptr;
+    CSmartPlaylistRule* rule = nullptr;
     void* data = nullptr;
   };
 
@@ -76,23 +72,21 @@ protected:
   void TriggerFilter() const;
   void Reset(bool filtersOnly = false);
 
-  int GetItems(const Filter &filter, std::vector<std::string> &items, bool countOnly = false);
+  int GetItems(const Filter &filter, std::vector<std::string> &items, bool countOnly = false) const;
   void GetRange(const Filter &filter, int &min, int &interval, int &max);
-  void GetRange(const Filter &filter, float &min, float &interval, float &max);
-  bool GetMinMax(const std::string &table, const std::string &field, int &min, int &max, const CDatabase::Filter &filter = CDatabase::Filter());
+  void GetRange(const Filter &filter, float &min, float &interval, float &max) const;
+  bool GetMinMax(const std::string &table, const std::string &field, int &min, int &max, const CDatabase::Filter &filter = CDatabase::Filter()) const;
 
-  KODI::PLAYLIST::CSmartPlaylistRule* AddRule(
-      Field field,
-      CDatabaseQueryRule::SearchOperator ruleOperator =
-          CDatabaseQueryRule::SearchOperator::OPERATOR_CONTAINS);
-  void DeleteRule(Field field);
+  CSmartPlaylistRule* AddRule(Field field, CDatabaseQueryRule::SEARCH_OPERATOR ruleOperator = CDatabaseQueryRule::OPERATOR_CONTAINS) const;
+  void DeleteRule(Field field) const;
 
-  void GetStringListOptions(const std::shared_ptr<const CSetting>& setting,
-                            std::vector<StringSettingOption>& list,
-                            std::string& current);
+  static void GetStringListOptions(const std::shared_ptr<const CSetting>& setting,
+                                   std::vector<StringSettingOption>& list,
+                                   std::string& current,
+                                   void* data);
 
   CDbUrl* m_dbUrl;
   std::string m_mediaType;
-  KODI::PLAYLIST::CSmartPlaylist* m_filter;
+  CSmartPlaylist *m_filter;
   std::map<std::string, Filter> m_filters;
 };

@@ -46,11 +46,11 @@ void Interface_Network::DeInit(AddonGlobalInterface* addonInterface)
 
 bool Interface_Network::wake_on_lan(void* kodiBase, const char* mac)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon || !mac)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr || mac == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}', mac='{}')", kodiBase,
-               static_cast<const void*>(mac));
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}', mac='{}')", __FUNCTION__,
+              kodiBase, static_cast<const void*>(mac));
     return false;
   }
 
@@ -59,10 +59,11 @@ bool Interface_Network::wake_on_lan(void* kodiBase, const char* mac)
 
 char* Interface_Network::get_ip_address(void* kodiBase)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}')", kodiBase);
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}')", __FUNCTION__,
+              kodiBase);
     return nullptr;
   }
 
@@ -73,18 +74,19 @@ char* Interface_Network::get_ip_address(void* kodiBase)
   else
     titleIP = "127.0.0.1";
 
-  if (titleIP.empty())
-    return nullptr;
-
-  return strdup(titleIP.c_str());
+  char* buffer = nullptr;
+  if (!titleIP.empty())
+    buffer = strdup(titleIP.c_str());
+  return buffer;
 }
 
 char* Interface_Network::get_hostname(void* kodiBase)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}')", kodiBase);
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}')", __FUNCTION__,
+              kodiBase);
     return nullptr;
   }
 
@@ -92,35 +94,36 @@ char* Interface_Network::get_hostname(void* kodiBase)
   if (!CServiceBroker::GetNetwork().GetHostName(hostname))
     return nullptr;
 
-  if (hostname.empty())
-    return nullptr;
-
-  return strdup(hostname.c_str());
+  char* buffer = nullptr;
+  if (!hostname.empty())
+    buffer = strdup(hostname.c_str());
+  return buffer;
 }
 
 char* Interface_Network::get_user_agent(void* kodiBase)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}')", kodiBase);
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}')", __FUNCTION__,
+              kodiBase);
     return nullptr;
   }
 
-  const std::string string{CSysInfo::GetUserAgent()};
-  if (string.empty())
-    return nullptr;
-
-  return strdup(string.c_str());
+  std::string string = CSysInfo::GetUserAgent();
+  char* buffer = nullptr;
+  if (!string.empty())
+    buffer = strdup(string.c_str());
+  return buffer;
 }
 
 bool Interface_Network::is_local_host(void* kodiBase, const char* hostname)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon || !hostname)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr || hostname == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}', hostname='{}')", kodiBase,
-               static_cast<const void*>(hostname));
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}', hostname='{}')",
+              __FUNCTION__, kodiBase, static_cast<const void*>(hostname));
     return false;
   }
 
@@ -129,11 +132,11 @@ bool Interface_Network::is_local_host(void* kodiBase, const char* hostname)
 
 bool Interface_Network::is_host_on_lan(void* kodiBase, const char* hostname, bool offLineCheck)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon || !hostname)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr || hostname == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}', hostname='{}')", kodiBase,
-               static_cast<const void*>(hostname));
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}', hostname='{}')",
+              __FUNCTION__, kodiBase, static_cast<const void*>(hostname));
     return false;
   }
 
@@ -144,37 +147,37 @@ bool Interface_Network::is_host_on_lan(void* kodiBase, const char* hostname, boo
 
 char* Interface_Network::dns_lookup(void* kodiBase, const char* url, bool* ret)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon || !url || !ret)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr || url == nullptr || ret == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}', url='{}', ret='{}')", kodiBase,
-               static_cast<const void*>(url), static_cast<void*>(ret));
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}', url='{}', ret='{}')",
+              __FUNCTION__, kodiBase, static_cast<const void*>(url), static_cast<void*>(ret));
     return nullptr;
   }
 
   std::string string;
-  *ret = CServiceBroker::GetDNSNameCache()->Lookup(url, string);
-  if (string.empty())
-    return nullptr;
-
-  return strdup(string.c_str());
+  *ret = CDNSNameCache::Lookup(url, string);
+  char* buffer = nullptr;
+  if (!string.empty())
+    buffer = strdup(string.c_str());
+  return buffer;
 }
 
 char* Interface_Network::url_encode(void* kodiBase, const char* url)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  if (!addon || !url)
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  if (addon == nullptr || url == nullptr)
   {
-    CLog::LogF(LOGERROR, "Invalid data (addon='{}', url='{}')", kodiBase,
-               static_cast<const void*>(url));
+    CLog::Log(LOGERROR, "Interface_Network::{} - invalid data (addon='{}', url='{}')", __FUNCTION__,
+              kodiBase, static_cast<const void*>(url));
     return nullptr;
   }
 
-  const std::string string{CURL::Encode(url)};
-  if (string.empty())
-    return nullptr;
-
-  return strdup(string.c_str());
+  std::string string = CURL::Encode(url);
+  char* buffer = nullptr;
+  if (!string.empty())
+    buffer = strdup(string.c_str());
+  return buffer;
 }
 
 } /* namespace ADDON */

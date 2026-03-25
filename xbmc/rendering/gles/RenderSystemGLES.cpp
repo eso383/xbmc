@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,16 +8,12 @@
 
 #include "RenderSystemGLES.h"
 
-#include "ServiceBroker.h"
-#include "URL.h"
 #include "guilib/DirtyRegion.h"
 #include "guilib/GUITextureGLES.h"
 #include "platform/MessagePrinter.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/MatrixGL.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/FileUtils.h"
 #include "utils/GLUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/SystemInfo.h"
@@ -25,7 +21,6 @@
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #if defined(TARGET_LINUX)
 #include "utils/EGLUtils.h"
@@ -53,8 +48,8 @@ bool CRenderSystemGLES::InitRenderSystem()
   m_RenderVersionMajor = 0;
   m_RenderVersionMinor = 0;
 
-  const char* ver = (const char*)glGetString(GL_VERSION);
-  if (ver != NULL)
+  auto ver = (const char*)glGetString(GL_VERSION);
+  if (ver != nullptr)
   {
     sscanf(ver, "%d.%d", &m_RenderVersionMajor, &m_RenderVersionMinor);
     if (!m_RenderVersionMajor)
@@ -63,29 +58,30 @@ bool CRenderSystemGLES::InitRenderSystem()
   }
 
   // Get our driver vendor and renderer
-  const char *tmpVendor = (const char*) glGetString(GL_VENDOR);
+  auto tmpVendor = (const char*) glGetString(GL_VENDOR);
   m_RenderVendor.clear();
-  if (tmpVendor != NULL)
+  if (tmpVendor != nullptr)
     m_RenderVendor = tmpVendor;
 
-  const char *tmpRenderer = (const char*) glGetString(GL_RENDERER);
+  auto tmpRenderer = (const char*) glGetString(GL_RENDERER);
   m_RenderRenderer.clear();
-  if (tmpRenderer != NULL)
+  if (tmpRenderer != nullptr)
     m_RenderRenderer = tmpRenderer;
 
   m_RenderExtensions = "";
 
-  const char *tmpExtensions = (const char*) glGetString(GL_EXTENSIONS);
-  if (tmpExtensions != NULL)
+  auto tmpExtensions = (const char*) glGetString(GL_EXTENSIONS);
+  if (tmpExtensions != nullptr)
   {
     m_RenderExtensions += tmpExtensions;
     m_RenderExtensions += " ";
   }
 
-#if defined(GL_KHR_debug) && defined(TARGET_LINUX)
+#if defined(GL_KHR_debug) && defined(TARGET_LINUX) \
+    && !defined(HAS_LIBAMCODEC)
   if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_openGlDebugging)
   {
-    if (CGLExtensions::IsExtensionSupported(CGLExtensions::KHR_debug))
+    if (IsExtSupported("GL_KHR_debug"))
     {
       auto glDebugMessageCallback = CEGLUtils::GetRequiredProcAddress<PFNGLDEBUGMESSAGECALLBACKKHRPROC>("glDebugMessageCallbackKHR");
       auto glDebugMessageControl = CEGLUtils::GetRequiredProcAddress<PFNGLDEBUGMESSAGECONTROLKHRPROC>("glDebugMessageControlKHR");
@@ -208,10 +204,10 @@ void CRenderSystemGLES::InvalidateColorBuffer()
     return;
 
   // some platforms prefer a clear, instead of rendering over
-  if (GetClearFunction() == ClearFunction::FIXED_FUNCTION)
+  if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiGeometryClear)
     ClearBuffers(0);
 
-  if (!GetEnabledFrontToBackRendering())
+  if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiFrontToBackRendering)
     return;
 
   glClearDepthf(0);
@@ -219,7 +215,7 @@ void CRenderSystemGLES::InvalidateColorBuffer()
   glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-bool CRenderSystemGLES::ClearBuffers(KODI::UTILS::COLOR::Color color)
+bool CRenderSystemGLES::ClearBuffers(UTILS::COLOR::Color color)
 {
   if (!m_bRenderCreated)
     return false;
@@ -233,7 +229,7 @@ bool CRenderSystemGLES::ClearBuffers(KODI::UTILS::COLOR::Color color)
 
   GLbitfield flags = GL_COLOR_BUFFER_BIT;
 
-  if (GetEnabledFrontToBackRendering())
+  if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiFrontToBackRendering)
   {
     glClearDepthf(0);
     glDepthMask(GL_TRUE);
@@ -423,20 +419,20 @@ void CRenderSystemGLES::ResetScissors()
   SetScissors(CRect(0, 0, (float)m_width, (float)m_height));
 }
 
-void CRenderSystemGLES::SetDepthCulling(DepthCulling culling)
+void CRenderSystemGLES::SetDepthCulling(DEPTH_CULLING culling)
 {
-  if (culling == DepthCulling::OFF)
+  if (culling == DEPTH_CULLING_OFF)
   {
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
   }
-  else if (culling == DepthCulling::BACK_TO_FRONT)
+  else if (culling == DEPTH_CULLING_BACK_TO_FRONT)
   {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDepthFunc(GL_GEQUAL);
   }
-  else if (culling == DepthCulling::FRONT_TO_BACK)
+  else if (culling == DEPTH_CULLING_FRONT_TO_BACK)
   {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -447,16 +443,19 @@ void CRenderSystemGLES::SetDepthCulling(DepthCulling culling)
 void CRenderSystemGLES::InitialiseShaders()
 {
   std::string defines;
-  std::string definesNoPQ;
+  std::string definesHdrPgsPqOutput;
+  std::string definesHdrPgsSdrOutput;
   m_limitedColorRange = CServiceBroker::GetWinSystem()->UseLimitedColor();
   if (m_limitedColorRange)
   {
     defines += "#define KODI_LIMITED_RANGE 1\n";
-    definesNoPQ += "#define KODI_LIMITED_RANGE 1\n";
+    definesHdrPgsPqOutput += "#define KODI_LIMITED_RANGE 1\n";
+    definesHdrPgsSdrOutput += "#define KODI_LIMITED_RANGE 1\n";
   }
 
-  // SM_TEXTURE_NOBLEND_NO_PQ is used for HDR-authored overlays (e.g. HDR PGS).
-  definesNoPQ += "#define KODI_HDR_PGS_ADJUST 1\n";
+  // HDR-authored PQ overlays need dedicated PQ and SDR output shader variants.
+  definesHdrPgsPqOutput += "#define KODI_HDR_PGS_PQ_OUTPUT 1\n";
+  definesHdrPgsSdrOutput += "#define KODI_HDR_PGS_SDR_OUTPUT 1\n";
 
   if (m_transferPQ)
   {
@@ -536,15 +535,26 @@ void CRenderSystemGLES::InitialiseShaders()
     CLog::Log(LOGERROR, "GUI Shader gles_shader_texture_noblend.frag - compile and link failed");
   }
 
-  // Same shader, but compiled without KODI_TRANSFER_PQ for HDR-coded overlays (e.g. UHD-BD PGS).
-  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ) =
-      std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesNoPQ);
-  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->CompileAndLink())
+  // Same shader, but compiled for HDR-authored PQ overlays targeting PQ GUI output.
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT) =
+      std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesHdrPgsPqOutput);
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->CompileAndLink())
   {
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT).reset();
     CLog::Log(LOGERROR,
-              "GUI Shader gles_shader_texture_noblend.frag (no PQ) - compile and link failed");
+              "GUI Shader gles_shader_texture_noblend.frag (HDR PGS PQ output) - compile and link failed");
+  }
+
+  // Same shader, but compiled to convert HDR-authored PQ overlays into the SDR GUI path.
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT) =
+      std::make_unique<CGLESShader>("gles_shader_texture_noblend.frag", definesHdrPgsSdrOutput);
+  if (!shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT)->CompileAndLink())
+  {
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT)->Free();
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT).reset();
+    CLog::Log(LOGERROR,
+              "GUI Shader gles_shader_texture_noblend.frag (HDR PGS SDR output) - compile and link failed");
   }
 
   shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR) =
@@ -603,7 +613,7 @@ void CRenderSystemGLES::InitialiseShaders()
     CLog::Log(LOGERROR, "GUI Shader gles_shader_rgba_bob.frag - compile and link failed");
   }
 
-  if (CGLExtensions::IsExtensionSupported(CGLExtensions::OES_EGL_image_external))
+  if (IsExtSupported("GL_OES_EGL_image_external"))
   {
     shaderSlot(ShaderMethodGLES::SM_TEXTURE_RGBA_OES) =
         std::make_unique<CGLESShader>("gles_shader_rgba_oes.frag", defines);
@@ -669,9 +679,13 @@ void CRenderSystemGLES::ReleaseShaders()
     shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND)->Free();
   shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND).reset();
 
-  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ))
-    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ)->Free();
-  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ).reset();
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT).reset();
+
+  if (shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT))
+    shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT)->Free();
+  shaderSlot(ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT).reset();
 
   if (shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR))
     shaderSlot(ShaderMethodGLES::SM_MULTI_BLENDCOLOR)->Free();
@@ -820,7 +834,7 @@ GLint CRenderSystemGLES::GUIShaderGetBrightness()
   return -1;
 }
 
-bool CRenderSystemGLES::SupportsStereo(RenderStereoMode mode) const
+bool CRenderSystemGLES::SupportsStereo(RENDER_STEREO_MODE mode) const
 {
   return CRenderSystemBase::SupportsStereo(mode);
 }

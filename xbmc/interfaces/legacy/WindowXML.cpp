@@ -8,7 +8,6 @@
 
 #include "WindowXML.h"
 
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "WindowException.h"
 #include "WindowInterceptor.h"
@@ -22,8 +21,8 @@
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "utils/FileUtils.h"
+#include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 
@@ -99,32 +98,28 @@ namespace XBMCAddon
       Window(true)
     {
       XBMC_TRACE;
-      auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-      if (!skin)
-        return;
-
       RESOLUTION_INFO res;
-      std::string strSkinPath = skin->GetSkinPath(xmlFilename, &res);
+      std::string strSkinPath = g_SkinInfo->GetSkinPath(xmlFilename, &res);
       m_isMedia = isMedia;
 
       if (!CFileUtils::Exists(strSkinPath))
       {
         std::string str("none");
-        ADDON::AddonInfoPtr addonInfo =
+        auto addonInfo =
             std::make_shared<ADDON::CAddonInfo>(str, ADDON::AddonType::SKIN);
         ADDON::CSkinInfo::TranslateResolution(defaultRes, res);
 
         // Check for the matching folder for the skin in the fallback skins folder
         std::string fallbackPath = URIUtils::AddFileToFolder(scriptPath, "resources", "skins");
-        std::string basePath = URIUtils::AddFileToFolder(fallbackPath, skin->ID());
+        std::string basePath = URIUtils::AddFileToFolder(fallbackPath, g_SkinInfo->ID());
 
-        strSkinPath = skin->GetSkinPath(xmlFilename, &res, basePath);
+        strSkinPath = g_SkinInfo->GetSkinPath(xmlFilename, &res, basePath);
 
         // Check for the matching folder for the skin in the fallback skins folder (if it exists)
         if (CFileUtils::Exists(basePath))
         {
           addonInfo->SetPath(basePath);
-          std::shared_ptr<ADDON::CSkinInfo> skinInfo = std::make_shared<ADDON::CSkinInfo>(addonInfo, res);
+          auto skinInfo = std::make_shared<ADDON::CSkinInfo>(addonInfo, res);
           skinInfo->Start();
           strSkinPath = skinInfo->GetSkinPath(xmlFilename, &res);
         }
@@ -133,7 +128,7 @@ namespace XBMCAddon
         {
           // Finally fallback to the DefaultSkin as it didn't exist in either the XBMC Skin folder or the fallback skin folder
           addonInfo->SetPath(URIUtils::AddFileToFolder(fallbackPath, defaultSkin));
-          std::shared_ptr<ADDON::CSkinInfo> skinInfo = std::make_shared<ADDON::CSkinInfo>(addonInfo, res);
+          auto skinInfo = std::make_shared<ADDON::CSkinInfo>(addonInfo, res);
 
           skinInfo->Start();
           strSkinPath = skinInfo->GetSkinPath(xmlFilename, &res);
@@ -153,7 +148,8 @@ namespace XBMCAddon
     int WindowXML::lockingGetNextAvailableWindowId()
     {
       XBMC_TRACE;
-      std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+      std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
       return getNextAvailableWindowId();
     }
 
@@ -242,12 +238,12 @@ namespace XBMCAddon
         fi = A(m_vecItems)->Get(position);
       }
 
-      if (fi == NULL)
+      if (fi == nullptr)
       {
         throw WindowException("Index out of range (%i)",position);
       }
 
-      ListItem* sListItem = new ListItem();
+      auto sListItem = new ListItem();
       sListItem->item = fi;
 
       // let's hope someone reference counts this.

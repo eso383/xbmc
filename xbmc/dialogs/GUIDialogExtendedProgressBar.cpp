@@ -23,20 +23,23 @@
 
 std::string CGUIDialogProgressBarHandle::Text(void) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   std::string retVal(m_strText);
   return retVal;
 }
 
 void CGUIDialogProgressBarHandle::SetText(const std::string &strText)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_strText = strText;
 }
 
 void CGUIDialogProgressBarHandle::SetTitle(const std::string &strTitle)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_strTitle = strTitle;
 }
 
@@ -57,9 +60,10 @@ CGUIDialogExtendedProgressBar::CGUIDialogExtendedProgressBar(void)
 
 CGUIDialogProgressBarHandle *CGUIDialogExtendedProgressBar::GetHandle(const std::string &strTitle)
 {
-  CGUIDialogProgressBarHandle *handle = new CGUIDialogProgressBarHandle(strTitle);
+  auto handle = new CGUIDialogProgressBarHandle(strTitle);
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+    
     m_handles.push_back(handle);
   }
 
@@ -102,7 +106,7 @@ void CGUIDialogExtendedProgressBar::UpdateState(unsigned int currentTime)
   float  fProgress(-1.0f);
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
 
     // delete finished items
     for (int iPtr = m_handles.size() - 1; iPtr >= 0; iPtr--)
@@ -114,7 +118,7 @@ void CGUIDialogExtendedProgressBar::UpdateState(unsigned int currentTime)
       }
     }
 
-    if (m_handles.empty())
+    if (!m_handles.size())
     {
       Close(false, 0, true, false);
       return;

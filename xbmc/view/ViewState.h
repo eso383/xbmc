@@ -31,8 +31,8 @@ public:
   CViewState()
   {
     m_viewMode = 0;
-    m_sortDescription.sortBy = SortBy::LABEL;
-    m_sortDescription.sortOrder = SortOrder::ASCENDING;
+    m_sortDescription.sortBy = SortByLabel;
+    m_sortDescription.sortOrder = SortOrderAscending;
   };
 
   int m_viewMode;

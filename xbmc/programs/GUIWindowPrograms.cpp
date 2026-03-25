@@ -10,7 +10,6 @@
 
 #include "Autorun.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIPassword.h"
 #include "ServiceBroker.h"
 #include "Util.h"
@@ -32,7 +31,7 @@ CGUIWindowPrograms::CGUIWindowPrograms(void)
     : CGUIMediaWindow(WINDOW_PROGRAMS, "MyPrograms.xml")
 {
   m_thumbLoader.SetObserver(this);
-  m_dlgProgress = NULL;
+  m_dlgProgress = nullptr;
   m_rootDir.AllowNonLocalSources(false); // no nonlocal shares for this window please
 }
 
@@ -140,8 +139,7 @@ bool CGUIWindowPrograms::OnPlayMedia(int iItem, const std::string&)
     return MEDIA_DETECT::CAutorun::PlayDiscAskResume(m_vecItems->Get(iItem)->GetPath());
 #endif
 
-  if (pItem->IsFolder())
-    return false;
+  if (pItem->m_bIsFolder) return false;
 
   return false;
 }
@@ -155,13 +153,13 @@ std::string CGUIWindowPrograms::GetStartFolder(const std::string &dir)
     return "androidapp://sources/apps/";
 
   SetupShares();
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   m_rootDir.GetSources(shares);
   bool bIsSourceName = false;
   int iIndex = CUtil::GetMatchingSource(dir, shares, bIsSourceName);
   if (iIndex > -1)
   {
-    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].GetLockInfo().IsLocked())
+    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].m_iHasLock == LOCK_STATE_LOCKED)
     {
       CFileItem item(shares[iIndex]);
       if (!g_passwordManager.IsItemUnlocked(&item,"programs"))

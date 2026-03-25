@@ -42,7 +42,7 @@ CGUIGameControllerProvider::CGUIGameControllerProvider(unsigned int portCount,
 }
 
 CGUIGameControllerProvider::CGUIGameControllerProvider(const CGUIGameControllerProvider& other)
-  : IListProvider(other),
+  : IListProvider(other.m_parentID),
     m_portCount(other.m_portCount),
     m_portIndex(other.m_portIndex),
     m_peripheralLocation(other.m_peripheralLocation),
@@ -136,7 +136,7 @@ void CGUIGameControllerProvider::UpdateItems()
       continue;
     }
 
-    CFileItemPtr fileItem = std::make_shared<CFileItem>();
+    auto fileItem = std::make_shared<CFileItem>();
 
     // Set the item state for the current port index
     if (portIndex++ == m_portIndex && controller)

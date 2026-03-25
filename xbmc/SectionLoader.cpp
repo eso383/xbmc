@@ -32,9 +32,9 @@ CSectionLoader::~CSectionLoader(void)
 
 LibraryLoader *CSectionLoader::LoadDLL(const std::string &dllname, bool bDelayUnload /*=true*/, bool bLoadSymbols /*=false*/)
 {
-  std::unique_lock lock(g_sectionLoader.m_critSection);
+  std::lock_guard lock(g_sectionLoader.m_critSection);
 
-  if (dllname.empty()) return NULL;
+  if (dllname.empty()) return nullptr;
   // check if it's already loaded, and increase the reference count if so
   for (int i = 0; i < (int)g_sectionLoader.m_vecLoadedDLLs.size(); ++i)
   {
@@ -48,9 +48,9 @@ LibraryLoader *CSectionLoader::LoadDLL(const std::string &dllname, bool bDelayUn
 
   // ok, now load the dll
   CLog::Log(LOGDEBUG, "SECTION:LoadDLL({})", dllname);
-  LibraryLoader* pDll = DllLoaderContainer::LoadModule(dllname.c_str(), NULL, bLoadSymbols);
+  LibraryLoader* pDll = DllLoaderContainer::LoadModule(dllname.c_str(), nullptr, bLoadSymbols);
   if (!pDll)
-    return NULL;
+    return nullptr;
 
   CDll newDLL;
   newDLL.m_strDllName = dllname;
@@ -64,7 +64,7 @@ LibraryLoader *CSectionLoader::LoadDLL(const std::string &dllname, bool bDelayUn
 
 void CSectionLoader::UnloadDLL(const std::string &dllname)
 {
-  std::unique_lock lock(g_sectionLoader.m_critSection);
+  std::lock_guard lock(g_sectionLoader.m_critSection);
 
   if (dllname.empty()) return;
   // check if it's already loaded, and decrease the reference count if so
@@ -94,7 +94,7 @@ void CSectionLoader::UnloadDLL(const std::string &dllname)
 
 void CSectionLoader::UnloadDelayed()
 {
-  std::unique_lock lock(g_sectionLoader.m_critSection);
+  std::lock_guard lock(g_sectionLoader.m_critSection);
 
   // check if we can unload any unreferenced dlls
   for (int i = 0; i < (int)g_sectionLoader.m_vecLoadedDLLs.size(); ++i)
@@ -118,8 +118,9 @@ void CSectionLoader::UnloadDelayed()
 void CSectionLoader::UnloadAll()
 {
   // delete the dll's
-  std::unique_lock lock(g_sectionLoader.m_critSection);
-  std::vector<CDll>::iterator it = g_sectionLoader.m_vecLoadedDLLs.begin();
+  std::lock_guard lock(g_sectionLoader.m_critSection);
+
+  auto it = g_sectionLoader.m_vecLoadedDLLs.begin();
   while (it != g_sectionLoader.m_vecLoadedDLLs.end())
   {
     CDll& dll = *it;

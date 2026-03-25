@@ -13,45 +13,41 @@
 #include "guilib/GUIMessage.h"
 #include "guilib/GUISpinControl.h"
 #include "guilib/GUITextBox.h"
+#include "guilib/LocalizeStrings.h"
 #include "pvr/PVRManager.h"
 #include "pvr/PVRPlaybackState.h"
 #include "pvr/channels/PVRChannel.h"
 #include "pvr/channels/PVRRadioRDSInfoTag.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 
 using namespace PVR;
 
-namespace
-{
-constexpr unsigned int CONTROL_BTN_OK = 10;
-constexpr unsigned int SPIN_CONTROL_INFO = 21;
-constexpr unsigned int TEXT_INFO = 22;
-constexpr unsigned int CONTROL_INFO_LIST = 70;
+#define CONTROL_BTN_OK    10
+#define SPIN_CONTROL_INFO 21
+#define TEXT_INFO         22
+#define CONTROL_NEXT_PAGE 60
+#define CONTROL_INFO_LIST 70
 
-constexpr unsigned int INFO_NEWS = 1;
-constexpr unsigned int INFO_NEWS_LOCAL = 2;
-constexpr unsigned int INFO_SPORT = 3;
-constexpr unsigned int INFO_WEATHER = 4;
-constexpr unsigned int INFO_LOTTERY = 5;
-constexpr unsigned int INFO_STOCK = 6;
-constexpr unsigned int INFO_OTHER = 7;
-constexpr unsigned int INFO_CINEMA = 8;
-constexpr unsigned int INFO_HOROSCOPE = 9;
-
-} // unnamed namespace
+#define INFO_NEWS         1
+#define INFO_NEWS_LOCAL   2
+#define INFO_SPORT        3
+#define INFO_WEATHER      4
+#define INFO_LOTTERY      5
+#define INFO_STOCK        6
+#define INFO_OTHER        7
+#define INFO_CINEMA       8
+#define INFO_HOROSCOPE    9
 
 CGUIDialogPVRRadioRDSInfo::CGUIDialogPVRRadioRDSInfo()
-  : CGUIDialog(WINDOW_DIALOG_PVR_RADIO_RDS_INFO, "DialogPVRRadioRDSInfo.xml"),
-    m_InfoNews(29916, INFO_NEWS),
-    m_InfoNewsLocal(29917, INFO_NEWS_LOCAL),
-    m_InfoSport(29918, INFO_SPORT),
-    m_InfoWeather(400, INFO_WEATHER),
-    m_InfoLottery(29919, INFO_LOTTERY),
-    m_InfoStock(29920, INFO_STOCK),
-    m_InfoOther(29921, INFO_OTHER),
-    m_InfoCinema(19602, INFO_CINEMA),
-    m_InfoHoroscope(29922, INFO_HOROSCOPE)
+  : CGUIDialog(WINDOW_DIALOG_PVR_RADIO_RDS_INFO, "DialogPVRRadioRDSInfo.xml")
+  , m_InfoNews(29916, INFO_NEWS)
+  , m_InfoNewsLocal(29917, INFO_NEWS_LOCAL)
+  , m_InfoSport(29918, INFO_SPORT)
+  , m_InfoWeather(400, INFO_WEATHER)
+  , m_InfoLottery(29919, INFO_LOTTERY)
+  , m_InfoStock(29920, INFO_STOCK)
+  , m_InfoOther(29921, INFO_OTHER)
+  , m_InfoCinema(19602, INFO_CINEMA)
+  , m_InfoHoroscope(29922, INFO_HOROSCOPE)
 {
 }
 
@@ -77,50 +73,44 @@ bool CGUIDialogPVRRadioRDSInfo::OnMessage(CGUIMessage& message)
       if (!currentRDS)
         return false;
 
-      const auto* spin{static_cast<CGUISpinControl*>(GetControl(SPIN_CONTROL_INFO))};
+      const CGUISpinControl* spin = static_cast<CGUISpinControl*>(GetControl(SPIN_CONTROL_INFO));
       if (!spin)
         return false;
 
-      auto* textbox{static_cast<CGUITextBox*>(GetControl(TEXT_INFO))};
+      auto textbox = static_cast<CGUITextBox*>(GetControl(TEXT_INFO));
       if (!textbox)
         return false;
 
-      std::string text;
       switch (spin->GetValue())
       {
         case INFO_NEWS:
-          text = currentRDS->GetInfoNews();
+          textbox->SetInfo(currentRDS->GetInfoNews());
           break;
         case INFO_NEWS_LOCAL:
-          text = currentRDS->GetInfoNewsLocal();
+          textbox->SetInfo(currentRDS->GetInfoNewsLocal());
           break;
         case INFO_SPORT:
-          text = currentRDS->GetInfoSport();
+          textbox->SetInfo(currentRDS->GetInfoSport());
           break;
         case INFO_WEATHER:
-          text = currentRDS->GetInfoWeather();
+          textbox->SetInfo(currentRDS->GetInfoWeather());
           break;
         case INFO_LOTTERY:
-          text = currentRDS->GetInfoLottery();
+          textbox->SetInfo(currentRDS->GetInfoLottery());
           break;
         case INFO_STOCK:
-          text = currentRDS->GetInfoStock();
+          textbox->SetInfo(currentRDS->GetInfoStock());
           break;
         case INFO_OTHER:
-          text = currentRDS->GetInfoOther();
+          textbox->SetInfo(currentRDS->GetInfoOther());
           break;
         case INFO_CINEMA:
-          text = currentRDS->GetInfoCinema();
+          textbox->SetInfo(currentRDS->GetInfoCinema());
           break;
         case INFO_HOROSCOPE:
-          text = currentRDS->GetInfoHoroscope();
-          break;
-        default:
+          textbox->SetInfo(currentRDS->GetInfoHoroscope());
           break;
       }
-
-      if (!text.empty())
-        textbox->SetInfo(KODI::GUILIB::GUIINFO::CGUIInfoLabel{text});
 
       SET_CONTROL_VISIBLE(CONTROL_INFO_LIST);
     }
@@ -147,11 +137,11 @@ void CGUIDialogPVRRadioRDSInfo::InitInfoControls()
 {
   SET_CONTROL_HIDDEN(CONTROL_INFO_LIST);
 
-  auto* spin{static_cast<CGUISpinControl*>(GetControl(SPIN_CONTROL_INFO))};
+  auto spin = static_cast<CGUISpinControl*>(GetControl(SPIN_CONTROL_INFO));
   if (spin)
     spin->Clear();
 
-  auto* textbox{static_cast<CGUITextBox*>(GetControl(TEXT_INFO))};
+  auto textbox = static_cast<CGUITextBox*>(GetControl(TEXT_INFO));
 
   m_InfoNews.Init(spin, textbox);
   m_InfoNewsLocal.Init(spin, textbox);
@@ -193,8 +183,8 @@ void CGUIDialogPVRRadioRDSInfo::UpdateInfoControls()
 }
 
 CGUIDialogPVRRadioRDSInfo::InfoControl::InfoControl(uint32_t iSpinLabelId, uint32_t iSpinControlId)
-  : m_iSpinLabelId(iSpinLabelId),
-    m_iSpinControlId(iSpinControlId)
+: m_iSpinLabelId(iSpinLabelId),
+  m_iSpinControlId(iSpinControlId)
 {
 }
 
@@ -212,9 +202,7 @@ bool CGUIDialogPVRRadioRDSInfo::InfoControl::Update(const std::string& textboxVa
   {
     if (!m_bSpinLabelPresent)
     {
-      m_spinControl->AddLabel(
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(m_iSpinLabelId),
-          m_iSpinControlId);
+      m_spinControl->AddLabel(g_localizeStrings.Get(m_iSpinLabelId), m_iSpinControlId);
       m_bSpinLabelPresent = true;
     }
 
@@ -222,7 +210,7 @@ bool CGUIDialogPVRRadioRDSInfo::InfoControl::Update(const std::string& textboxVa
     {
       m_spinControl->SetValue(m_iSpinControlId);
       m_textboxValue = textboxValue;
-      m_textbox->SetInfo(KODI::GUILIB::GUIINFO::CGUIInfoLabel{textboxValue});
+      m_textbox->SetInfo(textboxValue);
       return true;
     }
   }

@@ -36,7 +36,7 @@ public:
 
   virtual ~CFavouritesURL() = default;
 
-  const std::string& GetURL() const { return m_path; }
+  std::string GetURL() const { return m_path; }
 
   bool IsValid() const { return m_valid && m_exec.IsValid(); }
 
@@ -45,10 +45,10 @@ public:
   std::string GetExecString() const { return m_exec.GetExecString(); }
   Action GetAction() const { return m_action; }
   std::vector<std::string> GetParams() const { return m_exec.GetParams(); }
-  const std::string& GetTarget() const { return m_target; }
+  std::string GetTarget() const { return m_target; }
   int GetWindowID() const { return m_windowId; }
-  const std::string& GetActionLabel() const { return m_actionLabel; }
-  const std::string& GetProviderLabel() const { return m_providerLabel; }
+  std::string GetActionLabel() const { return m_actionLabel; }
+  std::string GetProviderLabel() const { return m_providerLabel; }
 
 private:
   bool Parse(CFavouritesURL::Action action, const std::vector<std::string>& params);

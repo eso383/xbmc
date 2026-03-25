@@ -84,8 +84,7 @@ namespace SOCKETS
     }
 
     // returns statically alloced buffer, do not free
-    const char *Address()
-    {
+    const char *Address() const {
       if (saddr.saddr_generic.sa_family == AF_INET6)
       {
         static char buf[INET6_ADDRSTRLEN];
@@ -95,8 +94,7 @@ namespace SOCKETS
         return inet_ntoa(saddr.saddr4.sin_addr);
     }
 
-    unsigned long ULong()
-    {
+    unsigned long ULong() const {
       if (saddr.saddr_generic.sa_family == AF_INET6)
       {
         // IPv4 coercion (see http://home.samfundet.no/~sesse/ipv6-porting.pdf).
@@ -141,10 +139,10 @@ namespace SOCKETS
     virtual void Close() {}
 
     // state functions
-    bool Ready() { return m_bReady; }
-    bool Bound() { return m_bBound; }
-    SocketType Type() { return m_Type; }
-    int Port() { return m_iPort; }
+    bool Ready() const { return m_bReady; }
+    bool Bound() const { return m_bBound; }
+    SocketType Type() const { return m_Type; }
+    int Port() const { return m_iPort; }
     virtual SOCKET Socket() = 0;
 
   protected:
@@ -186,7 +184,11 @@ namespace SOCKETS
   class CPosixUDPSocket : public CUDPSocket
   {
   public:
-    CPosixUDPSocket() = default;
+    CPosixUDPSocket()
+      {
+        m_iSock = INVALID_SOCKET;
+        m_ipv6Socket = false;
+      }
 
     bool Bind(bool localOnly, int port, int range=0) override;
     bool Connect() override { return false; }
@@ -202,13 +204,13 @@ namespace SOCKETS
     void Close() override;
 
   protected:
-    SOCKET m_iSock{INVALID_SOCKET};
+    SOCKET m_iSock;
     CAddress m_addr;
 
   private:
     bool CheckIPv6(int port, int range);
 
-    bool m_ipv6Socket{false};
+    bool m_ipv6Socket;
   };
 
   /**********************************************************************/

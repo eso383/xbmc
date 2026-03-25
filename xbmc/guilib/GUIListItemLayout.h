@@ -16,7 +16,6 @@
 class CGUIListItem;
 class CFileItem;
 class CLabelInfo;
-class TiXmlElement;
 
 class CGUIListItemLayout final
 {
@@ -50,7 +49,7 @@ public:
 #ifdef _DEBUG
   void DumpTextureUse();
 #endif
-  bool CheckCondition();
+  bool CheckCondition() const;
 protected:
   void LoadControl(TiXmlElement *child, CGUIControlGroup *group);
 

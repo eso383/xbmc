@@ -10,7 +10,7 @@
 
 #include "guilib/GUIWindow.h"
 #include "interfaces/IAnnouncer.h"
-#include "jobs/IJobCallback.h"
+#include "utils/Job.h"
 
 class CVariant;
 

@@ -28,12 +28,12 @@ bool CMusicLibraryScanningJob::Cancel()
   return true;
 }
 
-bool CMusicLibraryScanningJob::Equals(const CJob* job) const
+bool CMusicLibraryScanningJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CMusicLibraryScanningJob* scanningJob = dynamic_cast<const CMusicLibraryScanningJob*>(job);
+  auto scanningJob = dynamic_cast<const CMusicLibraryScanningJob*>(job);
   if (scanningJob == nullptr)
     return false;
 

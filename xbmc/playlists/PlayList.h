@@ -17,13 +17,13 @@
 class CFileItem;
 class CFileItemList;
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 
 class CPlayList
 {
 public:
-  explicit CPlayList(Id id = Id::TYPE_NONE);
+  explicit CPlayList(PLAYLIST::Id id = PLAYLIST::TYPE_NONE);
   virtual ~CPlayList(void) = default;
   virtual bool Load(const std::string& strFileName);
   virtual bool LoadData(std::istream &stream);
@@ -67,7 +67,7 @@ public:
   const std::string& ResolveURL(const std::shared_ptr<CFileItem>& item) const;
 
 protected:
-  Id m_id;
+  PLAYLIST::Id m_id;
   std::string m_strPlayListName;
   std::string m_strBasePath;
   int m_iPlayableItems;
@@ -83,11 +83,10 @@ private:
   void DecrementOrder(int iOrder);
   void IncrementOrder(int iPosition, int iOrder);
 
-  void AnnounceRemove(int pos);
-  void AnnounceClear();
-  void AnnounceAdd(const std::shared_ptr<CFileItem>& item, int pos);
+  void AnnounceRemove(int pos) const;
+  void AnnounceClear() const;
+  void AnnounceAdd(const std::shared_ptr<CFileItem>& item, int pos) const;
 };
 
 typedef std::shared_ptr<CPlayList> CPlayListPtr;
-
-} // namespace KODI::PLAYLIST
+}

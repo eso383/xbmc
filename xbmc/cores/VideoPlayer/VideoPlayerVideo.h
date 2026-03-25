@@ -28,7 +28,6 @@
 #define DROP_BUFFER_LEVEL 4
 
 class CDemuxStreamVideo;
-class CDataCacheCore;
 
 class CDroppingStats
 {
@@ -48,19 +47,24 @@ public:
 class CVideoPlayerVideo : public CThread, public IDVDStreamPlayerVideo
 {
 public:
-  CVideoPlayerVideo(CDVDClock* pClock,
-                    CDVDOverlayContainer* pOverlayContainer,
-                    CDVDMessageQueue& parent,
-                    CRenderManager& renderManager,
-                    CProcessInfo& processInfo,
-                    double messageQueueTimeSize);
+  CVideoPlayerVideo(
+    CDVDClock* pClock,
+    CDVDOverlayContainer* pOverlayContainer,
+    CDVDMessageQueue& parent,
+    CRenderManager& renderManager,
+    CProcessInfo &processInfo,
+    double messageQueueTimeSize);
   ~CVideoPlayerVideo() override;
 
   bool OpenStream(CDVDStreamInfo hint) override;
   void CloseStream(bool bWaitForBuffers) override;
+
+  void SetSpeed(int iSpeed) override;
   void Flush(bool sync) override;
+
   bool AcceptsData() const override;
   bool HasData() const override;
+  int  GetLevel() const override { return m_messageQueue.GetLevel(); }
   bool IsInited() const override;
   bool IsEOS() override;
   void SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority = 0) override;
@@ -76,8 +80,6 @@ public:
   double GetOutputDelay() override; /* returns the expected delay, from that a packet is put in queue */
   std::string GetPlayerInfo() override;
   int GetVideoBitrate() override;
-  void SetSpeed(int iSpeed) override;
-  void SetEOS(bool eos) override { m_isEOS = eos; }
   bool SupportsExtention() const override { return m_pVideoCodec && m_pVideoCodec->SupportsExtention(); }
 
   // classes
@@ -98,17 +100,14 @@ protected:
   void Process() override;
 
   bool ProcessDecoderOutput(double &frametime, double &pts);
+  void UpdatePlayerInfo();
   void SendMessageBack(const std::shared_ptr<CDVDMsg>& pMsg, int priority = 0);
   MsgQueueReturnCode GetMessage(std::shared_ptr<CDVDMsg>& pMsg,
                                 std::chrono::milliseconds timeout,
                                 int& priority);
 
-  int GetLevel() const override { return m_messageQueue.GetLevel(); }
-
-  void UpdatePlayerInfo();
-
   EOutputState OutputPicture(const VideoPicture& src);
-  void ProcessOverlays(const VideoPicture& source, double pts);
+  void ProcessOverlays(const VideoPicture& source, double pts) const;
   void OpenStream(CDVDStreamInfo& hint, std::unique_ptr<CDVDVideoCodec> codec);
 
   void ResetFrameRateCalc();
@@ -151,10 +150,9 @@ protected:
   std::list<DVDMessageListItem> m_packets;
   CDroppingStats m_droppingStats;
   CRenderManager& m_renderManager;
-  CDataCacheCore& m_dataCacheCore;
   VideoPicture m_picture;
 
-  EOutputState m_outputSate{OUTPUT_NORMAL};
+  EOutputState m_outputSate;
 
   bool m_displayReset{false};
   std::chrono::steady_clock::time_point m_lastDisplayReset{std::chrono::steady_clock::time_point::min()};

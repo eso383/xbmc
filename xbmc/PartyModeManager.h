@@ -15,38 +15,37 @@
 
 class CFileItem; typedef std::shared_ptr<CFileItem> CFileItemPtr;
 class CFileItemList;
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
-enum class Id;
+using Id = int;
 class CPlayList;
 }
 
-enum class PartyModeContext
+typedef enum
 {
-  UNKNOWN,
-  MUSIC,
-  VIDEO,
-};
+  PARTYMODECONTEXT_UNKNOWN,
+  PARTYMODECONTEXT_MUSIC,
+  PARTYMODECONTEXT_VIDEO
+} PartyModeContext;
 
 class CPartyModeManager final
 {
 public:
   CPartyModeManager(void);
 
-  bool Enable(PartyModeContext context = PartyModeContext::MUSIC,
-              const std::string& strXspPath = "");
+  bool Enable(PartyModeContext context=PARTYMODECONTEXT_MUSIC, const std::string& strXspPath = "");
   void Disable();
   void Play(int iPos);
   void OnSongChange(bool bUpdatePlayed = false);
-  void AddUserSongs(KODI::PLAYLIST::CPlayList& tempList, bool bPlay = false);
+  void AddUserSongs(PLAYLIST::CPlayList& tempList, bool bPlay = false);
   void AddUserSongs(CFileItemList& tempList, bool bPlay = false);
-  bool IsEnabled(PartyModeContext context = PartyModeContext::UNKNOWN) const;
-  int GetSongsPlayed();
-  int GetMatchingSongs();
-  int GetMatchingSongsPicked();
-  int GetMatchingSongsLeft();
-  int GetRelaxedSongs();
-  int GetRandomSongs();
+  bool IsEnabled(PartyModeContext context=PARTYMODECONTEXT_UNKNOWN) const;
+  int GetSongsPlayed() const;
+  int GetMatchingSongs() const;
+  int GetMatchingSongsPicked() const;
+  int GetMatchingSongsLeft() const;
+  int GetRelaxedSongs() const;
+  int GetRandomSongs() const;
   PartyModeContext GetType() const;
 
 private:
@@ -54,13 +53,13 @@ private:
   bool AddRandomSongs();
   void Add(CFileItemPtr &pItem);
   bool ReapSongs();
-  bool MovePlaying();
+  bool MovePlaying() const;
   void SendUpdateMessage();
   void OnError(int iError, const std::string& strLogMessage);
   void ClearState();
   void UpdateStats();
-  void Announce();
-  KODI::PLAYLIST::Id GetPlaylistId() const;
+  void Announce() const;
+  PLAYLIST::Id GetPlaylistId() const;
 
   // state
   bool m_bEnabled;

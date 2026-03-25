@@ -18,27 +18,23 @@
 #include "pvr/guilib/PVRGUIActionsEPG.h"
 #include "pvr/guilib/PVRGUIActionsPlayback.h"
 #include "pvr/guilib/PVRGUIActionsTimers.h"
+#include "pvr/guilib/PVRGUIRecordingsPlayActionProcessor.h"
 #include "pvr/recordings/PVRRecordings.h"
 #include "pvr/timers/PVRTimerInfoTag.h"
 #include "pvr/timers/PVRTimers.h"
-#include "video/guilib/VideoPlayActionProcessor.h"
 
 #include <memory>
 
 using namespace PVR;
 
-namespace
-{
-constexpr unsigned int CONTROL_BTN_FIND = 4;
-constexpr unsigned int CONTROL_BTN_SWITCH = 5;
-constexpr unsigned int CONTROL_BTN_RECORD = 6;
-constexpr unsigned int CONTROL_BTN_OK = 7;
-constexpr unsigned int CONTROL_BTN_PLAY_RECORDING = 8;
-constexpr unsigned int CONTROL_BTN_ADD_TIMER = 9;
-constexpr unsigned int CONTROL_BTN_PLAY_EPGTAG = 10;
-constexpr unsigned int CONTROL_BTN_SET_REMINDER = 11;
-
-} // unnamed namespace
+#define CONTROL_BTN_FIND 4
+#define CONTROL_BTN_SWITCH 5
+#define CONTROL_BTN_RECORD 6
+#define CONTROL_BTN_OK 7
+#define CONTROL_BTN_PLAY_RECORDING 8
+#define CONTROL_BTN_ADD_TIMER 9
+#define CONTROL_BTN_PLAY_EPGTAG 10
+#define CONTROL_BTN_SET_REMINDER 11
 
 CGUIDialogPVRGuideInfo::CGUIDialogPVRGuideInfo()
   : CGUIDialog(WINDOW_DIALOG_PVR_GUIDE_INFO, "DialogPVRInfo.xml")
@@ -144,10 +140,9 @@ bool CGUIDialogPVRGuideInfo::OnClickButtonPlay(const CGUIMessage& message)
         const auto recording{CPVRItem(m_progItem).GetRecording()};
         if (recording)
         {
-          KODI::VIDEO::GUILIB::CVideoPlayActionProcessor proc{
-              std::make_shared<CFileItem>(recording)};
+          CGUIPVRRecordingsPlayActionProcessor proc{std::make_shared<CFileItem>(recording)};
           proc.ProcessDefaultAction();
-          if (proc.GetUserCancelled())
+          if (proc.UserCancelled())
             Open();
         }
       }
@@ -158,7 +153,8 @@ bool CGUIDialogPVRGuideInfo::OnClickButtonPlay(const CGUIMessage& message)
       }
       else
       {
-        CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(*m_progItem);
+        CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
+            *m_progItem, true /* bCheckResume */);
       }
       bReturn = true;
     }
@@ -183,11 +179,12 @@ bool CGUIDialogPVRGuideInfo::OnClickButtonFind(const CGUIMessage& message)
 
 bool CGUIDialogPVRGuideInfo::OnMessage(CGUIMessage& message)
 {
-  if (message.GetMessage() == GUI_MSG_CLICKED)
+  switch (message.GetMessage())
   {
-    return OnClickButtonOK(message) || OnClickButtonRecord(message) || OnClickButtonPlay(message) ||
-           OnClickButtonFind(message) || OnClickButtonAddTimer(message) ||
-           OnClickButtonSetReminder(message);
+    case GUI_MSG_CLICKED:
+      return OnClickButtonOK(message) || OnClickButtonRecord(message) ||
+             OnClickButtonPlay(message) || OnClickButtonFind(message) ||
+             OnClickButtonAddTimer(message) || OnClickButtonSetReminder(message);
   }
 
   return CGUIDialog::OnMessage(message);
@@ -219,7 +216,7 @@ void CGUIDialogPVRGuideInfo::OnInitWindow()
     return;
   }
 
-  const auto& mgr{CServiceBroker::GetPVRManager()};
+  auto& mgr = CServiceBroker::GetPVRManager();
   const auto epgTag = m_progItem->GetEPGInfoTag();
 
   if (!mgr.Recordings()->GetRecordingForEpgTag(epgTag))

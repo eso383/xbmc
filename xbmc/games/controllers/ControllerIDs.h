@@ -8,19 +8,19 @@
 
 #pragma once
 
+// Default controller IDs
+#define DEFAULT_CONTROLLER_ID "game.controller.default"
+#define DEFAULT_KEYBOARD_ID "game.controller.keyboard"
+#define DEFAULT_MOUSE_ID "game.controller.mouse"
+#define DEFAULT_REMOTE_ID "game.controller.remote"
+
 namespace KODI
 {
 namespace GAME
 {
 
-// Default controller IDs
-constexpr const char* DEFAULT_CONTROLLER_ID = "game.controller.default";
-constexpr const char* DEFAULT_KEYBOARD_ID = "game.controller.keyboard";
-constexpr const char* DEFAULT_MOUSE_ID = "game.controller.mouse";
-constexpr const char* DEFAULT_REMOTE_ID = "game.controller.remote";
-
 // Used to set the appearance of PlayStation controllers
-constexpr const char* CONTROLLER_ID_PLAYSTATION = "game.controller.ps.dualanalog";
+constexpr auto CONTROLLER_ID_PLAYSTATION = "game.controller.ps.dualanalog";
 
 } // namespace GAME
 } // namespace KODI

@@ -18,12 +18,11 @@
 #include "ServiceBroker.h"
 #include "filesystem/CurlFile.h"
 #include "filesystem/File.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
 #include "network/Network.h"
 #include "platform/Filesystem.h"
 #include "rendering/RenderSystem.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/CPUInfo.h"
@@ -90,7 +89,7 @@ auto startTime = std::chrono::steady_clock::now();
 #if defined(TARGET_WEBOS)
 constexpr const char* osReleaseFile = "/usr/lib/os-release";
 #elif defined(TARGET_LINUX) && !defined(TARGET_ANDROID)
-constexpr const char* osReleaseFile = "/etc/os-release";
+constexpr auto osReleaseFile = "/etc/os-release";
 #endif
 }
 
@@ -148,7 +147,7 @@ static std::string getValueFromOs_release(std::string key)
   if (!os_rel)
     return "";
 
-  char* buf = new char[10 * 1024]; // more than enough
+  auto buf = new char[10 * 1024]; // more than enough
   size_t len = fread(buf, 1, 10 * 1024, os_rel);
   fclose(os_rel);
   if (len == 0)
@@ -258,11 +257,11 @@ static std::string getValueFromLsb_release(enum lsb_rel_info_type infoType)
   }
   command += " 2>/dev/null";
   FILE* lsb_rel = popen(command.c_str(), "r");
-  if (lsb_rel == NULL)
+  if (lsb_rel == nullptr)
     return "";
 
   char buf[300]; // more than enough
-  if (fgets(buf, 300, lsb_rel) == NULL)
+  if (fgets(buf, 300, lsb_rel) == nullptr)
   {
     pclose(lsb_rel);
     return "";
@@ -316,15 +315,10 @@ CSysData::INTERNET_STATE CSysInfoJob::GetInternetState()
 std::string CSysInfoJob::GetMACAddress()
 {
   CNetworkInterface* iface = CServiceBroker::GetNetwork().GetFirstConnectedInterface();
-  std::string mac;
   if (iface)
-  {
-    mac = iface->GetMacAddress();
-    if (mac.empty())
-      mac =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10005); // Not available
-  }
-  return mac;
+    return iface->GetMacAddress();
+
+  return "";
 }
 
 std::string CSysInfoJob::GetIPAddress()
@@ -359,16 +353,16 @@ std::string CSysInfoJob::GetGatewayAddress()
 
 std::string CSysInfoJob::GetNetworkLinkState()
 {
-  std::string linkStatus = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(151);
+  std::string linkStatus = g_localizeStrings.Get(151);
   linkStatus += " ";
   CNetworkInterface* iface = CServiceBroker::GetNetwork().GetFirstConnectedInterface();
   if (iface && iface->IsConnected())
   {
-    linkStatus += CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15207);
+    linkStatus += g_localizeStrings.Get(15207);
   }
   else
   {
-    linkStatus += CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15208);
+    linkStatus += g_localizeStrings.Get(15208);
   }
   return linkStatus;
 }
@@ -422,23 +416,18 @@ std::string CSysInfoJob::GetSystemUpTime(bool bTotalUptime)
   SystemUpTime(iInputMinutes,iMinutes, iHours, iDays);
   if (iDays > 0)
   {
-    strSystemUptime = StringUtils::Format(
-        "{} {}, {} {}, {} {}", iDays,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12393), iHours,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12392), iMinutes,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12391));
+    strSystemUptime =
+        StringUtils::Format("{} {}, {} {}, {} {}", iDays, g_localizeStrings.Get(12393), iHours,
+                            g_localizeStrings.Get(12392), iMinutes, g_localizeStrings.Get(12391));
   }
   else if (iDays == 0 && iHours >= 1 )
   {
-    strSystemUptime = StringUtils::Format(
-        "{} {}, {} {}", iHours,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12392), iMinutes,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12391));
+    strSystemUptime = StringUtils::Format("{} {}, {} {}", iHours, g_localizeStrings.Get(12392),
+                                          iMinutes, g_localizeStrings.Get(12391));
   }
   else if (iDays == 0 && iHours == 0 &&  iMinutes >= 0)
   {
-    strSystemUptime = StringUtils::Format(
-        "{} {}", iMinutes, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12391));
+    strSystemUptime = StringUtils::Format("{} {}", iMinutes, g_localizeStrings.Get(12391));
   }
   return strSystemUptime;
 }
@@ -458,13 +447,9 @@ std::string CSysInfo::TranslateInfo(int info) const
   case NETWORK_GATEWAY_ADDRESS:
     return m_info.gatewayAddress;
   case NETWORK_DNS1_ADDRESS:
-    return !m_info.dnsServers.empty()
-               ? m_info.dnsServers.at(0)
-               : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(231);
+    return m_info.dnsServers.size() > 0 ? m_info.dnsServers.at(0) : g_localizeStrings.Get(231);
   case NETWORK_DNS2_ADDRESS:
-    return m_info.dnsServers.size() > 1
-               ? m_info.dnsServers.at(1)
-               : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(231);
+    return m_info.dnsServers.size() > 1 ? m_info.dnsServers.at(1) : g_localizeStrings.Get(231);
   case NETWORK_LINK_STATE:
     return m_info.networkLinkState;
   case SYSTEM_OS_VERSION_INFO:
@@ -477,9 +462,9 @@ std::string CSysInfo::TranslateInfo(int info) const
     return m_info.systemTotalUptime;
   case SYSTEM_INTERNET_STATE:
     if (m_info.internetState == CSysData::CONNECTED)
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13296);
+      return g_localizeStrings.Get(13296);
     else
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13297);
+      return g_localizeStrings.Get(13297);
   case SYSTEM_LINUX_VER:
     return m_info.linuxver;
   default:
@@ -502,7 +487,7 @@ CSysInfo::~CSysInfo() = default;
 
 bool CSysInfo::Load(const TiXmlNode *settings)
 {
-  if (settings == NULL)
+  if (settings == nullptr)
     return false;
 
   const TiXmlElement *pElement = settings->FirstChildElement("general");
@@ -514,15 +499,15 @@ bool CSysInfo::Load(const TiXmlNode *settings)
 
 bool CSysInfo::Save(TiXmlNode *settings) const
 {
-  if (settings == NULL)
+  if (settings == nullptr)
     return false;
 
   TiXmlNode *generalNode = settings->FirstChild("general");
-  if (generalNode == NULL)
+  if (generalNode == nullptr)
   {
     TiXmlElement generalNodeNew("general");
     generalNode = settings->InsertEndChild(generalNodeNew);
-    if (generalNode == NULL)
+    if (generalNode == nullptr)
       return false;
   }
   XMLUtils::SetInt(generalNode, "systemtotaluptime", m_iSystemTimeTotalUp);
@@ -1035,8 +1020,7 @@ int CSysInfo::GetKernelBitness(void)
     GetNativeSystemInfo(&si);
     if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL || si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM)
       kernelBitness = 32;
-    else if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ||
-             si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64)
+    else if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
       kernelBitness = 64;
     else
     {
@@ -1080,8 +1064,7 @@ const std::string& CSysInfo::GetKernelCpuFamily(void)
     if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ||
         si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
         kernelCpuFamily = "x86";
-    else if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM ||
-             si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64)
+    else if (si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM)
       kernelCpuFamily = "ARM";
 #elif defined(TARGET_DARWIN)
     const NXArchInfo* archInfo = NXGetLocalArchInfo();
@@ -1129,8 +1112,7 @@ int CSysInfo::GetXbmcBitness(void)
   return static_cast<int>(sizeof(void*) * 8);
 }
 
-bool CSysInfo::HasInternet()
-{
+bool CSysInfo::HasInternet() const {
   return m_info.internetState == CSysData::UNKNOWN;
 }
 
@@ -1164,29 +1146,19 @@ std::string CSysInfo::GetHddSpaceInfo(int& percent, int drive, bool shortText)
       switch(drive)
       {
       case SYSTEM_FREE_SPACE:
-        strRet = StringUtils::Format(
-            "{} MB {}", totalFree,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(160));
+        strRet = StringUtils::Format("{} MB {}", totalFree, g_localizeStrings.Get(160));
         break;
       case SYSTEM_USED_SPACE:
-        strRet = StringUtils::Format(
-            "{} MB {}", totalUsed,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20162));
+        strRet = StringUtils::Format("{} MB {}", totalUsed, g_localizeStrings.Get(20162));
         break;
       case SYSTEM_TOTAL_SPACE:
-        strRet = StringUtils::Format(
-            "{} MB {}", total,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20161));
+        strRet = StringUtils::Format("{} MB {}", total, g_localizeStrings.Get(20161));
         break;
       case SYSTEM_FREE_SPACE_PERCENT:
-        strRet = StringUtils::Format(
-            "{} % {}", percentFree,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(160));
+        strRet = StringUtils::Format("{} % {}", percentFree, g_localizeStrings.Get(160));
         break;
       case SYSTEM_USED_SPACE_PERCENT:
-        strRet = StringUtils::Format(
-            "{} % {}", percentused,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20162));
+        strRet = StringUtils::Format("{} % {}", percentused, g_localizeStrings.Get(20162));
         break;
       }
     }
@@ -1194,10 +1166,9 @@ std::string CSysInfo::GetHddSpaceInfo(int& percent, int drive, bool shortText)
   else
   {
     if (shortText)
-      strRet = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10006); // N/A
+      strRet = g_localizeStrings.Get(10006); // N/A
     else
-      strRet =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10005); // Not available
+      strRet = g_localizeStrings.Get(10005); // Not available
   }
   return strRet;
 }
@@ -1499,7 +1470,7 @@ std::string CSysInfo::GetBuildTargetCpuFamily(void)
 {
 #if defined(__thumb__) || defined(_M_ARMT)
   return "ARM (Thumb)";
-#elif defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__arm__) || defined(_M_ARM) || defined (__aarch64__)
   return "ARM";
 #elif defined(__loongarch__)
   return "LoongArch";
@@ -1557,7 +1528,7 @@ std::string CSysInfo::GetPrivacyPolicy()
       m_privacyPolicy = std::string(reinterpret_cast<char*>(buf.data()), buf.size());
     }
     else
-      m_privacyPolicy = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19055);
+      m_privacyPolicy = g_localizeStrings.Get(19055);
   }
   return m_privacyPolicy;
 }

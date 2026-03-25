@@ -58,7 +58,7 @@ protected:
   void UpdateName();
   bool SetPictureParams(VideoPicture* pVideoPicture);
 
-  bool HasHardware() { return m_pHardware != nullptr; }
+  bool HasHardware() const { return m_pHardware != nullptr; }
   void SetHardware(IHardwareDecoder *hardware);
 
   AVFrame* m_pFrame = nullptr;;
@@ -116,4 +116,7 @@ protected:
       VALID
     } m_state;
   } m_dropCtrl;
+
+private:
+  void SetProcessInfoVideoDetails() const;
 };

@@ -10,9 +10,7 @@
 
 #include "input/keyboard/KeyboardTypes.h"
 #include "input/mouse/MouseTypes.h"
-#include "threads/SystemClock.h"
 
-#include <map>
 #include <set>
 
 namespace KODI
@@ -34,7 +32,7 @@ public:
   CControllerActivity() = default;
   ~CControllerActivity() = default;
 
-  float GetActivation() const;
+  float GetActivation() const { return m_lastActivation; }
   void ClearButtonState();
 
   void OnButtonPress(bool pressed);
@@ -50,18 +48,15 @@ public:
   void OnInputFrame();
 
 private:
-  struct MousePointer
-  {
-    bool active{false};
-    XbmcThreads::EndTime<> timer;
-  };
+  // Input helpers
+  static INPUT::INTERCARDINAL_DIRECTION GetPointerDirection(int differenceX, int differenceY);
 
   // State parameters
   float m_lastActivation{0.0f};
   float m_currentActivation{0.0f};
   KEYBOARD::KeyName m_activeKey;
-  std::map<MOUSE::PointerName, MousePointer, std::less<>> m_mousePointers;
-  std::set<MOUSE::ButtonName, std::less<>> m_activeMouseButtons;
+  std::set<MOUSE::PointerName> m_activePointers;
+  std::set<MOUSE::ButtonName> m_activeButtons;
   bool m_bKeyPressed{false};
 };
 } // namespace GAME

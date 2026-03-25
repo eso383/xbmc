@@ -14,7 +14,6 @@
 #include "utils/EventStream.h"
 
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace PVR
@@ -30,7 +29,17 @@ struct PVRChannelNumberInputChangedEvent
 class CPVRChannelNumberInputHandler : private ITimerCallback
 {
 public:
+  static const int CHANNEL_NUMBER_INPUT_MAX_DIGITS = 5;
+
   CPVRChannelNumberInputHandler();
+
+  /*!
+   * @brief ctor.
+   * @param iDelay timer delay in millisecods.
+   * @param iMaxDigits maximum number of display digits to use.
+   */
+  CPVRChannelNumberInputHandler(int iDelay, int iMaxDigits = CHANNEL_NUMBER_INPUT_MAX_DIGITS);
+
   ~CPVRChannelNumberInputHandler() override = default;
 
   /*!
@@ -90,14 +99,16 @@ protected:
    */
   size_t GetCurrentDigitCount() const { return m_inputBuffer.size(); }
 
+  mutable CCriticalSection m_mutex;
+
 private:
   void ExecuteAction();
 
-  void SetLabel(std::string_view label);
+  void SetLabel(const std::string& label);
 
-  mutable CCriticalSection m_mutex;
   std::vector<std::string> m_sortedChannelNumbers;
-  const uint32_t m_delay{2000}; // 2 secs
+  const int m_iDelay;
+  const int m_iMaxDigits;
   std::string m_inputBuffer;
   std::string m_label;
   CTimer m_timer;

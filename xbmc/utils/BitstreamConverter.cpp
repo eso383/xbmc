@@ -88,42 +88,6 @@ enum
 
 enum
 {
-  VVC_TRAIL_NUT = 0,
-  VVC_STSA_NUT = 1,
-  VVC_RADL_NUT = 2,
-  VVC_RASL_NUT = 3,
-  VVC_RSV_VCL_4 = 4,
-  VVC_RSV_VCL_5 = 5,
-  VVC_RSV_VCL_6 = 6,
-  VVC_IDR_W_RADL = 7,
-  VVC_IDR_N_LP = 8,
-  VVC_CRA_NUT = 9,
-  VVC_GDR_NUT = 10,
-  VVC_RSV_IRAP_11 = 11,
-  VVC_OPI_NUT = 12,
-  VVC_DCI_NUT = 13,
-  VVC_VPS_NUT = 14,
-  VVC_SPS_NUT = 15,
-  VVC_PPS_NUT = 16,
-  VVC_PREFIX_APS_NUT = 17,
-  VVC_SUFFIX_APS_NUT = 18,
-  VVC_PH_NUT = 19,
-  VVC_AUD_NUT = 20,
-  VVC_EOS_NUT = 21,
-  VVC_EOB_NUT = 22,
-  VVC_PREFIX_SEI_NUT = 23,
-  VVC_SUFFIX_SEI_NUT = 24,
-  VVC_FD_NUT = 25,
-  VVC_RSV_NVCL_26 = 26,
-  VVC_RSV_NVCL_27 = 27,
-  VVC_UNSPEC_28 = 28,
-  VVC_UNSPEC_29 = 29,
-  VVC_UNSPEC_30 = 30,
-  VVC_UNSPEC_31 = 31,
-};
-
-enum
-{
   SEI_BUFFERING_PERIOD = 0,
   SEI_PIC_TIMING,
   SEI_PAN_SCAN_RECT,
@@ -392,7 +356,7 @@ CBitstreamConverter::CBitstreamConverter(CDVDStreamInfo& hints)
   m_convert_3byteTo4byteNALSize = false;
   m_convert_bytestream = false;
   m_sps_pps_context.sps_pps_data = NULL;
-  m_start_decode_policy = StartDecodePolicy::None;
+  m_start_decode = false;
   m_convert_dovi = DOVIMode::MODE_NONE;
   m_append_cmv40 = DOVICMv40Mode::CMV40_NONE;
   m_convert_Hdr10Plus = false;
@@ -560,23 +524,6 @@ bool CBitstreamConverter::Open(bool to_annexb)
       }
       return false;
       break;
-    case AV_CODEC_ID_VVC:
-      if (in_extradata && in_extradata[0] == 0xff && (in_extradata[1] & 0xf0) == 0x0)
-      {
-        std::string extradatastr;
-        CLog::Log(LOGINFO, "CBitstreamConverter::Open VVC, convert to annexb format");
-
-        m_extraData = FFmpegExtraData(in_extradata, in_extrasize);
-        m_convert_bytestream =
-            BitstreamConvertInitVVC(m_extraData.GetData(), m_extraData.GetSize());
-      }
-      else
-      {
-        CLog::Log(LOGINFO, "CBitstreamConverter::Open VVC, no extra data");
-        m_convert_bytestream = true;
-      }
-      return true;
-      break;
     default:
       return false;
       break;
@@ -650,7 +597,7 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
         {
           m_inputSize = iSize;
           m_inputBuffer = pData;
-          SetStartDecode(StartDecodePolicy::Default);
+          m_start_decode = true; // TODO: should really wait for IDR even though not converting.
           return true;
         }
       }
@@ -708,57 +655,6 @@ bool CBitstreamConverter::Convert(uint8_t* pData, int iSize, double pts)
         }
         return true;
       }
-    }
-    else if (m_codec == AV_CODEC_ID_VVC)
-    {
-      if (m_to_annexb)
-      {
-        int nal_stream_pos = 0;
-
-        m_inputSize = iSize;
-        m_inputBuffer = pData;
-
-        if (!CanStartDecode())
-        {
-          uint32_t packet_format = AV_RB32(m_inputBuffer);
-          m_convert_bytestream = packet_format != 0x1 && packet_format != 0x100;
-        }
-
-        while (nal_stream_pos < iSize)
-        {
-          if (m_convert_bytestream)
-          {
-            static const uint8_t nalu_header[4] = {0, 0, 0, 1};
-            uint32_t unit_size = AV_RB32(m_inputBuffer + nal_stream_pos) + 4;
-            uint16_t unit_type = (AV_RB16(m_inputBuffer + nal_stream_pos + 4) >> 3) & 0x1f;
-
-            if (unit_type == VVC_SPS_NUT || IsIDR(unit_type))
-              SetStartDecode(unit_type);
-
-            memcpy(m_inputBuffer + nal_stream_pos, nalu_header, 4);
-            nal_stream_pos += unit_size;
-          }
-          else if (!CanStartDecode())
-          {
-            uint8_t* buf = m_inputBuffer + nal_stream_pos;
-
-            if (buf[0] == 0x0 && buf[1] == 0x0 && buf[2] == 0x1)
-            {
-              uint16_t unit_type = (AV_RB16(m_inputBuffer + nal_stream_pos + 3) >> 3) & 0x1f;
-
-              if (unit_type == VVC_SPS_NUT || IsIDR(unit_type))
-                SetStartDecode(unit_type);
-
-              nal_stream_pos += 5;
-            }
-            else
-              nal_stream_pos++;
-          }
-          else
-            break;
-        }
-      }
-      return true;
     }
   }
 
@@ -823,7 +719,7 @@ bool CBitstreamConverter::Convert(uint8_t *pData_bl, int iSize_bl, uint8_t *pDat
           break;
 
         default:
-          if (IsIDR(nal_type)) SetStartDecode(nal_type);
+          if (!m_start_decode && IsIDR(nal_type)) m_start_decode = true;
           BitstreamAllocAndCopy(&m_convertBuffer, &offset, buf, size, nal_type);
           break;
       }
@@ -931,26 +827,12 @@ int CBitstreamConverter::GetExtraSize() const
 
 void CBitstreamConverter::ResetStartDecode()
 {
-  m_start_decode_policy = StartDecodePolicy::None;
+  m_start_decode = false;
 }
 
-bool CBitstreamConverter::CanStartDecode(StartDecodePolicy policy) const
+bool CBitstreamConverter::CanStartDecode() const
 {
-  return static_cast<int>(m_start_decode_policy) >= static_cast<int>(policy);
-}
-
-void CBitstreamConverter::SetStartDecode(StartDecodePolicy policy)
-{
-  if (static_cast<int>(policy) > static_cast<int>(m_start_decode_policy))
-    m_start_decode_policy = policy;
-}
-
-void CBitstreamConverter::SetStartDecode(uint8_t unit_type)
-{
-  const StartDecodePolicy policy = GetStartDecodePolicy(unit_type);
-
-  if (static_cast<int>(policy) > static_cast<int>(m_start_decode_policy))
-    m_start_decode_policy = policy;
+  return m_start_decode;
 }
 
 bool CBitstreamConverter::BitstreamConvertInitAVC(void* in_extradata, int in_extrasize)
@@ -1129,122 +1011,6 @@ bool CBitstreamConverter::BitstreamConvertInitHEVC(void* in_extradata, int in_ex
   return true;
 }
 
-bool CBitstreamConverter::BitstreamConvertInitVVC(void* in_extradata, int in_extrasize)
-{
-  m_sps_pps_size = 0;
-  m_sps_pps_context.sps_pps_data = NULL;
-
-  // nothing to filter
-  if (!in_extradata)
-    return false;
-
-  uint16_t unit_size;
-  uint32_t total_size = 0;
-  uint8_t *out = NULL, array_nb, nal_type, sps_seen = 0, pps_seen = 0;
-  uint8_t num_sublayers, num_bytes_constraint_info, ptl_sublayer_level_present_flags;
-  const uint8_t* extradata = (uint8_t*)in_extradata;
-  static const uint8_t nalu_header[4] = {0, 0, 0, 1};
-
-  // length coded size
-  m_sps_pps_context.length_size = sizeof(nalu_header);
-
-  // skip several fields of VVCDecoderConfigurationRecord
-  // extradata point to 00 after FF, 8b
-  extradata++;
-  // ols_idx, num_sublayers , constant_frame_rate, chroma_format_idc, 16b
-  num_sublayers = ((extradata[0] << 8 | extradata[1]) >> 4) & 0x7;
-  extradata += 2;
-  // bit_depth_minus8, 8b
-  extradata++;
-  // num_bytes_constraint_info, 8b
-  num_bytes_constraint_info = extradata[0] & 0x3f;
-  extradata++;
-  // general_profile_idc, general_tier_flag, 8b
-  // general_level_idc, 8b
-  extradata += 2;
-  // constraint_info, 8b * num_bytes_constraint_info
-  extradata += num_bytes_constraint_info;
-  // ptl_sublayer_level_present_flag, 8b
-  ptl_sublayer_level_present_flags = *extradata++ & 0x3f;
-  for (int i = num_sublayers - 2; i >= 0; i--)
-    if ((ptl_sublayer_level_present_flags >> i) & 0x1)
-      extradata++;
-  // ptl_num_sub_profiles, 8b
-  extradata++;
-  // max_picture_width, 16b
-  extradata += 2;
-  // max_picture_height, 16b
-  extradata += 2;
-  // avg_frame_rate, 16b
-  extradata += 2;
-  // num_of_arrays, 8b
-  array_nb = *extradata++;
-
-  while (array_nb--)
-  {
-    void* tmp;
-
-    extradata++; // array_completeness, 8b
-    if (extradata[0] == 0x0 && extradata[1] == 0x01)
-    {
-      extradata += 2; // nal header, 16b
-      unit_size = extradata[0] << 8 | extradata[1];
-      extradata += 2; // nal unit size, 16b
-      nal_type = (extradata[1] >> 3) & 0x1f;
-
-      if (nal_type == VVC_SPS_NUT)
-      {
-        sps_seen = 1;
-        SetStartDecode(StartDecodePolicy::Default);
-      }
-      else if (nal_type == VVC_PPS_NUT)
-      {
-        pps_seen = 1;
-      }
-      else
-      {
-        extradata += unit_size;
-        continue;
-      }
-      total_size += unit_size + 4;
-
-      if (total_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE ||
-          (extradata + unit_size) > ((uint8_t*)in_extradata + in_extrasize))
-      {
-        av_free(out);
-        return false;
-      }
-      tmp = av_realloc(out, total_size + AV_INPUT_BUFFER_PADDING_SIZE);
-      if (!tmp)
-      {
-        av_free(out);
-        return false;
-      }
-      out = (uint8_t*)tmp;
-      memcpy(out + total_size - unit_size - 4, nalu_header, 4);
-      memcpy(out + total_size - unit_size, extradata, unit_size);
-      extradata += unit_size;
-    }
-    else
-      return false;
-  }
-
-  if (out)
-    memset(out + total_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
-
-  if (!sps_seen)
-    CLog::Log(LOGDEBUG, "SPS NALU missing or invalid. The resulting stream may not play");
-  if (!pps_seen)
-    CLog::Log(LOGDEBUG, "PPS NALU missing or invalid. The resulting stream may not play");
-
-  m_sps_pps_context.sps_pps_data = out;
-  m_sps_pps_context.size = total_size;
-  m_sps_pps_context.first_idr = 1;
-  m_sps_pps_context.idr_sps_pps_seen = 0;
-
-  return true;
-}
-
 bool CBitstreamConverter::IsIDR(uint8_t unit_type)
 {
   switch (m_codec)
@@ -1254,32 +1020,8 @@ bool CBitstreamConverter::IsIDR(uint8_t unit_type)
     case AV_CODEC_ID_HEVC:
       return unit_type == HEVC_NAL_IDR_W_RADL || unit_type == HEVC_NAL_IDR_N_LP ||
              unit_type == HEVC_NAL_CRA_NUT;
-    case AV_CODEC_ID_VVC:
-      return unit_type == VVC_IDR_W_RADL || unit_type == VVC_IDR_N_LP ||
-             unit_type == VVC_CRA_NUT;
     default:
       return false;
-  }
-}
-
-CBitstreamConverter::StartDecodePolicy CBitstreamConverter::GetStartDecodePolicy(uint8_t unit_type) const
-{
-  switch (m_codec)
-  {
-    case AV_CODEC_ID_H264:
-      return unit_type == AVC_NAL_IDR_SLICE ? StartDecodePolicy::Strict
-                                            : StartDecodePolicy::Default;
-    case AV_CODEC_ID_HEVC:
-      return (unit_type == HEVC_NAL_IDR_W_RADL || unit_type == HEVC_NAL_IDR_N_LP ||
-              unit_type == HEVC_NAL_CRA_NUT)
-               ? StartDecodePolicy::Strict
-               : StartDecodePolicy::Default;
-    case AV_CODEC_ID_VVC:
-      return (unit_type == VVC_IDR_W_RADL || unit_type == VVC_IDR_N_LP)
-               ? StartDecodePolicy::Strict
-               : StartDecodePolicy::Default;
-    default:
-      return StartDecodePolicy::None;
   }
 }
 
@@ -1333,6 +1075,16 @@ void CBitstreamConverter::ApplyContentLightLevel(const ContentLightLevel& metada
   }
 }
 
+void CBitstreamConverter::ApplyAlternativeTransferCharacteristics(uint8_t transfer) {
+
+  if ((transfer == AVCOL_TRC_ARIB_STD_B67) &&
+      (m_hints.hdrType != StreamHdrType::HDR_TYPE_HLG))
+  {
+    m_hints.hdrType = StreamHdrType::HDR_TYPE_HLG;
+    m_dataCacheCore.SetVideoSourceHdrType(StreamHdrType::HDR_TYPE_HLG);
+  }
+}
+
 void CBitstreamConverter::UpdateHdrStaticMetadata() const {
 
   HDRStaticMetadataInfo hdrStaticMetadataInfo;
@@ -1360,20 +1112,28 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
 
   bool copy = true;
 
-  std::vector<uint8_t> clearBuf;
-  auto messages = CHevcSei::ParseSeiRbspUnclearedEmulation(buf, nal_size, clearBuf);
+  const auto metadata = CHevcSei::ExtractMetadata(buf, nal_size);
 
   bool updateMetadata = false;
 
-  if (auto colourVolume = CHevcSei::ExtractMasteringDisplayColourVolume(messages, clearBuf))
-    ApplyMasteringDisplayColourVolume(colourVolume.value(), updateMetadata);
+  if (metadata.masteringDisplayColourVolume)
+    ApplyMasteringDisplayColourVolume(*metadata.masteringDisplayColourVolume, updateMetadata);
 
-  if (auto lightLevel = CHevcSei::ExtractContentLightLevel(messages, clearBuf))
-    ApplyContentLightLevel(lightLevel.value(), updateMetadata);
+  if (metadata.contentLightLevel)
+    ApplyContentLightLevel(*metadata.contentLightLevel, updateMetadata);
 
-  if (updateMetadata) UpdateHdrStaticMetadata();
+  if (updateMetadata)
+  {
+    UpdateHdrStaticMetadata();
+    aml_dv_send_hdr10_data();
+  } 
 
-  if (auto res = CHevcSei::ExtractHdr10Plus(messages, clearBuf)) {
+  if (metadata.alternativeTransferCharacteristics)
+    ApplyAlternativeTransferCharacteristics(*metadata.alternativeTransferCharacteristics);
+
+  if (metadata.hdr10Plus) {
+
+    aml_kodi_set_cd_cs(2);
 
     bool isDual = (m_initial_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION); // Original is DV and now also found HDR10+ so is dual.
     bool considerAsHdr10Plus = (!isDual || m_dual_priority_Hdr10Plus || m_prefer_Hdr10Plus_conversion);
@@ -1391,7 +1151,7 @@ void CBitstreamConverter::ProcessSeiPrefix(uint8_t *buf, int32_t nal_size, uint8
     bool convert = (considerAsHdr10Plus && m_convert_Hdr10Plus && !m_dual_priority_Hdr10Plus);
 
     if (convert) {
-      meta = res.value();
+      meta = *metadata.hdr10Plus;
       convert_hdr10plus_meta = true;
     }
 
@@ -1468,14 +1228,19 @@ bool CBitstreamConverter::BitstreamConvert(uint8_t* pData, int iSize, uint8_t **
     if (m_sps_pps_context.first_idr && (unit_type == nal_sps || unit_type == nal_pps))
       m_sps_pps_context.idr_sps_pps_seen = 1;
 
-    if (m_hints.codec == AV_CODEC_ID_H264)
+    if ((m_hints.dovi_el_type == DOVIELType::TYPE_FEL) || (m_hints.dovi_el_type == DOVIELType::TYPE_MEL))
     {
-      if (unit_type == nal_sps || IsIDR(unit_type)) SetStartDecode(unit_type);
+      if (!m_start_decode && IsIDR(unit_type))
+        m_start_decode = true;
     }
     else
     {
-      if (IsIDR(unit_type)) SetStartDecode(unit_type);
+      if (!m_start_decode && (unit_type == nal_sps || IsIDR(unit_type)))
+        m_start_decode = true;
     }
+
+//    if (!m_start_decode && (unit_type == nal_sps || IsIDR(unit_type) || (unit_type == nal_sei && has_sei_recovery_point(buf, buf + nal_size))))
+//      m_start_decode = true;
 
     // prepend only to the first access unit of an IDR picture, if no sps/pps already present
     if (m_sps_pps_context.first_idr && IsIDR(unit_type) && !m_sps_pps_context.idr_sps_pps_seen)

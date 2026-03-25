@@ -12,7 +12,6 @@
 #include "GUIControllerList.h"
 #include "GUIFeatureList.h"
 #include "ServiceBroker.h"
-#include "addons/AddonEvents.h"
 #include "addons/AddonManager.h"
 #include "addons/IAddon.h"
 #include "addons/addoninfo/AddonType.h"
@@ -198,6 +197,27 @@ bool CGUIControllerWindow::OnMessage(CGUIMessage& message)
   return bHandled;
 }
 
+void CGUIControllerWindow::OnEvent(const ADDON::CRepositoryUpdater::RepositoryUpdated& event)
+{
+  UpdateButtons();
+}
+
+void CGUIControllerWindow::OnEvent(const ADDON::AddonEvent& event)
+{
+  using namespace ADDON;
+
+  if (typeid(event) == typeid(AddonEvents::Enabled) || // also called on install,
+      typeid(event) == typeid(AddonEvents::Disabled) || // not called on uninstall
+      typeid(event) == typeid(AddonEvents::UnInstalled) ||
+      typeid(event) == typeid(AddonEvents::ReInstalled))
+  {
+    if (CServiceBroker::GetAddonMgr().HasType(event.addonId, AddonType::GAME_CONTROLLER))
+    {
+      UpdateButtons();
+    }
+  }
+}
+
 void CGUIControllerWindow::OnInitWindow(void)
 {
   // Get active game add-on
@@ -247,24 +267,8 @@ void CGUIControllerWindow::OnInitWindow(void)
   UpdateButtons();
 
   // subscribe to events
-  CServiceBroker::GetRepositoryUpdater().Events().Subscribe(
-      this,
-      [this](const ADDON::CRepositoryUpdater::RepositoryUpdated& /*event*/) { UpdateButtons(); });
-  CServiceBroker::GetAddonMgr().Events().Subscribe(
-      this,
-      [this](const ADDON::AddonEvent& event)
-      {
-        using namespace ADDON;
-
-        if (typeid(event) == typeid(AddonEvents::Enabled) || // also called on install,
-            typeid(event) == typeid(AddonEvents::Disabled) || // not called on uninstall
-            typeid(event) == typeid(AddonEvents::UnInstalled) ||
-            typeid(event) == typeid(AddonEvents::ReInstalled))
-        {
-          if (CServiceBroker::GetAddonMgr().HasType(event.addonId, AddonType::GAME_CONTROLLER))
-            UpdateButtons();
-        }
-      });
+  CServiceBroker::GetRepositoryUpdater().Events().Subscribe(this, &CGUIControllerWindow::OnEvent);
+  CServiceBroker::GetAddonMgr().Events().Subscribe(this, &CGUIControllerWindow::OnEvent);
 }
 
 void CGUIControllerWindow::OnDeinitWindow(int nextWindowID)
@@ -291,26 +295,22 @@ void CGUIControllerWindow::OnDeinitWindow(int nextWindowID)
   m_gameClient.reset();
 }
 
-void CGUIControllerWindow::OnControllerFocused(unsigned int controllerIndex)
-{
+void CGUIControllerWindow::OnControllerFocused(unsigned int controllerIndex) const {
   if (m_controllerList)
     m_controllerList->OnFocus(controllerIndex);
 }
 
-void CGUIControllerWindow::OnControllerSelected(unsigned int controllerIndex)
-{
+void CGUIControllerWindow::OnControllerSelected(unsigned int controllerIndex) const {
   if (m_controllerList)
     m_controllerList->OnSelect(controllerIndex);
 }
 
-void CGUIControllerWindow::OnFeatureFocused(unsigned int buttonIndex)
-{
+void CGUIControllerWindow::OnFeatureFocused(unsigned int buttonIndex) const {
   if (m_featureList)
     m_featureList->OnFocus(buttonIndex);
 }
 
-void CGUIControllerWindow::OnFeatureSelected(unsigned int buttonIndex)
-{
+void CGUIControllerWindow::OnFeatureSelected(unsigned int buttonIndex) const {
   if (m_featureList)
     m_featureList->OnSelect(buttonIndex);
 }
@@ -348,16 +348,14 @@ void CGUIControllerWindow::GetMoreControllers(void)
   }
 }
 
-void CGUIControllerWindow::GetAllControllers()
-{
+void CGUIControllerWindow::GetAllControllers() const {
   if (m_installer->IsRunning())
     return;
 
   m_installer->Create(false);
 }
 
-void CGUIControllerWindow::ResetController(void)
-{
+void CGUIControllerWindow::ResetController(void) const {
   if (m_controllerList)
     m_controllerList->ResetController();
 }

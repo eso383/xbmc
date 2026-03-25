@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -9,25 +9,23 @@
 #pragma once
 
 #include "DVDDemux.h"
-#include "DVDDemuxCC/CaptionBlock.h"
-#include "DVDDemuxCC/ICCBitstreamParser.h"
 
 #include <memory>
 #include <vector>
 
+class CCaptionBlock;
 class CDecoderCC708;
-class ICCBitstreamParser;
 
 class CDVDDemuxCC : public CDVDDemux
 {
 public:
-  explicit CDVDDemuxCC(AVCodecID codec, const uint8_t* extradata, int extrasize);
+  explicit CDVDDemuxCC(AVCodecID codec);
   ~CDVDDemuxCC() override;
 
   bool Reset() override { return true; }
   void Flush() override {};
-  DemuxPacket* Read() override { return NULL; }
-  bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override
+  DemuxPacket* Read() override { return nullptr; }
+  bool SeekTime(double time, bool backwards = false, double* startpts = nullptr) override
   {
     return true;
   }
@@ -54,8 +52,8 @@ protected:
   std::vector<CDemuxStreamSubtitle> m_streams;
   bool m_hasData;
   double m_curPts;
-  std::vector<CCaptionBlock> m_ccReorderBuffer;
-  std::vector<CCaptionBlock> m_ccTempBuffer;
+  std::vector<CCaptionBlock*> m_ccReorderBuffer;
+  std::vector<CCaptionBlock*> m_ccTempBuffer;
   std::unique_ptr<CDecoderCC708> m_ccDecoder;
-  std::unique_ptr<ICCBitstreamParser> m_parser;
+  AVCodecID m_codec;
 };

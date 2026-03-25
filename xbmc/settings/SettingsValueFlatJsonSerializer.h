@@ -22,7 +22,7 @@ class CSettingsValueFlatJsonSerializer : public ISettingsValueSerializer
 {
 public:
   explicit CSettingsValueFlatJsonSerializer(bool compact = true);
-  ~CSettingsValueFlatJsonSerializer() override = default;
+  ~CSettingsValueFlatJsonSerializer() = default;
 
   void SetCompact(bool compact = true) { m_compact = compact; }
 

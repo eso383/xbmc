@@ -9,21 +9,20 @@
 #include "DirectoryNodeDiscs.h"
 
 #include "QueryParams.h"
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "music/MusicDatabase.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
-CDirectoryNodeDiscs::CDirectoryNodeDiscs(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::DISC, strName, pParent)
+CDirectoryNodeDiscs::CDirectoryNodeDiscs(const std::string& strName,
+                                         CDirectoryNode* pParent)
+  : CDirectoryNode(NODE_TYPE_DISC, strName, pParent)
 {
 }
 
-NodeType CDirectoryNodeDiscs::GetChildType() const
+NODE_TYPE CDirectoryNodeDiscs::GetChildType() const
 {
-  return NodeType::SONG;
+  return NODE_TYPE_SONG;
 }
 
 std::string CDirectoryNodeDiscs::GetLocalizedName() const
@@ -36,7 +35,7 @@ std::string CDirectoryNodeDiscs::GetLocalizedName() const
     title = db.GetAlbumDiscTitle(params.GetAlbumId(), params.GetDisc());
   db.Close();
   if (title.empty())
-    title = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15102); // All Albums
+    title = g_localizeStrings.Get(15102); // All Albums
 
   return title;
 }
@@ -50,8 +49,7 @@ bool CDirectoryNodeDiscs::GetContent(CFileItemList& items) const
   CQueryParams params;
   CollectQueryParams(params);
 
-  bool bSuccess =
-      musicdatabase.GetDiscsNav(BuildPath(), items, SortDescription(), params.GetAlbumId());
+  bool bSuccess = musicdatabase.GetDiscsNav(BuildPath(), items, params.GetAlbumId());
 
   musicdatabase.Close();
 

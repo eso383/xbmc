@@ -9,7 +9,6 @@
 #include "Control.h"
 
 #include "AddonUtils.h"
-#include "FileItemList.h"
 #include "LanguageHook.h"
 #include "ServiceBroker.h"
 #include "WindowException.h"
@@ -59,7 +58,7 @@ namespace XBMCAddon
       if (_textColor)
         sscanf(_textColor, "%x", &textColor);
 
-      pGUIControl = NULL;
+      pGUIControl = nullptr;
     }
 
     void ControlFadeLabel::addLabel(const String& label)
@@ -324,7 +323,7 @@ namespace XBMCAddon
         label);
       pGUIControl->SetVisible(m_visible);
 
-      CGUIButtonControl* pGuiButtonControl =
+      auto pGuiButtonControl =
         static_cast<CGUIButtonControl*>(pGUIControl);
 
       pGuiButtonControl->SetLabel(strText);
@@ -379,9 +378,8 @@ namespace XBMCAddon
             CTextureInfo(strFileName));
       pGUIControl->SetVisible(m_visible);
 
-      if (pGUIControl && (CAspectRatio::AspectRatio)aspectRatio <= CAspectRatio::KEEP)
-        static_cast<CGUIImage*>(pGUIControl)
-            ->SetAspectRatio((CAspectRatio::AspectRatio)aspectRatio);
+      if (pGUIControl && aspectRatio <= CAspectRatio::AR_KEEP)
+        static_cast<CGUIImage*>(pGUIControl)->SetAspectRatio((CAspectRatio::ASPECT_RATIO)aspectRatio);
 
       if (pGUIControl && colorDiffuse)
         static_cast<CGUIImage*>(pGUIControl)->SetColorDiffuse(GUILIB::GUIINFO::CGUIInfoColor(colorDiffuse));
@@ -705,7 +703,7 @@ namespace XBMCAddon
         CTextureInfo(strTextureRadioOffDisabled));
       pGUIControl->SetVisible(m_visible);
 
-      CGUIRadioButtonControl* pGuiButtonControl =
+      auto pGuiButtonControl =
         static_cast<CGUIRadioButtonControl*>(pGUIControl);
 
       pGuiButtonControl->SetLabel(strText);
@@ -1265,10 +1263,9 @@ namespace XBMCAddon
         sendLabelBind(vecItems.size());
     }
 
-    void ControlList::sendLabelBind(int tail)
-    {
+    void ControlList::sendLabelBind(int tail) const {
       // construct a CFileItemList to pass 'em on to the list
-      std::shared_ptr<CGUIListItem> items(new CFileItemList());
+      auto items = std::make_shared<CFileItemList>();
       for (unsigned int i = vecItems.size() - tail; i < vecItems.size(); i++)
         static_cast<CFileItemList*>(items.get())->Add(vecItems[i]->item);
 
@@ -1338,7 +1335,7 @@ namespace XBMCAddon
 
       // create message
       CGUIMessage msg(GUI_MSG_ITEM_SELECTED, iParentId, iControlId);
-      AddonClass::Ref<ListItem> pListItem = NULL;
+      AddonClass::Ref<ListItem> pListItem = nullptr;
 
       // send message
       if (!vecItems.empty() && pGUIControl)

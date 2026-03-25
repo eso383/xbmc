@@ -13,14 +13,12 @@
 #include "rendering/gl/RenderSystemGL.h"
 #include "utils/GLUtils.h"
 
-using KODI::UTILS::COLOR::Color;
-
 std::unique_ptr<CSlideShowPic> CSlideShowPic::CreateSlideShowPicture()
 {
   return std::make_unique<CSlideShowPicGL>();
 }
 
-void CSlideShowPicGL::Render(float* x, float* y, CTexture* pTexture, Color color)
+void CSlideShowPicGL::Render(float* x, float* y, CTexture* pTexture, UTILS::COLOR::Color color)
 {
   CRenderSystemGL* renderSystem = dynamic_cast<CRenderSystemGL*>(CServiceBroker::GetRenderSystem());
   if (pTexture)
@@ -111,7 +109,7 @@ void CSlideShowPicGL::Render(float* x, float* y, CTexture* pTexture, Color color
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLubyte) * 4, idx, GL_STATIC_DRAW);
 
-  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, nullptr);
+  glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_BYTE, 0);
 
   glDisableVertexAttribArray(posLoc);
   glDisableVertexAttribArray(tex0Loc);

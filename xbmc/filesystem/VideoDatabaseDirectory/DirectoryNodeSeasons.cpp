@@ -10,23 +10,21 @@
 
 #include "FileItem.h"
 #include "QueryParams.h"
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "video/VideoDatabase.h"
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
 CDirectoryNodeSeasons::CDirectoryNodeSeasons(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::SEASONS, strName, pParent)
+  : CDirectoryNode(NODE_TYPE_SEASONS, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeSeasons::GetChildType() const
+NODE_TYPE CDirectoryNodeSeasons::GetChildType() const
 {
-  return NodeType::EPISODES;
+  return NODE_TYPE_EPISODES;
 }
 
 std::string CDirectoryNodeSeasons::GetLocalizedName() const
@@ -34,9 +32,9 @@ std::string CDirectoryNodeSeasons::GetLocalizedName() const
   switch (GetID())
   {
     case 0:
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20381); // Specials
+      return g_localizeStrings.Get(20381); // Specials
     case -1:
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20366); // All Seasons
+      return g_localizeStrings.Get(20366); // All Seasons
     case -2:
     {
       CDirectoryNode* pParent = GetParent();
@@ -61,9 +59,7 @@ std::string CDirectoryNodeSeasons::GetSeasonTitle() const
     season = db.GetTvShowNamedSeasonById(params.GetTvShowId(), params.GetSeason());
   }
   if (season.empty())
-    season =
-        StringUtils::Format(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20358),
-                            GetID()); // Season <n>
+    season = StringUtils::Format(g_localizeStrings.Get(20358), GetID()); // Season <n>
 
   return season;
 }

@@ -10,7 +10,6 @@
 
 #include "BackgroundInfoLoader.h"
 
-#include <memory>
 #include <string>
 
 class CTextureDatabase;
@@ -20,9 +19,6 @@ class CThumbLoader : public CBackgroundInfoLoader
 public:
   CThumbLoader();
   ~CThumbLoader() override;
-
-  CThumbLoader(const CThumbLoader&) = delete;
-  CThumbLoader& operator=(const CThumbLoader&) = delete;
 
   void OnLoaderStart() override;
   void OnLoaderFinish() override;
@@ -48,7 +44,7 @@ public:
   virtual void SetCachedImage(const CFileItem &item, const std::string &type, const std::string &image);
 
 protected:
-  std::unique_ptr<CTextureDatabase> m_textureDatabase;
+  CTextureDatabase *m_textureDatabase;
 };
 
 class CProgramThumbLoader : public CThumbLoader
@@ -56,10 +52,6 @@ class CProgramThumbLoader : public CThumbLoader
 public:
   CProgramThumbLoader();
   ~CProgramThumbLoader() override;
-
-  CProgramThumbLoader(const CProgramThumbLoader&) = delete;
-  CProgramThumbLoader& operator=(const CProgramThumbLoader&) = delete;
-
   bool LoadItem(CFileItem* pItem) override;
   bool LoadItemCached(CFileItem* pItem) override;
   bool LoadItemLookup(CFileItem* pItem) override;

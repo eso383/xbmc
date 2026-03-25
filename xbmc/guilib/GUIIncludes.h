@@ -10,17 +10,14 @@
 
 #include "interfaces/info/InfoBool.h"
 
-#include <functional>
 #include <map>
+#include <set>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <tinyxml.h>
-
 // forward definitions
+class TiXmlElement;
 namespace INFO
 {
   class CSkinVariableString;
@@ -53,7 +50,7 @@ public:
    \param node the node from where we start to resolve the include components
    \param includeConditions a map that holds the conditions for resolved includes
    */
-  void Resolve(TiXmlElement *node, std::map<INFO::InfoPtr, bool>* includeConditions = NULL);
+  void Resolve(TiXmlElement *node, std::map<INFO::InfoPtr, bool>* includeConditions = nullptr);
 
   /*!
    \brief Create a skin variable for the given \code{name} within the given \code{context}.
@@ -108,9 +105,9 @@ private:
   void FlattenSkinVariableConditions();
 
   void SetDefaults(TiXmlElement *node);
-  void ResolveIncludes(TiXmlElement *node, std::map<INFO::InfoPtr, bool>* xmlIncludeConditions = NULL);
-  void ResolveConstants(TiXmlElement *node);
-  void ResolveExpressions(TiXmlElement *node);
+  void ResolveIncludes(TiXmlElement *node, std::map<INFO::InfoPtr, bool>* xmlIncludeConditions = nullptr);
+  void ResolveConstants(TiXmlElement *node) const;
+  void ResolveExpressions(TiXmlElement *node) const;
 
   typedef std::map<std::string, std::string> Params;
   static void InsertNested(TiXmlElement* controls, TiXmlElement* include, TiXmlElement* node);
@@ -122,21 +119,15 @@ private:
   std::string ResolveExpressions(const std::string &expression) const;
 
   std::vector<std::string> m_files;
+  std::map<std::string, std::pair<TiXmlElement, Params>> m_includes;
+  std::map<std::string, TiXmlElement> m_defaults;
+  std::map<std::string, TiXmlElement> m_skinvariables;
+  std::map<std::string, std::string> m_constants;
+  std::map<std::string, std::string> m_expressions;
 
-  struct StringHash
-  {
-    using is_transparent = void; // Enables heterogeneous operations.
-    std::size_t operator()(std::string_view sv) const
-    {
-      std::hash<std::string_view> hasher;
-      return hasher(sv);
-    }
-  };
+  std::set<std::string> m_constantAttributes;
+  std::set<std::string> m_constantNodes;
 
-  std::unordered_map<std::string, std::pair<TiXmlElement, Params>, StringHash, std::equal_to<>>
-      m_includes;
-  std::unordered_map<std::string, TiXmlElement, StringHash, std::equal_to<>> m_defaults;
-  std::unordered_map<std::string, TiXmlElement, StringHash, std::equal_to<>> m_skinvariables;
-  std::unordered_map<std::string, std::string, StringHash, std::equal_to<>> m_constants;
-  std::unordered_map<std::string, std::string, StringHash, std::equal_to<>> m_expressions;
+  std::set<std::string> m_expressionAttributes;
+  std::set<std::string> m_expressionNodes;
 };

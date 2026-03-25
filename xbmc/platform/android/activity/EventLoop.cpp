@@ -13,9 +13,9 @@
 #define IS_FROM_SOURCE(v, s) ((v & s) == s)
 
 CEventLoop::CEventLoop(android_app* application)
-  : m_application(application), m_activityHandler(NULL), m_inputHandler(NULL)
+  : m_application(application), m_activityHandler(nullptr), m_inputHandler(nullptr)
 {
-  if (m_application == NULL)
+  if (m_application == nullptr)
     return;
 
   m_application->userData = this;
@@ -23,30 +23,33 @@ CEventLoop::CEventLoop(android_app* application)
   m_application->onInputEvent = inputCallback;
 }
 
-void CEventLoop::run(IActivityHandler& activityHandler, IInputHandler& inputHandler)
+void CEventLoop::run(IActivityHandler &activityHandler, IInputHandler &inputHandler)
 {
+  int ident;
+  int events;
+  struct android_poll_source* source;
+
   m_activityHandler = &activityHandler;
   m_inputHandler = &inputHandler;
 
   CXBMCApp::android_printf("CEventLoop: starting event loop");
-
-  while (!m_application->destroyRequested)
+  while (true)
   {
-    android_poll_source* source = nullptr;
-    int result = ALooper_pollOnce(-1, nullptr, nullptr, reinterpret_cast<void**>(&source));
-
-    if (result == ALOOPER_POLL_ERROR)
+    // We will block forever waiting for events.
+    while ((ident = ALooper_pollAll(-1, NULL, &events, (void**)&source)) >= 0)
     {
-      CXBMCApp::android_printf("CEventLoop: ALooper_pollOnce returned an error");
-      break;
+      // Process this event.
+      if (source != nullptr)
+        source->process(m_application, source);
+
+      // Check if we are exiting.
+      if (m_application->destroyRequested)
+      {
+        CXBMCApp::android_printf("CEventLoop: we are being destroyed");
+        return;
+      }
     }
-
-    // Process this event.
-    if (source != nullptr)
-      source->process(m_application, source);
   }
-
-  CXBMCApp::android_printf("CEventLoop: we are being destroyed");
 }
 
 void CEventLoop::processActivity(int32_t command)
@@ -148,7 +151,7 @@ int32_t CEventLoop::processInput(AInputEvent* event)
 
 void CEventLoop::activityCallback(android_app* application, int32_t command)
 {
-  if (application == NULL || application->userData == NULL)
+  if (application == nullptr || application->userData == NULL)
     return;
 
   CEventLoop& eventLoop = *((CEventLoop*)application->userData);
@@ -157,7 +160,7 @@ void CEventLoop::activityCallback(android_app* application, int32_t command)
 
 int32_t CEventLoop::inputCallback(android_app* application, AInputEvent* event)
 {
-  if (application == NULL || application->userData == NULL || event == NULL)
+  if (application == nullptr || application->userData == NULL || event == nullptr)
     return 0;
 
   CEventLoop& eventLoop = *((CEventLoop*)application->userData);

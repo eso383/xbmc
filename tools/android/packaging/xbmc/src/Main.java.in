@@ -5,8 +5,10 @@ import @APP_PACKAGE@.channels.util.TvUtil;
 import static android.content.pm.PackageManager.FEATURE_LEANBACK;
 
 import android.app.NativeActivity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.hardware.input.InputManager;
 import android.media.AudioManager;
@@ -23,8 +25,6 @@ import android.view.WindowInsetsController;
 import android.widget.RelativeLayout;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 
 public class Main extends NativeActivity implements Choreographer.FrameCallback
 {
@@ -37,27 +37,22 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
   private XBMCInputDeviceListener mInputDeviceListener;
   private XBMCJsonRPC mJsonRPC = null;
   private View mDecorView = null;
+  private RelativeLayout mVideoLayout = null;
   private Handler handler = new Handler(Looper.myLooper());
 
   private class DelayedIntent
   {
-    public Intent mIntent;
-    public int mDelay;
+    public Intent mIntent = null;
+    public int mDelay = 0;
 
     public DelayedIntent(Intent intent, int delay) {
       mIntent = intent;
       mDelay = delay;
     }
   }
-  private ArrayList<DelayedIntent> mDelayedIntents = new ArrayList<>();
+  private ArrayList<DelayedIntent> mDelayedIntents = new ArrayList<DelayedIntent>();
   private boolean mPaused = true;
-  private static boolean mActivityRunning = false;
 
-  // Launchers that support the Recommended Content API
-  private final Set<String> mRecommendedLaunchers = new HashSet<String>() {{
-    add("com.google.android.tvlauncher"); // Android TV Stock
-    add("com.spocky.projengmenu"); // Projectivy Launcher
-  }};
 
   native void _onNewIntent(Intent intent);
 
@@ -80,7 +75,7 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
           mJsonRPC.updateLeanback(Main.this);
         }
       }.start();
-      handler.postDelayed(this, XBMCProperties.getIntProperty("xbmc.leanbackrefresh", 60 * 60) * 1000L);
+      handler.postDelayed(this, XBMCProperties.getIntProperty("xbmc.leanbackrefresh", 60 * 60) * 1000);
     }
   };
 
@@ -105,14 +100,24 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
     }
     catch (Exception e)
     {
-      Log.d(TAG, "Main: Exception: " + e.getMessage());
     }
 
     return ret;
   }
 
+  public void registerMediaButtonEventReceiver()
+  {
+    AudioManager manager = (AudioManager) getSystemService(AUDIO_SERVICE);
+    manager.registerMediaButtonEventReceiver(new ComponentName(getPackageName(), XBMCBroadcastReceiver.class.getName()));
+  }
+
+  public void unregisterMediaButtonEventReceiver()
+  {
+    AudioManager manager = (AudioManager) getSystemService(AUDIO_SERVICE);
+    manager.unregisterMediaButtonEventReceiver(new ComponentName(getPackageName(), XBMCBroadcastReceiver.class.getName()));
+  }
+
   @Override
-  @SuppressWarnings("deprecation")
   public void onCreate(Bundle savedInstanceState)
   {
     System.loadLibrary("@APP_NAME_LC@");
@@ -135,7 +140,7 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
     if (getPackageManager().hasSystemFeature(FEATURE_LEANBACK))
     {
       if (Build.VERSION.SDK_INT >= VERSION_CODES.O
-          && mRecommendedLaunchers.contains(getLauncherName()))
+          && getLauncherName().equals("com.google.android.tvlauncher"))
       {
         TvUtil.scheduleSyncingChannel(this);
       }
@@ -143,7 +148,7 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
                && getLauncherName().equals("com.google.android.leanbacklauncher"))
       {
         // Leanback
-        mJsonRPC = new XBMCJsonRPC(getApplicationContext());
+        mJsonRPC = new XBMCJsonRPC();
         handler.removeCallbacks(leanbackUpdateRunnable);
         handler.postDelayed(leanbackUpdateRunnable, 30 * 1000);
       }
@@ -158,12 +163,12 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
     mDecorView.setBackground(null);
     getWindow().takeSurface(null);
     setContentView(R.layout.activity_main);
-    RelativeLayout videoLayout = findViewById(R.id.VideoLayout);
+    mVideoLayout = (RelativeLayout) findViewById(R.id.VideoLayout);
 
     mMainView = new XBMCMainView(this);
     RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
     mMainView.setElevation(1);  // Always on Top
-    videoLayout.addView(mMainView, layoutParams);
+    mVideoLayout.addView(mMainView, layoutParams);
 
     if (Build.VERSION.SDK_INT < 30)
     {
@@ -215,14 +220,12 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
   public void onStart()
   {
     super.onStart();
-    mActivityRunning = true;
 
     Choreographer.getInstance().removeFrameCallback(this);
     Choreographer.getInstance().postFrameCallback(this);
   }
 
   @Override
-  @SuppressWarnings("deprecation")
   public void onResume()
   {
     super.onResume();
@@ -279,7 +282,7 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
 
     if (getPackageManager().hasSystemFeature(FEATURE_LEANBACK)
         && Build.VERSION.SDK_INT >= VERSION_CODES.O
-        && mRecommendedLaunchers.contains(getLauncherName())) {
+        && getLauncherName().equals("com.google.android.tvlauncher")) {
       TvUtil.scheduleSyncingChannel(this);
     }
 
@@ -305,15 +308,9 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
 
     getApplicationContext().getContentResolver().unregisterContentObserver(mSettingsContentObserver);
     super.onDestroy();
-    mActivityRunning = false;
-  }
-
-  public static boolean isActivityRunning() {
-    return mActivityRunning;
   }
 
   @Override
-  @SuppressWarnings("deprecation")
   public void onVisibleBehindCanceled()
   {
     _onVisibleBehindCanceled();
@@ -345,13 +342,9 @@ public class Main extends NativeActivity implements Choreographer.FrameCallback
    * Gets the package name of the current system launcher
    */
   private String getLauncherName() {
-    String name = "";
     final Intent intent = new Intent(Intent.ACTION_MAIN);
     intent.addCategory(Intent.CATEGORY_HOME);
     final ResolveInfo res = getPackageManager().resolveActivity(intent, 0);
-    if (res != null) {
-      name = res.activityInfo.packageName;
-    }
-    return name;
+    return res.activityInfo.packageName;
   }
 }

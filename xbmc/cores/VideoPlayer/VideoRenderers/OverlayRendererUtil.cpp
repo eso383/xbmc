@@ -15,7 +15,6 @@
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 namespace OVERLAY
 {
@@ -274,8 +273,9 @@ bool convert_quad(ASS_Image* images, SQuads& quads, int max_x)
 
 int GetStereoscopicDepth(bool isPgs, int subtitleDepth)
 {
-  if (CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode() != RenderStereoMode::MONO &&
-      CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode() != RenderStereoMode::OFF)
+  RENDER_STEREO_MODE stereoMode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+
+  if (stereoMode == RENDER_STEREO_MODE_MONO || stereoMode == RENDER_STEREO_MODE_OFF)
   {
     // 2D display, so there's no subtitle depth
     return 0;
@@ -285,15 +285,13 @@ int GetStereoscopicDepth(bool isPgs, int subtitleDepth)
   int depth = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_SUBTITLES_STEREOSCOPICDEPTH);
 
   // in case of MVC playback and PGS subtitles, use the subtitle depth info additionally to the configured one
-  if(CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode() == RenderStereoMode::HARDWAREBASED && isPgs)
+  if(stereoMode == RENDER_STEREO_MODE_HARDWAREBASED && isPgs)
   {
     depth += subtitleDepth;
   }
 
   // correct depth according to the current left/right eye view
-  return depth * (CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView() == RenderStereoView::LEFT
-               ? 1
-               : -1);
+  return depth * (CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView() == RENDER_STEREO_VIEW_LEFT ? 1 : -1);
 }
 
 }

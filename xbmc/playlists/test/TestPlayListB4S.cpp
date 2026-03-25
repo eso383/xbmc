@@ -16,12 +16,13 @@
 #include <fstream>
 #include <gtest/gtest.h>
 
-using namespace KODI;
+using namespace PLAYLIST;
+
 
 TEST(TestPlayListB4S, LoadData)
 {
   const std::string filename = XBMC_REF_FILE_PATH("/xbmc/playlists/test/test.b4s");
-  PLAYLIST::CPlayListB4S playlist;
+  CPlayListB4S playlist;
 
   std::filebuf fb;
   if (!fb.open(filename, std::ios::in))

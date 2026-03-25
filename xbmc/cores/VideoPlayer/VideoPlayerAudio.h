@@ -25,18 +25,19 @@
 #include <mutex>
 #include <utility>
 
-class CDataCacheCore;
-class CDVDAudioCodec;
 class CVideoPlayer;
+class CDVDAudioCodec;
+class CDVDAudioCodec;
 
 class CVideoPlayerAudio : public CThread, public IDVDStreamPlayerAudio
 {
 public:
-  CVideoPlayerAudio(CDVDClock* pClock,
-                    CDVDMessageQueue& parent,
-                    CRenderManager& renderManager,
-                    CProcessInfo& processInfo,
-                    double messageQueueTimeSize);
+  CVideoPlayerAudio(
+    CDVDClock* pClock,
+    CDVDMessageQueue& parent,
+    CRenderManager& renderManager,
+    CProcessInfo &processInfo,
+    double messageQueueTimeSize);
   ~CVideoPlayerAudio() override;
 
   bool OpenStream(CDVDStreamInfo hints) override;
@@ -48,21 +49,15 @@ public:
   // waits until all available data has been rendered
   bool AcceptsData() const override;
   bool HasData() const override { return m_messageQueue.GetDataSize() > 0; }
-  int GetLevel() const override { return m_messageQueue.GetLevel(); }
+  int  GetLevel() const override { return m_messageQueue.GetLevel(); }
   bool IsInited() const override { return m_messageQueue.IsInited(); }
-
   void SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority = 0) override
   {
     m_messageQueue.Put(pMsg, priority);
   }
-
   void FlushMessages() override { m_messageQueue.Flush(); }
 
-  void SetDynamicRangeCompression(long drc) override
-  {
-    m_audioSink.SetDynamicRangeCompression(drc);
-  }
-
+  void SetDynamicRangeCompression(long drc) override { m_audioSink.SetDynamicRangeCompression(drc); }
   float GetDynamicRangeAmplification() const override { return 0.0f; }
 
   std::string GetPlayerInfo() override;
@@ -70,25 +65,20 @@ public:
 
   double GetCurrentPts() override
   {
-    std::unique_lock lock(m_info_section);
+    std::unique_lock<CCriticalSection> lock(m_info_section);
     return m_info.pts;
   }
 
-  double GetCurrentPacketDelay() override
-  {
-    std::lock_guard lock(m_info_section);
-    return m_info.packetDelay;
-  }
-
-  bool IsStalled() const override { return m_stalled; }
+  bool IsStalled() const override { return m_stalled;  }
   bool IsPassthrough() const override;
 
 protected:
+
   void OnStartup() override;
   void OnExit() override;
   void Process() override;
 
-  bool ProcessDecoderOutput(DVDAudioFrame& audioframe);
+  bool ProcessDecoderOutput(DVDAudioFrame &audioframe);
   void UpdatePlayerInfo();
   void OpenStream(CDVDStreamInfo& hints, std::unique_ptr<CDVDAudioCodec> codec);
   //! Switch codec if needed. Called when the sample rate gotten from the
@@ -101,7 +91,6 @@ protected:
 
   // Access to adjust the tweak the latency because of audio
   CRenderManager& m_renderManager;
-  CDataCacheCore& m_dataCacheCore;
 
   // holds stream information for current playing stream
   CDVDStreamInfo m_streaminfo;
@@ -122,42 +111,32 @@ protected:
   int m_synctype;
   int m_prevsynctype;
 
-  bool m_prevskipped;
+  bool   m_prevskipped;
   double m_maxspeedadjust;
 
   struct SInfo
   {
-    std::string info;
-    double pts = DVD_NOPTS_VALUE;
-    double packetDelay = 0.0;
-    bool passthrough = false;
+    std::string      info;
+    double           pts = DVD_NOPTS_VALUE;
+    bool             passthrough = false;
   };
 
   mutable CCriticalSection m_info_section;
-  SInfo m_info;
+  SInfo            m_info;
 
   bool m_displayReset = false;
-  unsigned int m_disconAdjustTimeMs = 10; // maximum sync-off before adjusting
+  unsigned int m_disconAdjustTimeMs = 20; // maximum sync-off before adjusting
   int m_disconAdjustCounter = 0;
 
   //============================================================================
-  // LAV-style Jitter Tracking for PCM/Decoded Audio
+  // LAV Jitter Tracking for PCM/Decoded Audio
+  // These members are only used when m_lavStylePcmSyncEnabled = true
   //============================================================================
-  // LAV Filters approach: maintain a running output timestamp (m_rtStart) and
-  // compare against input (demuxer) timestamps. On discontinuity (flush/seek),
-  // resync the output timestamp to input, then let it run freely.
-  //
-  // m_pcmOutputClock: Our running output timestamp (equivalent to LAV's m_rtStart)
-  // m_pcmResyncTimestamp: Flag to resync on next valid input timestamp (like LAV's m_bResyncTimestamp)
-  //
-  // Jitter = m_pcmOutputClock (calculated) - audioframe.pts (input)
-  // When jitter exceeds threshold, adjust m_pcmOutputClock.
-  //============================================================================
-  static constexpr size_t PCM_JITTER_WINDOW_SIZE = 64; // LAV uses 64 for non-bitstream
-  static constexpr double PCM_JITTER_THRESHOLD =
-      10000.0; // 10ms in DVD_TIME_BASE (LAV: MAX_JITTER_DESYNC)
+  bool m_lavStylePcmSyncEnabled{false};  // Toggle LAV PCM sync on/off
+  
+  static constexpr size_t PCM_JITTER_WINDOW_SIZE = 64;
+  static constexpr double PCM_JITTER_THRESHOLD = 10000.0;  // 10ms in DVD_TIME_BASE units
   AudioSync::CFloatingAverage<double, PCM_JITTER_WINDOW_SIZE> m_pcmJitterTracker;
-  double m_pcmOutputClock{0.0}; // Running output timestamp (like LAV's m_rtStart)
-  bool m_pcmResyncTimestamp{true}; // Resync output clock to input on next valid PTS
+  double m_pcmOutputClock{0.0};       // Separate running output timestamp (like LAV's m_rtStart)
+  bool m_pcmResyncTimestamp{true};    // Flag to resync on next valid PTS (like LAV's m_bResyncTimestamp)
 };
-

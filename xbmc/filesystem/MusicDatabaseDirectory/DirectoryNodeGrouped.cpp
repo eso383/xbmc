@@ -12,18 +12,16 @@
 
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
-CDirectoryNodeGrouped::CDirectoryNodeGrouped(NodeType type,
-                                             const std::string& strName,
-                                             CDirectoryNode* pParent)
+CDirectoryNodeGrouped::CDirectoryNodeGrouped(NODE_TYPE type, const std::string& strName, CDirectoryNode* pParent)
   : CDirectoryNode(type, strName, pParent)
 { }
 
-NodeType CDirectoryNodeGrouped::GetChildType() const
+NODE_TYPE CDirectoryNodeGrouped::GetChildType() const
 {
-  if (GetType() == NodeType::YEAR)
-    return NodeType::ALBUM;
+  if (GetType() == NODE_TYPE_YEAR)
+    return NODE_TYPE_ALBUM;
 
-  return NodeType::ARTIST;
+  return NODE_TYPE_ARTIST;
 }
 
 std::string CDirectoryNodeGrouped::GetLocalizedName() const
@@ -40,20 +38,20 @@ bool CDirectoryNodeGrouped::GetContent(CFileItemList& items) const
   if (!musicdatabase.Open())
     return false;
 
-  return musicdatabase.GetItems(BuildPath(), GetContentType(), items, SortDescription());
+  return musicdatabase.GetItems(BuildPath(), GetContentType(), items);
 }
 
 std::string CDirectoryNodeGrouped::GetContentType() const
 {
   switch (GetType())
   {
-    case NodeType::GENRE:
+    case NODE_TYPE_GENRE:
       return "genres";
-    case NodeType::SOURCE:
+    case NODE_TYPE_SOURCE:
       return "sources";
-    case NodeType::ROLE:
+    case NODE_TYPE_ROLE:
       return "roles";
-    case NodeType::YEAR:
+    case NODE_TYPE_YEAR:
       return "years";
     default:
       break;

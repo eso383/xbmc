@@ -58,10 +58,10 @@ public:
   void Scroll(unsigned int offset);
 
 protected:
-  void UpdateVisibility(const CGUIListItem *item = NULL) override;
+  void UpdateVisibility(const CGUIListItem *item = nullptr) override;
   bool UpdateColors(const CGUIListItem* item) override;
-  void UpdateInfo(const CGUIListItem *item = NULL) override;
-  void UpdatePageControl();
+  void UpdateInfo(const CGUIListItem *item = nullptr) override;
+  void UpdatePageControl() const;
   void ScrollToOffset(int offset, bool autoScroll = false);
   unsigned int GetRows() const;
   int GetCurrentPage() const;

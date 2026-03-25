@@ -17,21 +17,19 @@
 #include "LanguageHook.h"
 #include "ServiceBroker.h"
 #include "Util.h"
-#include "addons/Skin.h"
 #include "aojsonrpc.h"
 #include "application/ApplicationComponents.h"
 #include "application/ApplicationPowerHandling.h"
 #include "cores/AudioEngine/Interfaces/AE.h"
 #include "guilib/GUIAudioManager.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/TextureManager.h"
 #include "input/WindowTranslator.h"
 #include "messaging/ApplicationMessenger.h"
 #include "network/Network.h"
 #include "network/NetworkServices.h"
 #include "playlists/PlayListTypes.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "storage/MediaManager.h"
@@ -102,8 +100,8 @@ namespace XBMCAddon
       if (!exec.IsValid())
         return;
 
-      const std::string& execute = exec.GetFunction();
-      const std::vector<std::string>& params = exec.GetParams();
+      const std::string execute = exec.GetFunction();
+      const std::vector<std::string> params = exec.GetParams();
 
       if (StringUtils::EqualsNoCase(execute, "activatewindow") ||
           StringUtils::EqualsNoCase(execute, "closedialog"))
@@ -148,7 +146,7 @@ namespace XBMCAddon
       XbmcThreads::EndTime<> endTime{std::chrono::milliseconds(timemillis)};
       while (!endTime.IsTimePast())
       {
-        LanguageHook* lh = NULL;
+        LanguageHook* lh = nullptr;
         {
           DelayedCallGuard dcguard;
           lh = dcguard.getLanguageHook(); // borrow this
@@ -157,7 +155,7 @@ namespace XBMCAddon
             nextSleep = 100; // only sleep for 100 millis
           KODI::TIME::Sleep(std::chrono::milliseconds(nextSleep));
         }
-        if (lh != NULL)
+        if (lh != nullptr)
           lh->MakePendingCalls();
       }
     }
@@ -165,18 +163,15 @@ namespace XBMCAddon
     String getLocalizedString(int id)
     {
       XBMC_TRACE;
-      if (ADDON::IsSkinStringId(id))
-      {
-        auto gui = CServiceBroker::GetGUI();
-        if (gui)
-        {
-          auto skin = gui->GetSkinInfo();
-          if (skin)
-            return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-                skin->ID(), id);
-        }
-      }
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(id);
+      String label;
+      if (id >= 30000 && id <= 30999)
+        label = g_localizeStringsTemp.Get(id);
+      else if (id >= 32000 && id <= 32999)
+        label = g_localizeStringsTemp.Get(id);
+      else
+        label = g_localizeStrings.Get(id);
+
+      return label;
     }
 
     String getSkinDir()
@@ -462,8 +457,8 @@ namespace XBMCAddon
       }
       else if (StringUtils::CompareNoCase(id, "meridiem") == 0)
       {
-        result = StringUtils::Format("{}/{}", g_langInfo.GetMeridiemSymbol(MeridiemSymbol::AM),
-                                     g_langInfo.GetMeridiemSymbol(MeridiemSymbol::PM));
+        result = StringUtils::Format("{}/{}", g_langInfo.GetMeridiemSymbol(MeridiemSymbolAM),
+                                     g_langInfo.GetMeridiemSymbol(MeridiemSymbolPM));
       }
 #ifdef TARGET_WINDOWS
       StringUtils::Replace(result, "%-", "%#"); //Convert to Windows format if required.
@@ -583,11 +578,11 @@ namespace XBMCAddon
 
     int getPLAYLIST_MUSIC()
     {
-      return static_cast<int>(PLAYLIST::Id::TYPE_MUSIC);
+      return PLAYLIST::TYPE_MUSIC;
     }
     int getPLAYLIST_VIDEO()
     {
-      return static_cast<int>(PLAYLIST::Id::TYPE_VIDEO);
+      return PLAYLIST::TYPE_VIDEO;
     }
     int getTRAY_OPEN()
     {

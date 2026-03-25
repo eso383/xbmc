@@ -19,17 +19,17 @@ bool CSettingConditionItem::Deserialize(const TiXmlNode *node)
     return false;
 
   auto elem = node->ToElement();
-  if (!elem)
+  if (elem == nullptr)
     return false;
 
   // get the "name" attribute
   auto strAttribute = elem->Attribute(SETTING_XML_ATTR_NAME);
-  if (strAttribute)
+  if (strAttribute != nullptr)
     m_name = strAttribute;
 
   // get the "setting" attribute
   strAttribute = elem->Attribute(SETTING_XML_ATTR_SETTING);
-  if (strAttribute)
+  if (strAttribute != nullptr)
     m_setting = strAttribute;
 
   return true;
@@ -37,7 +37,7 @@ bool CSettingConditionItem::Deserialize(const TiXmlNode *node)
 
 bool CSettingConditionItem::Check() const
 {
-  if (!m_settingsManager)
+  if (m_settingsManager == nullptr)
     return false;
 
   return m_settingsManager->GetConditions().Check(m_name, m_value, m_settingsManager->GetSetting(m_setting)) == !m_negated;
@@ -48,11 +48,11 @@ bool CSettingConditionCombination::Check() const
   bool ok = false;
   for (const auto& operation : m_operations)
   {
-    if (!operation)
+    if (operation == nullptr)
       continue;
 
     const auto combination = std::static_pointer_cast<const CSettingConditionCombination>(operation);
-    if (!combination)
+    if (combination == nullptr)
       continue;
 
     if (combination->Check())
@@ -63,11 +63,11 @@ bool CSettingConditionCombination::Check() const
 
   for (const auto& value : m_values)
   {
-    if (!value)
+    if (value == nullptr)
       continue;
 
     const auto condition = std::static_pointer_cast<const CSettingConditionItem>(value);
-    if (!condition)
+    if (condition == nullptr)
       continue;
 
     if (condition->Check())
@@ -88,7 +88,7 @@ CSettingCondition::CSettingCondition(CSettingsManager *settingsManager /* = null
 bool CSettingCondition::Check() const
 {
   auto combination = std::static_pointer_cast<CSettingConditionCombination>(m_operation);
-  if (!combination)
+  if (combination == nullptr)
     return false;
 
   return combination->Check();
@@ -104,15 +104,14 @@ void CSettingConditionsManager::AddCondition(std::string condition)
   m_defines.insert(condition);
 }
 
-void CSettingConditionsManager::AddDynamicCondition(std::string identifier,
-                                                    const SettingConditionCheck& condition)
+void CSettingConditionsManager::AddDynamicCondition(std::string identifier, SettingConditionCheck condition, void *data /*= nullptr*/)
 {
-  if (identifier.empty() || !condition)
+  if (identifier.empty() || condition == nullptr)
     return;
 
   StringUtils::ToLower(identifier);
 
-  m_conditions.try_emplace(identifier, condition);
+  m_conditions.emplace(identifier, std::make_pair(condition, data));
 }
 
 void CSettingConditionsManager::RemoveDynamicCondition(std::string identifier)
@@ -143,12 +142,12 @@ bool CSettingConditionsManager::Check(
     std::string tmpValue = value;
     StringUtils::ToLower(tmpValue);
 
-    return m_defines.contains(tmpValue);
+    return m_defines.find(tmpValue) != m_defines.end();
   }
 
   auto conditionIt = m_conditions.find(condition);
   if (conditionIt == m_conditions.end())
     return false;
 
-  return conditionIt->second(condition, value, setting);
+  return conditionIt->second.first(condition, value, setting, conditionIt->second.second);
 }

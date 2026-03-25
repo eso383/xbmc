@@ -138,11 +138,12 @@ DllLibCurlGlobal::~DllLibCurlGlobal()
 
 void DllLibCurlGlobal::CheckIdle()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   /* 20 seconds idle time before closing handle */
   const unsigned int idletime = 30000;
 
-  VEC_CURLSESSIONS::iterator it = m_sessions.begin();
+  auto it = m_sessions.begin();
   while (it != m_sessions.end())
   {
     auto now = std::chrono::steady_clock::now();
@@ -175,7 +176,7 @@ void DllLibCurlGlobal::easy_acquire(const char* protocol,
 {
   assert(easy_handle != NULL);
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   for (auto& it : m_sessions)
   {
@@ -231,21 +232,21 @@ void DllLibCurlGlobal::easy_acquire(const char* protocol,
 
 void DllLibCurlGlobal::easy_release(CURL_HANDLE** easy_handle, CURLM** multi_handle)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
-  CURL_HANDLE* easy = NULL;
-  CURLM* multi = NULL;
+  CURL_HANDLE* easy = nullptr;
+  CURLM* multi = nullptr;
 
   if (easy_handle)
   {
     easy = *easy_handle;
-    *easy_handle = NULL;
+    *easy_handle = nullptr;
   }
 
   if (multi_handle)
   {
     multi = *multi_handle;
-    *multi_handle = NULL;
+    *multi_handle = nullptr;
   }
 
   for (auto& it : m_sessions)
@@ -264,7 +265,7 @@ void DllLibCurlGlobal::easy_release(CURL_HANDLE** easy_handle, CURLM** multi_han
 
 CURL_HANDLE* DllLibCurlGlobal::easy_duphandle(CURL_HANDLE* easy_handle)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   for (const auto& it : m_sessions)
   {
@@ -284,7 +285,7 @@ void DllLibCurlGlobal::easy_duplicate(CURL_HANDLE* easy,
                                       CURL_HANDLE** easy_out,
                                       CURLM** multi_out)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (easy_out && easy)
     *easy_out = DllLibCurl::easy_duphandle(easy);
@@ -300,12 +301,12 @@ void DllLibCurlGlobal::easy_duplicate(CURL_HANDLE* easy,
       if (easy_out && easy)
         session.m_easy = *easy_out;
       else
-        session.m_easy = NULL;
+        session.m_easy = nullptr;
 
       if (multi_out && multi)
         session.m_multi = *multi_out;
       else
-        session.m_multi = NULL;
+        session.m_multi = nullptr;
 
       m_sessions.push_back(session);
       return;

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "pvr/IPVRComponent.h"
+#include "pvr/settings/PVRSettings.h"
 
 #include <memory>
 
@@ -17,14 +18,13 @@ class CFileItem;
 namespace PVR
 {
 class CPVRChannel;
-class CPVRSettings;
 class CPVRTimerInfoTag;
 
 class CPVRGUIActionsTimers : public IPVRComponent
 {
 public:
   CPVRGUIActionsTimers();
-  ~CPVRGUIActionsTimers() override;
+  ~CPVRGUIActionsTimers() override = default;
 
   /*!
    * @brief Open the timer settings dialog to create a new tv or radio timer.
@@ -106,20 +106,6 @@ public:
   bool DeleteTimer(const CFileItem& item) const;
 
   /*!
-   * @brief Delete a timer or timer rule, showing a confirmation dialog in case a timer currently
-   * recording shall be deleted.
-   * @param timer containing a timer or timer rule to delete.
-   * @param bIsRecording denotes whether the timer is currently recording (controls correct
-   * confirmation dialog).
-   * @param bDeleteRule denotes to delete a timer rule. For convenience, one can pass a timer
-   * created by a rule.
-   * @return true, if the timer or timer rule was deleted successfully, false otherwise.
-   */
-  bool DeleteTimer(const std::shared_ptr<CPVRTimerInfoTag>& timer,
-                   bool bIsRecording,
-                   bool bDeleteRule) const;
-
-  /*!
    * @brief Delete a timer rule, always showing a confirmation dialog.
    * @param item containing a timer rule to delete. item must be a timer, an epg tag or a channel.
    * @return true, if the timer rule was deleted successfully, false otherwise.
@@ -130,7 +116,7 @@ public:
    * @brief Toggle recording on the currently playing channel, if any.
    * @return True if the recording was started or stopped successfully, false otherwise.
    */
-  bool ToggleRecordingOnPlayingChannel() const;
+  bool ToggleRecordingOnPlayingChannel();
 
   /*!
    * @brief Start or stop recording on a given channel.
@@ -199,6 +185,20 @@ private:
   bool DeleteTimer(const CFileItem& item, bool bIsRecording, bool bDeleteRule) const;
 
   /*!
+   * @brief Delete a timer or timer rule, showing a confirmation dialog in case a timer currently
+   * recording shall be deleted.
+   * @param timer containing a timer or timer rule to delete.
+   * @param bIsRecording denotes whether the timer is currently recording (controls correct
+   * confirmation dialog).
+   * @param bDeleteRule denotes to delete a timer rule. For convenience, one can pass a timer
+   * created by a rule.
+   * @return true, if the timer or timer rule was deleted successfully, false otherwise.
+   */
+  bool DeleteTimer(const std::shared_ptr<CPVRTimerInfoTag>& timer,
+                   bool bIsRecording,
+                   bool bDeleteRule) const;
+
+  /*!
    * @brief Open a dialog to confirm timer delete.
    * @param timer the timer to delete.
    * @param bDeleteRule in: ignored. out, for one shot timer scheduled by a timer rule: true to
@@ -222,7 +222,7 @@ private:
    */
   void AnnounceReminder(const std::shared_ptr<CPVRTimerInfoTag>& timer) const;
 
-  std::unique_ptr<CPVRSettings> m_settings;
+  CPVRSettings m_settings;
   mutable bool m_bReminderAnnouncementRunning{false};
 };
 

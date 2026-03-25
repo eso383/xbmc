@@ -62,18 +62,15 @@ CGameSettings::~CGameSettings()
   m_settings->UnregisterCallback(this);
 }
 
-bool CGameSettings::GamesEnabled()
-{
+bool CGameSettings::GamesEnabled() const {
   return m_settings->GetBool(SETTING_GAMES_ENABLE);
 }
 
-bool CGameSettings::ShowOSDHelp()
-{
+bool CGameSettings::ShowOSDHelp() const {
   return m_settings->GetBool(SETTING_GAMES_SHOW_OSD_HELP);
 }
 
-void CGameSettings::SetShowOSDHelp(bool bShow)
-{
+void CGameSettings::SetShowOSDHelp(bool bShow) const {
   if (m_settings->GetBool(SETTING_GAMES_SHOW_OSD_HELP) != bShow)
   {
     m_settings->SetBool(SETTING_GAMES_SHOW_OSD_HELP, bShow);
@@ -83,23 +80,19 @@ void CGameSettings::SetShowOSDHelp(bool bShow)
   }
 }
 
-void CGameSettings::ToggleGames()
-{
+void CGameSettings::ToggleGames() const {
   m_settings->ToggleBool(SETTING_GAMES_ENABLE);
 }
 
-bool CGameSettings::AutosaveEnabled()
-{
+bool CGameSettings::AutosaveEnabled() const {
   return m_settings->GetBool(SETTING_GAMES_ENABLEAUTOSAVE);
 }
 
-bool CGameSettings::RewindEnabled()
-{
+bool CGameSettings::RewindEnabled() const {
   return m_settings->GetBool(SETTING_GAMES_ENABLEREWIND);
 }
 
-unsigned int CGameSettings::MaxRewindTimeSec()
-{
+unsigned int CGameSettings::MaxRewindTimeSec() const {
   int rewindTimeSec = m_settings->GetInt(SETTING_GAMES_REWINDTIME);
 
   return static_cast<unsigned int>(std::max(rewindTimeSec, 0));
@@ -192,7 +185,7 @@ std::string CGameSettings::LoginToRA(const std::string& username,
           token.clear();
           // "RetroAchievements", "Your account is not verified, please check your emails to complete your sign up"
           CServiceBroker::GetEventLog()->AddWithNotification(
-              EventPtr(new CNotificationEvent(35264, 35270, EventLevel::Error)));
+            std::make_shared<const CNotificationEvent>(35264, 35270, EventLevel::Error));
         }
       }
       else
@@ -201,14 +194,14 @@ std::string CGameSettings::LoginToRA(const std::string& username,
 
         // "RetroAchievements", "Incorrect User/Password!"
         CServiceBroker::GetEventLog()->AddWithNotification(
-            EventPtr(new CNotificationEvent(35264, 35265, EventLevel::Error)));
+          std::make_shared<const CNotificationEvent>(35264, 35265, EventLevel::Error));
       }
     }
     else
     {
       // "RetroAchievements", "Invalid response from server"
       CServiceBroker::GetEventLog()->AddWithNotification(
-          EventPtr(new CNotificationEvent(35264, 35267, EventLevel::Error)));
+        std::make_shared<const CNotificationEvent>(35264, 35267, EventLevel::Error));
 
       CLog::Log(LOGERROR, "Invalid server response: {}", strResponse);
     }
@@ -217,7 +210,7 @@ std::string CGameSettings::LoginToRA(const std::string& username,
   {
     // "RetroAchievements", "Failed to contact server"
     CServiceBroker::GetEventLog()->AddWithNotification(
-        EventPtr(new CNotificationEvent(35264, 35266, EventLevel::Error)));
+      std::make_shared<const CNotificationEvent>(35264, 35266, EventLevel::Error));
   }
   return token;
 }

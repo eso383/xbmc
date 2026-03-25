@@ -24,11 +24,8 @@ public:
 
   static const CProfile& GetCurrentProfile();
 
-  using SimpleConditions = std::set<std::string, std::less<>>;
-  static SimpleConditions& GetSimpleConditions() { return m_simpleConditions; }
-
-  using ComplexConditions = std::map<std::string, SettingConditionCheck, std::less<>>;
-  static const ComplexConditions& GetComplexConditions() { return m_complexConditions; }
+  static const std::set<std::string>& GetSimpleConditions() { return m_simpleConditions; }
+  static const std::map<std::string, SettingConditionCheck>& GetComplexConditions() { return m_complexConditions; }
 
   static bool Check(const std::string& condition,
                     const std::string& value = "",
@@ -38,6 +35,6 @@ private:
   // Initialization parameters
   static const CProfileManager *m_profileManager;
 
-  static SimpleConditions m_simpleConditions;
-  static ComplexConditions m_complexConditions;
+  static std::set<std::string> m_simpleConditions;
+  static std::map<std::string, SettingConditionCheck> m_complexConditions;
 };

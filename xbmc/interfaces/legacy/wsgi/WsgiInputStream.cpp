@@ -111,8 +111,7 @@ namespace XBMCAddon
       return *this;
     }
 
-    bool WsgiInputStreamIterator::operator==(const WsgiInputStreamIterator& rhs)
-    {
+    bool WsgiInputStreamIterator::operator==(const WsgiInputStreamIterator& rhs) const {
       return m_data == rhs.m_data &&
              m_offset == rhs.m_offset &&
              m_remaining == rhs.m_remaining;
@@ -130,28 +129,26 @@ namespace XBMCAddon
 #endif
 
     WsgiInputStream::WsgiInputStream()
-      : m_request(NULL)
+      : m_request(nullptr)
     { }
 
     WsgiInputStream::~WsgiInputStream()
     {
-      m_request = NULL;
+      m_request = nullptr;
     }
 
 #ifndef SWIG
-    WsgiInputStreamIterator* WsgiInputStream::begin()
-    {
+    WsgiInputStreamIterator* WsgiInputStream::begin() const {
       return new WsgiInputStreamIterator(m_data, false);
     }
 
-    WsgiInputStreamIterator* WsgiInputStream::end()
-    {
+    WsgiInputStreamIterator* WsgiInputStream::end() const {
       return new WsgiInputStreamIterator(m_data, true);
     }
 
     void WsgiInputStream::SetRequest(HTTPPythonRequest* request)
     {
-      if (m_request != NULL)
+      if (m_request != nullptr)
         return;
 
       m_request = request;

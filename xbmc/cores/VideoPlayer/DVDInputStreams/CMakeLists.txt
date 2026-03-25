@@ -5,6 +5,7 @@ set(SOURCES BlurayStateSerializer.cpp
             DVDInputStreamFile.cpp
             DVDInputStreamMemory.cpp
             DVDInputStreamNavigator.cpp
+            DVDInputStreamStack.cpp
             DVDStateSerializer.cpp
             InputStreamAddon.cpp
             InputStreamMultiSource.cpp
@@ -19,6 +20,7 @@ set(HEADERS BlurayStateSerializer.h
             DVDInputStreamFile.h
             DVDInputStreamMemory.h
             DVDInputStreamNavigator.h
+            DVDInputStreamStack.h
             DVDStateSerializer.h
             DllDvdNav.h
             InputStreamAddon.h
@@ -28,7 +30,7 @@ set(HEADERS BlurayStateSerializer.h
             InputStreamPVRChannel.h
             InputStreamPVRRecording.h)
 
-if(TARGET ${APP_NAME_LC}::Bluray)
+if(BLURAY_FOUND)
   list(APPEND SOURCES DVDInputStreamBluray.cpp)
   list(APPEND HEADERS DVDInputStreamBluray.h)
 endif()

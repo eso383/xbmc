@@ -12,8 +12,7 @@
 #include "cores/VideoPlayer/VideoRenderers/RenderFlags.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -21,7 +20,6 @@
 #include "utils/MathUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <algorithm>
 #include <cstdlib> // std::abs(int) prototype
@@ -42,7 +40,9 @@ CBaseRenderer::~CBaseRenderer() = default;
 
 float CBaseRenderer::GetAspectRatio() const
 {
-  return m_sourceFrameRatio;
+  float width = (float)m_sourceWidth;
+  float height = (float)m_sourceHeight;
+  return m_sourceFrameRatio * width / height * m_sourceHeight / m_sourceWidth;
 }
 
 void CBaseRenderer::GetVideoRect(CRect& source, CRect& dest, CRect& view) const
@@ -111,8 +111,7 @@ void CBaseRenderer::CalcDestRect(float offsetX,
                                  float inputFrameRatio,
                                  float zoomAmount,
                                  float verticalShift,
-                                 CRect& destRect)
-{
+                                 CRect& destRect) const {
   // if view window is empty, set empty destination
   if (height == 0 || width == 0)
   {
@@ -314,24 +313,22 @@ void CBaseRenderer::ManageRenderArea()
   m_sourceRect.y2 = (float)m_sourceHeight;
 
   unsigned int stereo_mode  = CONF_FLAGS_STEREO_MODE_MASK(m_iFlags);
-  auto stereo_view = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView();
-  float inputFrameRatio  = GetAspectRatio();
-  float ratio  = m_sourceRect.x2 / m_sourceRect.y2;
+  int          stereo_view  = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoView();
+  float    inputFrameRatio  = GetAspectRatio();
+  float              ratio  = m_sourceRect.x2 / m_sourceRect.y2;
 
   if(CONF_FLAGS_STEREO_CADENCE(m_iFlags) == CONF_FLAGS_STEREO_CADANCE_RIGHT_LEFT)
   {
-    if (stereo_view == RenderStereoView::LEFT)
-      stereo_view = RenderStereoView::RIGHT;
-    else if (stereo_view == RenderStereoView::RIGHT)
-      stereo_view = RenderStereoView::LEFT;
+    if     (stereo_view == RENDER_STEREO_VIEW_LEFT)  stereo_view = RENDER_STEREO_VIEW_RIGHT;
+    else if(stereo_view == RENDER_STEREO_VIEW_RIGHT) stereo_view = RENDER_STEREO_VIEW_LEFT;
   }
 
   switch(stereo_mode)
   {
     case CONF_FLAGS_STEREO_MODE_TAB:
-      if (stereo_view == RenderStereoView::LEFT)
+      if (stereo_view == RENDER_STEREO_VIEW_LEFT)
         m_sourceRect.y2 *= 0.5f;
-      else if (stereo_view == RenderStereoView::RIGHT)
+      else if(stereo_view == RENDER_STEREO_VIEW_RIGHT)
         m_sourceRect.y1 += m_sourceRect.y2*0.5f;
 
       if (inputFrameRatio == ratio)
@@ -339,9 +336,9 @@ void CBaseRenderer::ManageRenderArea()
       break;
 
     case CONF_FLAGS_STEREO_MODE_SBS:
-      if (stereo_view == RenderStereoView::LEFT)
+      if     (stereo_view == RENDER_STEREO_VIEW_LEFT)
         m_sourceRect.x2 *= 0.5f;
-      else if (stereo_view == RenderStereoView::RIGHT)
+      else if(stereo_view == RENDER_STEREO_VIEW_RIGHT)
         m_sourceRect.x1 += m_sourceRect.x2*0.5f;
 
       if (inputFrameRatio == ratio)
@@ -507,8 +504,7 @@ void CBaseRenderer::SetViewMode(int viewMode)
   m_videoSettings.m_CustomVerticalShift = CDisplaySettings::GetInstance().GetVerticalShift();
 }
 
-void CBaseRenderer::MarkDirty()
-{
+void CBaseRenderer::MarkDirty() const {
   CServiceBroker::GetGUI()->GetWindowManager().MarkDirty(m_destRect);
 }
 
@@ -525,19 +521,14 @@ void CBaseRenderer::SetVideoSettings(const CVideoSettings &settings)
 void CBaseRenderer::SettingOptionsRenderMethodsFiller(
     const std::shared_ptr<const CSetting>& setting,
     std::vector<IntegerSettingOption>& list,
-    int& current)
+    int& current,
+    void* data)
 {
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13416),
-                    RENDER_METHOD_AUTO);
+  list.emplace_back(g_localizeStrings.Get(13416), RENDER_METHOD_AUTO);
 
 #ifdef HAS_DX
-  list.push_back(IntegerSettingOption(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16319), RENDER_METHOD_DXVA));
-  list.push_back(
-      IntegerSettingOption(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13431),
-                           RENDER_METHOD_D3D_PS));
-  list.push_back(
-      IntegerSettingOption(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13419),
-                           RENDER_METHOD_SOFTWARE));
+  list.push_back(IntegerSettingOption(g_localizeStrings.Get(16319), RENDER_METHOD_DXVA));
+  list.push_back(IntegerSettingOption(g_localizeStrings.Get(13431), RENDER_METHOD_D3D_PS));
+  list.push_back(IntegerSettingOption(g_localizeStrings.Get(13419), RENDER_METHOD_SOFTWARE));
 #endif
 }

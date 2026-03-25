@@ -34,6 +34,7 @@ enum RenderOrder {
 };
 
 // forward
+class TiXmlNode;
 class TiXmlElement;
 class CXBMCTinyXML;
 class CVariant;
@@ -183,11 +184,6 @@ public:
    \sa SetProperty, HasProperty, GetProperty
    */
   void ClearProperties();
-
-  /*! \brief Retrieve names of all properties of this window
-   \return the property names
-   */
-  std::vector<std::string> GetPropertyNames() const;
 
 #ifdef _DEBUG
   void DumpTextureUse() override;

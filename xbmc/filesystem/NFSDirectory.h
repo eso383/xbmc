@@ -11,10 +11,6 @@
 #include "IDirectory.h"
 #include "NFSFile.h"
 
-#include <memory>
-#include <vector>
-
-class CFileItem;
 struct nfsdirent;
 
 namespace XFILE
@@ -25,14 +21,14 @@ namespace XFILE
       CNFSDirectory(void);
       ~CNFSDirectory(void) override;
       bool GetDirectory(const CURL& url, CFileItemList &items) override;
-      CacheType GetCacheType(const CURL& url) const override { return CacheType::ONCE; }
+      DIR_CACHE_TYPE GetCacheType(const CURL& url) const override { return DIR_CACHE_ONCE; }
       bool Create(const CURL& url) override;
       bool Exists(const CURL& url) override;
       bool Remove(const CURL& url) override;
     private:
-      std::vector<std::shared_ptr<CFileItem>> GetServerList() const;
-      std::vector<std::shared_ptr<CFileItem>> GetDirectoryFromExportList(
-          const CURL& inputURL) const;
+      bool GetServerList(CFileItemList &items);
+      bool GetDirectoryFromExportList(const std::string& strPath, CFileItemList &items);
+      bool ResolveSymlink( const std::string &dirName, struct nfsdirent *dirent, CURL &resolvedUrl);
   };
 }
 

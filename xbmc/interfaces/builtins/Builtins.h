@@ -9,11 +9,8 @@
 #pragma once
 
 #include <map>
-#include <memory>
 #include <string>
 #include <vector>
-
-class CGUIListItem;
 
 class CBuiltins
 {
@@ -22,11 +19,8 @@ public:
   struct BUILT_IN
   {
     std::string description; //!< Description of command (help string)
-    size_t parameters{0}; //!< Number of required parameters (can be 0)
-    int (*Execute)(const std::vector<std::string>& params){nullptr}; //!< Function to handle command
-    int (*ExecuteEx)(const std::vector<std::string>& params,
-                     const std::shared_ptr<CGUIListItem>& item){
-        nullptr}; //!< Function to handle command
+    size_t parameters;       //!< Number of required parameters (can be 0)
+    int (*Execute)(const std::vector<std::string>& params); //!< Function to handle command
   };
 
   //! \brief A map of commands
@@ -36,8 +30,8 @@ public:
 
   bool HasCommand(const std::string& execString);
   bool IsSystemPowerdownCommand(const std::string& execString);
-  void GetHelp(std::string &help);
-  int Execute(const std::string& execString, const std::shared_ptr<CGUIListItem>& item = nullptr);
+  void GetHelp(std::string &help) const;
+  int Execute(const std::string& execString);
 
 protected:
   CBuiltins();

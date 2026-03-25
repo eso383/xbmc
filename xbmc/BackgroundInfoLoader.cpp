@@ -9,12 +9,10 @@
 #include "BackgroundInfoLoader.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "threads/Thread.h"
 #include "utils/log.h"
 
-#include <algorithm>
 #include <mutex>
 
 CBackgroundInfoLoader::CBackgroundInfoLoader() = default;
@@ -40,8 +38,10 @@ void CBackgroundInfoLoader::Run()
       OnLoaderStart();
 
       // Stage 1: All "fast" stuff we have already cached
-      for (const auto& pItem : m_vecItems)
+      for (std::vector<CFileItemPtr>::const_iterator iter = m_vecItems.begin(); iter != m_vecItems.end(); ++iter)
       {
+        const CFileItemPtr& pItem = *iter;
+
         // Ask the callback if we should abort
         if ((m_pProgressCallback && m_pProgressCallback->Abort()) || m_bStop)
           break;
@@ -60,8 +60,10 @@ void CBackgroundInfoLoader::Run()
       }
 
       // Stage 2: All "slow" stuff that we need to lookup
-      for (const auto& pItem : m_vecItems)
+      for (std::vector<CFileItemPtr>::const_iterator iter = m_vecItems.begin(); iter != m_vecItems.end(); ++iter)
       {
+        const CFileItemPtr& pItem = *iter;
+
         // Ask the callback if we should abort
         if ((m_pProgressCallback && m_pProgressCallback->Abort()) || m_bStop)
           break;
@@ -97,15 +99,16 @@ void CBackgroundInfoLoader::Load(CFileItemList& items)
   if (items.IsEmpty())
     return;
 
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
 
-  std::ranges::copy(items, std::back_inserter(m_vecItems));
+  for (int nItem=0; nItem < items.Size(); nItem++)
+    m_vecItems.push_back(items[nItem]);
 
   m_pVecItems = &items;
   m_bStop = false;
   m_bIsLoading = true;
 
-  m_thread = std::make_unique<CThread>(this, "BackgroundLoader");
+  m_thread = new CThread(this, "BackgroundLoader");
   m_thread->Create();
   m_thread->SetPriority(ThreadPriority::BELOW_NORMAL);
 }
@@ -115,6 +118,7 @@ void CBackgroundInfoLoader::StopAsync()
   m_bStop = true;
 }
 
+
 void CBackgroundInfoLoader::StopThread()
 {
   StopAsync();
@@ -122,7 +126,8 @@ void CBackgroundInfoLoader::StopThread()
   if (m_thread)
   {
     m_thread->StopThread();
-    m_thread.reset();
+    delete m_thread;
+    m_thread = nullptr;
   }
   Reset();
 }
@@ -141,3 +146,4 @@ void CBackgroundInfoLoader::SetProgressCallback(IProgressCallback* pCallback)
 {
   m_pProgressCallback = pCallback;
 }
+

@@ -17,7 +17,6 @@
 #include "cores/VideoPlayer/DVDCodecs/Overlay/DVDOverlayImage.h"
 #include "cores/VideoPlayer/DVDCodecs/Overlay/DVDOverlaySSA.h"
 #include "cores/VideoPlayer/DVDCodecs/Overlay/DVDOverlaySpu.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/MatrixGL.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "utils/GLUtils.h"
@@ -34,6 +33,18 @@
 
 using namespace OVERLAY;
 
+namespace
+{
+ShaderMethodGLES GetOverlayTextureShaderMethod(bool isHdrPqAuthored)
+{
+  if (!isHdrPqAuthored) return ShaderMethodGLES::SM_TEXTURE_NOBLEND;
+
+  const bool pqOutput = CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
+  return pqOutput ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT
+                  : ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT;
+}
+} // namespace
+
 static void LoadTexture(GLenum target,
                         GLsizei width,
                         GLsizei height,
@@ -45,7 +56,7 @@ static void LoadTexture(GLenum target,
 {
   int width2 = width;
   int height2 = height;
-  char* pixelVector = NULL;
+  char* pixelVector = nullptr;
   const GLvoid* pixelData = pixels;
 
   GLenum internalFormat = alpha ? GL_ALPHA : GL_RGBA;
@@ -54,16 +65,18 @@ static void LoadTexture(GLenum target,
   int bytesPerPixel = KODI::UTILS::GL::glFormatElementByteCount(externalFormat);
 
   bool bgraSupported = false;
+  auto renderSystem =
+      dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
 
   if (!alpha)
   {
-    if (CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_texture_format_BGRA8888) ||
-        CGLExtensions::IsExtensionSupported(CGLExtensions::IMG_texture_format_BGRA8888))
+    if (renderSystem->IsExtSupported("GL_EXT_texture_format_BGRA8888") ||
+        renderSystem->IsExtSupported("GL_IMG_texture_format_BGRA8888"))
     {
       bgraSupported = true;
       internalFormat = externalFormat = GL_BGRA_EXT;
     }
-    else if (CGLExtensions::IsExtensionSupported(CGLExtensions::APPLE_texture_format_BGRA8888))
+    else if (renderSystem->IsExtSupported("GL_APPLE_texture_format_BGRA8888"))
     {
       // Apple's implementation does not conform to spec. Instead, they require
       // differing format/internalformat, more like GL.
@@ -78,7 +91,7 @@ static void LoadTexture(GLenum target,
   {
     pixelVector = (char*)malloc(bytesPerLine * height);
 
-    const char* src = (const char*)pixels;
+    auto src = (const char*)pixels;
     char* dst = pixelVector;
     for (int y = 0; y < height; ++y)
     {
@@ -102,7 +115,7 @@ static void LoadTexture(GLenum target,
   {
     pixelVector = (char*)malloc(bytesPerLine * height);
 
-    const char* src = (const char*)pixels;
+    auto src = (const char*)pixels;
     char* dst = pixelVector;
     for (int y = 0; y < height; ++y)
     {
@@ -118,7 +131,7 @@ static void LoadTexture(GLenum target,
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   glTexImage2D(target, 0, internalFormat, width2, height2, 0, externalFormat, GL_UNSIGNED_BYTE,
-               NULL);
+  nullptr);
 
   glTexSubImage2D(target, 0, 0, 0, width, height, externalFormat, GL_UNSIGNED_BYTE, pixelData);
 
@@ -154,7 +167,7 @@ COverlayTextureGLES::COverlayTextureGLES(const CDVDOverlayImage& o, CRect& rSour
   if (o.palette.empty())
   {
     m_pma = false;
-    const uint32_t* rgba = reinterpret_cast<const uint32_t*>(o.pixels.data());
+    auto rgba = reinterpret_cast<const uint32_t*>(o.pixels.data());
     LoadTexture(GL_TEXTURE_2D, o.width, o.height, o.linesize, &m_u, &m_v, false, rgba);
   }
   else
@@ -332,7 +345,7 @@ COverlayGlyphGLES::~COverlayGlyphGLES()
 
 void COverlayGlyphGLES::Render(SRenderState& state)
 {
-  if ((m_texture == 0) || (m_vertex.empty()))
+  if ((m_texture == 0) || (m_vertex.size() == 0))
     return;
 
   glEnable(GL_BLEND);
@@ -350,7 +363,7 @@ void COverlayGlyphGLES::Render(SRenderState& state)
   glMatrixModview->Scalef(state.width, state.height, 1.0f);
   glMatrixModview.Load();
 
-  CRenderSystemGLES* renderSystem =
+  auto renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
   renderSystem->EnableGUIShader(ShaderMethodGLES::SM_FONTS);
   GLint posLoc = renderSystem->GUIShaderGetPos();
@@ -448,12 +461,11 @@ void COverlayTextureGLES::Render(SRenderState& state)
     rd.SetRect(left, top, right, bottom);
   }
 
-  CRenderSystemGLES* renderSystem =
+  auto renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
-  const bool bypassTransferPQ = m_isHdrPqAuthored &&
-                                CServiceBroker::GetWinSystem()->GetGfxContext().IsTransferPQ();
-  renderSystem->EnableGUIShader(bypassTransferPQ ? ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ
-                                                 : ShaderMethodGLES::SM_TEXTURE_NOBLEND);
+
+  renderSystem->EnableGUIShader(GetOverlayTextureShaderMethod(m_isHdrPqAuthored));
+
   GLint posLoc = renderSystem->GUIShaderGetPos();
   GLint tex0Loc = renderSystem->GUIShaderGetCoord0();
   GLint depthLoc = renderSystem->GUIShaderGetDepth();

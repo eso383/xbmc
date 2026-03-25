@@ -14,7 +14,11 @@
 
 #include <memory>
 
-namespace KODI::GUILIB::GUIINFO
+namespace KODI
+{
+namespace GUILIB
+{
+namespace GUIINFO
 {
 
 class CGUIInfo;
@@ -26,20 +30,10 @@ public:
   ~CSystemGUIInfo() override = default;
 
   // KODI::GUILIB::GUIINFO::IGUIInfoProvider implementation
-  bool InitCurrentItem(CFileItem* item) override;
-  bool GetLabel(std::string& value,
-                const CFileItem* item,
-                int contextWindow,
-                const CGUIInfo& info,
-                std::string* fallback) const override;
-  bool GetInt(int& value,
-              const CGUIListItem* item,
-              int contextWindow,
-              const CGUIInfo& info) const override;
-  bool GetBool(bool& value,
-               const CGUIListItem* item,
-               int contextWindow,
-               const CGUIInfo& info) const override;
+  bool InitCurrentItem(CFileItem *item) override;
+  bool GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const override;
+  bool GetInt(int& value, const CGUIListItem *item, int contextWindow, const CGUIInfo &info) const override;
+  bool GetBool(bool& value, const CGUIListItem *item, int contextWindow, const CGUIInfo &info) const override;
 
   float GetFPS() const { return m_fps; }
   void UpdateFPS();
@@ -60,4 +54,6 @@ private:
   unsigned int m_lastFPSTime = 0;
 };
 
-} // namespace KODI::GUILIB::GUIINFO
+} // namespace GUIINFO
+} // namespace GUILIB
+} // namespace KODI

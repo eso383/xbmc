@@ -65,7 +65,7 @@ public:
   // Input functions
   bool HasFeature(const std::string& controllerId, const std::string& featureName) const;
   bool AcceptsInput() const;
-  bool InputEvent(const game_input_event& event);
+  bool InputEvent(const game_input_event& event) const;
   float GetPortActivation(const std::string& portAddress);
 
   // Topology functions
@@ -84,20 +84,20 @@ public:
   void CloseJoysticks(PERIPHERALS::EventLockHandlePtr& inputHandlingLock);
 
   // Keyboard functions
-  bool OpenKeyboard(const ControllerPtr& controller);
+  bool OpenKeyboard(const ControllerPtr& controller, const PERIPHERALS::PeripheralPtr& keyboard);
   bool IsKeyboardOpen() const;
-  bool CloseKeyboard();
+  void CloseKeyboard();
 
   // Mouse functions
-  bool OpenMouse(const ControllerPtr& controller);
+  bool OpenMouse(const ControllerPtr& controller, const PERIPHERALS::PeripheralPtr& mouse);
   bool IsMouseOpen() const;
-  bool CloseMouse();
+  void CloseMouse();
 
   // Agent functions
   bool HasAgent() const;
 
   // Hardware input functions
-  void HardwareReset();
+  void HardwareReset() const;
 
   // Input callbacks
   bool ReceiveInputEvent(const game_input_event& eventStruct);
@@ -131,7 +131,7 @@ private:
   /*!
    * \brief Map of port address to joystick handler
    *
-   * The port address is a string that identifies the address of the port.
+   * The port address is a string that identifies the adress of the port.
    *
    * The joystick handler connects to joystick input of the game client.
    *

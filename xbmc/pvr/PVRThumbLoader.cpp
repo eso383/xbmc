@@ -9,18 +9,20 @@
 #include "PVRThumbLoader.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "TextureCache.h"
-#include "imagefiles/ImageFileURL.h"
 #include "pvr/PVRManager.h"
+#include "pvr/filesystem/PVRGUIDirectory.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
-#include <chrono>
+#include <ctime>
 
-namespace PVR
-{
+using namespace PVR;
+
 bool CPVRThumbLoader::LoadItem(CFileItem* item)
 {
   bool result = LoadItemCached(item);
@@ -77,7 +79,7 @@ bool CPVRThumbLoader::FillThumb(CFileItem& item)
   if (thumb.empty())
   {
     if (item.IsPVRChannelGroup())
-      thumb = GetChannelGroupThumbURL(item);
+      thumb = CreateChannelGroupThumb(item);
     else
       CLog::LogF(LOGERROR, "Unsupported PVR item '{}'", item.GetPath());
 
@@ -95,12 +97,9 @@ bool CPVRThumbLoader::FillThumb(CFileItem& item)
   return true;
 }
 
-std::string CPVRThumbLoader::GetChannelGroupThumbURL(const CFileItem& channelGroupItem) const
+std::string CPVRThumbLoader::CreateChannelGroupThumb(const CFileItem& channelGroupItem)
 {
-  const auto now{std::chrono::system_clock::now()};
   return StringUtils::Format("{}?ts={}", // append timestamp to Thumb URL to enforce texture refresh
-                             IMAGE_FILES::URLFromFile(channelGroupItem.GetPath(), "pvr"),
-                             std::chrono::system_clock::to_time_t(now));
+                             CTextureUtils::GetWrappedImageURL(channelGroupItem.GetPath(), "pvr"),
+                             std::time(nullptr));
 }
-
-} // namespace PVR

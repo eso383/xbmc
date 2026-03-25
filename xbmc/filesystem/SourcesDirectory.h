@@ -13,6 +13,7 @@
 #include <vector>
 
 class CMediaSource;
+typedef std::vector<CMediaSource> VECSOURCES;
 
 namespace XFILE
 {
@@ -22,7 +23,7 @@ namespace XFILE
     CSourcesDirectory(void);
     ~CSourcesDirectory(void) override;
     bool GetDirectory(const CURL& url, CFileItemList &items) override;
-    bool GetDirectory(const std::vector<CMediaSource>& sources, CFileItemList& items);
+    bool GetDirectory(const VECSOURCES &sources, CFileItemList &items);
     bool Exists(const CURL& url) override;
     bool AllowAll() const override { return true; }
   };

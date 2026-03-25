@@ -8,6 +8,7 @@
 
 #pragma once
 
+
 //-----------------------------------------------------------------------------
 // VAAPI
 //-----------------------------------------------------------------------------
@@ -21,15 +22,15 @@ namespace GBM
 class CVaapiProxy;
 
 CVaapiProxy* VaapiProxyCreate(int fd);
-void VaapiProxyDelete(CVaapiProxy* proxy);
-void VaapiProxyConfig(CVaapiProxy* proxy, void* eglDpy);
-void VAAPIRegister(CVaapiProxy* winSystem, bool deepColor);
+void VaapiProxyDelete(CVaapiProxy *proxy);
+void VaapiProxyConfig(CVaapiProxy *proxy, void *eglDpy);
+void VAAPIRegister(CVaapiProxy *winSystem, bool deepColor);
 #if defined(HAS_GL)
 void VAAPIRegisterRenderGL(CVaapiProxy* winSystem, bool& general, bool& deepColor);
 #endif
 #if defined(HAS_GLES)
 void VAAPIRegisterRenderGLES(CVaapiProxy* winSystem, bool& general, bool& deepColor);
 #endif
-} // namespace GBM
-} // namespace WINDOWING
-} // namespace KODI
+}
+}
+}

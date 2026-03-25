@@ -25,14 +25,13 @@ using namespace JOYSTICK;
 #define AXIS_EPSILON 0.01f
 
 // Settings for analog sticks
-const char* CDeadzoneFilter::SETTING_LEFT_STICK_DEADZONE = "left_stick_deadzone";
-const char* CDeadzoneFilter::SETTING_RIGHT_STICK_DEADZONE = "right_stick_deadzone";
+#define SETTING_LEFT_STICK_DEADZONE "left_stick_deadzone"
+#define SETTING_RIGHT_STICK_DEADZONE "right_stick_deadzone"
 
 CDeadzoneFilter::CDeadzoneFilter(IButtonMap* buttonMap, PERIPHERALS::CPeripheral* peripheral)
-  : m_buttonMap(buttonMap),
-    m_peripheral(peripheral)
+  : m_buttonMap(buttonMap), m_peripheral(peripheral)
 {
-  if (m_buttonMap->ControllerID() != GAME::DEFAULT_CONTROLLER_ID)
+  if (m_buttonMap->ControllerID() != DEFAULT_CONTROLLER_ID)
     CLog::Log(LOGERROR, "ERROR: Must use default controller profile instead of {}",
               m_buttonMap->ControllerID());
 }
@@ -58,8 +57,7 @@ float CDeadzoneFilter::FilterAxis(unsigned int axisIndex, float axisValue)
 bool CDeadzoneFilter::GetDeadzone(unsigned int axisIndex,
                                   float& deadzone,
                                   const char* featureName,
-                                  const char* settingName)
-{
+                                  const char* settingName) const {
   std::vector<ANALOG_STICK_DIRECTION> dirs = {
       ANALOG_STICK_DIRECTION::UP,
       ANALOG_STICK_DIRECTION::RIGHT,

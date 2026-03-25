@@ -10,7 +10,6 @@
 
 #include <stdlib.h>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace ADDON
@@ -21,38 +20,34 @@ class CAddonDatabaseSerializer;
 
 struct SExtValue
 {
-  SExtValue() = default;
-  explicit SExtValue(const std::string& strValue) : str(strValue) {}
-
+  explicit SExtValue(const std::string& strValue) : str(strValue) { }
   const std::string& asString() const { return str; }
   bool asBoolean() const;
   int asInteger() const { return std::atoi(str.c_str()); }
   float asFloat() const { return static_cast<float>(std::atof(str.c_str())); }
   bool empty() const { return str.empty(); }
-
   const std::string str;
 };
 
 class CExtValues;
 class CAddonExtensions;
-
-using EXT_ELEMENTS = std::vector<std::pair<std::string, CAddonExtensions>>;
-using EXT_VALUE = std::vector<std::pair<std::string, SExtValue>>;
-using EXT_VALUES = std::vector<std::pair<std::string, CExtValues>>;
+typedef std::vector<std::pair<std::string, CAddonExtensions>> EXT_ELEMENTS;
+typedef std::vector<std::pair<std::string, SExtValue>> EXT_VALUE;
+typedef std::vector<std::pair<std::string, CExtValues>> EXT_VALUES;
 
 class CExtValues : public EXT_VALUE
 {
 public:
-  explicit CExtValues(const EXT_VALUE& values) : EXT_VALUE(values) {}
+  CExtValues(const EXT_VALUE& values) : EXT_VALUE(values) { }
 
-  SExtValue GetValue(std::string_view id) const
+  const SExtValue GetValue(const std::string& id) const
   {
-    for (const auto& [valueId, valueValue] : *this)
+    for (const auto& value : *this)
     {
-      if (valueId == id)
-        return valueValue;
+      if (value.first == id)
+        return value.second;
     }
-    return {};
+    return SExtValue("");
   }
 };
 
@@ -62,10 +57,10 @@ public:
   CAddonExtensions() = default;
   ~CAddonExtensions() = default;
 
-  SExtValue GetValue(std::string_view id) const;
+  const SExtValue GetValue(const std::string& id) const;
   const EXT_VALUES& GetValues() const;
-  const CAddonExtensions* GetElement(std::string_view id) const;
-  EXT_ELEMENTS GetElements(std::string_view id = "") const;
+  const CAddonExtensions* GetElement(const std::string& id) const;
+  const EXT_ELEMENTS GetElements(const std::string& id = "") const;
 
   void Insert(const std::string& id, const std::string& value);
 

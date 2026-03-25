@@ -10,12 +10,9 @@
 
 #include "BlurayStateSerializer.h"
 #include "DVDInputStream.h"
-#include "threads/CriticalSection.h"
 
-#include <chrono>
 #include <list>
 #include <memory>
-#include <string>
 #include <queue>
 
 extern "C"
@@ -115,13 +112,13 @@ public:
 
 
   void UserInput(bd_vk_key_e vk);
-  bool MouseMove(const CPoint &point);
-  bool MouseClick(const CPoint &point);
+  bool MouseMove(const CPoint &point) const;
+  bool MouseClick(const CPoint &point) const;
 
   int GetChapter() override;
   int GetChapterCount() override;
   void GetChapterName(std::string& name, int ch=-1) override {};
-  std::chrono::milliseconds GetChapterPos(int ch) override;
+  int64_t GetChapterPos(int ch) override;
   bool SeekChapter(int ch) override;
 
   CDVDInputStream::IDisplayTime* GetIDisplayTime() override { return this; }
@@ -131,18 +128,18 @@ public:
   CDVDInputStream::IPosTime* GetIPosTime() override { return this; }
   bool PosTime(int ms) override;
 
-  void GetStreamInfo(int pid, std::string &language);
+  void GetStreamInfo(int pid, std::string &language) const;
 
-  int Get3dSubtitlePlane(uint16_t pid);
+  int Get3dSubtitlePlane(uint16_t pid) const;
 
   void OverlayCallback(const BD_OVERLAY * const);
 #ifdef HAVE_LIBBLURAY_BDJ
   void OverlayCallbackARGB(const struct bd_argb_overlay_s * const);
 #endif
 
-  BLURAY_TITLE_INFO* GetTitleFromState(const std::string& xmlstate);
-  BLURAY_TITLE_INFO* GetTitleLongest();
-  BLURAY_TITLE_INFO* GetTitleFile(const std::string& name);
+  BLURAY_TITLE_INFO* GetTitleFromState(const std::string& xmlstate) const;
+  BLURAY_TITLE_INFO* GetTitleLongest() const;
+  BLURAY_TITLE_INFO* GetTitleFile(const std::string& name) const;
 
   void ProcessEvent();
   CDVDDemux* GetExtentionDemux() override { return m_pMVCDemux; };
@@ -150,10 +147,6 @@ public:
   bool AreEyesFlipped() override { return m_bFlipEyes; }
   void DisableExtention() override;
   bool OpenNextStream() override;
-
-  void SaveCurrentState(const CStreamDetails& details) override;
-  UpdateState UpdateItemFromSavedStates(CFileItem& item, double time, bool& closed) override;
-  void UpdateStack(CFileItem& item) override;
 
 protected:
   struct SPlane;
@@ -220,7 +213,7 @@ protected:
 
   private:
     bool OpenStream(CFileItem &item);
-    void SetupPlayerSettings();
+    void SetupPlayerSettings() const;
     void FreeTitleInfo();
     std::unique_ptr<CDVDInputStreamFile> m_pstream;
     std::string m_rootPath;
@@ -230,8 +223,4 @@ protected:
 
     /* used during bd_open_stream read block*/
     CCriticalSection m_readBlocksLock;
-
-    std::chrono::steady_clock::time_point m_startWatchTime{};
-    std::vector<PlaylistInformation> m_playedPlaylists;
-    CCriticalSection m_statesLock;
 };

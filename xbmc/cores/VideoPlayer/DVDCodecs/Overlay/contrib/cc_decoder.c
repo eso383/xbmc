@@ -60,27 +60,27 @@ const char* get_char_override(uint8_t charset, uint8_t c)
     switch (c)
     {
       case 0x27:
-        return "\u2019";
+        return u8"\u2019";
       case 0x2a:
-        return "\u00e1";
+        return u8"\u00e1";
       case 0x5c:
-        return "\u00e9";
+        return u8"\u00e9";
       case 0x5e:
-        return "\u00ed";
+        return u8"\u00ed";
       case 0x5f:
-        return "\u00f3";
+        return u8"\u00f3";
       case 0x60:
-        return "\u00fa";
+        return u8"\u00fa";
       case 0x7b:
-        return "\u00e7";
+        return u8"\u00e7";
       case 0x7c:
-        return "\u00f7";
+        return u8"\u00f7";
       case 0x7d:
-        return "\u00d1";
+        return u8"\u00d1";
       case 0x7e:
-        return "\u00f1";
+        return u8"\u00f1";
       case 0x7f:
-        return "\u2588";
+        return u8"\u2588";
       default:
         break;
     }
@@ -90,37 +90,37 @@ const char* get_char_override(uint8_t charset, uint8_t c)
     switch (c)
     {
       case 0x30:
-        return "\u00ae";
+        return u8"\u00ae";
       case 0x31:
-        return "\u00b0";
+        return u8"\u00b0";
       case 0x32:
-        return "\u00bd";
+        return u8"\u00bd";
       case 0x33:
-        return "\u00bf";
+        return u8"\u00bf";
       case 0x34:
-        return "\u2122";
+        return u8"\u2122";
       case 0x35:
-        return "\u00a2";
+        return u8"\u00a2";
       case 0x36:
-        return "\u00a3";
+        return u8"\u00a3";
       case 0x37:
-        return "\u266a";
+        return u8"\u266a";
       case 0x38:
-        return "\u00e0";
+        return u8"\u00e0";
       case 0x39:
-        return "\u00A0";
+        return u8"\u00A0";
       case 0x3a:
-        return "\u00e8";
+        return u8"\u00e8";
       case 0x3b:
-        return "\u00e2";
+        return u8"\u00e2";
       case 0x3c:
-        return "\u00ea";
+        return u8"\u00ea";
       case 0x3d:
-        return "\u00ee";
+        return u8"\u00ee";
       case 0x3e:
-        return "\u00f4";
+        return u8"\u00f4";
       case 0x3f:
-        return "\u00fb";
+        return u8"\u00fb";
       default:
         break;
     }
@@ -130,69 +130,69 @@ const char* get_char_override(uint8_t charset, uint8_t c)
     switch (c)
     {
       case 0x20:
-        return "\u00c1";
+        return u8"\u00c1";
       case 0x21:
-        return "\u00c9";
+        return u8"\u00c9";
       case 0x22:
-        return "\u00d3";
+        return u8"\u00d3";
       case 0x23:
-        return "\u00da";
+        return u8"\u00da";
       case 0x24:
-        return "\u00dc";
+        return u8"\u00dc";
       case 0x25:
-        return "\u00fc";
+        return u8"\u00fc";
       case 0x26:
-        return "\u00b4";
+        return u8"\u00b4";
       case 0x27:
-        return "\u00a1";
+        return u8"\u00a1";
       case 0x28:
-        return "*";
+        return u8"*";
       case 0x29:
-        return "\u2018";
+        return u8"\u2018";
       case 0x2a:
-        return "-";
+        return u8"-";
       case 0x2b:
-        return "\u00a9";
+        return u8"\u00a9";
       case 0x2c:
-        return "\u2120";
+        return u8"\u2120";
       case 0x2d:
-        return "\u00b7";
+        return u8"\u00b7";
       case 0x2e:
-        return "\u201c";
+        return u8"\u201c";
       case 0x2f:
-        return "\u201d";
+        return u8"\u201d";
       case 0x30:
-        return "\u00c0";
+        return u8"\u00c0";
       case 0x31:
-        return "\u00c2";
+        return u8"\u00c2";
       case 0x32:
-        return "\u00c7";
+        return u8"\u00c7";
       case 0x33:
-        return "\u00c8";
+        return u8"\u00c8";
       case 0x34:
-        return "\u00ca";
+        return u8"\u00ca";
       case 0x35:
-        return "\u00cb";
+        return u8"\u00cb";
       case 0x36:
-        return "\u00eb";
+        return u8"\u00eb";
       case 0x37:
-        return "\u00ce";
+        return u8"\u00ce";
       case 0x38:
-        return "\u00cf";
+        return u8"\u00cf";
       case 0x39:
-        return "\u00ef";
+        return u8"\u00ef";
       case 0x3a:
-        return "\u00d4";
+        return u8"\u00d4";
       case 0x3b:
-        return "\u00d9";
+        return u8"\u00d9";
       case 0x3c:
-        return "\u00f9";
+        return u8"\u00f9";
       case 0x3d:
-        return "\u00db";
+        return u8"\u00db";
       case 0x3e:
-        return "\u00ab";
+        return u8"\u00ab";
       case 0x3f:
-        return "\u00bb";
+        return u8"\u00bb";
       default:
         break;
     }
@@ -202,69 +202,69 @@ const char* get_char_override(uint8_t charset, uint8_t c)
     switch (c)
     {
       case 0x20:
-        return "\u00c3";
+        return u8"\u00c3";
       case 0x21:
-        return "\u00e3";
+        return u8"\u00e3";
       case 0x22:
-        return "\u00cd";
+        return u8"\u00cd";
       case 0x23:
-        return "\u00cc";
+        return u8"\u00cc";
       case 0x24:
-        return "\u00ec";
+        return u8"\u00ec";
       case 0x25:
-        return "\u00d2";
+        return u8"\u00d2";
       case 0x26:
-        return "\u00f2";
+        return u8"\u00f2";
       case 0x27:
-        return "\u00d5";
+        return u8"\u00d5";
       case 0x28:
-        return "\u00f5";
+        return u8"\u00f5";
       case 0x29:
-        return "{";
+        return u8"{";
       case 0x2a:
-        return "}";
+        return u8"}";
       case 0x2b:
-        return "\\";
+        return u8"\\";
       case 0x2c:
-        return "^";
+        return u8"^";
       case 0x2d:
-        return "_";
+        return u8"_";
       case 0x2e:
-        return "|";
+        return u8"|";
       case 0x2f:
-        return "~";
+        return u8"~";
       case 0x30:
-        return "\u00c4";
+        return u8"\u00c4";
       case 0x31:
-        return "\u00e4";
+        return u8"\u00e4";
       case 0x32:
-        return "\u00d6";
+        return u8"\u00d6";
       case 0x33:
-        return "\u00f6";
+        return u8"\u00f6";
       case 0x34:
-        return "\u00df";
+        return u8"\u00df";
       case 0x35:
-        return "\u00a5";
+        return u8"\u00a5";
       case 0x36:
-        return "\u00a4";
+        return u8"\u00a4";
       case 0x37:
-        return "\u00a6";
+        return u8"\u00a6";
       case 0x38:
-        return "\u00c5";
+        return u8"\u00c5";
       case 0x39:
-        return "\u00e5";
+        return u8"\u00e5";
       case 0x3a:
-        return "\u00d8";
+        return u8"\u00d8";
       case 0x3b:
-        return "\u00f8";
+        return u8"\u00f8";
       case 0x3c:
-        return "\u250c";
+        return u8"\u250c";
       case 0x3d:
-        return "\u2510";
+        return u8"\u2510";
       case 0x3e:
-        return "\u2514";
+        return u8"\u2514";
       case 0x3f:
-        return "\u2518";
+        return u8"\u2518";
       default:
         break;
     }

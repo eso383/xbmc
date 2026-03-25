@@ -20,7 +20,6 @@ namespace XFILE
       CDirectoryNodeTitleMovies(const std::string& strEntryName, CDirectoryNode* pParent);
     protected:
       bool GetContent(CFileItemList& items) const override;
-      NodeType GetChildType() const override;
     };
   }
 }

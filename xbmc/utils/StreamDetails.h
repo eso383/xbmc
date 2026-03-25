@@ -31,7 +31,7 @@ public:
     SUBTITLE
   };
 
-  explicit CStreamDetail(StreamType type) : m_eType(type), m_pParent(NULL) {}
+  explicit CStreamDetail(StreamType type) : m_eType(type), m_pParent(nullptr) {}
   virtual ~CStreamDetail() = default;
   virtual bool IsWorseThan(const CStreamDetail &that) const = 0;
 
@@ -47,8 +47,6 @@ class CStreamDetailVideo final : public CStreamDetail
 public:
   CStreamDetailVideo();
   CStreamDetailVideo(const VideoStreamInfo &info, int duration = 0);
-  CStreamDetailVideo(const CStreamDetailVideo&) = default;
-  CStreamDetailVideo& operator=(const CStreamDetailVideo& that);
   void Archive(CArchive& ar) override;
   void Serialize(CVariant& value) const override;
   bool IsWorseThan(const CStreamDetail &that) const override;
@@ -61,8 +59,6 @@ public:
   std::string m_strStereoMode;
   std::string m_strLanguage;
   std::string m_strHdrType;
-  std::string m_strHdrTypeAlt;
-  std::string m_strHdrDetail;
 };
 
 class CStreamDetailAudio final : public CStreamDetail
@@ -105,23 +101,21 @@ public:
   static std::string VideoDimsToResolutionDescription(int iWidth, int iHeight);
   static std::string VideoAspectToAspectDescription(float fAspect);
 
-  bool HasItems(void) const { return !m_vecItems.empty(); }
+  bool HasItems(void) const { return m_vecItems.size() > 0; }
   int GetStreamCount(CStreamDetail::StreamType type) const;
   int GetVideoStreamCount(void) const;
   int GetAudioStreamCount(void) const;
   int GetSubtitleStreamCount(void) const;
   static std::string HdrTypeToString(StreamHdrType hdrType);
-  static std::string DynamicRangeToString(StreamHdrType hdrType);
   const CStreamDetail* GetNthStream(CStreamDetail::StreamType type, int idx) const;
 
   std::string GetVideoCodec(int idx = 0) const;
   float GetVideoAspect(int idx = 0) const;
   int GetVideoWidth(int idx = 0) const;
   int GetVideoHeight(int idx = 0) const;
-  std::string GetVideoHdrType(int idx = 0, bool alt = false) const;
-  std::string GetVideoHdrDetail(int idx = 0) const;
+  std::string GetVideoHdrType (int idx = 0) const;
   int GetVideoDuration(int idx = 0) const;
-  void SetVideoDuration(int idx, const int duration);
+  void SetVideoDuration(int idx, const int duration) const;
   std::string GetStereoMode(int idx = 0) const;
   std::string GetVideoLanguage(int idx = 0) const;
 

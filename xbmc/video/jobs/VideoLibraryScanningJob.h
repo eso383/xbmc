@@ -38,14 +38,14 @@ public:
 
   // specialization of CJob
   const char *GetType() const override { return "VideoLibraryScanningJob"; }
-  bool Equals(const CJob* job) const override;
+  bool operator==(const CJob* job) const override;
 
 protected:
   // implementation of CVideoLibraryJob
   bool Work(CVideoDatabase &db) override;
 
 private:
-  KODI::VIDEO::CVideoInfoScanner m_scanner;
+  VIDEO::CVideoInfoScanner m_scanner;
   std::string m_directory;
   bool m_showProgress;
   bool m_scanAll;

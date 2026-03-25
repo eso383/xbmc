@@ -22,12 +22,11 @@
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "interfaces/python/PyContext.h"
 #include "interfaces/python/pythreadstate.h"
 #include "interfaces/python/swig.h"
 #include "messaging/ApplicationMessenger.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "threads/SingleLock.h"
 #include "threads/SystemClock.h"
 #include "utils/CharsetConverter.h"
@@ -37,7 +36,6 @@
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 // clang-format off
 // This breaks fmt because of SEP define, don't include
@@ -72,7 +70,9 @@ static const std::string getListOfAddonClassesAsString(
     XBMCAddon::AddonClass::Ref<XBMCAddon::Python::PythonLanguageHook>& languageHook)
 {
   std::string message;
-  std::unique_lock l(*(languageHook.get()));
+
+  std::lock_guard l(*(languageHook.get()));
+
   const std::set<XBMCAddon::AddonClass*>& acs = languageHook->GetRegisteredAddonClasses();
   bool firstTime = true;
   for (const auto& iter : acs)
@@ -88,7 +88,7 @@ static const std::string getListOfAddonClassesAsString(
 }
 
 CPythonInvoker::CPythonInvoker(ILanguageInvocationHandler* invocationHandler)
-  : ILanguageInvoker(invocationHandler), m_threadState(NULL)
+  : ILanguageInvoker(invocationHandler), m_threadState(nullptr)
 {
 }
 
@@ -170,7 +170,7 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
       PyEval_RestoreThread(m_mainThreadState);
       l_threadState = Py_NewInterpreter();
       PyEval_ReleaseThread(l_threadState);
-      if (l_threadState == NULL)
+      if (l_threadState == nullptr)
       {
         CLog::Log(LOGERROR, "CPythonInvoker({}, {}): FAILED to get thread m_threadState!", GetId(),
                   m_sourceFile);
@@ -258,7 +258,8 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
     }
 
     { // set the m_threadState to this new interp
-      std::unique_lock lockMe(m_critical);
+      std::lock_guard lockMe(m_critical);
+      
       m_threadState = l_threadState;
     }
   }
@@ -316,7 +317,7 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
 #endif
       Py_DECREF(pyRealFilename);
 
-      if (fp != NULL)
+      if (fp != nullptr)
       {
         PyObject* f = PyUnicode_FromString(realFilename.c_str());
         PyDict_SetItemString(moduleDict, "__file__", f);
@@ -369,7 +370,7 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
     // if it failed with an exception we already logged the details
     if (!failed)
     {
-      PythonBindings::PythonToCppException* e = NULL;
+      PythonBindings::PythonToCppException* e = nullptr;
       if (PythonBindings::PythonToCppException::ParsePythonException(exceptionType, exceptionValue,
                                                                      exceptionTraceback))
         e = new PythonBindings::PythonToCppException(exceptionType, exceptionValue,
@@ -385,6 +386,7 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
   }
 
   std::unique_lock lock(m_critical);
+
   // no need to do anything else because the script has already stopped
   if (failed)
   {
@@ -432,29 +434,29 @@ bool CPythonInvoker::execute(const std::string& script, std::vector<std::wstring
 
 void CPythonInvoker::executeScript(FILE* fp, const std::string& script, PyObject* moduleDict)
 {
-  if (fp == NULL || script.empty() || moduleDict == NULL)
+  if (fp == nullptr || script.empty() || moduleDict == nullptr)
     return;
 
   int m_Py_file_input = Py_file_input;
-  PyRun_FileExFlags(fp, script.c_str(), m_Py_file_input, moduleDict, moduleDict, 1, NULL);
+  PyRun_FileExFlags(fp, script.c_str(), m_Py_file_input, moduleDict, moduleDict, 1, nullptr);
 }
 
 FILE* CPythonInvoker::PyFile_AsFileWithMode(PyObject* py_file, const char* mode)
 {
   PyObject* ret = PyObject_CallMethod(py_file, "flush", "");
-  if (ret == NULL)
-    return NULL;
+  if (ret == nullptr)
+    return nullptr;
   Py_DECREF(ret);
 
   int fd = PyObject_AsFileDescriptor(py_file);
   if (fd == -1)
-    return NULL;
+    return nullptr;
 
   FILE* f = fdopen(fd, mode);
-  if (f == NULL)
+  if (f == nullptr)
   {
     PyErr_SetFromErrno(PyExc_OSError);
-    return NULL;
+    return nullptr;
   }
 
   return f;
@@ -463,12 +465,13 @@ FILE* CPythonInvoker::PyFile_AsFileWithMode(PyObject* py_file, const char* mode)
 bool CPythonInvoker::stop(bool abort)
 {
   std::unique_lock lock(m_critical);
+
   m_stop = true;
 
   if (!IsRunning() && !m_threadState)
     return false;
 
-  if (m_threadState != NULL)
+  if (m_threadState != nullptr)
   {
     if (IsRunning())
     {
@@ -531,7 +534,7 @@ bool CPythonInvoker::stop(bool abort)
 
     // Since we released the m_critical it's possible that the state is cleaned up
     // so we need to recheck for m_threadState == NULL
-    if (m_threadState != NULL)
+    if (m_threadState != nullptr)
     {
       PyThreadState* ts = PyThreadState_New(m_threadState->interp);
       if (ts == nullptr)
@@ -574,8 +577,9 @@ bool CPythonInvoker::stop(bool abort)
 // Always called from Invoker thread
 void CPythonInvoker::onExecutionDone()
 {
-  std::unique_lock lock(m_critical);
-  if (m_threadState != NULL)
+  std::lock_guard lock(m_critical);
+
+  if (m_threadState != nullptr)
   {
     CLog::Log(LOGDEBUG, "{}({}, {})", __FUNCTION__, GetId(), m_sourceFile);
 
@@ -638,8 +642,9 @@ void CPythonInvoker::onExecutionFailed()
   CLog::Log(LOGERROR, "CPythonInvoker({}, {}): abnormally terminating python thread", GetId(),
             m_sourceFile);
 
-  std::unique_lock lock(m_critical);
-  m_threadState = NULL;
+  std::lock_guard lock(m_critical);
+
+  m_threadState = nullptr;
 
   ILanguageInvoker::onExecutionFailed();
 }
@@ -650,7 +655,7 @@ void CPythonInvoker::onInitialization()
 
   // get a possible initialization script
   const char* runscript = getInitializationScript();
-  if (runscript != NULL && strlen(runscript) > 0)
+  if (runscript != nullptr && strlen(runscript) > 0)
   {
     // redirecting default output to debug console
     if (PyRun_SimpleString(runscript) == -1)
@@ -660,10 +665,10 @@ void CPythonInvoker::onInitialization()
 
 void CPythonInvoker::onPythonModuleInitialization(void* moduleDict)
 {
-  if (m_addon.get() == NULL || moduleDict == NULL)
+  if (m_addon.get() == nullptr || moduleDict == nullptr)
     return;
 
-  PyObject* moduleDictionary = (PyObject*)moduleDict;
+  auto moduleDictionary = (PyObject*)moduleDict;
 
   PyDict_SetItemString(moduleDictionary, "__xbmcaddonid__",
                        PyObjectPtr(PyUnicode_FromString(m_addon->ID().c_str())).get());
@@ -690,22 +695,20 @@ void CPythonInvoker::onError(const std::string& exceptionType /* = "" */,
                              const std::string& exceptionTraceback /* = "" */)
 {
   CPyThreadState releaseGil;
-  std::unique_lock gc(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+  std::lock_guard gc(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   CGUIDialogKaiToast* pDlgToast =
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogKaiToast>(
           WINDOW_DIALOG_KAI_TOAST);
-  if (pDlgToast != NULL)
+  if (pDlgToast != nullptr)
   {
     std::string message;
     if (m_addon && !m_addon->Name().empty())
-      message = StringUtils::Format(
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(2102), m_addon->Name());
+      message = StringUtils::Format(g_localizeStrings.Get(2102), m_addon->Name());
     else
-      message = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(2103);
-    pDlgToast->QueueNotification(
-        CGUIDialogKaiToast::Error, message,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(2104));
+      message = g_localizeStrings.Get(2103);
+    pDlgToast->QueueNotification(CGUIDialogKaiToast::Error, message, g_localizeStrings.Get(2104));
   }
 }
 
@@ -719,7 +722,7 @@ void CPythonInvoker::getAddonModuleDeps(const ADDON::AddonPtr& addon, std::set<s
                                                ADDON::OnlyEnabled::CHOICE_YES))
     {
       std::string path = CSpecialProtocol::TranslatePath(dependency->LibPath());
-      if (!paths.contains(path))
+      if (paths.find(path) == paths.end())
       {
         // add it and its dependencies
         paths.insert(path);

@@ -44,7 +44,7 @@ private:
 struct CZeroconfAvahi::ServiceInfo
 {
   ServiceInfo(const std::string& fcr_type, const std::string& fcr_name,
-              unsigned int f_port, AvahiStringList *txt, AvahiEntryGroup* fp_group = 0):
+              unsigned int f_port, AvahiStringList *txt, AvahiEntryGroup* fp_group = nullptr):
     m_type(fcr_type), m_name(fcr_name), m_port(f_port), mp_txt(txt), mp_group(fp_group)
   {
   }
@@ -103,7 +103,7 @@ CZeroconfAvahi::~CZeroconfAvahi()
 
     //now wait for the thread to stop
     assert(m_thread_id);
-    pthread_join(m_thread_id, NULL);
+    pthread_join(m_thread_id, nullptr);
     avahi_threaded_poll_get(mp_poll)->timeout_free(lp_timeout);
   }
 
@@ -124,7 +124,7 @@ bool CZeroconfAvahi::doPublishService(const std::string& fcr_identifier,
             fcr_identifier, fcr_type, fcr_name, f_port);
 
   ScopedEventLoopBlock l_block(mp_poll);
-  tServiceMap::iterator it = m_services.find(fcr_identifier);
+  auto it = m_services.find(fcr_identifier);
   if (it != m_services.end())
   {
     //fcr_identifier exists, no update functionality yet, so exit
@@ -132,7 +132,7 @@ bool CZeroconfAvahi::doPublishService(const std::string& fcr_identifier,
   }
 
   //txt records to AvahiStringList
-  AvahiStringList *txtList = NULL;
+  AvahiStringList *txtList = nullptr;
   for (const auto& it : txt)
   {
     txtList = avahi_string_list_add_pair(txtList, it.first.c_str(), it.second.c_str());
@@ -159,7 +159,7 @@ bool CZeroconfAvahi::doForceReAnnounceService(const std::string& fcr_identifier)
 {
   bool ret = false;
   ScopedEventLoopBlock l_block(mp_poll);
-  tServiceMap::iterator it = m_services.find(fcr_identifier);
+  auto it = m_services.find(fcr_identifier);
   if (it != m_services.end() && it->second->mp_group)
   {
     // to force a reannounce on avahi its enough to reverse the txtrecord list
@@ -168,7 +168,7 @@ bool CZeroconfAvahi::doForceReAnnounceService(const std::string& fcr_identifier)
     // this will trigger the reannouncement
     if ((avahi_entry_group_update_service_txt_strlst(it->second->mp_group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, AvahiPublishFlags(0),
                                               it->second->m_name.c_str(),
-                                              it->second->m_type.c_str(), NULL, it->second->mp_txt)) >= 0)
+                                              it->second->m_type.c_str(), nullptr, it->second->mp_txt)) >= 0)
       ret = true;
   }
 
@@ -179,7 +179,7 @@ bool CZeroconfAvahi::doRemoveService(const std::string& fcr_ident)
 {
   CLog::Log(LOGDEBUG, "CZeroconfAvahi::doRemoveService named: {}", fcr_ident);
   ScopedEventLoopBlock l_block(mp_poll);
-  tServiceMap::iterator it = m_services.find(fcr_ident);
+  auto it = m_services.find(fcr_ident);
   if (it == m_services.end())
   {
     return false;
@@ -188,13 +188,13 @@ bool CZeroconfAvahi::doRemoveService(const std::string& fcr_ident)
   if (it->second->mp_group)
   {
     avahi_entry_group_free(it->second->mp_group);
-    it->second->mp_group = 0;
+    it->second->mp_group = nullptr;
   }
 
   if(it->second->mp_txt)
   {
     avahi_string_list_free(it->second->mp_txt);
-    it->second->mp_txt = NULL;
+    it->second->mp_txt = nullptr;
   }
 
   m_services.erase(it);
@@ -209,7 +209,7 @@ void CZeroconfAvahi::doStop()
     if (it.second->mp_group)
     {
       avahi_entry_group_free(it.second->mp_group);
-      it.second->mp_group = 0;
+      it.second->mp_group = nullptr;
     }
 
     if (it.second->mp_txt)
@@ -223,7 +223,7 @@ void CZeroconfAvahi::doStop()
 
 void CZeroconfAvahi::clientCallback(AvahiClient* fp_client, AvahiClientState f_state, void* fp_data)
 {
-  CZeroconfAvahi* p_instance = static_cast<CZeroconfAvahi*>(fp_data);
+  auto p_instance = static_cast<CZeroconfAvahi*>(fp_data);
 
   //store our thread ID and check for shutdown -> check details in destructor
   p_instance->m_thread_id = pthread_self();
@@ -244,11 +244,11 @@ void CZeroconfAvahi::clientCallback(AvahiClient* fp_client, AvahiClientState f_s
     CLog::Log(LOGINFO, "CZeroconfAvahi::clientCallback: client failure. avahi-daemon stopped? Recreating client...");
     //We were forced to disconnect from server. now free and recreate the client object
     avahi_client_free(fp_client);
-    p_instance->mp_client = 0;
+    p_instance->mp_client = nullptr;
     //freeing the client also frees all groups and browsers, pointers are undefined afterwards, so fix that now
     for (auto& it : p_instance->m_services)
     {
-      it.second->mp_group = 0;
+      it.second->mp_group = nullptr;
     }
     p_instance->createClient();
     break;
@@ -272,7 +272,7 @@ void CZeroconfAvahi::clientCallback(AvahiClient* fp_client, AvahiClientState f_s
 
 void CZeroconfAvahi::groupCallback(AvahiEntryGroup *fp_group, AvahiEntryGroupState f_state, void * fp_data)
 {
-  CZeroconfAvahi* p_instance = static_cast<CZeroconfAvahi*>(fp_data);
+  auto p_instance = static_cast<CZeroconfAvahi*>(fp_data);
   //store our thread ID and check for shutdown -> check details in destructor
   p_instance->m_thread_id = pthread_self();
   if (p_instance->m_shutdown)
@@ -291,7 +291,7 @@ void CZeroconfAvahi::groupCallback(AvahiEntryGroup *fp_group, AvahiEntryGroupSta
   case AVAHI_ENTRY_GROUP_COLLISION :
   {
     //need to find the ServiceInfo struct for this group
-    tServiceMap::iterator it = p_instance->m_services.begin();
+    auto it = p_instance->m_services.begin();
     for(; it != p_instance->m_services.end(); ++it)
     {
       if (it->second->mp_group == fp_group)
@@ -322,7 +322,7 @@ void CZeroconfAvahi::groupCallback(AvahiEntryGroup *fp_group, AvahiEntryGroupSta
         if (it.second->mp_group == fp_group)
         {
           avahi_entry_group_free(it.second->mp_group);
-          it.second->mp_group = 0;
+          it.second->mp_group = nullptr;
           if (it.second->mp_txt)
           {
             avahi_string_list_free(it.second->mp_txt);
@@ -343,7 +343,7 @@ void CZeroconfAvahi::groupCallback(AvahiEntryGroup *fp_group, AvahiEntryGroupSta
 
 void CZeroconfAvahi::shutdownCallback(AvahiTimeout *fp_e, void *fp_data)
 {
-  CZeroconfAvahi* p_instance = static_cast<CZeroconfAvahi*>(fp_data);
+  auto p_instance = static_cast<CZeroconfAvahi*>(fp_data);
   //should only be called on shutdown
   if (p_instance->m_shutdown)
   {
@@ -391,7 +391,7 @@ void CZeroconfAvahi::addService(const tServiceMap::mapped_type& fp_service_info,
     {
       CLog::Log(LOGDEBUG, "CZeroconfAvahi::addService() avahi_entry_group_new() failed: {}",
                 avahi_strerror(avahi_client_errno(fp_client)));
-      fp_service_info->mp_group = 0;
+      fp_service_info->mp_group = nullptr;
       return;
     }
   }
@@ -403,7 +403,7 @@ void CZeroconfAvahi::addService(const tServiceMap::mapped_type& fp_service_info,
   {
     if ((ret = avahi_entry_group_add_service_strlst(fp_service_info->mp_group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, AvahiPublishFlags(0),
                                              fp_service_info->m_name.c_str(),
-                                             fp_service_info->m_type.c_str(), NULL, NULL, fp_service_info->m_port, fp_service_info->mp_txt)) < 0)
+                                             fp_service_info->m_type.c_str(), nullptr, nullptr, fp_service_info->m_port, fp_service_info->mp_txt)) < 0)
     {
       if (ret == AVAHI_ERR_COLLISION)
       {

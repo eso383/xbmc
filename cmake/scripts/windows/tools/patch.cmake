@@ -1,5 +1,5 @@
 # prioritize Git patch.exe
-find_package(Git ${SEARCH_QUIET})
+find_package(Git)
 if(Git_FOUND)
   get_filename_component(GIT_DIR ${GIT_EXECUTABLE} DIRECTORY)
   get_filename_component(GIT_DIR ${GIT_DIR} DIRECTORY)

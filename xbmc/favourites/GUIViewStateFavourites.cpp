@@ -8,16 +8,16 @@
 
 #include "GUIViewStateFavourites.h"
 
-#include "FileItemList.h"
+#include "FileItem.h"
 #include "guilib/WindowIDs.h"
 
 CGUIViewStateFavourites::CGUIViewStateFavourites(const CFileItemList& items) : CGUIViewState(items)
 {
-  AddSortMethod(SortBy::USER_PREFERENCE, 19349,
+  AddSortMethod(SortByUserPreference, 19349,
                 LABEL_MASKS("%L", "", "%L", "")); // Label, empty | Label, empty
-  AddSortMethod(SortBy::LABEL, 551, LABEL_MASKS("%L", "", "%L", "")); // Label, empty | Label, empty
+  AddSortMethod(SortByLabel, 551, LABEL_MASKS("%L", "", "%L", "")); // Label, empty | Label, empty
 
-  SetSortMethod(SortBy::USER_PREFERENCE);
+  SetSortMethod(SortByUserPreference);
 
   LoadViewState(items.GetPath(), WINDOW_FAVOURITES);
 }

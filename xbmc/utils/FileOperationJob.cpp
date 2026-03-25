@@ -17,8 +17,7 @@
 #include "filesystem/FileDirectoryFactory.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
@@ -69,7 +68,7 @@ bool CFileOperationJob::DoWork()
   FileOperationList ops;
   double totalTime = 0.0;
 
-  if (m_displayProgress && GetProgressDialog() == NULL)
+  if (m_displayProgress && GetProgressDialog() == nullptr)
   {
     CGUIDialogExtendedProgressBar* dialog =
       CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogExtendedProgressBar>(WINDOW_DIALOG_EXT_PROGRESS);
@@ -164,7 +163,7 @@ bool CFileOperationJob::DoProcess(FileAction action,
         // get filename from label instead of path
         strFileName = pItem->GetLabel();
 
-        if (!pItem->IsFolder() && !URIUtils::HasExtension(strFileName))
+        if (!pItem->m_bIsFolder && !URIUtils::HasExtension(strFileName))
         {
           // FIXME: for now we only work well if the url has the extension
           // we should map the content type to the extension otherwise
@@ -178,7 +177,7 @@ bool CFileOperationJob::DoProcess(FileAction action,
       if (!strDestFile.empty()) // only do this if we have a destination
         strnewDestFile = URIUtils::ChangeBasePath(pItem->GetPath(), strFileName, strDestFile); // Convert (URL) encoding + slashes (if source / target differ)
 
-      if (pItem->IsFolder())
+      if (pItem->m_bIsFolder)
       {
         // in ActionReplace mode all subdirectories will be removed by the below
         // DoProcessFolder(ActionDelete) call as well, so ActionCopy is enough when
@@ -226,20 +225,20 @@ std::string CFileOperationJob::GetActionString(FileAction action)
   {
     case ActionCopy:
     case ActionReplace:
-      result = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(115);
+      result = g_localizeStrings.Get(115);
       break;
 
     case ActionMove:
-      result = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(116);
+      result = g_localizeStrings.Get(116);
       break;
 
     case ActionDelete:
     case ActionDeleteFolder:
-      result = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(117);
+      result = g_localizeStrings.Get(117);
       break;
 
     case ActionCreateFolder:
-      result = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(119);
+      result = g_localizeStrings.Get(119);
       break;
 
     default:
@@ -321,7 +320,7 @@ inline bool CFileOperationJob::CanBeRenamed(const std::string &strFileA, const s
 
 bool CFileOperationJob::CFileOperation::OnFileCallback(void* pContext, int ipercent, float avgSpeed)
 {
-  DataHolder *data = static_cast<DataHolder*>(pContext);
+  auto data = static_cast<DataHolder*>(pContext);
   double current = data->current + ((double)ipercent * data->opWeight * (double)m_time)/ 100.0;
 
   if (avgSpeed > 1000000.0f)
@@ -336,13 +335,13 @@ bool CFileOperationJob::CFileOperation::OnFileCallback(void* pContext, int iperc
   return !data->base->ShouldCancel((unsigned)current, 100);
 }
 
-bool CFileOperationJob::Equals(const CJob* job) const
+bool CFileOperationJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CFileOperationJob* rjob = dynamic_cast<const CFileOperationJob*>(job);
-  if (rjob == NULL)
+  auto rjob = dynamic_cast<const CFileOperationJob*>(job);
+  if (rjob == nullptr)
     return false;
 
   if (GetAction() != rjob->GetAction() ||

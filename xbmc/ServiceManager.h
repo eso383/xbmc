@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -27,7 +27,7 @@ namespace PVR
 class CPVRManager;
 }
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 class CPlayListPlayer;
 }
@@ -67,10 +67,6 @@ namespace RETRO
 {
 class CGUIGameRenderManager;
 }
-namespace UTILS::I18N
-{
-class CSubTagRegistryManager;
-} // namespace UTILS::I18N
 } // namespace KODI
 
 namespace MEDIA_DETECT
@@ -106,54 +102,52 @@ public:
   void DeinitStageTwo();
   void DeinitStageOne();
 
-  ADDON::CAddonMgr& GetAddonMgr();
-  ADDON::CBinaryAddonManager& GetBinaryAddonManager();
-  ADDON::CBinaryAddonCache& GetBinaryAddonCache();
-  KODI::ADDONS::CExtsMimeSupportList& GetExtsMimeSupportList();
-  ADDON::CVFSAddonCache& GetVFSAddonCache();
-  ADDON::CServiceAddonManager& GetServiceAddons();
-  ADDON::CRepositoryUpdater& GetRepositoryUpdater();
-  CNetworkBase& GetNetwork();
+  ADDON::CAddonMgr& GetAddonMgr() const;
+  ADDON::CBinaryAddonManager& GetBinaryAddonManager() const;
+  ADDON::CBinaryAddonCache& GetBinaryAddonCache() const;
+  KODI::ADDONS::CExtsMimeSupportList& GetExtsMimeSupportList() const;
+  ADDON::CVFSAddonCache& GetVFSAddonCache() const;
+  ADDON::CServiceAddonManager& GetServiceAddons() const;
+  ADDON::CRepositoryUpdater& GetRepositoryUpdater() const;
+  CNetworkBase& GetNetwork() const;
 #ifdef HAS_PYTHON
-  XBPython& GetXBPython();
+  XBPython& GetXBPython() const;
 #endif
 #if defined(HAS_FILESYSTEM_SMB)
-  WSDiscovery::IWSDiscovery& GetWSDiscovery();
+  WSDiscovery::IWSDiscovery& GetWSDiscovery() const;
 #endif
-  PVR::CPVRManager& GetPVRManager();
-  CContextMenuManager& GetContextMenuManager();
-  CDataCacheCore& GetDataCacheCore();
+  PVR::CPVRManager& GetPVRManager() const;
+  CContextMenuManager& GetContextMenuManager() const;
+  CDataCacheCore& GetDataCacheCore() const;
   /**\brief Get the platform object. This is save to be called after Init1() was called
    */
-  CPlatform& GetPlatform();
-  KODI::GAME::CControllerManager& GetGameControllerManager();
-  KODI::GAME::CGameServices& GetGameServices();
-  KODI::RETRO::CGUIGameRenderManager& GetGameRenderManager();
-  PERIPHERALS::CPeripherals& GetPeripherals();
+  CPlatform& GetPlatform() const;
+  KODI::GAME::CControllerManager& GetGameControllerManager() const;
+  KODI::GAME::CGameServices& GetGameServices() const;
+  KODI::RETRO::CGUIGameRenderManager& GetGameRenderManager() const;
+  PERIPHERALS::CPeripherals& GetPeripherals() const;
 
-  KODI::PLAYLIST::CPlayListPlayer& GetPlaylistPlayer();
-  CSlideShowDelegator& GetSlideShowDelegator();
+  PLAYLIST::CPlayListPlayer& GetPlaylistPlayer() const;
+  CSlideShowDelegator& GetSlideShowDelegator() const;
   int init_level = 0;
 
-  CFavouritesService& GetFavouritesService();
-  CInputManager& GetInputManager();
-  CFileExtensionProvider& GetFileExtensionProvider();
+  CFavouritesService& GetFavouritesService() const;
+  CInputManager& GetInputManager() const;
+  CFileExtensionProvider& GetFileExtensionProvider() const;
 
-  CPowerManager& GetPowerManager();
+  CPowerManager& GetPowerManager() const;
 
-  CWeatherManager& GetWeatherManager();
+  CWeatherManager& GetWeatherManager() const;
 
-  CPlayerCoreFactory& GetPlayerCoreFactory();
+  CPlayerCoreFactory& GetPlayerCoreFactory() const;
 
-  CDatabaseManager& GetDatabaseManager();
+  CDatabaseManager& GetDatabaseManager() const;
 
-  CMediaManager& GetMediaManager();
+  CMediaManager& GetMediaManager() const;
 
 #if !defined(TARGET_WINDOWS) && defined(HAS_OPTICAL_DRIVE)
-  MEDIA_DETECT::CDetectDVDMedia& GetDetectDVDMedia();
+  MEDIA_DETECT::CDetectDVDMedia& GetDetectDVDMedia() const;
 #endif
-
-  KODI::UTILS::I18N::CSubTagRegistryManager& GetSubTagRegistryManager();
 
 protected:
   std::unique_ptr<ADDON::CAddonMgr> m_addonMgr;
@@ -173,7 +167,7 @@ protected:
   std::unique_ptr<CContextMenuManager> m_contextMenuManager;
   std::unique_ptr<CDataCacheCore> m_dataCacheCore;
   std::unique_ptr<CPlatform> m_Platform;
-  std::unique_ptr<KODI::PLAYLIST::CPlayListPlayer> m_playlistPlayer;
+  std::unique_ptr<PLAYLIST::CPlayListPlayer> m_playlistPlayer;
   std::unique_ptr<KODI::GAME::CControllerManager> m_gameControllerManager;
   std::unique_ptr<KODI::GAME::CGameServices> m_gameServices;
   std::unique_ptr<KODI::RETRO::CGUIGameRenderManager> m_gameRenderManager;
@@ -191,5 +185,4 @@ protected:
   std::unique_ptr<MEDIA_DETECT::CDetectDVDMedia> m_DetectDVDType;
 #endif
   std::unique_ptr<CSlideShowDelegator> m_slideShowDelegator;
-  std::unique_ptr<KODI::UTILS::I18N::CSubTagRegistryManager> m_subTagRegistryManager;
 };

@@ -10,21 +10,17 @@
 
 #include "IRetroPlayerStream.h"
 #include "RetroPlayerAudio.h"
-#include "RetroPlayerRendering.h"
 #include "RetroPlayerVideo.h"
-#include "cores/RetroPlayer/process/RPProcessInfo.h"
 
 using namespace KODI;
 using namespace RETRO;
 
 CRPStreamManager::CRPStreamManager(CRPRenderManager& renderManager, CRPProcessInfo& processInfo)
-  : m_renderManager(renderManager),
-    m_processInfo(processInfo)
+  : m_renderManager(renderManager), m_processInfo(processInfo)
 {
 }
 
-void CRPStreamManager::EnableAudio(bool bEnable)
-{
+void CRPStreamManager::EnableAudio(bool bEnable) const {
   if (m_audioStream != nullptr)
     m_audioStream->Enable(bEnable);
 }
@@ -47,7 +43,7 @@ StreamPtr CRPStreamManager::CreateStream(StreamType streamType)
     }
     case StreamType::HW_BUFFER:
     {
-      return StreamPtr(new CRetroPlayerRendering(m_renderManager, m_processInfo));
+      // return StreamPtr(new CRetroPlayerHardware(m_renderManager, m_processInfo)); //! @todo
     }
     default:
       break;
@@ -65,9 +61,4 @@ void CRPStreamManager::CloseStream(StreamPtr stream)
 
     stream->CloseStream();
   }
-}
-
-HwProcedureAddress CRPStreamManager::GetHwProcedureAddress(const char* symbol)
-{
-  return m_processInfo.GetHwProcedureAddress(symbol);
 }

@@ -9,13 +9,13 @@
 #include "PeripheralJoystick.h"
 
 #include "ServiceBroker.h"
+#include "addons/AddonInstaller.h"
+#include "addons/AddonManager.h"
 #include "application/Application.h"
 #include "games/GameServices.h"
 #include "games/controllers/Controller.h"
 #include "games/controllers/ControllerIDs.h"
-#include "games/controllers/ControllerLayout.h"
 #include "games/controllers/ControllerManager.h"
-#include "games/controllers/input/PhysicalTopology.h"
 #include "input/InputManager.h"
 #include "input/joysticks/DeadzoneFilter.h"
 #include "input/joysticks/JoystickMonitor.h"
@@ -26,10 +26,10 @@
 #include "peripherals/Peripherals.h"
 #include "peripherals/addons/AddonButtonMap.h"
 #include "peripherals/bus/virtual/PeripheralBusAddon.h"
-#include "settings/lib/Setting.h"
 #include "utils/log.h"
 
 #include <algorithm>
+#include <memory>
 #include <mutex>
 
 using namespace KODI;
@@ -39,8 +39,7 @@ using namespace PERIPHERALS;
 CPeripheralJoystick::CPeripheralJoystick(CPeripherals& manager,
                                          const PeripheralScanResult& scanResult,
                                          CPeripheralBus* bus)
-  : CPeripheral(manager, scanResult, bus),
-    m_rumbleGenerator(std::make_unique<CRumbleGenerator>())
+  : CPeripheral(manager, scanResult, bus), m_rumbleGenerator(new CRumbleGenerator)
 {
   m_features.push_back(FEATURE_JOYSTICK);
   // FEATURE_RUMBLE conditionally added via SetMotorCount()
@@ -77,20 +76,24 @@ bool CPeripheralJoystick::InitialiseFeature(const PeripheralFeature feature)
   {
     if (feature == FEATURE_JOYSTICK)
     {
-      // Log if an add-on is not present to translate input
+      // Ensure an add-on is present to translate input
       PeripheralAddonPtr addon = m_manager.GetAddonWithButtonMap(this);
       if (!addon)
+      {
         CLog::Log(LOGERROR, "CPeripheralJoystick: No button mapping add-on for {}", m_strLocation);
-
-      if (m_bus->InitializeProperties(*this))
-        bSuccess = true;
+      }
       else
-        CLog::Log(LOGERROR, "CPeripheralJoystick: Invalid location ({})", m_strLocation);
+      {
+        if (m_bus->InitializeProperties(*this))
+          bSuccess = true;
+        else
+          CLog::Log(LOGERROR, "CPeripheralJoystick: Invalid location ({})", m_strLocation);
+      }
 
-      if (bSuccess && addon)
+      if (bSuccess)
       {
         m_buttonMap =
-            std::make_unique<CAddonButtonMap>(this, addon, GAME::DEFAULT_CONTROLLER_ID, m_manager);
+            std::make_unique<CAddonButtonMap>(this, addon, DEFAULT_CONTROLLER_ID, m_manager);
         if (m_buttonMap->Load())
         {
           InitializeDeadzoneFiltering(*m_buttonMap);
@@ -130,35 +133,54 @@ void CPeripheralJoystick::InitializeDeadzoneFiltering(IButtonMap& buttonMap)
 
 void CPeripheralJoystick::InitializeControllerProfile(IButtonMap& buttonMap)
 {
-  GAME::ControllerPtr controller;
-
-  // Buttonmap has the freshest state
-  std::string controllerId = buttonMap.GetAppearance();
-
+  const std::string controllerId = buttonMap.GetAppearance();
   if (controllerId.empty())
-  {
-    // Next try our current state
-    if (m_controllerProfile)
-    {
-      controller = m_controllerProfile;
-      controllerId = m_controllerProfile->ID();
-    }
-  }
-
-  // Try loading controller profile
-  if (!controller)
-    controller = CServiceBroker::GetGameControllerManager().GetController(controllerId);
-
-  // If controller is not available, try to install it now
-  if (!controllerId.empty() && !controller)
-  {
-    InstallController(controllerId, [this](const GAME::ControllerPtr& installedController)
-                      { SetControllerProfile(installedController); });
     return;
-  }
 
-  // Initialize state with desired controller
-  CPeripheral::SetControllerProfile(controller);
+  auto controller = m_manager.GetControllerProfiles().GetController(controllerId);
+  if (controller)
+    CPeripheral::SetControllerProfile(controller);
+  else
+  {
+    std::lock_guard lock(m_controllerInstallMutex);
+
+    // Deposit controller into queue
+    m_controllersToInstall.emplace(controllerId);
+
+    // Clean up finished install tasks
+    m_installTasks.erase(std::remove_if(m_installTasks.begin(), m_installTasks.end(),
+                                        [](std::future<void>& task) {
+                                          return task.wait_for(std::chrono::seconds(0)) ==
+                                                 std::future_status::ready;
+                                        }),
+                         m_installTasks.end());
+
+    // Install controller off-thread
+    std::future<void> installTask =
+        std::async(std::launch::async,
+                   [this]()
+                   {
+                     // Withdraw controller from queue
+                     std::string controllerToInstall;
+                     {
+                       std::lock_guard lock(m_controllerInstallMutex);
+                       
+                       if (!m_controllersToInstall.empty())
+                       {
+                         controllerToInstall = m_controllersToInstall.front();
+                         m_controllersToInstall.pop();
+                       }
+                     }
+
+                     // Do the install
+                     GAME::ControllerPtr controller = InstallAsync(controllerToInstall);
+                     if (controller)
+                       CPeripheral::SetControllerProfile(controller);
+                   });
+
+    // Hold the task to prevent the destructor from completing during an install
+    m_installTasks.emplace_back(std::move(installTask));
+  }
 }
 
 void CPeripheralJoystick::OnUserNotification()
@@ -194,26 +216,13 @@ bool CPeripheralJoystick::TestFeature(PeripheralFeature feature)
   return bSuccess;
 }
 
-void CPeripheralJoystick::PowerOff()
-{
+void CPeripheralJoystick::PowerOff() const {
   m_bus->PowerOff(m_strLocation);
-}
-
-void CPeripheralJoystick::ResetDefaultSettings()
-{
-  CPeripheral::ResetDefaultSettings();
-
-  // Reset the appearance from the peripheral bus
-  if (m_buttonMap)
-  {
-    m_buttonMap->SetAppearance(m_bus->GetAppearance(*this));
-    m_buttonMap->SaveButtonMap();
-  }
 }
 
 void CPeripheralJoystick::RegisterJoystickDriverHandler(IDriverHandler* handler, bool bPromiscuous)
 {
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   DriverHandler driverHandler = {handler, bPromiscuous};
   m_driverHandlers.insert(m_driverHandlers.begin(), driverHandler);
@@ -221,7 +230,7 @@ void CPeripheralJoystick::RegisterJoystickDriverHandler(IDriverHandler* handler,
 
 void CPeripheralJoystick::UnregisterJoystickDriverHandler(IDriverHandler* handler)
 {
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   m_driverHandlers.erase(std::remove_if(m_driverHandlers.begin(), m_driverHandlers.end(),
                                         [handler](const DriverHandler& driverHandler)
@@ -292,7 +301,7 @@ bool CPeripheralJoystick::OnButtonMotion(unsigned int buttonIndex, bool bPressed
   if (bPressed && !g_application.IsAppFocused())
     return false;
 
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   // Update state
   SetLastActive(CDateTime::GetCurrentDateTime());
@@ -300,7 +309,7 @@ bool CPeripheralJoystick::OnButtonMotion(unsigned int buttonIndex, bool bPressed
   // Check GUI setting and send button release if controllers are disabled
   if (!m_manager.GetInputManager().IsControllerEnabled())
   {
-    for (std::vector<DriverHandler>::iterator it = m_driverHandlers.begin();
+    for (auto it = m_driverHandlers.begin();
          it != m_driverHandlers.end(); ++it)
       it->handler->OnButtonMotion(buttonIndex, false);
     return true;
@@ -352,12 +361,12 @@ bool CPeripheralJoystick::OnHatMotion(unsigned int hatIndex, HAT_STATE state)
   // Update state
   SetLastActive(CDateTime::GetCurrentDateTime());
 
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   // Check GUI setting and send hat unpressed if controllers are disabled
   if (!m_manager.GetInputManager().IsControllerEnabled())
   {
-    for (std::vector<DriverHandler>::iterator it = m_driverHandlers.begin();
+    for (auto it = m_driverHandlers.begin();
          it != m_driverHandlers.end(); ++it)
       it->handler->OnHatMotion(hatIndex, HAT_STATE::NONE);
     return true;
@@ -409,12 +418,12 @@ bool CPeripheralJoystick::OnAxisMotion(unsigned int axisIndex, float position)
   if (position != static_cast<float>(center) && !g_application.IsAppFocused())
     return false;
 
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   // Check GUI setting and send analog axis centered if controllers are disabled
   if (!m_manager.GetInputManager().IsControllerEnabled())
   {
-    for (std::vector<DriverHandler>::iterator it = m_driverHandlers.begin();
+    for (auto it = m_driverHandlers.begin();
          it != m_driverHandlers.end(); ++it)
       it->handler->OnAxisMotion(axisIndex, static_cast<float>(center), center, range);
     return true;
@@ -456,7 +465,7 @@ bool CPeripheralJoystick::OnAxisMotion(unsigned int axisIndex, float position)
 
 void CPeripheralJoystick::OnInputFrame(void)
 {
-  std::unique_lock lock(m_handlerMutex);
+  std::lock_guard lock(m_handlerMutex);
 
   for (auto& it : m_driverHandlers)
     it.handler->OnInputFrame();
@@ -468,7 +477,7 @@ bool CPeripheralJoystick::SetMotorState(unsigned int motorIndex, float magnitude
 
   if (m_mappedBusType == PERIPHERAL_BUS_ADDON)
   {
-    CPeripheralBusAddon* addonBus = static_cast<CPeripheralBusAddon*>(m_bus);
+    auto addonBus = static_cast<CPeripheralBusAddon*>(m_bus);
     if (addonBus)
     {
       bHandled = addonBus->SendRumbleEvent(m_strLocation, motorIndex, magnitude);
@@ -484,7 +493,7 @@ void CPeripheralJoystick::SetMotorCount(unsigned int motorCount)
   if (m_motorCount == 0)
     m_features.erase(std::remove(m_features.begin(), m_features.end(), FEATURE_RUMBLE),
                      m_features.end());
-  else if (std::ranges::find(m_features, FEATURE_RUMBLE) == m_features.end())
+  else if (std::find(m_features.begin(), m_features.end(), FEATURE_RUMBLE) == m_features.end())
     m_features.push_back(FEATURE_RUMBLE);
 }
 
@@ -495,6 +504,48 @@ void CPeripheralJoystick::SetSupportsPowerOff(bool bSupportsPowerOff)
   if (!m_supportsPowerOff)
     m_features.erase(std::remove(m_features.begin(), m_features.end(), FEATURE_POWER_OFF),
                      m_features.end());
-  else if (std::ranges::find(m_features, FEATURE_POWER_OFF) == m_features.end())
+  else if (std::find(m_features.begin(), m_features.end(), FEATURE_POWER_OFF) == m_features.end())
     m_features.push_back(FEATURE_POWER_OFF);
+}
+
+GAME::ControllerPtr CPeripheralJoystick::InstallAsync(const std::string& controllerId) const {
+  // Installing controllers calls into the GUI, so wait for it to be ready
+  if (!m_manager.WaitForGUI())
+    return {};
+
+  GAME::ControllerPtr controller;
+
+  // Only 1 install at a time. Remaining installs will wake when this one
+  // is done.
+  std::lock_guard lockInstall(m_manager.GetAddonInstallMutex());
+
+  CLog::LogF(LOGDEBUG, "Installing {}", controllerId);
+
+  if (InstallSync(controllerId))
+    controller = m_manager.GetControllerProfiles().GetController(controllerId);
+  else
+    CLog::LogF(LOGERROR, "Failed to install {}", controllerId);
+
+  return controller;
+}
+
+bool CPeripheralJoystick::InstallSync(const std::string& controllerId)
+{
+  // If the addon isn't installed we need to install it
+  bool installed = CServiceBroker::GetAddonMgr().IsAddonInstalled(controllerId);
+  if (!installed)
+  {
+    ADDON::AddonPtr installedAddon;
+    installed = ADDON::CAddonInstaller::GetInstance().InstallModal(
+        controllerId, installedAddon, ADDON::InstallModalPrompt::CHOICE_NO);
+  }
+
+  if (installed)
+  {
+    // Make sure add-on is enabled
+    if (CServiceBroker::GetAddonMgr().IsAddonDisabled(controllerId))
+      CServiceBroker::GetAddonMgr().EnableAddon(controllerId);
+  }
+
+  return installed;
 }

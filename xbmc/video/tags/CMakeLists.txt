@@ -1,15 +1,10 @@
-set(SOURCES SetInfoTagLoaderFactory.cpp
-            SetTagLoaderNFO.cpp
-            VideoTagExtractionHelper.cpp
+set(SOURCES VideoTagExtractionHelper.cpp
             VideoInfoTagLoaderFactory.cpp
             VideoTagLoaderFFmpeg.cpp
             VideoTagLoaderNFO.cpp
             VideoTagLoaderPlugin.cpp)
 
-set(HEADERS ISetInfoTagLoader.h
-            IVideoInfoTagLoader.h
-            SetInfoTagLoaderFactory.h
-            SetTagLoaderNFO.h
+set(HEADERS IVideoInfoTagLoader.h
             VideoTagExtractionHelper.h
             VideoInfoTagLoaderFactory.h
             VideoTagLoaderFFmpeg.h

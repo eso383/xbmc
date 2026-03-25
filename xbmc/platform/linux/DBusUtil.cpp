@@ -48,7 +48,7 @@ CVariant CDBusUtil::GetAll(const char *destination, const char *object, const ch
     if (dbus_message_iter_init(reply, &iter))
     {
       if (!dbus_message_has_signature(reply, "a{sv}"))
-        CLog::Log(LOGERROR, "DBus: wrong signature on GetAll - should be \"a{{sv}}\" but was {}",
+        CLog::Log(LOGERROR, "DBus: wrong signature on GetAll - should be \"a{sv}\" but was {}",
                   dbus_message_iter_get_signature(&iter));
       else
       {
@@ -62,7 +62,7 @@ CVariant CDBusUtil::GetAll(const char *destination, const char *object, const ch
             dbus_message_iter_recurse(&sub, &dict);
             do
             {
-              const char * key = NULL;
+              const char * key = nullptr;
 
               dbus_message_iter_get_basic(&dict, &key);
               if (!dbus_message_iter_next(&dict))
@@ -96,7 +96,7 @@ CVariant CDBusUtil::ParseVariant(DBusMessageIter *itr)
 CVariant CDBusUtil::ParseType(DBusMessageIter *itr)
 {
   CVariant value;
-  const char *    string  = NULL;
+  const char *    string  = nullptr;
   dbus_int32_t    int32   = 0;
   dbus_uint32_t   uint32  = 0;
   dbus_int64_t    int64   = 0;
@@ -208,8 +208,7 @@ bool CDBusConnection::Connect(DBusBusType bus, CDBusError& error, bool openPriva
   return !!m_connection;
 }
 
-CDBusConnection::operator DBusConnection*()
-{
+CDBusConnection::operator DBusConnection*() const {
   return m_connection.get();
 }
 

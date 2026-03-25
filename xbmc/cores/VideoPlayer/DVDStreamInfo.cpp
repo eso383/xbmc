@@ -33,7 +33,7 @@ CDVDStreamInfo::~CDVDStreamInfo() = default;
 void CDVDStreamInfo::Clear()
 {
   codec = AV_CODEC_ID_NONE;
-  type = StreamType::NONE;
+  type = STREAM_NONE;
   uniqueId = -1;
   source = STREAM_SOURCE_NONE;
   codecOptions = 0;
@@ -82,8 +82,7 @@ void CDVDStreamInfo::Clear()
   m_3dSubtitlePlane = 0;
 }
 
-bool CDVDStreamInfo::Equal(const CDVDStreamInfo& right, int compare)
-{
+bool CDVDStreamInfo::Equal(const CDVDStreamInfo& right, int compare) const {
   if (codec != right.codec || type != right.type ||
       ((compare & COMPARE_ID) && uniqueId != right.uniqueId) ||
       ((compare & COMPARE_ID) && demuxerId != right.demuxerId) || codec_tag != right.codec_tag ||
@@ -275,9 +274,9 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
   cryptoSession = right.cryptoSession;
   externalInterfaces = right.externalInterfaces;
 
-  if (right.type == StreamType::AUDIO)
+  if (right.type == STREAM_AUDIO)
   {
-    const CDemuxStreamAudio *stream = static_cast<const CDemuxStreamAudio*>(&right);
+    auto stream = static_cast<const CDemuxStreamAudio*>(&right);
     channels      = stream->iChannels;
     samplerate    = stream->iSampleRate;
     blockalign    = stream->iBlockAlign;
@@ -285,9 +284,9 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
     bitspersample = stream->iBitsPerSample;
     channellayout = stream->iChannelLayout;
   }
-  else if (right.type == StreamType::VIDEO)
+  else if (right.type == STREAM_VIDEO)
   {
-    const CDemuxStreamVideo *stream = static_cast<const CDemuxStreamVideo*>(&right);
+    auto stream = static_cast<const CDemuxStreamVideo*>(&right);
     if (stream->bInterlaced)
       codecOptions |= CODEC_INTERLACED;
 
@@ -316,9 +315,9 @@ void CDVDStreamInfo::Assign(const CDemuxStream& right, bool withextradata)
     stereo_mode = stream->stereo_mode;
     dovi = stream->dovi;
   }
-  else if (right.type == StreamType::SUBTITLE)
+  else if (right.type == STREAM_SUBTITLE)
   {
-    const CDemuxStreamSubtitle *stream = static_cast<const CDemuxStreamSubtitle*>(&right);
+    auto stream = static_cast<const CDemuxStreamSubtitle*>(&right);
     m_3dSubtitlePlane = stream->m_3dSubtitlePlane;
   }
 }

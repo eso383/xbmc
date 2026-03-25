@@ -60,7 +60,7 @@ bool CXBMCTinyXML::LoadFile(const std::string& _filename, TiXmlEncoding encoding
 
   if (file.LoadFile(value, buffer) <= 0)
   {
-    SetError(TIXML_ERROR_OPENING_FILE, NULL, NULL, TIXML_ENCODING_UNKNOWN);
+    SetError(TIXML_ERROR_OPENING_FILE, nullptr, nullptr, TIXML_ENCODING_UNKNOWN);
     return false;
   }
 
@@ -72,7 +72,7 @@ bool CXBMCTinyXML::LoadFile(const std::string& _filename, TiXmlEncoding encoding
   buffer.clear(); // free memory early
 
   if (encoding == TIXML_ENCODING_UNKNOWN)
-    Parse(data, file.GetProperty(XFILE::FileProperty::CONTENT_CHARSET));
+    Parse(data, file.GetProperty(XFILE::FILE_PROPERTY_CONTENT_CHARSET));
   else
     Parse(data, encoding);
 
@@ -236,7 +236,7 @@ bool CXBMCTinyXML::InternalParse(const std::string& rawdata, TiXmlEncoding encod
   // Preprocess string, replacing '&' with '&amp; for invalid XML entities
   size_t pos = rawdata.find('&');
   if (pos == std::string::npos)
-    return (TiXmlDocument::Parse(rawdata.c_str(), NULL, encoding) != NULL); // nothing to fix, process data directly
+    return (TiXmlDocument::Parse(rawdata.c_str(), nullptr, encoding) != nullptr); // nothing to fix, process data directly
 
   std::string data(rawdata);
   CRegExp re(false, CRegExp::asciiOnly, "^&(amp|lt|gt|quot|apos|#x[a-fA-F0-9]{1,4}|#[0-9]{1,5});.*");
@@ -247,7 +247,7 @@ bool CXBMCTinyXML::InternalParse(const std::string& rawdata, TiXmlEncoding encod
     pos = data.find('&', pos + 1);
   } while (pos != std::string::npos);
 
-  return (TiXmlDocument::Parse(data.c_str(), NULL, encoding) != NULL);
+  return (TiXmlDocument::Parse(data.c_str(), nullptr, encoding) != nullptr);
 }
 
 bool CXBMCTinyXML::Test()

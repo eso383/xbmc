@@ -8,10 +8,8 @@
 
 #pragma once
 
+#include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/pvr/pvr_channels.h"
 #include "guilib/guiinfo/GUIInfoProvider.h"
-#include "powermanagement/PowerState.h"
-#include "pvr/PVRDescrambleInfo.h"
-#include "pvr/PVRSignalStatus.h"
 #include "pvr/addons/PVRClients.h"
 #include "pvr/guilib/guiinfo/PVRGUITimerInfo.h"
 #include "pvr/guilib/guiinfo/PVRGUITimesInfo.h"
@@ -24,16 +22,24 @@
 
 class CFileItem;
 
-namespace KODI::GUILIB::GUIINFO
+namespace KODI
+{
+namespace GUILIB
+{
+namespace GUIINFO
 {
 class CGUIInfo;
 }
+} // namespace GUILIB
+} // namespace KODI
 
 namespace PVR
 {
-class CPVRGUIInfo : public KODI::GUILIB::GUIINFO::CGUIInfoProvider,
-                    private CThread,
-                    public CPowerState
+enum class PVREvent;
+struct PVRChannelNumberInputChangedEvent;
+struct PVRPreviewAndPlayerShowInfoChangedEvent;
+
+class CPVRGUIInfo : public KODI::GUILIB::GUIINFO::CGUIInfoProvider, private CThread
 {
 public:
   CPVRGUIInfo();
@@ -43,14 +49,22 @@ public:
   void Stop();
 
   /*!
-   * @brief Propagate event on system sleep
+   * @brief CEventStream callback for PVR events.
+   * @param event The event.
    */
-  void OnSleep() override;
+  void Notify(const PVREvent& event);
 
   /*!
-   * @brief Propagate event on system wake
+   * @brief CEventStream callback for channel number input changes.
+   * @param event The event.
    */
-  void OnWake() override;
+  void Notify(const PVRChannelNumberInputChangedEvent& event);
+
+  /*!
+   * @brief CEventStream callback for channel preview and player show info changes.
+   * @param event The event.
+   */
+  void Notify(const PVRPreviewAndPlayerShowInfoChangedEvent& event);
 
   // KODI::GUILIB::GUIINFO::IGUIInfoProvider implementation
   bool InitCurrentItem(CFileItem* item) override;
@@ -75,8 +89,8 @@ public:
 
 private:
   void ResetProperties();
-  void ClearQualityInfo(CPVRSignalStatus& qualityInfo) const;
-  void ClearDescrambleInfo(CPVRDescrambleInfo& descrambleInfo) const;
+  void ClearQualityInfo(PVR_SIGNAL_STATUS& qualityInfo);
+  void ClearDescrambleInfo(PVR_DESCRAMBLE_INFO& descrambleInfo);
 
   void Process() override;
 
@@ -112,7 +126,9 @@ private:
   bool GetListItemAndPlayerBool(const CFileItem* item,
                                 const KODI::GUILIB::GUIINFO::CGUIInfo& info,
                                 bool& bValue) const;
-  bool GetPVRBool(const KODI::GUILIB::GUIINFO::CGUIInfo& info, bool& bValue) const;
+  bool GetPVRBool(const CFileItem* item,
+                  const KODI::GUILIB::GUIINFO::CGUIInfo& info,
+                  bool& bValue) const;
   bool GetRadioRDSBool(const CFileItem* item,
                        const KODI::GUILIB::GUIINFO::CGUIInfo& info,
                        bool& bValue) const;
@@ -125,8 +141,6 @@ private:
   void CharInfoUNC(std::string& strValue) const;
   void CharInfoFrontendName(std::string& strValue) const;
   void CharInfoFrontendStatus(std::string& strValue) const;
-  void CharInfoClientName(std::string& strValue) const;
-  void CharInfoInstanceName(std::string& strValue) const;
   void CharInfoBackendName(std::string& strValue) const;
   void CharInfoBackendVersion(std::string& strValue) const;
   void CharInfoBackendHost(std::string& strValue) const;
@@ -155,8 +169,6 @@ private:
   bool m_bHasRadioRecordings;
   unsigned int m_iCurrentActiveClient;
   std::string m_strPlayingClientName;
-  std::string m_strClientName;
-  std::string m_strInstanceName;
   std::string m_strBackendName;
   std::string m_strBackendVersion;
   std::string m_strBackendHost;
@@ -183,9 +195,9 @@ private:
 
   //@}
 
-  CPVRSignalStatus m_qualityInfo; /*!< stream quality information */
-  CPVRDescrambleInfo m_descrambleInfo; /*!< stream descramble information */
-  std::vector<SBackendProperties> m_backendProperties;
+  PVR_SIGNAL_STATUS m_qualityInfo; /*!< stream quality information */
+  PVR_DESCRAMBLE_INFO m_descrambleInfo; /*!< stream descramble information */
+  std::vector<SBackend> m_backendProperties;
 
   std::string m_channelNumberInput;
   bool m_previewAndPlayerShowInfo{false};
@@ -199,5 +211,7 @@ private:
    * information.
    */
   mutable std::atomic<bool> m_updateBackendCacheRequested;
+
+  bool m_bRegistered;
 };
 } // namespace PVR

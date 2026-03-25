@@ -8,7 +8,6 @@
 
 #include "FileBrowser.h"
 
-#include "ServiceBroker.h"
 #include "URL.h"
 #include "addons/binary-addons/AddonDll.h"
 #include "addons/kodi-dev-kit/include/kodi/gui/dialogs/FileBrowser.h"
@@ -52,29 +51,28 @@ bool Interface_GUIDialogFileBrowser::show_and_get_directory(KODI_HANDLE kodiBase
                                                             char** path_out,
                                                             bool write_only)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!shares || !heading || !path_in || !path_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (shares='{}', "
-               "heading='{}', path_in='{}', path_out='{}') on addon '{}'",
-               static_cast<const void*>(shares), static_cast<const void*>(heading),
-               static_cast<const void*>(path_in), static_cast<void*>(path_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (shares='{}', "
+              "heading='{}', path_in='{}', path_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(shares), static_cast<const void*>(heading),
+              static_cast<const void*>(path_in), static_cast<void*>(path_out), addon->ID());
     return false;
   }
 
   std::string strPath = path_in;
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   GetVECShares(vecShares, shares, strPath);
-  const bool bRet{
-      CGUIDialogFileBrowser::ShowAndGetDirectory(vecShares, heading, strPath, write_only)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetDirectory(vecShares, heading, strPath, write_only);
   if (bRet)
     *path_out = strdup(strPath.c_str());
   return bRet;
@@ -89,30 +87,30 @@ bool Interface_GUIDialogFileBrowser::show_and_get_file(KODI_HANDLE kodiBase,
                                                        bool use_thumbs,
                                                        bool use_file_directories)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!shares || !mask || !heading || !path_in || !path_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (shares='{}', mask='{}', "
-               "heading='{}', path_in='{}', path_out='{}') on addon '{}'",
-               static_cast<const void*>(shares), static_cast<const void*>(mask),
-               static_cast<const void*>(heading), static_cast<const void*>(path_in),
-               static_cast<void*>(path_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (shares='{}', mask='{}', "
+              "heading='{}', path_in='{}', path_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(shares), static_cast<const void*>(mask),
+              static_cast<const void*>(heading), static_cast<const void*>(path_in),
+              static_cast<void*>(path_out), addon->ID());
     return false;
   }
 
   std::string strPath = path_in;
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   GetVECShares(vecShares, shares, strPath);
-  const bool bRet{CGUIDialogFileBrowser::ShowAndGetFile(vecShares, mask, heading, strPath,
-                                                        use_thumbs, use_file_directories)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetFile(vecShares, mask, heading, strPath, use_thumbs,
+                                                    use_file_directories);
   if (bRet)
     *path_out = strdup(strPath.c_str());
   return bRet;
@@ -128,27 +126,27 @@ bool Interface_GUIDialogFileBrowser::show_and_get_file_from_dir(KODI_HANDLE kodi
                                                                 bool use_file_directories,
                                                                 bool single_list)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!directory || !mask || !heading || !path_in || !path_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (directory='{}', "
-               "mask='{}', heading='{}', path_in='{}', path_out='{}') on addon '{}'",
-               static_cast<const void*>(directory), static_cast<const void*>(mask),
-               static_cast<const void*>(heading), static_cast<const void*>(path_in),
-               static_cast<void*>(path_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (directory='{}', "
+              "mask='{}', heading='{}', path_in='{}', path_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(directory), static_cast<const void*>(mask),
+              static_cast<const void*>(heading), static_cast<const void*>(path_in),
+              static_cast<void*>(path_out), addon->ID());
     return false;
   }
 
   std::string strPath = path_in;
-  const bool bRet{CGUIDialogFileBrowser::ShowAndGetFile(
-      directory, mask, heading, strPath, use_thumbs, use_file_directories, single_list)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetFile(directory, mask, heading, strPath, use_thumbs,
+                                                    use_file_directories, single_list);
   if (bRet)
     *path_out = strdup(strPath.c_str());
   return bRet;
@@ -163,33 +161,33 @@ bool Interface_GUIDialogFileBrowser::show_and_get_file_list(KODI_HANDLE kodiBase
                                                             bool use_thumbs,
                                                             bool use_file_directories)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!shares || !mask || !heading || !file_list || !entries)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (shares='{}', mask='{}', "
-               "heading='{}', file_list='{}', entries='{}') on addon '{}'",
-               static_cast<const void*>(shares), static_cast<const void*>(mask),
-               static_cast<const void*>(heading), static_cast<void*>(file_list),
-               static_cast<void*>(entries), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (shares='{}', mask='{}', "
+              "heading='{}', file_list='{}', entries='{}') on addon '{}'",
+              __func__, static_cast<const void*>(shares), static_cast<const void*>(mask),
+              static_cast<const void*>(heading), static_cast<void*>(file_list),
+              static_cast<void*>(entries), addon->ID());
     return false;
   }
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   GetVECShares(vecShares, shares, "");
 
   std::vector<std::string> pathsInt;
-  const bool bRet{CGUIDialogFileBrowser::ShowAndGetFileList(vecShares, mask, heading, pathsInt,
-                                                            use_thumbs, use_file_directories)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetFileList(vecShares, mask, heading, pathsInt,
+                                                        use_thumbs, use_file_directories);
   if (bRet)
   {
-    *entries = static_cast<unsigned int>(pathsInt.size());
+    *entries = pathsInt.size();
     *file_list = static_cast<char**>(malloc(*entries * sizeof(char*)));
     for (unsigned int i = 0; i < *entries; ++i)
       (*file_list)[i] = strdup(pathsInt[i].c_str());
@@ -206,30 +204,31 @@ bool Interface_GUIDialogFileBrowser::show_and_get_source(KODI_HANDLE kodiBase,
                                                          const char* additionalShare,
                                                          const char* strType)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!strType || !additionalShare || !path_in || !path_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (additionalShare='{}', "
-               "strType='{}', path_in='{}', path_out='{}') on addon '{}'",
-               static_cast<const void*>(additionalShare), static_cast<const void*>(strType),
-               static_cast<const void*>(path_in), static_cast<void*>(path_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (additionalShare='{}', "
+              "strType='{}', path_in='{}', path_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(additionalShare),
+              static_cast<const void*>(strType), static_cast<const void*>(path_in),
+              static_cast<void*>(path_out), addon->ID());
     return false;
   }
 
   std::string strPath = path_in;
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   if (additionalShare)
     GetVECShares(vecShares, additionalShare, strPath);
-  const bool bRet{
-      CGUIDialogFileBrowser::ShowAndGetSource(strPath, allowNetworkShares, &vecShares, strType)};
+  bool bRet =
+      CGUIDialogFileBrowser::ShowAndGetSource(strPath, allowNetworkShares, &vecShares, strType);
   if (bRet)
     *path_out = strdup(strPath.c_str());
   return bRet;
@@ -241,27 +240,28 @@ bool Interface_GUIDialogFileBrowser::show_and_get_image(KODI_HANDLE kodiBase,
                                                         const char* path_in,
                                                         char** path_out)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!shares || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (shares='{}', "
-               "heading='{}') on addon '{}'",
-               static_cast<const void*>(shares), static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (shares='{}', "
+              "heading='{}') on addon '{}'",
+              __func__, static_cast<const void*>(shares), static_cast<const void*>(heading),
+              addon->ID());
     return false;
   }
 
   std::string strPath = path_in;
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   GetVECShares(vecShares, shares, strPath);
-  const bool bRet{CGUIDialogFileBrowser::ShowAndGetImage(vecShares, heading, strPath)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetImage(vecShares, heading, strPath);
   if (bRet)
     *path_out = strdup(strPath.c_str());
   return bRet;
@@ -273,31 +273,31 @@ bool Interface_GUIDialogFileBrowser::show_and_get_image_list(KODI_HANDLE kodiBas
                                                              char*** file_list,
                                                              unsigned int* entries)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return false;
   }
 
   if (!shares || !heading || !file_list || !entries)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (shares='{}', "
-               "heading='{}', file_list='{}', entries='{}') on addon '{}'",
-               static_cast<const void*>(shares), static_cast<const void*>(heading),
-               static_cast<void*>(file_list), static_cast<void*>(entries), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (shares='{}', "
+              "heading='{}', file_list='{}', entries='{}') on addon '{}'",
+              __func__, static_cast<const void*>(shares), static_cast<const void*>(heading),
+              static_cast<void*>(file_list), static_cast<void*>(entries), addon->ID());
     return false;
   }
 
-  std::vector<CMediaSource> vecShares;
+  VECSOURCES vecShares;
   GetVECShares(vecShares, shares, "");
 
   std::vector<std::string> pathsInt;
-  const bool bRet{CGUIDialogFileBrowser::ShowAndGetImageList(vecShares, heading, pathsInt)};
+  bool bRet = CGUIDialogFileBrowser::ShowAndGetImageList(vecShares, heading, pathsInt);
   if (bRet)
   {
-    *entries = static_cast<unsigned int>(pathsInt.size());
+    *entries = pathsInt.size();
     *file_list = static_cast<char**>(malloc(*entries * sizeof(char*)));
     for (unsigned int i = 0; i < *entries; ++i)
       (*file_list)[i] = strdup(pathsInt[i].c_str());
@@ -311,10 +311,10 @@ void Interface_GUIDialogFileBrowser::clear_file_list(KODI_HANDLE kodiBase,
                                                      char*** file_list,
                                                      unsigned int entries)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogFileBrowser::{} - invalid data", __func__);
     return;
   }
 
@@ -328,15 +328,15 @@ void Interface_GUIDialogFileBrowser::clear_file_list(KODI_HANDLE kodiBase,
   else
   {
 
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (file_list='{}') on "
-               "addon '{}'",
-               static_cast<void*>(file_list), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogFileBrowser::{} - invalid handler data (file_list='{}') on "
+              "addon '{}'",
+              __func__, static_cast<void*>(file_list), addon->ID());
   }
 }
 
-void Interface_GUIDialogFileBrowser::GetVECShares(std::vector<CMediaSource>& vecShares,
-                                                  std::string_view strShares,
+void Interface_GUIDialogFileBrowser::GetVECShares(VECSOURCES& vecShares,
+                                                  const std::string& strShares,
                                                   const std::string& strPath)
 {
   std::size_t found;
@@ -352,41 +352,36 @@ void Interface_GUIDialogFileBrowser::GetVECShares(std::vector<CMediaSource>& vec
   found = strShares.find("programs");
   if (found != std::string::npos)
   {
-    const std::vector<CMediaSource>* sources{
-        CMediaSourceSettings::GetInstance().GetSources("programs")};
+    VECSOURCES* sources = CMediaSourceSettings::GetInstance().GetSources("programs");
     if (sources != nullptr)
       vecShares.insert(vecShares.end(), sources->begin(), sources->end());
   }
   found = strShares.find("files");
   if (found != std::string::npos)
   {
-    const std::vector<CMediaSource>* sources{
-        CMediaSourceSettings::GetInstance().GetSources("files")};
-    if (sources)
+    VECSOURCES* sources = CMediaSourceSettings::GetInstance().GetSources("files");
+    if (sources != nullptr)
       vecShares.insert(vecShares.end(), sources->begin(), sources->end());
   }
   found = strShares.find("music");
   if (found != std::string::npos)
   {
-    const std::vector<CMediaSource>* sources{
-        CMediaSourceSettings::GetInstance().GetSources("music")};
-    if (sources)
+    VECSOURCES* sources = CMediaSourceSettings::GetInstance().GetSources("music");
+    if (sources != nullptr)
       vecShares.insert(vecShares.end(), sources->begin(), sources->end());
   }
   found = strShares.find("video");
   if (found != std::string::npos)
   {
-    const std::vector<CMediaSource>* sources{
-        CMediaSourceSettings::GetInstance().GetSources("video")};
-    if (sources)
+    VECSOURCES* sources = CMediaSourceSettings::GetInstance().GetSources("video");
+    if (sources != nullptr)
       vecShares.insert(vecShares.end(), sources->begin(), sources->end());
   }
   found = strShares.find("pictures");
   if (found != std::string::npos)
   {
-    const std::vector<CMediaSource>* sources{
-        CMediaSourceSettings::GetInstance().GetSources("pictures")};
-    if (sources)
+    VECSOURCES* sources = CMediaSourceSettings::GetInstance().GetSources("pictures");
+    if (sources != nullptr)
       vecShares.insert(vecShares.end(), sources->begin(), sources->end());
   }
 
@@ -399,9 +394,9 @@ void Interface_GUIDialogFileBrowser::GetVECShares(std::vector<CMediaSource>& vec
       basePath = tempPath;
     share.strPath = basePath;
     // don't include the user details in the share name
-    const CURL url{share.strPath};
+    CURL url(share.strPath);
     share.strName = url.GetWithoutUserDetails();
-    vecShares.emplace_back(std::move(share));
+    vecShares.push_back(share);
   }
 }
 

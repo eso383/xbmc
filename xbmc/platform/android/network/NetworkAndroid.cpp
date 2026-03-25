@@ -6,15 +6,17 @@
  *  See LICENSES/README.md for more information.
  */
 
+
 #include "NetworkAndroid.h"
 
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
+#include "platform/android/activity/XBMCApp.h"
+
 #include <mutex>
 
 #include <androidjni/ConnectivityManager.h>
-#include <androidjni/Context.h>
 #include <androidjni/InetAddress.h>
 #include <androidjni/LinkAddress.h>
 #include <androidjni/NetworkInfo.h>
@@ -48,7 +50,7 @@ std::vector<std::string> CNetworkInterfaceAndroid::GetNameServers()
 
 bool CNetworkInterfaceAndroid::IsEnabled() const
 {
-  CJNIConnectivityManager connman(CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
+  CJNIConnectivityManager connman(CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
   CJNINetworkInfo ni = connman.getNetworkInfo(m_network);
   if (!ni)
     return false;
@@ -58,7 +60,7 @@ bool CNetworkInterfaceAndroid::IsEnabled() const
 
 bool CNetworkInterfaceAndroid::IsConnected() const
 {
-  CJNIConnectivityManager connman(CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
+  CJNIConnectivityManager connman(CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
   CJNINetworkInfo ni = connman.getNetworkInfo(m_network);
   if (!ni)
     return false;
@@ -235,8 +237,11 @@ CNetworkAndroid::CNetworkAndroid() : CNetworkBase(), CJNIXBMCConnectivityManager
 {
   RetrieveInterfaces();
 
-  CJNIConnectivityManager connman{CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
-  connman.registerDefaultNetworkCallback(this->get_raw());
+  if (CJNIBase::GetSDKVersion() >= 24)
+  {
+    CJNIConnectivityManager connman{CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
+    connman.registerDefaultNetworkCallback(this->get_raw());
+  }
 }
 
 CNetworkAndroid::~CNetworkAndroid()
@@ -246,8 +251,11 @@ CNetworkAndroid::~CNetworkAndroid()
   for (auto intf : m_oldInterfaces)
     delete intf;
 
-  CJNIConnectivityManager connman{CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
-  connman.unregisterNetworkCallback(this->get_raw());
+  if (CJNIBase::GetSDKVersion() >= 24)
+  {
+    CJNIConnectivityManager connman{CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
+    connman.unregisterNetworkCallback(this->get_raw());
+  }
 }
 
 bool CNetworkAndroid::GetHostName(std::string& hostname)
@@ -263,13 +271,14 @@ bool CNetworkAndroid::GetHostName(std::string& hostname)
 
 std::vector<CNetworkInterface*>& CNetworkAndroid::GetInterfaceList()
 {
-  std::unique_lock lock(m_refreshMutex);
+  std::lock_guard lock(m_refreshMutex);
+
   return m_interfaces;
 }
 
 CNetworkInterface* CNetworkAndroid::GetFirstConnectedInterface()
 {
-  std::unique_lock lock(m_refreshMutex);
+  std::lock_guard lock(m_refreshMutex);
 
   if (m_defaultInterface)
     return m_defaultInterface.get();
@@ -321,7 +330,7 @@ bool CNetworkAndroid::PingHost(unsigned long remote_ip, unsigned int timeout_ms)
 
 void CNetworkAndroid::RetrieveInterfaces()
 {
-  std::unique_lock lock(m_refreshMutex);
+  std::lock_guard lock(m_refreshMutex);
 
   // Cannot delete interfaces here, as there still might have references to it
   for (auto intf : m_oldInterfaces)
@@ -329,7 +338,7 @@ void CNetworkAndroid::RetrieveInterfaces()
   m_oldInterfaces = m_interfaces;
   m_interfaces.clear();
 
-  CJNIConnectivityManager connman(CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
+  CJNIConnectivityManager connman(CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE));
   std::vector<CJNINetwork> networks = connman.getAllNetworks();
 
   for (const auto& n : networks)
@@ -362,7 +371,7 @@ void CNetworkAndroid::onAvailable(const CJNINetwork n)
 {
   CLog::Log(LOGDEBUG, "CNetworkAndroid::onAvailable: The default network is now: {}", n.toString());
 
-  CJNIConnectivityManager connman{CJNIContext::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
+  CJNIConnectivityManager connman{CXBMCApp::getSystemService(CJNIContext::CONNECTIVITY_SERVICE)};
   CJNILinkProperties lp = connman.getLinkProperties(n);
 
   if (lp)

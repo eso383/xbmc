@@ -23,9 +23,8 @@
 #include "games/dialogs/DialogGameDefines.h"
 #include "guilib/GUIKeyboardFactory.h"
 #include "guilib/GUIMessage.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/GameSettings.h"
 #include "settings/MediaSettings.h"
 #include "utils/log.h"
@@ -38,23 +37,20 @@ namespace
 {
 CFileItemPtr CreateNewSaveItem()
 {
-  CFileItemPtr item = std::make_shared<CFileItem>(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15314)); // "Save"
+  auto item = std::make_shared<CFileItem>(g_localizeStrings.Get(15314)); // "Save"
 
   // A nonexistent path ensures a gamewindow control won't render any pixels
   item->SetPath(NO_PIXEL_DATA);
   item->SetArt("icon", "DefaultAddSource.png");
   item->SetProperty(SAVESTATE_CAPTION,
-                    CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                        15315)); // "Save progress to a new save file"
+                    g_localizeStrings.Get(15315)); // "Save progress to a new save file"
 
   return item;
 }
 } // namespace
 
 CDialogInGameSaves::CDialogInGameSaves()
-  : CDialogGameVideoSelect(WINDOW_DIALOG_IN_GAME_SAVES),
-    m_newSaveItem(CreateNewSaveItem())
+  : CDialogGameVideoSelect(WINDOW_DIALOG_IN_GAME_SAVES), m_newSaveItem(CreateNewSaveItem())
 {
 }
 
@@ -92,7 +88,7 @@ bool CDialogInGameSaves::OnMessage(CGUIMessage& message)
 
 std::string CDialogInGameSaves::GetHeading()
 {
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35249); // "Save / Load"
+  return g_localizeStrings.Get(35249); // "Save / Load"
 }
 
 void CDialogInGameSaves::PreInit()
@@ -110,7 +106,7 @@ void CDialogInGameSaves::InitSavedGames()
   db.GetSavestatesNav(m_savestateItems, gameSettings->GetPlayingGame(),
                       gameSettings->GameClientID());
 
-  m_savestateItems.Sort(SortBy::DATE, SortOrder::DESCENDING);
+  m_savestateItems.Sort(SortByDate, SortOrderDescending);
 }
 
 void CDialogInGameSaves::GetItems(CFileItemList& items)
@@ -282,7 +278,7 @@ void CDialogInGameSaves::OnNewSave()
 
   savestate->Finalize();
 
-  CFileItemPtr item = std::make_shared<CFileItem>();
+  auto item = std::make_shared<CFileItem>();
   CSavestateDatabase::GetSavestateItem(*savestate, savestatePath, *item);
 
   m_savestateItems.AddFront(item, 0);
@@ -361,9 +357,7 @@ void CDialogInGameSaves::OnRename(CFileItem& focusedItem)
     label = savestate->Label();
 
   // "Enter new filename"
-  if (CGUIKeyboardFactory::ShowAndGetInput(
-          label, CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16013)},
-          true) &&
+  if (CGUIKeyboardFactory::ShowAndGetInput(label, CVariant{g_localizeStrings.Get(16013)}, true) &&
       label != savestate->Label())
   {
     std::unique_ptr<RETRO::ISavestate> newSavestate = db.RenameSavestate(savestatePath, label);
@@ -382,7 +376,7 @@ void CDialogInGameSaves::OnRename(CFileItem& focusedItem)
   }
 }
 
-void CDialogInGameSaves::OnDelete(const CFileItem& focusedItem)
+void CDialogInGameSaves::OnDelete(CFileItem& focusedItem)
 {
   // "Confirm delete"
   // "Would you like to delete the selected file(s)?[CR]Warning - this action can't be undone!"

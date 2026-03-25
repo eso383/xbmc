@@ -47,10 +47,10 @@ void Interface_GUIDialogProgress::DeInit(AddonGlobalInterface* addonInterface)
 
 KODI_GUI_HANDLE Interface_GUIDialogProgress::new_dialog(KODI_HANDLE kodiBase)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return nullptr;
   }
 
@@ -59,8 +59,9 @@ KODI_GUI_HANDLE Interface_GUIDialogProgress::new_dialog(KODI_HANDLE kodiBase)
           WINDOW_DIALOG_PROGRESS);
   if (!dialog)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (dialog='{}') on addon '{}'",
-               static_cast<void*>(dialog), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (dialog='{}') on addon '{}'",
+              __func__, static_cast<void*>(dialog), addon->ID());
     return nullptr;
   }
 
@@ -69,16 +70,18 @@ KODI_GUI_HANDLE Interface_GUIDialogProgress::new_dialog(KODI_HANDLE kodiBase)
 
 void Interface_GUIDialogProgress::delete_dialog(KODI_HANDLE kodiBase, KODI_GUI_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -87,16 +90,18 @@ void Interface_GUIDialogProgress::delete_dialog(KODI_HANDLE kodiBase, KODI_GUI_H
 
 void Interface_GUIDialogProgress::open(KODI_HANDLE kodiBase, KODI_GUI_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -107,19 +112,19 @@ void Interface_GUIDialogProgress::set_heading(KODI_HANDLE kodiBase,
                                               KODI_GUI_HANDLE handle,
                                               const char* heading)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (handle='{}', heading='{}') "
-               "on addon '{}'",
-               handle, static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}', heading='{}') "
+              "on addon '{}'",
+              __func__, handle, static_cast<const void*>(heading), addon->ID());
     return;
   }
 
@@ -131,19 +136,19 @@ void Interface_GUIDialogProgress::set_line(KODI_HANDLE kodiBase,
                                            unsigned int line,
                                            const char* text)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle || !text)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (handle='{}', text='{}') on "
-               "addon '{}'",
-               handle, static_cast<const void*>(text), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}', text='{}') on "
+              "addon '{}'",
+              __func__, handle, static_cast<const void*>(text), addon->ID());
     return;
   }
 
@@ -154,16 +159,18 @@ void Interface_GUIDialogProgress::set_can_cancel(KODI_HANDLE kodiBase,
                                                  KODI_GUI_HANDLE handle,
                                                  bool canCancel)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -172,16 +179,18 @@ void Interface_GUIDialogProgress::set_can_cancel(KODI_HANDLE kodiBase,
 
 bool Interface_GUIDialogProgress::is_canceled(KODI_HANDLE kodiBase, KODI_GUI_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return false;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return false;
   }
 
@@ -192,16 +201,18 @@ void Interface_GUIDialogProgress::set_percentage(KODI_HANDLE kodiBase,
                                                  KODI_GUI_HANDLE handle,
                                                  int percentage)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -210,16 +221,18 @@ void Interface_GUIDialogProgress::set_percentage(KODI_HANDLE kodiBase,
 
 int Interface_GUIDialogProgress::get_percentage(KODI_HANDLE kodiBase, KODI_GUI_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return 0;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return 0;
   }
 
@@ -230,16 +243,18 @@ void Interface_GUIDialogProgress::show_progress_bar(KODI_HANDLE kodiBase,
                                                     KODI_GUI_HANDLE handle,
                                                     bool onOff)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -250,16 +265,18 @@ void Interface_GUIDialogProgress::set_progress_max(KODI_HANDLE kodiBase,
                                                    KODI_GUI_HANDLE handle,
                                                    int max)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -270,16 +287,18 @@ void Interface_GUIDialogProgress::set_progress_advance(KODI_HANDLE kodiBase,
                                                        KODI_GUI_HANDLE handle,
                                                        int nSteps)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return;
   }
 
@@ -288,16 +307,18 @@ void Interface_GUIDialogProgress::set_progress_advance(KODI_HANDLE kodiBase,
 
 bool Interface_GUIDialogProgress::abort(KODI_HANDLE kodiBase, KODI_GUI_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogProgress::{} - invalid data", __func__);
     return false;
   }
 
   if (!handle)
   {
-    CLog::LogF(LOGERROR, "Invalid handler data (handle='{}') on addon '{}'", handle, addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogProgress::{} - invalid handler data (handle='{}') on addon '{}'",
+              __func__, handle, addon->ID());
     return false;
   }
 

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "jobs/Job.h"
+#include "utils/Job.h"
 
 #include <string>
 
@@ -25,7 +25,8 @@ public:
   ~CProgressJob() override;
 
   // implementation of CJob
-  const char* GetType() const override { return "ProgressJob"; }
+  const char *GetType() const override { return "ProgressJob"; }
+  bool operator==(const CJob* job) const override { return false; }
   bool ShouldCancel(unsigned int progress, unsigned int total) const override;
 
   /*!
@@ -50,7 +51,7 @@ public:
   bool HasProgressIndicator() const;
 
 protected:
-  CProgressJob() = default;
+  CProgressJob();
   explicit CProgressJob(CGUIDialogProgressBarHandle* progressBar);
 
   /*!
@@ -66,7 +67,7 @@ protected:
   /*!
    \brief Sets the progress bar indicating the progress of the job.
    */
-  void SetProgressBar(CGUIDialogProgressBarHandle* progress) { m_progress = progress; }
+  void SetProgressBar(CGUIDialogProgressBarHandle* progress) const { m_progress = progress; }
 
   /*!
    \brief Returns the progress dialog indicating the progress of the job.
@@ -76,12 +77,12 @@ protected:
   /*!
    \brief Sets the progress bar indicating the progress of the job.
    */
-  void SetProgressDialog(CGUIDialogProgress* progressDialog) { m_progressDialog = progressDialog; }
+  void SetProgressDialog(CGUIDialogProgress* progressDialog) const { m_progressDialog = progressDialog; }
 
   /*!
    \brief Whether to automatically close the progress indicator in MarkFinished().
    */
-  bool GetAutoClose() { return m_autoClose; }
+  bool GetAutoClose() const { return m_autoClose; }
 
   /*!
    \brief Set whether to automatically close the progress indicator in MarkFinished().
@@ -91,7 +92,7 @@ protected:
   /*!
    \brief Whether to update the progress bar or not.
    */
-  bool GetUpdateProgress() { return m_updateProgress; }
+  bool GetUpdateProgress() const { return m_updateProgress; }
 
   /*!
    \brief Set whether to update the progress bar or not.
@@ -101,7 +102,7 @@ protected:
   /*!
   \brief Whether to update the progress information or not.
   */
-  bool GetUpdateInformation() { return m_updateInformation; }
+  bool GetUpdateInformation() const { return m_updateInformation; }
 
   /*!
   \brief Set whether to update the progress information or not.
@@ -118,14 +119,14 @@ protected:
 
    \param[in] title Title to be set
    */
-  void SetTitle(const std::string &title);
+  void SetTitle(const std::string &title) const;
 
   /*!
    \brief Sets the given text as the description of the progress bar.
 
    \param[in] text Text to be set
   */
-  void SetText(const std::string &text);
+  void SetText(const std::string &text) const;
 
   /*!
    \brief Sets the progress of the progress bar to the given value in percentage.
@@ -145,7 +146,7 @@ protected:
   /*!
    \brief Marks the progress as finished by setting it to 100%.
    */
-  void MarkFinished();
+  void MarkFinished() const;
 
   /*!
    \brief Checks if the progress dialog has been cancelled.
@@ -153,10 +154,10 @@ protected:
   bool IsCancelled() const;
 
 private:
-  bool m_modal{false};
-  bool m_autoClose{true};
-  bool m_updateProgress{true};
-  bool m_updateInformation{true};
-  CGUIDialogProgressBarHandle* m_progress{nullptr};
-  CGUIDialogProgress* m_progressDialog{nullptr};
+  bool m_modal = false;
+  bool m_autoClose = true;
+  bool m_updateProgress = true;
+  bool m_updateInformation = true;
+  mutable CGUIDialogProgressBarHandle* m_progress;
+  mutable CGUIDialogProgress* m_progressDialog;
 };

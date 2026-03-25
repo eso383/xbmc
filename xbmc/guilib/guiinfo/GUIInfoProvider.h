@@ -11,7 +11,11 @@
 #include "cores/VideoPlayer/Interface/StreamInfo.h"
 #include "guilib/guiinfo/IGUIInfoProvider.h"
 
-namespace KODI::GUILIB::GUIINFO
+namespace KODI
+{
+namespace GUILIB
+{
+namespace GUIINFO
 {
 
 class CGUIInfo;
@@ -31,14 +35,8 @@ public:
     return false;
   }
 
-  void UpdateAVInfo(const AudioStreamInfo& audioInfo,
-                    const VideoStreamInfo& videoInfo,
-                    const SubtitleStreamInfo& subtitleInfo) override
-  {
-    m_audioInfo = audioInfo;
-    m_videoInfo = videoInfo;
-    m_subtitleInfo = subtitleInfo;
-  }
+  void UpdateAVInfo(const AudioStreamInfo& audioInfo, const VideoStreamInfo& videoInfo, const SubtitleStreamInfo& subtitleInfo) override
+  { m_audioInfo = audioInfo, m_videoInfo = videoInfo, m_subtitleInfo = subtitleInfo; }
 
 protected:
   VideoStreamInfo m_videoInfo;
@@ -46,4 +44,6 @@ protected:
   SubtitleStreamInfo m_subtitleInfo;
 };
 
-} // namespace KODI::GUILIB::GUIINFO
+} // namespace GUIINFO
+} // namespace GUILIB
+} // namespace KODI

@@ -22,7 +22,10 @@ public:
   ~CPVRChannelGroupImageFileLoader() override = default;
 
   bool CanLoad(const std::string& specialType) const override;
-  std::unique_ptr<CTexture> Load(const IMAGE_FILES::CImageFileURL& imageFile) const override;
+  std::unique_ptr<CTexture> Load(const std::string& specialType,
+                                 const std::string& goofyChapterPath,
+                                 unsigned int preferredWidth,
+                                 unsigned int preferredHeight) const override;
 };
 
 } // namespace PVR

@@ -10,14 +10,12 @@
 
 #include "DatabaseManager.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "application/Application.h"
 #include "filesystem/File.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "tvosShared.h"
 #include "utils/Base64.h"
 #include "utils/StringUtils.h"
@@ -159,10 +157,8 @@ void CTVOSTopShelf::SetTopShelfItems(CFileItemList& items, TVOSTopShelfItemsCate
     {
       case TVOSTopShelfItemsCategory::MOVIES:
         fillSharedDicts(
-            items, @"movies",
-            @(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20386).c_str()),
-            [](const CFileItemPtr& videoItem)
-            {
+            items, @"movies", @(g_localizeStrings.Get(20386).c_str()),
+            [](const CFileItemPtr& videoItem) {
               if (videoItem->HasArt("poster"))
                 return videoItem->GetArt("poster");
               else
@@ -174,8 +170,7 @@ void CTVOSTopShelf::SetTopShelfItems(CFileItemList& items, TVOSTopShelfItemsCate
         CVideoDatabase videoDb;
         videoDb.Open();
         fillSharedDicts(
-            items, @"tvshows",
-            @(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20387).c_str()),
+            items, @"tvshows", @(g_localizeStrings.Get(20387).c_str()),
             [&videoDb](const CFileItemPtr& videoItem)
             {
               int season = videoItem->GetVideoInfoTag()->m_iIdSeason;

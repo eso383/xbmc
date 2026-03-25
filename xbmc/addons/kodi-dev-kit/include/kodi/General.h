@@ -296,7 +296,7 @@ inline std::string ATTR_DLL_LOCAL GetMD5(const std::string& text)
 {
   using namespace kodi::addon;
 
-  char* md5ret = static_cast<char*>(malloc(40 * sizeof(char))); // md5 size normally 32 bytes
+  auto md5ret = static_cast<char*>(malloc(40 * sizeof(char))); // md5 size normally 32 bytes
   CPrivateBase::m_interface->toKodi->kodi->get_md5(CPrivateBase::m_interface->toKodi->kodiBase,
                                                    text.c_str(), md5ret);
   std::string md5 = md5ret;
@@ -477,7 +477,7 @@ inline bool ATTR_DLL_LOCAL IsAddonAvailable(const std::string& id,
   AddonToKodiFuncTable_Addon* toKodi = CPrivateBase::m_interface->toKodi;
 
   char* cVersion = nullptr;
-  bool ret = toKodi->kodi->is_addon_available(toKodi->kodiBase, id.c_str(), &cVersion, &enabled);
+  bool ret = toKodi->kodi->is_addon_avilable(toKodi->kodiBase, id.c_str(), &cVersion, &enabled);
   if (cVersion)
   {
     version = cVersion;

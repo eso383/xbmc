@@ -5,28 +5,22 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::PlayerFactory   - The PlayerFactory library
+#   PLAYERFACTORY::PLAYERFACTORY   - The PlayerFactory library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  SETUP_FIND_SPECS()
-
-  find_package(PkgConfig ${SEARCH_QUIET})
+if(NOT TARGET PLAYERFACTORY::PLAYERFACTORY)
+  find_package(PkgConfig)
   if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PC_PLAYERFACTORY libpf-1.0${PC_${CMAKE_FIND_PACKAGE_NAME}_FIND_SPEC} ${SEARCH_QUIET})
+    pkg_check_modules(PC_PLAYERFACTORY libpf-1.0>=1.0.0 QUIET)
   endif()
 
   find_path(PLAYERFACTORY_INCLUDE_DIR NAMES player-factory/common.hpp
-                                      HINTS ${PC_PLAYERFACTORY_INCLUDEDIR})
+                                      PATHS ${PC_PLAYERFACTORY_INCLUDEDIR}
+                                      NO_CACHE)
   find_library(PLAYERFACTORY_LIBRARY NAMES pf-1.0
-                                     HINTS ${PC_PLAYERFACTORY_LIBDIR})
+                                     PATHS ${PC_PLAYERFACTORY_LIBDIR}
+                                     NO_CACHE)
 
   set(PLAYERFACTORY_VERSION ${PC_PLAYERFACTORY_VERSION})
-
-  if(NOT VERBOSE_FIND)
-     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY TRUE)
-   endif()
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(PlayerFactory
@@ -34,13 +28,10 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
                                     VERSION_VAR PLAYERFACTORY_VERSION)
 
   if(PLAYERFACTORY_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} UNKNOWN IMPORTED)
-    set_target_properties(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} PROPERTIES
-                                                                     IMPORTED_LOCATION "${PLAYERFACTORY_LIBRARY}"
-                                                                     INTERFACE_INCLUDE_DIRECTORIES "${PLAYERFACTORY_INCLUDE_DIR}")
-  else()
-    if(PlayerFactory_FIND_REQUIRED)
-      message(FATAL_ERROR "PlayerFactory library not found.")
-    endif()
+    add_library(PLAYERFACTORY::PLAYERFACTORY UNKNOWN IMPORTED)
+    set_target_properties(PLAYERFACTORY::PLAYERFACTORY PROPERTIES
+                                                       IMPORTED_LOCATION "${PLAYERFACTORY_LIBRARY}"
+                                                       INTERFACE_INCLUDE_DIRECTORIES "${PLAYERFACTORY_INCLUDE_DIR}")
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP PLAYERFACTORY::PLAYERFACTORY)
   endif()
 endif()

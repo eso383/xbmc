@@ -70,16 +70,15 @@ AC_ARG_WITH([cpu],
   [use_cpu=$withval],
   [use_cpu=auto])
 
+AC_ARG_WITH([ndk-path],
+  [AS_HELP_STRING([--with-ndk-path],
+  [specify path to ndk (required for android only)])],
+  [use_ndk_path=$withval])
+
 AC_ARG_WITH([sdk-path],
   [AS_HELP_STRING([--with-sdk-path],
   [specify path to sdk (required for android only)])],
   [use_sdk_path=$withval])
-
-AC_ARG_WITH([ndk-path],
-  [AS_HELP_STRING([--with-ndk-path],
-  [specify path to ndk (optional for android), default is sdk_path/ndk/28.2.13676358])],
-  [use_ndk_path=$withval],
-  [use_ndk_path=$use_sdk_path/ndk/28.2.13676358])
 
 AC_ARG_WITH([sdk],
   [AS_HELP_STRING([--with-sdk],
@@ -88,9 +87,9 @@ AC_ARG_WITH([sdk],
 
 AC_ARG_WITH([ndk-api],
   [AS_HELP_STRING([--with-ndk-api],
-  [specify ndk level (optional for android), default is 24.])],
+  [specify ndk level (optional for android), default is 21.])],
   [use_ndk_api=$withval],
-  [use_ndk_api=24])
+  [use_ndk_api=21])
 
 AC_ARG_ENABLE([gplv3],
   [AS_HELP_STRING([--enable-gplv3],
@@ -203,7 +202,7 @@ case $build in
     # Android NDK currently only x86_64 prebuilts - Arctic Fox 2020.3.1
     android_toolchain_name="darwin-x86_64"
 
-    host_cxxflags="-std=c++17"
+    host_cxxflags="-std=c++17 -stdlib=libc++"
 
     if test "x$prefix" = "xNONE"; then
       prefix=/Users/Shared/xbmc-depends
@@ -295,7 +294,7 @@ if test "x$LD" = "x"; then
   AC_MSG_ERROR(No linker found with name ${use_linker}. You may want to provide using --with-linker=<linker>)
 fi
 
-case $host in
+case $build in
   *darwin*)
     # MacOS 11 requires explicit isysroot for autoconf compiler tests
     # However we do not want to pollute CFLAGS/CXXFLAGS once compiler tests are complete
@@ -305,7 +304,7 @@ esac
 
 AC_PROG_CPP
 
-case $host in
+case $build in
   *darwin*)
     CFLAGS=$(echo "$CFLAGS" | sed "s|$host_includes||")
     CXXFLAGS=$(echo "$CXXFLAGS" | sed "s|$host_includes||")
@@ -314,7 +313,7 @@ esac
 case $host in
   *-*linux-android*)
     deps_dir="$use_host-$use_ndk_api-$build_type"
-    platform_cflags="-DANDROID -fexceptions -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fPIC -DPIC -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
+    platform_cflags="-DANDROID -fexceptions -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fPIC -DPIC"
     optimize_flags="-Os"
     platform_ldflags="-Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libatomic.a -L$prefix/$deps_dir/lib/android-$use_ndk_api"
 
@@ -336,7 +335,6 @@ case $host in
         if test "x$use_cpu" = "xarm64-v8a"; then
           platform_cflags="${platform_cflags} -mtune=cortex-a53"
         fi
-        platform_ldflags="${platform_ldflags} -Wl,-z,max-page-size=16384"
         meson_cpu="aarch64"
       ;;
       i*86*-linux-android*)
@@ -370,7 +368,7 @@ case $host in
       use_cpu="armeabi-v7a"
     fi
     use_toolchain="${use_toolchain:-/usr}"
-    platform_cflags="-fPIC -DPIC -mcpu=cortex-a53 -mtune=cortex-a53 -mfloat-abi=softfp -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
+    platform_cflags="-fPIC -DPIC -mcpu=cortex-a9 -mtune=cortex-a53 -mfloat-abi=softfp"
     platform_cxxflags="$platform_cflags -static-libstdc++"
     optimize_flags="-Os"
     platform_ldflags="-Wl,-rpath-link=$prefix/$deps_dir/lib"
@@ -427,6 +425,7 @@ case $host in
 
     meson_system="darwin"
 
+    platform_cflags="-fheinous-gnu-extensions"
     platform_ldflags="-Wl,-search_paths_first"
 
     case $use_platform in
@@ -501,7 +500,8 @@ case $host in
     platform_min_version="$target_platform-version-min=$target_minver"
 
     platform_includes="-arch $use_cpu -m$platform_min_version -isysroot $use_sdk_path"
-    platform_ldflags="${platform_ldflags} $platform_includes"
+    platform_ldflags="${platform_ldflags} $platform_includes -stdlib=libc++"
+    platform_cxxflags="${platform_cxxflags} -stdlib=libc++"
     deps_dir="${sdk_name}_${use_cpu}-target-${build_type}"
   ;;
   *)
@@ -531,13 +531,10 @@ case $build in
     fi
 esac
 
-# Android NDK < 28 has issues with iconv when built with newer SDK
-# unsure why webos requires special handling
 if test "$platform_os" = "android" || test "$target_platform" = "webos"; then
   need_libiconv=1
-  ac_cv_search_iconv_open=-liconv
 else
-  AC_SEARCH_LIBS([iconv_open],iconv,, AC_MSG_WARN("No iconv support in toolchain. Will build libiconv."); need_libiconv=1; ac_cv_search_iconv_open=-liconv)
+  AC_SEARCH_LIBS([iconv_open],iconv, link_iconv=$ac_cv_search_iconv_open, link_iconv=-liconv; AC_MSG_WARN("No iconv support in toolchain. Will build libiconv."); need_libiconv=1)
 fi
 
 case $build in
@@ -545,8 +542,8 @@ case $build in
     LDFLAGS=$(echo "$LDFLAGS" | sed "s|$platform_includes||")
 esac
 
-if test "$ac_cv_search_iconv_open" != "none required"; then
-  link_iconv=$ac_cv_search_iconv_open
+if test "$link_iconv" = "none required"; then
+  link_iconv=
 fi
 
 if test "x$prefix" = "xNONE"; then
@@ -587,8 +584,6 @@ if test "$platform_os" = "android"; then
   if [ ! test -f $use_ndk_path/sources/android/native_app_glue/android_native_app_glue.h ]; then
     AC_MSG_ERROR(verify ndk path)
   fi
-
-  use_ndk_version=[`cat $use_ndk_path/source.properties | grep "Pkg.Revision" | cut -d'=' -f2 | awk '{print $1}'`]
 
   #not all sort versions support -V - probe it...
   SORT_PARAMS=""
@@ -667,7 +662,7 @@ platform_cflags_release="$tmp_cflags $release_cflags $optimize_flags $target_cfl
 platform_cxxflags_release="$tmp_cxxflags $release_cflags $optimize_flags $target_cxxflags"
 platform_cflags_debug="$tmp_cflags $debug_cflags $target_cflags"
 platform_cxxflags_debug="$tmp_cxxflags $debug_cflags $target_cxxflags"
-platform_ldflags="${platform_ldflags} $target_ldflags"
+platform_ldflags="${platform_ldflags} $target_ldflags $LIBS"
 
 if test "$use_debug" = "yes"; then
   platform_cflags="$platform_cflags_debug"
@@ -679,8 +674,9 @@ fi
 
 CXXFLAGS="$platform_cxxflags $platform_includes"
 CXX_CACHED="$CXX"
-AX_CXX_COMPILE_STDCXX([20], [noext], [mandatory])
+AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 CXX="$CXX_CACHED"
+platform_cxxflags="${platform_cxxflags} -std=c++17"
 
 if test "$ffmpeg_options" = "default"; then
   ffmpeg_options="$ffmpeg_options_default"
@@ -700,7 +696,6 @@ if test "$platform_os" = "android"; then
 echo -e
   AC_SUBST(use_sdk_path)
   AC_SUBST(use_ndk_path)
-  AC_SUBST(use_ndk_version)
   AC_SUBST(use_ndk_api)
   AC_SUBST(build_tools_path)
 fi
@@ -720,7 +715,6 @@ AC_SUBST(use_toolchain)
 AC_SUBST(use_build_toolchain)
 AC_SUBST(use_tarballs)
 AC_SUBST(target_platform)
-AC_SUBST(target_minver)
 AC_SUBST(use_firmware)
 AC_SUBST(cross_compiling)
 AC_SUBST(platform_asflags)
@@ -818,9 +812,7 @@ c = $MESON_CC
 cpp = $MESON_CXX
 ar = '$AR'
 strip = '$STRIP'
-cmake = '$prefix/$tool_dir/bin/cmake'
 pkgconfig = '$prefix/$tool_dir/bin/pkg-config'
-pkg-config = '$prefix/$tool_dir/bin/pkg-config'
 
 [host_machine]
 system = '$meson_system'

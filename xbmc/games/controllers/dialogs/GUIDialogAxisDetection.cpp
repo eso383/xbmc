@@ -8,12 +8,10 @@
 
 #include "GUIDialogAxisDetection.h"
 
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/joysticks/DriverPrimitive.h"
 #include "input/joysticks/JoystickTranslator.h"
 #include "input/joysticks/interfaces/IButtonMap.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 
 #include <algorithm>
@@ -24,8 +22,7 @@ using namespace GAME;
 std::string CGUIDialogAxisDetection::GetDialogText()
 {
   // "Press all analog buttons now to detect them:[CR][CR]%s"
-  const std::string& dialogText =
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35020);
+  const std::string& dialogText = g_localizeStrings.Get(35020);
 
   std::vector<std::string> primitives;
 
@@ -40,8 +37,7 @@ std::string CGUIDialogAxisDetection::GetDialogText()
 
 std::string CGUIDialogAxisDetection::GetDialogHeader()
 {
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-      35058); // "Controller Configuration"
+  return g_localizeStrings.Get(35058); // "Controller Configuration"
 }
 
 bool CGUIDialogAxisDetection::MapPrimitiveInternal(JOYSTICK::IButtonMap* buttonMap,

@@ -59,45 +59,45 @@ namespace XBMCAddon
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
-      ///
-      /// \ingroup python_xbmcgui_listitem
-      /// @brief Selectable window list item.
-      ///
-      /// The list item control is used for creating item lists in Kodi
-      ///
-      /// \python_class{ ListItem([label, label2, path, offscreen]) }
-      ///
-      /// @param label                [opt] string (default `""`) - the label to display on the item
-      /// @param label2               [opt] string (default `""`) - the label2 of the item
-      /// @param path                 [opt] string (default `""`) - the path for the item
-      /// @param offscreen            [opt] bool (default `False`) - if GUI based locks should be
-      ///                                          avoided. Most of the times listitems are created
-      ///                                          offscreen and added later to a container
-      ///                                          for display (e.g. plugins) or they are not
-      ///                                          even displayed (e.g. python scrapers).
-      ///                                          In such cases, there is no need to lock the
-      ///                                          GUI when creating the items (increasing your addon
-      ///                                          performance).
-      ///                                          Note however, that if you are creating listitems
-      ///                                          and managing the container itself (e.g using
-      ///                                          WindowXML or WindowXMLDialog classes) subsequent
-      ///                                          modifications to the item will require locking.
-      ///                                          Thus, in such cases, use the default value (`False`).
-      ///
-      ///
-      ///-----------------------------------------------------------------------
-      /// @python_v16 **iconImage** and **thumbnailImage** are deprecated. Use **setArt()**.
-      /// @python_v18 Added **offscreen** argument.
-      /// @python_v19 Removed **iconImage** and **thumbnailImage**. Use **setArt()**.
-      ///
-      /// **Example:**
-      /// ~~~~~~~~~~~~~{.py}
-      /// ...
-      /// listitem = xbmcgui.ListItem('Casino Royale')
-      /// ...
-      /// ~~~~~~~~~~~~~
-      ///
-      ListItem([ label, label2, path, offscreen ]);
+    ///
+    /// \ingroup python_xbmcgui_listitem
+    /// @brief Selectable window list item.
+    ///
+    /// The list item control is used for creating item lists in Kodi
+    ///
+    /// \python_class{ ListItem([label, label2, path, offscreen]) }
+    ///
+    /// @param label                [opt] string (default `""`) - the label to display on the item
+    /// @param label2               [opt] string (default `""`) - the label2 of the item
+    /// @param path                 [opt] string (default `""`) - the path for the item
+    /// @param offscreen            [opt] bool (default `False`) - if GUI based locks should be
+    ///                                          avoided. Most of the times listitems are created
+    ///                                          offscreen and added later to a container
+    ///                                          for display (e.g. plugins) or they are not
+    ///                                          even displayed (e.g. python scrapers).
+    ///                                          In such cases, there is no need to lock the
+    ///                                          GUI when creating the items (increasing your addon
+    ///                                          performance).
+    ///                                          Note however, that if you are creating listitems
+    ///                                          and managing the container itself (e.g using
+    ///                                          WindowXML or WindowXMLDialog classes) subsquent
+    ///                                          modifications to the item will require locking.
+    ///                                          Thus, in such cases, use the default value (`False`).
+    ///
+    ///
+    ///-----------------------------------------------------------------------
+    /// @python_v16 **iconImage** and **thumbnailImage** are deprecated. Use **setArt()**.
+    /// @python_v18 Added **offscreen** argument.
+    /// @python_v19 Removed **iconImage** and **thumbnailImage**. Use **setArt()**.
+    ///
+    /// **Example:**
+    /// ~~~~~~~~~~~~~{.py}
+    /// ...
+    /// listitem = xbmcgui.ListItem('Casino Royale')
+    /// ...
+    /// ~~~~~~~~~~~~~
+    ///
+    ListItem([label, label2, path, offscreen]);
 #else
     ListItem(const String& label = emptyString,
              const String& label2 = emptyString,
@@ -110,7 +110,7 @@ namespace XBMCAddon
 
       static inline AddonClass::Ref<ListItem> fromString(const String& str)
       {
-        AddonClass::Ref<ListItem> ret = AddonClass::Ref<ListItem>(new ListItem());
+        auto ret = AddonClass::Ref<ListItem>(new ListItem());
         ret->item = std::make_shared<CFileItem>(str);
         return ret;
       }
@@ -141,7 +141,7 @@ namespace XBMCAddon
       ///
       getLabel();
 #else
-      String getLabel();
+      String getLabel() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -165,7 +165,7 @@ namespace XBMCAddon
       ///
       getLabel2();
 #else
-      String getLabel2();
+      String getLabel2() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -189,7 +189,7 @@ namespace XBMCAddon
       ///
       setLabel(...);
 #else
-      void setLabel(const String& label);
+      void setLabel(const String& label) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -213,7 +213,7 @@ namespace XBMCAddon
       ///
       setLabel2(...);
 #else
-      void setLabel2(const String& label);
+      void setLabel2(const String& label) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -238,7 +238,7 @@ namespace XBMCAddon
       ///
       getDateTime();
 #else
-      String getDateTime();
+      String getDateTime() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -471,7 +471,7 @@ namespace XBMCAddon
       ///
       getArt(key);
 #else
-      String getArt(const char* key);
+      String getArt(const char* key) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -613,7 +613,7 @@ namespace XBMCAddon
       ///
       select(...);
 #else
-      void select(bool selected);
+      void select(bool selected) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -638,7 +638,7 @@ namespace XBMCAddon
       ///
       isSelected();
 #else
-      bool isSelected();
+      bool isSelected() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -976,7 +976,7 @@ namespace XBMCAddon
       ///
       addContextMenuItems(...);
 #else
-      void addContextMenuItems(const std::vector<Tuple<String,String> >& items, bool replaceItems = false);
+      void addContextMenuItems(const std::vector<Tuple<String,String> >& items, bool replaceItems = false) const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1184,7 +1184,7 @@ namespace XBMCAddon
       ///
       getPath();
 #else
-      String getPath();
+      String getPath() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1235,7 +1235,7 @@ namespace XBMCAddon
       ///
       getPictureInfoTag();
 #else
-      xbmc::InfoTagPicture* getPictureInfoTag();
+      xbmc::InfoTagPicture* getPictureInfoTag() const;
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1252,7 +1252,7 @@ namespace XBMCAddon
       ///
       getGameInfoTag();
 #else
-      xbmc::InfoTagGame* getGameInfoTag();
+      xbmc::InfoTagGame* getGameInfoTag() const;
 #endif
 
 private:
@@ -1273,18 +1273,18 @@ private:
       MUSIC_INFO::CMusicInfoTag* GetMusicInfoTag();
       const MUSIC_INFO::CMusicInfoTag* GetMusicInfoTag() const;
 
-      void setTitleRaw(const std::string& title);
-      void setPathRaw(const std::string& path);
-      void setCountRaw(int count);
-      void setSizeRaw(int64_t size);
-      void setDateTimeRaw(const std::string& dateTime);
-      void setIsFolderRaw(bool isFolder);
-      void setStartOffsetRaw(double startOffset);
-      void setMimeTypeRaw(const std::string& mimetype);
-      void setSpecialSortRaw(std::string specialSort);
-      void setContentLookupRaw(bool enable);
-      void addArtRaw(std::string type, const std::string& url);
-      void addPropertyRaw(std::string type, const CVariant& value);
+      void setTitleRaw(std::string title) const;
+      void setPathRaw(const std::string& path) const;
+      void setCountRaw(int count) const;
+      void setSizeRaw(int64_t size) const;
+      void setDateTimeRaw(const std::string& dateTime) const;
+      void setIsFolderRaw(bool isFolder) const;
+      void setStartOffsetRaw(double startOffset) const;
+      void setMimeTypeRaw(const std::string& mimetype) const;
+      void setSpecialSortRaw(std::string specialSort) const;
+      void setContentLookupRaw(bool enable) const;
+      void addArtRaw(std::string type, const std::string& url) const;
+      void addPropertyRaw(std::string type, const CVariant& value) const;
       void addSubtitlesRaw(const std::vector<std::string>& subtitles);
     };
 

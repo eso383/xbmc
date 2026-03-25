@@ -1,13 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(TexturePacker)
 
-# If we are building inside the Kodi project, add its Find module paths
-# otherwise point to TexturePacker's source for the Find modules
-if(${KODI_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-  list(APPEND CMAKE_MODULE_PATH ${KODI_SOURCE_DIR}/cmake/modules)
-else()
-  list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR})
-endif()
+list(APPEND CMAKE_MODULE_PATH ${KODI_SOURCE_DIR}/cmake/modules)
 
 if(NATIVEPREFIX)
   set(CMAKE_FIND_ROOT_PATH ${NATIVEPREFIX})
@@ -18,8 +12,6 @@ if(ENABLE_STATIC)
   # Requires cmake 3.24 for ZLIB_USE_STATIC_LIBS to actually do something
   set(ZLIB_USE_STATIC_LIBS ON)
 endif()
-
-set(APP_NAME_LC texturepacker)
 
 find_package(Lzo2 REQUIRED)
 find_package(PNG REQUIRED)
@@ -76,7 +68,7 @@ target_link_libraries(TexturePacker
                               ${GIF_LIBRARIES}
                               ${PNG_LIBRARIES}
                               ${JPEG_LIBRARIES}
-                              texturepacker::Lzo2)
+                              ${LZO2_LIBRARIES})
 
 target_compile_definitions(TexturePacker PRIVATE ${ARCH_DEFINES} ${SYSTEM_DEFINES})
 target_compile_features(TexturePacker PUBLIC cxx_std_17)

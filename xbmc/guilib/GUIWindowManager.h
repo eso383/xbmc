@@ -57,7 +57,7 @@ public:
   bool SendMessage(int message, int senderID, int destID, int param1 = 0, int param2 = 0);
   bool SendMessage(CGUIMessage& message, int window);
   void Initialize();
-  bool Add(CGUIWindow* pWindow);
+  void Add(CGUIWindow* pWindow);
   void AddUniqueInstance(CGUIWindow *window);
   void AddCustomWindow(CGUIWindow* pWindow);
   void Remove(int id);
@@ -105,7 +105,7 @@ public:
    It should only be called from the application thread.
    Returns true only if it has rendered something.
    */
-  bool Render();
+  bool Render() const;
 
   void RenderEx() const;
 
@@ -194,11 +194,11 @@ public:
    */
   int GetTopmostModalDialog(bool ignoreClosing = false) const;
 
-  void SendThreadMessage(const CGUIMessage& message, int window = 0);
+  void SendThreadMessage(CGUIMessage& message, int window = 0);
   void DispatchThreadMessages();
   // method to removed queued messages with message id in the requested message id list.
   // pMessageIDList: point to first integer of a 0 ends integer array.
-  int RemoveThreadMessageByMessageIds(const int* pMessageIDList);
+  int RemoveThreadMessageByMessageIds(int *pMessageIDList);
   void AddMsgTarget( IMsgTargetCallback* pMsgTarget );
   void RemoveMsgTarget(IMsgTargetCallback* pMsgTarget);
   int GetActiveWindow() const;
@@ -227,7 +227,7 @@ public:
     return (id >= WINDOW_PYTHON_START && id <= WINDOW_PYTHON_END);
   }
 
-  bool HasVisibleControls();
+  bool HasVisibleControls() const;
 
 #ifdef _DEBUG
   void DumpTextureUse();

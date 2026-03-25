@@ -37,7 +37,6 @@ public:
   bool InitializeProperties(CPeripheral& peripheral) override;
   bool InitializeButtonMap(const CPeripheral& peripheral,
                            KODI::JOYSTICK::IButtonMap& buttonMap) const override;
-  std::string GetAppearance(const CPeripheral& peripheral) const override;
   void Initialise(void) override;
   void ProcessEvents() override;
 

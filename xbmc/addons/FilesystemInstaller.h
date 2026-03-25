@@ -29,6 +29,8 @@ public:
   bool UnInstallFromFilesystem(const std::string& addonPath) const;
 
 private:
+  static bool UnpackArchive(std::string path, const std::string& dest);
+
   std::string m_addonFolder;
   std::string m_tempFolder;
 };

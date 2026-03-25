@@ -11,12 +11,11 @@
 #include "IDirectory.h"
 #include "threads/CriticalSection.h"
 
-#include <functional>
+#include <map>
 #include <memory>
 #include <set>
-#include <unordered_map>
 
-class CURL;
+class CFileItem;
 
 namespace XFILE
 {
@@ -25,7 +24,7 @@ namespace XFILE
     class CDir
     {
     public:
-      explicit CDir(CacheType cacheType);
+      explicit CDir(DIR_CACHE_TYPE cacheType);
       CDir(CDir&& dir) = default;
       CDir& operator=(CDir&& dir) = default;
       virtual ~CDir();
@@ -34,8 +33,7 @@ namespace XFILE
       unsigned int GetLastAccess() const { return m_lastAccess; }
 
       std::unique_ptr<CFileItemList> m_Items;
-      CacheType m_cacheType;
-
+      DIR_CACHE_TYPE m_cacheType;
     private:
       CDir(const CDir&) = delete;
       CDir& operator=(const CDir&) = delete;
@@ -44,33 +42,23 @@ namespace XFILE
   public:
     CDirectoryCache(void);
     virtual ~CDirectoryCache(void);
-    bool GetDirectory(const CURL& url, CFileItemList& items, bool retrieveAll = false);
-    void SetDirectory(const CURL& url, const CFileItemList& items, CacheType cacheType);
-    void ClearDirectory(const CURL& url);
-    void ClearFile(const CURL& url);
-    void ClearSubPaths(const CURL& url);
+    bool GetDirectory(const std::string& strPath, CFileItemList &items, bool retrieveAll = false);
+    void SetDirectory(const std::string& strPath, const CFileItemList &items, DIR_CACHE_TYPE cacheType);
+    void ClearDirectory(const std::string& strPath);
+    void ClearFile(const std::string& strFile);
+    void ClearSubPaths(const std::string& strPath);
     void Clear();
-    void AddFile(const CURL& url);
-    bool FileExists(const CURL& url, bool& foundInCache);
+    void AddFile(const std::string& strFile);
+    bool FileExists(const std::string& strPath, bool& bInCache);
 #ifdef _DEBUG
     void PrintStats() const;
 #endif
-  private:
+  protected:
     void InitCache(const std::set<std::string>& dirs);
     void ClearCache(std::set<std::string>& dirs);
     void CheckIfFull();
 
-    struct StringHash
-    {
-      using is_transparent = void; // Enables heterogeneous operations.
-      std::size_t operator()(std::string_view sv) const
-      {
-        std::hash<std::string_view> hasher;
-        return hasher(sv);
-      }
-    };
-    using DirCache = std::unordered_map<std::string, CDir, StringHash, std::equal_to<>>;
-    DirCache m_cache;
+    std::map<std::string, CDir> m_cache;
 
     mutable CCriticalSection m_cs;
 

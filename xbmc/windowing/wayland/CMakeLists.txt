@@ -3,8 +3,7 @@ set_source_files_properties(${WAYLAND_EXTRA_PROTOCOL_GENERATED_DIR}/wayland-extr
                             ${WAYLAND_EXTRA_PROTOCOL_GENERATED_DIR}/wayland-extra-protocols.hpp
                             PROPERTIES GENERATED TRUE)
 
-set(SOURCES ColorManager.cpp
-            Connection.cpp
+set(SOURCES Connection.cpp
             OptionalsReg.cpp
             Output.cpp
             InputProcessorKeyboard.h
@@ -27,8 +26,7 @@ set(SOURCES ColorManager.cpp
             WinSystemWayland.cpp
             XkbcommonKeymap.cpp)
 
-set(HEADERS ColorManager.h
-            Connection.h
+set(HEADERS Connection.h
             OptionalsReg.h
             Output.h
             InputProcessorKeyboard.cpp
@@ -51,16 +49,16 @@ set(HEADERS ColorManager.h
             WinSystemWayland.h
             XkbcommonKeymap.h)
 
-if(TARGET ${APP_NAME_LC}::EGL)
+if(TARGET EGL::EGL)
   list(APPEND SOURCES WinSystemWaylandEGLContext.cpp)
   list(APPEND HEADERS WinSystemWaylandEGLContext.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::OpenGl)
+if(TARGET OpenGL::GL)
   list(APPEND SOURCES WinSystemWaylandEGLContextGL.cpp)
   list(APPEND HEADERS WinSystemWaylandEGLContextGL.h)
 endif()
-if(TARGET ${APP_NAME_LC}::OpenGLES)
+if(TARGET OpenGL::GLES)
   list(APPEND SOURCES WinSystemWaylandEGLContextGLES.cpp)
   list(APPEND HEADERS WinSystemWaylandEGLContextGLES.h)
 endif()
@@ -70,19 +68,13 @@ if(TARGET_WEBOS)
                               PROPERTIES GENERATED TRUE)
 
   list(APPEND SOURCES OSScreenSaverWebOS.cpp
-                      SeatWebOS.cpp
                       ShellSurfaceWebOSShell.cpp
                       WinSystemWaylandWebOS.cpp
                       ${WAYLAND_EXTRA_PROTOCOL_GENERATED_DIR}/wayland-webos-protocols.cpp)
   list(APPEND HEADERS OSScreenSaverWebOS.h
-                      SeatWebOS.h
                       ShellSurfaceWebOSShell.h
                       WinSystemWaylandWebOS.h
                       ${WAYLAND_EXTRA_PROTOCOL_GENERATED_DIR}/wayland-webos-protocols.hpp)
 endif()
 
 core_add_library(windowing_WAYLAND)
-
-if(PC_WAYLAND_PROTOCOLS_VERSION VERSION_GREATER_EQUAL 1.41)
-  target_compile_definitions(windowing_WAYLAND PRIVATE HAS_WAYLAND_COLOR_MANAGEMENT)
-endif()

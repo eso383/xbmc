@@ -27,13 +27,14 @@
 #include "threads/SingleLock.h"
 #include "utils/ColorUtils.h"
 #include "utils/StringUtils.h"
+#include "utils/TimeUtils.h"
 #include "utils/Variant.h"
 #include "utils/XMLUtils.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
-#include <ranges>
+#include "application/ApplicationComponents.h"
+#include "application/ApplicationSkinHandling.h"
 
 using namespace KODI;
 
@@ -70,8 +71,7 @@ CGUIWindow::~CGUIWindow()
 
 bool CGUIWindow::Load(const std::string& strFileName, bool bContainsPath)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (m_windowLoaded || !skin)
+  if (m_windowLoaded || !g_SkinInfo)
     return true;      // no point loading if it's already there
 
 #ifdef _DEBUG
@@ -104,8 +104,8 @@ bool CGUIWindow::Load(const std::string& strFileName, bool bContainsPath)
     // FIXME: strLowerPath needs to eventually go since resToUse can get incorrectly overridden
     std::string strFileNameLower = strFileName;
     StringUtils::ToLower(strFileNameLower);
-    strLowerPath = skin->GetSkinPath(strFileNameLower, &m_coordsRes);
-    strPath = skin->GetSkinPath(strFileName, &m_coordsRes);
+    strLowerPath =  g_SkinInfo->GetSkinPath(strFileNameLower, &m_coordsRes);
+    strPath = g_SkinInfo->GetSkinPath(strFileName, &m_coordsRes);
   }
 
   bool ret = LoadXML(strPath, strLowerPath);
@@ -167,9 +167,7 @@ std::unique_ptr<TiXmlElement> CGUIWindow::Prepare(const std::unique_ptr<TiXmlEle
 
   // Resolve any includes, constants, expressions that may be present
   // and save include's conditions to the given map
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (skin)
-    skin->ResolveIncludes(preparedRoot.get(), &m_xmlIncludeConditions);
+  g_SkinInfo->ResolveIncludes(preparedRoot.get(), &m_xmlIncludeConditions);
 
   return preparedRoot;
 }
@@ -304,7 +302,7 @@ void CGUIWindow::LoadControl(TiXmlElement* pControl, CGUIControlGroup *pGroup, c
     // if the new control is a group, then add it's controls
     if (pGUIControl->IsGroup())
     {
-      CGUIControlGroup *grp = static_cast<CGUIControlGroup*>(pGUIControl);
+      auto grp = static_cast<CGUIControlGroup*>(pGUIControl);
       TiXmlElement *pSubControl = pControl->FirstChildElement("control");
       CRect grpRect(grp->GetXPosition(), grp->GetYPosition(),
                     grp->GetXPosition() + grp->GetWidth(), grp->GetYPosition() + grp->GetHeight());
@@ -341,7 +339,7 @@ void CGUIWindow::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyregi
   // check if currently focused control can have it
   // and fallback to default control if not
   CGUIControl* focusedControl = GetFocusedControl();
-  if (focusedControl && !focusedControl->CanFocus() && focusedControl->GetID() != m_defaultControl)
+  if (focusedControl && !focusedControl->CanFocus())
     SET_CONTROL_FOCUS(m_defaultControl, 0);
 }
 
@@ -375,7 +373,7 @@ void CGUIWindow::AfterRender()
 
 void CGUIWindow::Close_Internal(bool forceClose /*= false*/, int nextWindowID /*= 0*/, bool enableSound /*= true*/)
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   if (!m_active)
     return;
@@ -425,6 +423,10 @@ bool CGUIWindow::OnAction(const CAction &action)
   if (action.IsMouse() || action.IsGesture())
     return EVENT_RESULT_UNHANDLED != OnMouseAction(action);
 
+  // Retrieve the skin manager ONCE
+  const auto& components = CServiceBroker::GetAppComponents();
+  auto skinHandling = components.GetComponent<CApplicationSkinHandling>();
+
   CGUIControl *focusedControl = GetFocusedControl();
   if (focusedControl)
   {
@@ -433,6 +435,10 @@ bool CGUIWindow::OnAction(const CAction &action)
       if (focusedControl->OnAction(action))
         return true;
       focusedControl = focusedControl->GetParentControl();
+
+      // If a skin reload has just occurred, we stop going back up the chain
+      if (skinHandling && skinHandling->ShouldStopActionPropagation())
+        break;
     }
   }
   else
@@ -473,7 +479,7 @@ bool CGUIWindow::OnAction(const CAction &action)
             focusControlId = m_menuLastFocusedControlID > 0 ? m_menuLastFocusedControlID : m_defaultControl;
           }
 
-          CGUIMessage msg = CGUIMessage(GUI_MSG_SETFOCUS, GetID(), focusControlId);
+          auto msg = CGUIMessage(GUI_MSG_SETFOCUS, GetID(), focusControlId);
           return OnMessage(msg);
         }
       }
@@ -696,7 +702,7 @@ bool CGUIWindow::OnMessage(CGUIMessage& message)
     {
       if (message.GetPointer())
       {
-        CGUIControl *control = static_cast<CGUIControl*>(message.GetPointer());
+        auto control = static_cast<CGUIControl*>(message.GetPointer());
         control->AllocResources();
         AddControl(control);
       }
@@ -706,7 +712,7 @@ bool CGUIWindow::OnMessage(CGUIMessage& message)
     {
       if (message.GetPointer())
       {
-        CGUIControl *control = static_cast<CGUIControl*>(message.GetPointer());
+        auto control = static_cast<CGUIControl*>(message.GetPointer());
         RemoveControl(control);
         control->FreeResources(true);
         delete control;
@@ -747,7 +753,7 @@ bool CGUIWindow::NeedLoad() const
 
 void CGUIWindow::AllocResources(bool forceLoad /*= false */)
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
 #ifdef _DEBUG
   const auto start = std::chrono::steady_clock::now();
@@ -762,7 +768,7 @@ void CGUIWindow::AllocResources(bool forceLoad /*= false */)
   if (forceLoad)
   {
     std::string xmlFile = GetProperty("xmlfile").asString();
-    if (!xmlFile.empty())
+    if (xmlFile.size())
     {
       bool bHasPath =
           xmlFile.find('\\') != std::string::npos || xmlFile.find('/') != std::string::npos;
@@ -816,6 +822,7 @@ void CGUIWindow::DynamicResourceAlloc(bool bOnOff)
 
 void CGUIWindow::ClearAll()
 {
+  ResetControlStates();
   OnWindowUnload();
   CGUIControlGroup::ClearAll();
   m_windowLoaded = false;
@@ -1009,7 +1016,8 @@ void CGUIWindow::SetDefaults()
 
 CRect CGUIWindow::GetScaledBounds() const
 {
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   CServiceBroker::GetWinSystem()->GetGfxContext().SetScalingResolution(m_coordsRes, m_needsScaling);
   CPoint pos(GetPosition());
   CRect rect(pos.x, pos.y, pos.x + m_width, pos.y + m_height);
@@ -1048,7 +1056,7 @@ void CGUIWindow::SetProperty(const std::string &strKey, const CVariant &value)
 CVariant CGUIWindow::GetProperty(const std::string &strKey) const
 {
   std::unique_lock<CCriticalSection> lock(const_cast<CGUIWindow&>(*this));
-  std::map<std::string, CVariant, icompare>::const_iterator iter = m_mapProperties.find(strKey);
+  auto iter = m_mapProperties.find(strKey);
   if (iter == m_mapProperties.end())
     return CVariant(CVariant::VariantTypeNull);
 
@@ -1059,19 +1067,6 @@ void CGUIWindow::ClearProperties()
 {
   std::unique_lock<CCriticalSection> lock(*this);
   m_mapProperties.clear();
-}
-
-std::vector<std::string> CGUIWindow::GetPropertyNames() const
-{
-  std::vector<std::string> names;
-
-  std::scoped_lock<CCriticalSection> lock{const_cast<CGUIWindow&>(*this)};
-  names.reserve(m_mapProperties.size());
-  for (const std::string& name : m_mapProperties | std::views::keys)
-  {
-    names.emplace_back(name);
-  }
-  return names;
 }
 
 void CGUIWindow::SetRunActionsManually()
@@ -1092,7 +1087,7 @@ void CGUIWindow::RunUnloadActions() const
 void CGUIWindow::ClearBackground()
 {
   m_clearBackground.Update();
-  KODI::UTILS::COLOR::Color color = m_clearBackground;
+  UTILS::COLOR::Color color = m_clearBackground;
   if (color)
     CServiceBroker::GetWinSystem()->GetGfxContext().Clear(color);
   else if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiGeometryClear)

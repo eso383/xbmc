@@ -26,8 +26,7 @@ CGUIGameMessenger::CGUIGameMessenger(CRPProcessInfo& processInfo)
 }
 
 void CGUIGameMessenger::RefreshSavestates(const std::string& savestatePath /* = "" */,
-                                          ISavestate* savestate /* = nullptr */)
-{
+                                          ISavestate* savestate /* = nullptr */) const {
   if (m_guiComponent != nullptr)
   {
     CGUIMessage message(GUI_MSG_REFRESH_THUMBS, 0, WINDOW_DIALOG_IN_GAME_SAVES);
@@ -39,7 +38,7 @@ void CGUIGameMessenger::RefreshSavestates(const std::string& savestatePath /* = 
     // Add savestate info, if given
     if (savestate != nullptr)
     {
-      CFileItemPtr item = std::make_shared<CFileItem>();
+      auto item = std::make_shared<CFileItem>();
       CSavestateDatabase::GetSavestateItem(*savestate, savestatePath, *item);
       message.SetItem(std::static_pointer_cast<CGUIListItem>(item));
     }

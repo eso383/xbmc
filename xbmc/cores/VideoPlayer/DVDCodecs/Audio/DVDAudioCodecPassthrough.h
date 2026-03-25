@@ -5,8 +5,9 @@
  *  SPDX-License-Identifier: GPL-2.0-or-later
  *  See LICENSES/README.md for more information.
  *
- *  A/V sync improvements based on LAV Filters by Hendrik Leppkes (Nevcairiel)
+ *  LAV A/V sync improvements based on LAV Filters by Hendrik Leppkes (Nevcairiel)
  *  https://github.com/Nevcairiel/LAVFilters
+ *  (enabled via m_lavStyleSyncEnabled flag)
  */
 
 #pragma once
@@ -44,8 +45,20 @@ public:
   std::string GetName() override { return m_codecName; }
   int GetBufferSize() override;
 
-  // LAV-style sync methods for VideoPlayerAudio integration
+  // Enable/disable LAV A/V sync features
+  // LAV Full: Internal clock + jitter tracking + seamless branch
+  // LAV SB: Seamless branch fix ONLY (MAT packer discontinuity detection)
+  void SetLavStyleSyncEnabled(bool enabled);       // Full LAV sync
+  void SetLavSeamlessBranchEnabled(bool enabled);  // Seamless branch only
+  bool IsLavStyleSyncEnabled() const { return m_lavStyleSyncEnabled; }
+  bool IsLavSeamlessBranchEnabled() const { return m_lavSeamlessBranchEnabled; }
+
+  // Reset LAV sync state (for GENERAL_RESYNC without full codec reset)
   void ResetLavSyncState();
+
+  // Sync internal clock to VideoPlayer's coordinated RESYNC timestamp
+  // This is the AUTHORITATIVE clock value that accounts for both audio and video
+  // Call this from GENERAL_RESYNC handler AFTER ResetLavSyncState()
   void SyncToResyncPts(double pts);
 
   void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
@@ -63,14 +76,8 @@ private:
   uint8_t *m_backlogBuffer = nullptr;
   unsigned int m_backlogBufferSize = 0;
   unsigned int m_backlogSize = 0;
-
-  // Internal sentinel for "no valid PTS" - use -1.0 instead of DVD_NOPTS_VALUE
-  // to avoid confusion with garbage values during seamless branching
-  static constexpr double LOCAL_NOPTS = -1.0;
-
-  double m_currentPts{LOCAL_NOPTS};   // Current demuxer PTS
-  double m_nextPts{LOCAL_NOPTS};      // Next expected PTS
-  double m_lastOutputPts{LOCAL_NOPTS}; // Legacy: last output PTS (kept for compatibility)
+  double m_currentPts = DVD_NOPTS_VALUE;
+  double m_nextPts = DVD_NOPTS_VALUE;
   std::string m_codecName;
 
   // TrueHD specifics
@@ -80,39 +87,32 @@ private:
   unsigned int m_trueHDframes = 0;
   bool m_deviceIsRAW{false};
 
-  // TrueHD timestamp caching (LAV-style) - cache PTS of first frame in MAT assembly
-  double m_truehd_ptsCache{LOCAL_NOPTS};  // Cached PTS for current MAT frame being assembled
-  bool m_truehd_ptsCacheValid{false};
+  //============================================================================
+  // LAV A/V Sync - Enable/Disable Switches
+  //============================================================================
+  // m_lavStyleSyncEnabled: Full LAV sync - internal clock + jitter tracking + seamless branch
+  // m_lavSeamlessBranchEnabled: Seamless branch fix ONLY - MAT packer discontinuity detection
+  bool m_lavStyleSyncEnabled{false};        // Full LAV sync
+  bool m_lavSeamlessBranchEnabled{false};   // Seamless branch only
 
   //============================================================================
-  // LAV-style Internal Clock A/V Sync (applies to ALL passthrough codecs)
+  // LAV A/V Sync Members (used when m_lavStyleSyncEnabled == true)
   //============================================================================
   // Based on LAV Filters by Hendrik Leppkes (Nevcairiel)
   // https://github.com/Nevcairiel/LAVFilters
-  //
-  // KEY ARCHITECTURAL CHANGE:
-  // Instead of adjusting demuxer PTS, we maintain our OWN internal clock.
-  // - m_internalClock is our running output timestamp (source of truth)
-  // - On reset/discontinuity: sync m_internalClock to demuxer PTS once
-  // - Then run freely: frame.pts = m_internalClock; m_internalClock += duration
-  // - Demuxer PTS is only used to detect drift (jitter tracking)
-  // - Correct by adjusting m_internalClock when drift exceeds threshold
-  //
-  // BENEFITS:
-  // - Hardware clock chaos (GetSyncError) becomes irrelevant
-  // - DV mode switches don't affect our internal timing
-  // - Frame-to-frame output is always smooth (duration-based)
-  // - We control when to trust the demuxer (only on explicit resync)
-  //============================================================================
 
-  // Internal clock - OUR running output timestamp (like LAV's m_rtStart)
-  double m_internalClock{LOCAL_NOPTS};
+  // Internal sentinel for "no valid PTS" (-1.0 instead of DVD_NOPTS_VALUE)
+  static constexpr double LOCAL_NOPTS = -1.0;
+  static constexpr double MAX_REASONABLE_PTS = 86400000000.0; // 24 hours
 
-  // Resync flag - when true, sync m_internalClock to next valid demuxer PTS
-  bool m_needsResync{true};
+  // Track last output PTS for seamless branch recovery and jitter calculation
+  double m_lastOutputPts{LOCAL_NOPTS};
 
-  // Jitter tracking using LAV-style FloatingAverage
-  // Tracks drift between our internal clock and demuxer PTS
+  // TrueHD timestamp caching (LAV) - cache PTS of first frame in MAT assembly
+  double m_truehd_ptsCache{LOCAL_NOPTS};
+  bool m_truehd_ptsCacheValid{false};
+
+  // Jitter tracking using LAV FloatingAverage
   static constexpr size_t JITTER_WINDOW_SIZE = 256;
   AudioSync::CFloatingAverage<double, JITTER_WINDOW_SIZE> m_jitterTracker;
 
@@ -120,11 +120,26 @@ private:
   // LAV Filters: TrueHD/DTS use 10x threshold for bitstreaming tolerance
   static constexpr double JITTER_THRESHOLD_TRUEHD_DTS = 100000.0;  // 100ms
   static constexpr double JITTER_THRESHOLD_DEFAULT = 10000.0;      // 10ms
-
-  // Runtime jitter threshold - set based on codec in Open()
   double m_jitterThreshold{JITTER_THRESHOLD_DEFAULT};
 
   // Cached settings (updated via callback, read in hot path)
   std::atomic<bool> m_defeatAC3DialNorm{false};
+  std::atomic<bool> m_defeatEAC3AtmosDialNorm{false};
   std::atomic<bool> m_defeatTrueHDDialNorm{false};
+
+  // E-AC-3 JOC/Atmos: dialnorm defeat must be skipped because modifying BSI
+  // dialnorm breaks JOC rendering (receiver cross-checks against OAMD metadata)
+  bool m_isEAC3JOC{false};
+
+  //============================================================================
+  // Internal Clock A/V Sync
+  //============================================================================
+  // We maintain our own internal clock (m_internalClock) that:
+  // - Syncs to RESYNC PTS from VideoPlayer (coordinated A/V clock)
+  // - Outputs PTS from our clock, not demuxer
+  // - Tracks drift against demuxer PTS for discontinuity detection
+  // This isolates us from demuxer PTS chaos during seamless branching
+  //============================================================================
+  double m_internalClock{LOCAL_NOPTS};  // Running output timestamp (like LAV's m_rtStart)
+  bool m_needsResync{true};             // When true, sync to next valid demuxer PTS
 };

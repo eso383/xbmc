@@ -14,9 +14,9 @@
 
 #include "dataset.h"
 
-#include <string>
+#include <stdio.h>
 
-struct sqlite3;
+#include <sqlite3.h>
 
 namespace dbiplus
 {
@@ -29,8 +29,9 @@ class SqliteDatabase : public Database
 {
 protected:
   /* connect descriptor */
-  sqlite3* conn{nullptr};
-  bool _in_transaction{false};
+  sqlite3* conn;
+  bool _in_transaction;
+  int last_err;
 
 public:
   /* default constructor */
@@ -38,10 +39,10 @@ public:
   /* destructor */
   ~SqliteDatabase() override;
 
-  Dataset* CreateDataset() override;
+  Dataset* CreateDataset() const override;
 
   /* func. returns connection handle with SQLite-server */
-  sqlite3* getHandle() { return conn; }
+  sqlite3* getHandle() const { return conn; }
   /* func. returns current status about SQLite-server connection */
   int status() override;
   int setErr(int err_code, const char* qry) override;
@@ -53,11 +54,10 @@ public:
   void setDatabase(const char* newDb) override;
 
   /* func. connects to database-server */
+
   int connect(bool create) override;
   /* func. disconnects from database-server */
   void disconnect() override;
-  /* func. post-connection operations */
-  int postconnect() override;
   /* func. creates new database */
   int create() override;
   /* func. deletes database */
@@ -69,7 +69,7 @@ public:
   int copy(const char* backup_name) override;
 
   /* \brief drop all extra analytics from database */
-  int drop_analytics() override;
+  int drop_analytics(void) override;
 
   long nextid(const char* seq_name) override;
 
@@ -80,7 +80,7 @@ public:
   void rollback_transaction() override;
 
   /* virtual methods for formatting */
-  std::string vprepare(std::string_view format, va_list args) override;
+  std::string vprepare(const char* format, va_list args) override;
 
   bool in_transaction() override { return _in_transaction; }
 };
@@ -94,7 +94,7 @@ public:
 class SqliteDataset : public Dataset
 {
 protected:
-  sqlite3* handle();
+  sqlite3* handle() const;
 
   /* Makes direct queries to database */
   virtual void make_query(StringList& _sql);
@@ -115,7 +115,8 @@ protected:
 
 public:
   /* constructor */
-  using Dataset::Dataset;
+  SqliteDataset();
+  explicit SqliteDataset(SqliteDatabase* newDb);
 
   /* destructor */
   ~SqliteDataset() override;
@@ -134,7 +135,7 @@ or insert() operations default = false) */
   /* as open, but with our query exec Sql */
   bool query(const std::string& query) override;
   /* func. closes a query */
-  void close() override;
+  void close(void) override;
   /* Cancel changes, made in insert or edit states of dataset */
   void cancel() override;
   /* last inserted id */

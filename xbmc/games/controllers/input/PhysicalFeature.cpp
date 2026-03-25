@@ -8,13 +8,11 @@
 
 #include "PhysicalFeature.h"
 
-#include "ServiceBroker.h"
 #include "games/controllers/Controller.h"
 #include "games/controllers/ControllerDefinitions.h"
 #include "games/controllers/ControllerTranslator.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/keyboard/KeyboardTranslator.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/XMLUtils.h"
 #include "utils/log.h"
 
@@ -58,12 +56,10 @@ std::string CPhysicalFeature::CategoryLabel() const
   std::string categoryLabel;
 
   if (m_categoryLabelId >= 0 && m_controller != nullptr)
-    categoryLabel = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-        m_controller->ID(), m_categoryLabelId);
+    categoryLabel = g_localizeStrings.GetAddonString(m_controller->ID(), m_categoryLabelId);
 
   if (categoryLabel.empty())
-    categoryLabel =
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(m_categoryLabelId);
+    categoryLabel = g_localizeStrings.Get(m_categoryLabelId);
 
   return categoryLabel;
 }
@@ -73,11 +69,10 @@ std::string CPhysicalFeature::Label() const
   std::string label;
 
   if (m_labelId >= 0 && m_controller != nullptr)
-    label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-        m_controller->ID(), m_labelId);
+    label = g_localizeStrings.GetAddonString(m_controller->ID(), m_labelId);
 
   if (label.empty())
-    label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(m_labelId);
+    label = g_localizeStrings.Get(m_labelId);
 
   return label;
 }

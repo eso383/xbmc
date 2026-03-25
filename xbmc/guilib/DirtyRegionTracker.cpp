@@ -59,8 +59,7 @@ const CDirtyRegionList &CDirtyRegionTracker::GetMarkedRegions() const
   return m_markedRegions;
 }
 
-CDirtyRegionList CDirtyRegionTracker::GetDirtyRegions()
-{
+CDirtyRegionList CDirtyRegionTracker::GetDirtyRegions() {
   CDirtyRegionList output;
 
   if (m_solver)

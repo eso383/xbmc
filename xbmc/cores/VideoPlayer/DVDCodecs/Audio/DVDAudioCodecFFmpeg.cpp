@@ -24,7 +24,7 @@ extern "C" {
 
 CDVDAudioCodecFFmpeg::CDVDAudioCodecFFmpeg(CProcessInfo &processInfo) : CDVDAudioCodec(processInfo)
 {
-  m_pCodecContext = NULL;
+  m_pCodecContext = nullptr;
 
   m_channels = 0;
   m_layout = 0;
@@ -50,7 +50,7 @@ bool CDVDAudioCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   bool allowdtshddecode = true;
 
   // set any special options
-  for(std::vector<CDVDCodecOption>::iterator it = options.m_keys.begin(); it != options.m_keys.end(); ++it)
+  for(auto it = options.m_keys.begin(); it != options.m_keys.end(); ++it)
     if (it->m_name == "allowdtshddecode")
       allowdtshddecode = atoi(it->m_value.c_str()) != 0;
 
@@ -119,7 +119,7 @@ bool CDVDAudioCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
     av_opt_set_double(m_pCodecContext, "drc_scale", static_cast<double>(applyDrc),
                       AV_OPT_SEARCH_CHILDREN);
 
-  if (avcodec_open2(m_pCodecContext, pCodec, NULL) < 0)
+  if (avcodec_open2(m_pCodecContext, pCodec, nullptr) < 0)
   {
     CLog::Log(LOGDEBUG,"CDVDAudioCodecFFmpeg::Open() Unable to open codec");
     Dispose();
@@ -295,20 +295,17 @@ void CDVDAudioCodecFFmpeg::Reset()
   m_eof = false;
 }
 
-int CDVDAudioCodecFFmpeg::GetChannels()
-{
+int CDVDAudioCodecFFmpeg::GetChannels() const {
   return m_pCodecContext->ch_layout.nb_channels;
 }
 
-int CDVDAudioCodecFFmpeg::GetSampleRate()
-{
+int CDVDAudioCodecFFmpeg::GetSampleRate() const {
   if (m_pCodecContext)
     return m_pCodecContext->sample_rate;
   return 0;
 }
 
-enum AEDataFormat CDVDAudioCodecFFmpeg::GetDataFormat()
-{
+enum AEDataFormat CDVDAudioCodecFFmpeg::GetDataFormat() const {
   switch(m_pCodecContext->sample_fmt)
   {
     case AV_SAMPLE_FMT_U8 : return AE_FMT_U8;

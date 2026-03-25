@@ -18,8 +18,7 @@ using namespace KODI;
 using namespace GAME;
 
 CAgentKeyboard::CAgentKeyboard(PERIPHERALS::PeripheralPtr peripheral)
-  : m_peripheral(std::move(peripheral)),
-    m_keyboardActivity(std::make_unique<CControllerActivity>())
+  : m_peripheral(std::move(peripheral)), m_keyboardActivity(std::make_unique<CControllerActivity>())
 {
 }
 
@@ -49,8 +48,7 @@ void CAgentKeyboard::Deinitialize()
   m_controllerAppearance.reset();
 }
 
-void CAgentKeyboard::ClearButtonState()
-{
+void CAgentKeyboard::ClearButtonState() const {
   return m_keyboardActivity->ClearButtonState();
 }
 

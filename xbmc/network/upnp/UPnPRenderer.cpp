@@ -8,10 +8,10 @@
 #include "UPnPRenderer.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIInfoManager.h"
 #include "GUIUserMessages.h"
 #include "ServiceBroker.h"
+#include "TextureDatabase.h"
 #include "ThumbLoader.h"
 #include "UPnP.h"
 #include "UPnPInternal.h"
@@ -21,7 +21,6 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
-#include "imagefiles/ImageFileURL.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "interfaces/AnnouncementManager.h"
@@ -31,14 +30,11 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-#include "video/VideoFileItemClassify.h"
 
 #include <inttypes.h>
 #include <mutex>
 
 #include <Platinum/Source/Platinum/Platinum.h>
-
-using namespace KODI;
 
 NPT_SET_LOCAL_LOGGER("xbmc.upnp.renderer")
 
@@ -54,8 +50,7 @@ CUPnPRenderer::CUPnPRenderer(const char* friendly_name,
                              unsigned int port /*= 0*/)
   : PLT_MediaRenderer(friendly_name, show_ip, uuid, port)
 {
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::Player |
-                                                                   ANNOUNCEMENT::Application);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 }
 
 /*----------------------------------------------------------------------
@@ -74,7 +69,7 @@ NPT_Result CUPnPRenderer::SetupServices()
   NPT_CHECK(PLT_MediaRenderer::SetupServices());
 
   // update what we can play
-  PLT_Service* service = NULL;
+  PLT_Service* service = nullptr;
   NPT_CHECK_FATAL(FindServiceByType("urn:schemas-upnp-org:service:ConnectionManager:1", service));
   service->SetStateVariable("SinkProtocolInfo", "http-get:*:*:*"
                                                 ",xbmc-get:*:*:*"
@@ -198,7 +193,7 @@ NPT_Result CUPnPRenderer::ProcessHttpGetRequest(NPT_HttpRequest& request,
     if (!filepath.IsEmpty())
     {
       NPT_HttpEntity* entity = response.GetEntity();
-      if (entity == NULL)
+      if (entity == nullptr)
         return NPT_ERROR_INVALID_STATE;
 
       // check the method
@@ -343,7 +338,7 @@ void CUPnPRenderer::UpdateState()
     // get duration
     buffer = StringUtils::SecondsToTimeString(std::lrint(g_application.GetTotalTime()),
                                               TIME_FORMAT_HH_MM_SS);
-    if (!buffer.empty())
+    if (buffer.length() > 0)
     {
       avt->SetStateVariable("CurrentTrackDuration", buffer.c_str());
       avt->SetStateVariable("CurrentMediaDuration", buffer.c_str());
@@ -427,8 +422,7 @@ NPT_Result CUPnPRenderer::SetupIcons()
 /*----------------------------------------------------------------------
 |   CUPnPRenderer::GetMetadata
 +---------------------------------------------------------------------*/
-NPT_Result CUPnPRenderer::GetMetadata(NPT_String& meta)
-{
+NPT_Result CUPnPRenderer::GetMetadata(NPT_String& meta) const {
   NPT_Result res = NPT_FAILURE;
   CFileItem item(g_application.CurrentFileItem());
   NPT_String file_path, tmp;
@@ -437,7 +431,7 @@ NPT_Result CUPnPRenderer::GetMetadata(NPT_String& meta)
   // without CUPnPServer enabled
   NPT_Reference<CThumbLoader> thumb_loader;
   PLT_MediaObject* object =
-      BuildObject(item, file_path, false, thumb_loader, NULL, NULL, UPnPRenderer);
+      BuildObject(item, file_path, false, thumb_loader, nullptr, nullptr, UPnPRenderer);
   if (object)
   {
     // fetch the item's artwork
@@ -447,7 +441,7 @@ NPT_Result CUPnPRenderer::GetMetadata(NPT_String& meta)
     else
       thumb = CServiceBroker::GetGUI()->GetInfoManager().GetImage(VIDEOPLAYER_COVER, -1);
 
-    thumb = IMAGE_FILES::URLFromFile(thumb);
+    thumb = CTextureUtils::GetWrappedImageURL(thumb);
 
     NPT_String ip;
     if (CServiceBroker::GetNetwork().GetFirstConnectedInterface())
@@ -632,15 +626,15 @@ NPT_Result CUPnPRenderer::OnSetNextAVTransportURI(PLT_ActionReference& action)
       CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() != WINDOW_SLIDESHOW)
   {
 
-    PLAYLIST::Id playlistId = PLAYLIST::Id::TYPE_MUSIC;
-    if (VIDEO::IsVideo(*item))
-      playlistId = PLAYLIST::Id::TYPE_VIDEO;
+    PLAYLIST::Id playlistId = PLAYLIST::TYPE_MUSIC;
+    if (item->IsVideo())
+      playlistId = PLAYLIST::TYPE_VIDEO;
 
     // note: auto-deleted when the message is consumed
     auto playlist = new CFileItemList();
     playlist->AddFront(item, 0);
-    CServiceBroker::GetAppMessenger()->PostMsg(
-        TMSG_PLAYLISTPLAYER_ADD, static_cast<int>(playlistId), -1, static_cast<void*>(playlist));
+    CServiceBroker::GetAppMessenger()->PostMsg(TMSG_PLAYLISTPLAYER_ADD, playlistId, -1,
+                                               static_cast<void*>(playlist));
 
     service->SetStateVariable("NextAVTransportURI", uri);
     service->SetStateVariable("NextAVTransportURIMetaData", meta);
@@ -688,7 +682,7 @@ NPT_Result CUPnPRenderer::PlayMedia(const NPT_String& uri,
   else
   {
     item->SetProperty("no-ext-subs-scan", true);
-    CFileItemList* l = new CFileItemList; //don't delete,
+    auto l = new CFileItemList; //don't delete,
     l->Add(std::make_shared<CFileItem>(*item));
     CServiceBroker::GetAppMessenger()->PostMsg(TMSG_MEDIA_PLAY, -1, -1, static_cast<void*>(l));
   }

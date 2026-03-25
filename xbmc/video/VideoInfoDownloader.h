@@ -46,22 +46,20 @@ public:
    \param pProgress progress bar to update as we go. If NULL we run on thread, if non-NULL we run off thread.
    \return 1 on success, -1 on a scraper-specific error, 0 on some other error
    */
-  int FindMovie(const std::string& movieTitle, int movieYear, MOVIELIST& movielist, CGUIDialogProgress *pProgress = NULL);
+  int FindMovie(const std::string& movieTitle, int movieYear, MOVIELIST& movielist, CGUIDialogProgress *pProgress = nullptr);
 
   /*! \brief Fetch art URLs for an item with our scraper
    \param details the video info tag structure to fill with art.
    \return true on success, false on failure.
    */
-  bool GetArtwork(CVideoInfoTag &details);
+  bool GetArtwork(CVideoInfoTag &details) const;
 
-  bool GetDetails(const ADDON::CScraper::UniqueIDs& uniqueIDs,
+  bool GetDetails(const std::unordered_map<std::string, std::string>& uniqueIDs,
                   const CScraperUrl& url,
                   CVideoInfoTag& movieDetails,
-                  CGUIDialogProgress* pProgress = NULL);
-  bool GetEpisodeDetails(const CScraperUrl& url, CVideoInfoTag &movieDetails, CGUIDialogProgress *pProgress = NULL);
-  bool GetEpisodeList(const CScraperUrl& url,
-                      KODI::VIDEO::EPISODELIST& details,
-                      CGUIDialogProgress* pProgress = NULL);
+                  CGUIDialogProgress* pProgress = nullptr);
+  bool GetEpisodeDetails(const CScraperUrl& url, CVideoInfoTag &movieDetails, CGUIDialogProgress *pProgress = nullptr);
+  bool GetEpisodeList(const CScraperUrl& url, VIDEO::EPISODELIST& details, CGUIDialogProgress *pProgress = nullptr);
 
   static void ShowErrorDialog(const ADDON::CScraperError &sce);
 
@@ -75,11 +73,11 @@ protected:
   XFILE::CCurlFile*   m_http;
   std::string         m_movieTitle;
   int                 m_movieYear;
-  ADDON::CScraper::UniqueIDs m_uniqueIDs;
+  std::unordered_map<std::string, std::string> m_uniqueIDs;
   MOVIELIST           m_movieList;
   CVideoInfoTag       m_movieDetails;
   CScraperUrl         m_url;
-  KODI::VIDEO::EPISODELIST m_episode;
+  VIDEO::EPISODELIST  m_episode;
   LOOKUP_STATE m_state = DO_NOTHING;
   int m_found = 0;
   ADDON::ScraperPtr   m_info;
@@ -88,6 +86,6 @@ protected:
   void Process() override;
   void CloseThread();
 
-  int InternalFindMovie(const std::string& movieTitle, int movieYear, MOVIELIST& movielist, bool cleanChars = true);
+  int InternalFindMovie(const std::string& movieTitle, int movieYear, MOVIELIST& movielist, bool cleanChars = true) const;
 };
 

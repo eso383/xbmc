@@ -32,7 +32,7 @@ void CTextureBase::Allocate(uint32_t width, uint32_t height, XB_FMT format)
   m_textureWidth = m_imageWidth;
   m_textureHeight = m_imageHeight;
 
-  if (!CServiceBroker::GetRenderSystem()->SupportsNPOT((m_textureFormat & KD_TEX_FMT_TYPE_MASK) ==
+  if (!CServiceBroker::GetRenderSystem()->SupportsNPOT((m_textureFormat & KD_TEX_FMT_TYPE_MASK) !=
                                                        KD_TEX_FMT_S3TC))
   {
     m_textureWidth = PadPow2(m_textureWidth);
@@ -44,6 +44,20 @@ void CTextureBase::Allocate(uint32_t width, uint32_t height, XB_FMT format)
     // DXT textures must be a multiple of 4 in width and height
     m_textureWidth = ((m_textureWidth + 3) / 4) * 4;
     m_textureHeight = ((m_textureHeight + 3) / 4) * 4;
+  }
+  else
+  {
+    // align all textures so that they have an even width
+    // in some circumstances when we downsize a thumbnail
+    // which has an uneven number of pixels in width
+    // we crash in CPicture::ScaleImage in ffmpegs swscale
+    // because it tries to access beyond the source memory
+    // (happens on osx and ios)
+    // UPDATE: don't just update to be on an even width;
+    // ffmpegs swscale relies on a 16-byte stride on some systems
+    // so the textureWidth needs to be a multiple of 16. see ffmpeg
+    // swscale headers for more info.
+    m_textureWidth = ((m_textureWidth + 15) / 16) * 16;
   }
 
   // check for max texture size
@@ -61,16 +75,10 @@ void CTextureBase::Allocate(uint32_t width, uint32_t height, XB_FMT format)
   if (size == 0)
     return;
 
-  // Allocate extra padding bytes beyond the texture data. SIMD-optimized scaling
-  // filters (e.g. ffmpeg sws_scale with AVX2/SSE) can write a few bytes past the
-  // end of the output buffer. Without padding this corrupts adjacent heap metadata.
-  // See also CPicture::CacheTexture which adds equivalent padding for sws_scale.
-  constexpr size_t simdPadding{32};
-  m_pixels = static_cast<unsigned char*>(KODI::MEMORY::AlignedMalloc(size + simdPadding, 32));
+  m_pixels = static_cast<unsigned char*>(KODI::MEMORY::AlignedMalloc(size, 32));
 
   if (m_pixels == nullptr)
-    CLog::Log(LOGERROR, "{} - Could not allocate {} bytes. Out of memory.", __FUNCTION__,
-              size + simdPadding);
+    CLog::Log(LOGERROR, "{} - Could not allocate {} bytes. Out of memory.", __FUNCTION__, size);
 }
 
 uint32_t CTextureBase::PadPow2(uint32_t x)
@@ -403,78 +411,4 @@ void CTextureBase::SetKDFormat(XB_FMT xbFMT)
       m_textureFormat = KD_TEX_FMT_UNKNOWN;
       return;
   }
-}
-
-bool CTextureBase::ConvertToLegacy(uint32_t width, uint32_t height, uint8_t* src)
-{
-  if (m_textureFormat == KD_TEX_FMT_SDR_BGRA8 && m_textureSwizzle == KD_TEX_SWIZ_RGBA)
-  {
-    m_format = XB_FMT_A8R8G8B8;
-    return true;
-  }
-
-  if (m_textureFormat == KD_TEX_FMT_SDR_R8)
-  {
-    if (m_textureSwizzle != KD_TEX_SWIZ_111R && m_textureSwizzle != KD_TEX_SWIZ_RRR1 &&
-        m_textureSwizzle != KD_TEX_SWIZ_RRRR)
-      return false;
-  }
-  else if (m_textureFormat == KD_TEX_FMT_SDR_RG8)
-  {
-    if (m_textureSwizzle != KD_TEX_SWIZ_RRRG)
-      return false;
-  }
-  else
-  {
-    return false;
-  }
-
-  size_t size = GetPitch() * GetRows();
-
-  Allocate(width, height, XB_FMT_A8R8G8B8);
-
-  if (m_textureSwizzle == KD_TEX_SWIZ_111R)
-  {
-    for (int32_t i = size - 1; i >= 0; i--)
-    {
-      m_pixels[i * 4 + 3] = src[i];
-      m_pixels[i * 4 + 2] = 0xff;
-      m_pixels[i * 4 + 1] = 0xff;
-      m_pixels[i * 4] = 0xff;
-    }
-  }
-  else if (m_textureSwizzle == KD_TEX_SWIZ_RRR1)
-  {
-    for (int32_t i = size - 1; i >= 0; i--)
-    {
-      m_pixels[i * 4 + 3] = 0xff;
-      m_pixels[i * 4 + 2] = src[i];
-      m_pixels[i * 4 + 1] = src[i];
-      m_pixels[i * 4] = src[i];
-    }
-  }
-  else if (m_textureSwizzle == KD_TEX_SWIZ_RRRR)
-  {
-    for (int32_t i = size - 1; i >= 0; i--)
-    {
-      m_pixels[i * 4 + 3] = src[i];
-      m_pixels[i * 4 + 2] = src[i];
-      m_pixels[i * 4 + 1] = src[i];
-      m_pixels[i * 4] = src[i];
-    }
-  }
-  else if (m_textureSwizzle == KD_TEX_SWIZ_RRRG)
-  {
-    for (int32_t i = size / 2 - 1; i >= 0; i--)
-    {
-      m_pixels[i * 4 + 3] = src[i * 2 + 1];
-      m_pixels[i * 4 + 2] = src[i * 2];
-      m_pixels[i * 4 + 1] = src[i * 2];
-      m_pixels[i * 4] = src[i * 2];
-    }
-  }
-
-  m_textureFormat = KD_TEX_FMT_SDR_BGRA8;
-  m_textureSwizzle = KD_TEX_SWIZ_RGBA;
-  return true;
 }

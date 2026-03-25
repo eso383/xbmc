@@ -27,8 +27,7 @@ struct PVRContextMenuEvent
 {
   PVRContextMenuEvent(const PVRContextMenuEventAction& a,
                       const std::shared_ptr<IContextMenuItem>& i)
-    : action(a),
-      item(i)
+    : action(a), item(i)
   {
   }
 
@@ -43,7 +42,7 @@ class CPVRContextMenuManager
 public:
   static CPVRContextMenuManager& GetInstance();
 
-  const std::vector<std::shared_ptr<IContextMenuItem>>& GetMenuItems() const { return m_items; }
+  std::vector<std::shared_ptr<IContextMenuItem>> GetMenuItems() const { return m_items; }
 
   void AddMenuHook(const CPVRClientMenuHook& hook);
   void RemoveMenuHook(const CPVRClientMenuHook& hook);

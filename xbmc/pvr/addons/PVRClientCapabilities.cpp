@@ -8,12 +8,11 @@
 
 #include "PVRClientCapabilities.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 
 using namespace PVR;
@@ -25,7 +24,7 @@ CPVRClientCapabilities::CPVRClientCapabilities(const CPVRClientCapabilities& oth
   InitRecordingsLifetimeValues();
 }
 
-CPVRClientCapabilities& CPVRClientCapabilities::operator=(const CPVRClientCapabilities& other)
+const CPVRClientCapabilities& CPVRClientCapabilities::operator=(const CPVRClientCapabilities& other)
 {
   if (other.m_addonCapabilities)
     m_addonCapabilities = std::make_unique<PVR_ADDON_CAPABILITIES>(*other.m_addonCapabilities);
@@ -33,7 +32,7 @@ CPVRClientCapabilities& CPVRClientCapabilities::operator=(const CPVRClientCapabi
   return *this;
 }
 
-CPVRClientCapabilities& CPVRClientCapabilities::operator=(
+const CPVRClientCapabilities& CPVRClientCapabilities::operator=(
     const PVR_ADDON_CAPABILITIES& addonCapabilities)
 {
   m_addonCapabilities = std::make_unique<PVR_ADDON_CAPABILITIES>(addonCapabilities);
@@ -54,15 +53,14 @@ void CPVRClientCapabilities::InitRecordingsLifetimeValues()
   {
     for (unsigned int i = 0; i < m_addonCapabilities->iRecordingsLifetimesSize; ++i)
     {
-      const auto& lifetime{m_addonCapabilities->recordingsLifetimeValues[i]};
-      const int iValue{lifetime.iValue};
-      std::string description{lifetime.strDescription ? lifetime.strDescription : ""};
-      if (description.empty())
+      int iValue = m_addonCapabilities->recordingsLifetimeValues[i].iValue;
+      std::string strDescr(m_addonCapabilities->recordingsLifetimeValues[i].strDescription);
+      if (strDescr.empty())
       {
         // No description given by addon. Create one from value.
-        description = std::to_string(iValue);
+        strDescr = std::to_string(iValue);
       }
-      m_recordingsLifetimeValues.emplace_back(description, iValue);
+      m_recordingsLifetimeValues.emplace_back(strDescr, iValue);
     }
   }
   else if (SupportsRecordingsLifetimeChange())
@@ -70,10 +68,8 @@ void CPVRClientCapabilities::InitRecordingsLifetimeValues()
     // No values given by addon, but lifetime supported. Use default values 1..365
     for (int i = 1; i < 366; ++i)
     {
-      m_recordingsLifetimeValues.emplace_back(
-          StringUtils::Format(
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(17999), i),
-          i); // "{} days"
+      m_recordingsLifetimeValues.emplace_back(StringUtils::Format(g_localizeStrings.Get(17999), i),
+                                              i); // "{} days"
     }
   }
   else
@@ -85,5 +81,6 @@ void CPVRClientCapabilities::InitRecordingsLifetimeValues()
 void CPVRClientCapabilities::GetRecordingsLifetimeValues(
     std::vector<std::pair<std::string, int>>& list) const
 {
-  std::ranges::copy(m_recordingsLifetimeValues, std::back_inserter(list));
+  std::copy(m_recordingsLifetimeValues.cbegin(), m_recordingsLifetimeValues.cend(),
+            std::back_inserter(list));
 }

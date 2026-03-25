@@ -8,16 +8,14 @@
 
 #include "ScraperParser.h"
 
-#include "CharsetConverter.h"
-#include "HTMLUtil.h"
+#include "guilib/LocalizeStrings.h"
 #include "RegExp.h"
-#include "ServiceBroker.h"
-#include "URL.h"
+#include "HTMLUtil.h"
 #include "addons/Scraper.h"
-#include "log.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "URL.h"
 #include "utils/StringUtils.h"
+#include "log.h"
+#include "CharsetConverter.h"
 #ifdef HAVE_LIBXSLT
 #include "utils/XSLTUtils.h"
 #endif
@@ -30,19 +28,19 @@ using namespace XFILE;
 
 CScraperParser::CScraperParser()
 {
-  m_pRootElement = NULL;
-  m_document = NULL;
+  m_pRootElement = nullptr;
+  m_document = nullptr;
   m_SearchStringEncoding = "UTF-8";
-  m_scraper = NULL;
+  m_scraper = nullptr;
   m_isNoop = true;
 }
 
 CScraperParser::CScraperParser(const CScraperParser& parser)
 {
-  m_pRootElement = NULL;
-  m_document = NULL;
+  m_pRootElement = nullptr;
+  m_document = nullptr;
   m_SearchStringEncoding = "UTF-8";
-  m_scraper = NULL;
+  m_scraper = nullptr;
   m_isNoop = true;
   *this = parser;
 }
@@ -59,7 +57,7 @@ CScraperParser &CScraperParser::operator=(const CScraperParser &parser)
       LoadFromXML();
     }
     else
-      m_scraper = NULL;
+      m_scraper = nullptr;
   }
   return *this;
 }
@@ -71,10 +69,10 @@ CScraperParser::~CScraperParser()
 
 void CScraperParser::Clear()
 {
-  m_pRootElement = NULL;
+  m_pRootElement = nullptr;
   delete m_document;
 
-  m_document = NULL;
+  m_document = nullptr;
   m_strFile.clear();
 }
 
@@ -93,7 +91,7 @@ bool CScraperParser::Load(const std::string& strXMLFile)
     return LoadFromXML();
 
   delete m_document;
-  m_document = NULL;
+  m_document = nullptr;
   return false;
 }
 
@@ -133,13 +131,12 @@ bool CScraperParser::LoadFromXML()
   }
 
   delete m_document;
-  m_document = NULL;
-  m_pRootElement = NULL;
+  m_document = nullptr;
+  m_pRootElement = nullptr;
   return false;
 }
 
-void CScraperParser::ReplaceBuffers(std::string& strDest)
-{
+void CScraperParser::ReplaceBuffers(std::string& strDest) const {
   // insert buffers
   size_t iIndex;
   for (int i=MAX_SCRAPER_BUFFERS-1; i>=0; i--)
@@ -172,8 +169,7 @@ void CScraperParser::ReplaceBuffers(std::string& strDest)
     std::string strInfo = strDest.substr(iIndex+10, iEnd - iIndex - 10);
     std::string strReplace;
     if (m_scraper)
-      strReplace = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-          m_scraper->ID(), strtol(strInfo.c_str(), NULL, 10));
+      strReplace = g_localizeStrings.GetAddonString(m_scraper->ID(), strtol(strInfo.c_str(), nullptr,10));
     strDest.replace(strDest.begin()+iIndex,strDest.begin()+iEnd+1,strReplace);
     iIndex += strReplace.length();
   }
@@ -362,7 +358,7 @@ TiXmlElement *FirstChildScraperElement(TiXmlElement *element)
     if (child->ValueStr() == "RegExp")
       return child;
   }
-  return NULL;
+  return nullptr;
 }
 
 TiXmlElement *NextSiblingScraperElement(TiXmlElement *element)
@@ -376,7 +372,7 @@ TiXmlElement *NextSiblingScraperElement(TiXmlElement *element)
     if (next->ValueStr() == "RegExp")
       return next;
   }
-  return NULL;
+  return nullptr;
 }
 
 void CScraperParser::ParseNext(TiXmlElement* element)
@@ -454,7 +450,7 @@ const std::string CScraperParser::Parse(const std::string& strTag,
                                        CScraper* scraper)
 {
   TiXmlElement* pChildElement = m_pRootElement->FirstChildElement(strTag.c_str());
-  if(pChildElement == NULL)
+  if(pChildElement == nullptr)
   {
     CLog::Log(LOGERROR, "{}: Could not find scraper function {}", __FUNCTION__, strTag);
     return "";
@@ -562,7 +558,7 @@ void CScraperParser::ConvertJSON(std::string &string)
     int pos2 = reg2.GetSubStart(2);
     std::string szHexValue(reg2.GetMatch(1));
 
-    std::string replace = std::to_string(std::stol(szHexValue, NULL, 16));
+    std::string replace = std::to_string(std::stol(szHexValue, nullptr, 16));
     string.replace(string.begin()+pos1-2, string.begin()+pos2+reg2.GetSubLength(2), replace);
   }
 
@@ -606,8 +602,7 @@ void CScraperParser::InsertToken(std::string& strOutput, int buf, const char* to
   }
 }
 
-void CScraperParser::AddDocument(const CXBMCTinyXML* doc)
-{
+void CScraperParser::AddDocument(const CXBMCTinyXML* doc) const {
   const TiXmlNode* node = doc->RootElement()->FirstChild();
   while (node)
   {

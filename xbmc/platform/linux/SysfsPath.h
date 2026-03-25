@@ -21,12 +21,23 @@ class CSysfsPath
 {
 public:
   CSysfsPath() = default;
-  CSysfsPath(const std::string& path) : m_path(path) {}
+  explicit CSysfsPath(const std::string& path) : m_path(path) {}
   template<typename T>
-  CSysfsPath(const std::string& path, T value) : m_path(path) { if (Exists()) { Set(value); } }
+  explicit CSysfsPath(const std::string& path, T value) : m_path(path) { if (Exists()) { Set(value); } }
   ~CSysfsPath() = default;
 
-  bool Exists();
+  bool Exists() const;
+
+  template <typename T>
+  T GetOrDefault()
+  {
+    if (Exists())
+    {
+      auto result = Get<T>();
+      if (result.has_value()) return result.value();
+    }
+    return T{};
+  }
 
   template<typename T>
   std::optional<T> Get()
@@ -52,13 +63,6 @@ public:
       CLog::LogF(LOGERROR, "exception reading from '{}': {}", m_path, e.what());
       return std::nullopt;
     }
-  }
-
-  template<typename T>
-  T GetOrDefault(T defaultValue = T{})
-  {
-    auto value = Get<T>();
-    return value ? *value : std::move(defaultValue);
   }
 
   template<typename T>

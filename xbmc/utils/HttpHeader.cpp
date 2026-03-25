@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -9,8 +9,6 @@
 #include "HttpHeader.h"
 
 #include "utils/StringUtils.h"
-
-#include <utility>
 
 // header white space characters according to RFC 2616
 const char* const CHttpHeader::m_whitespaceChars = " \t";
@@ -83,7 +81,7 @@ bool CHttpHeader::ParseLine(const std::string& headerLine)
     StringUtils::Trim(strValue, m_whitespaceChars);
 
     if (!strParam.empty() && !strValue.empty())
-      m_params.emplace_back(std::move(strParam), std::move(strValue));
+      m_params.emplace_back(strParam, strValue);
     else
       return false;
   }
@@ -119,7 +117,7 @@ void CHttpHeader::AddParam(const std::string& param, const std::string& value, c
   if (valueTrim.empty())
     return;
 
-  m_params.emplace_back(std::move(paramLower), std::move(valueTrim));
+  m_params.emplace_back(paramLower, valueTrim);
 }
 
 std::string CHttpHeader::GetValue(const std::string& strParam) const
@@ -133,7 +131,7 @@ std::string CHttpHeader::GetValue(const std::string& strParam) const
 std::string CHttpHeader::GetValueRaw(const std::string& strParam) const
 {
   // look in reverse to find last parameter (probably most important)
-  for (HeaderParams::const_reverse_iterator iter = m_params.rbegin(); iter != m_params.rend(); ++iter)
+  for (auto iter = m_params.rbegin(); iter != m_params.rend(); ++iter)
   {
     if (iter->first == strParam)
       return iter->second;
@@ -147,7 +145,7 @@ std::vector<std::string> CHttpHeader::GetValues(std::string strParam) const
   StringUtils::ToLower(strParam);
   std::vector<std::string> values;
 
-  for (HeaderParams::const_iterator iter = m_params.begin(); iter != m_params.end(); ++iter)
+  for (auto iter = m_params.begin(); iter != m_params.end(); ++iter)
   {
     if (iter->first == strParam)
       values.push_back(iter->second);
@@ -163,7 +161,7 @@ std::string CHttpHeader::GetHeader(void) const
 
   std::string strHeader(m_protoLine + "\r\n");
 
-  for (HeaderParams::const_iterator iter = m_params.begin(); iter != m_params.end(); ++iter)
+  for (auto iter = m_params.begin(); iter != m_params.end(); ++iter)
     strHeader += ((*iter).first + ": " + (*iter).second + "\r\n");
 
   strHeader += "\r\n";

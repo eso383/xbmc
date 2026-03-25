@@ -25,15 +25,12 @@ bool StringValidation::IsTime(const std::string &input, void *data)
   std::string strTime = input;
   StringUtils::Trim(strTime);
 
-  if (strTime.empty())
-    return false;
-
   if (StringUtils::EndsWithNoCase(strTime, " min"))
   {
     strTime = StringUtils::Left(strTime, strTime.size() - 4);
     StringUtils::TrimRight(strTime);
 
-    return IsPositiveInteger(strTime, NULL);
+    return IsPositiveInteger(strTime, nullptr);
   }
   else
   {
@@ -43,7 +40,7 @@ bool StringValidation::IsTime(const std::string &input, void *data)
       return false;
 
     for (std::vector<std::string>::const_iterator i = bits.begin(); i != bits.end(); ++i)
-      if (!IsPositiveInteger(*i, NULL))
+      if (!IsPositiveInteger(*i, nullptr))
         return false;
 
     return true;

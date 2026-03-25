@@ -22,7 +22,6 @@ class TiXmlNode;
 class CApplicationVolumeHandling : public IApplicationComponent
 {
   friend class CApplication;
-  friend class CApplicationMessageHandling;
 
 public:
   // replay gain settings struct for quick access by the player multiple
@@ -64,7 +63,7 @@ protected:
 
   void SetHardwareVolume(float hardwareVolume);
 
-  void VolumeChanged();
+  void VolumeChanged() const;
 
   bool m_muted = false;
   float m_volumeLevel = VOLUME_MAXIMUM;

@@ -9,11 +9,15 @@
 #pragma once
 
 #include "guilib/TextureFormats.h"
-#include "guilib/TextureScaling.h"
 
-#include <cstdint>
 #include <memory>
 #include <string>
+
+enum class TEXTURE_SCALING
+{
+  LINEAR,
+  NEAREST,
+};
 
 /*!
 \ingroup textures
@@ -26,11 +30,8 @@ public:
   CTextureBase() = default;
   ~CTextureBase() = default;
 
-  bool HasAlpha() const { return m_textureAlpha != KD_TEX_ALPHA_OPAQUE; }
-  void SetAlpha(bool hasAlpha)
-  {
-    m_textureAlpha = hasAlpha ? KD_TEX_ALPHA_STRAIGHT : KD_TEX_ALPHA_OPAQUE;
-  }
+  bool HasAlpha() const { return m_hasAlpha; }
+  void SetAlpha(bool hasAlpha) { m_hasAlpha = hasAlpha; }
 
   /*! \brief sets mipmapping. do not use in new code. will be replaced with proper scaling. */
   void SetMipmapping() { m_mipmapping = true; }
@@ -69,8 +70,6 @@ public:
   uint32_t GetOriginalWidth() const { return m_originalWidth; }
   /*! \brief return the original height of the image, before scaling/cropping */
   uint32_t GetOriginalHeight() const { return m_originalHeight; }
-  /*! \brief return the texture swizzle */
-  KD_TEX_SWIZ GetSwizzle() const { return m_textureSwizzle; }
 
   // allocates staging texture space.
   void Allocate(uint32_t width, uint32_t height, XB_FMT format);
@@ -93,10 +92,6 @@ protected:
 
   void SetKDFormat(XB_FMT xbFMT);
 
-  /*! \brief Textures might be in a single/dual channel format with L/A/I/LA swizzle. DX and GLES 2.0 don't 
-  handle some/all at the moment. This function can convert the texture into a traditional BGRA format.*/
-  bool ConvertToLegacy(uint32_t width, uint32_t height, uint8_t* src);
-
   uint32_t m_imageWidth{0};
   uint32_t m_imageHeight{0};
   uint32_t m_textureWidth{0};
@@ -115,6 +110,7 @@ protected:
 
   XB_FMT m_format{XB_FMT_UNKNOWN}; // legacy XB format, deprecated
   int32_t m_orientation{0};
+  bool m_hasAlpha{true};
   bool m_mipmapping{false};
   TEXTURE_SCALING m_scalingMethod{TEXTURE_SCALING::LINEAR};
   bool m_bCacheMemory{false};

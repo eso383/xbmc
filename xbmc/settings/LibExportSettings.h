@@ -15,7 +15,6 @@
 #include "settings/lib/Setting.h"
 
 #include <string>
-#include <string_view>
 
 // Enumeration of library export options (possibly OR'd together)
 enum ELIBEXPORTOPTIONS
@@ -39,21 +38,10 @@ enum ELIBEXPORTOPTIONS
 class CLibExportSettings
 {
 public:
-  CLibExportSettings() = default;
+  CLibExportSettings();
   ~CLibExportSettings() = default;
 
   bool operator!=(const CLibExportSettings &right) const;
-
-  const std::string& GetPath() const { return m_strPath; }
-  void SetPath(std::string_view path) { m_strPath = path; }
-  bool IsOverwrite() const { return m_overwrite; }
-  void SetOverwrite(bool set) { m_overwrite = set; }
-  bool IsArtwork() const { return m_artwork; }
-  void SetArtwork(bool set) { m_artwork = set; }
-  bool IsUnscraped() const { return m_unscraped; }
-  void SetUnscraped(bool set) { m_unscraped = set; }
-  bool IsSkipNfo() const { return m_skipnfo; }
-  void SetSkipNfo(bool set) { m_skipnfo = set; }
   bool IsItemExported(ELIBEXPORTOPTIONS item) const;
   bool IsArtists() const;
   std::vector<int> GetExportItems() const;
@@ -69,12 +57,12 @@ public:
   bool IsToLibFolders() const;
   bool IsArtistFoldersOnly() const;
 
-private:
   std::string m_strPath;
-  bool m_overwrite{false};
-  bool m_artwork{false};
-  bool m_unscraped{false};
-  bool m_skipnfo{false};
-  unsigned int m_exporttype{ELIBEXPORT_SINGLEFILE}; //singlefile, separate files, to library folder
-  unsigned int m_itemstoexport{ELIBEXPORT_ALBUMS + ELIBEXPORT_ALBUMARTISTS};
+  bool m_overwrite;
+  bool m_artwork;
+  bool m_unscraped;
+  bool m_skipnfo;
+private:
+  unsigned int m_exporttype; //singlefile, separate files, to library folder
+  unsigned int m_itemstoexport;
 };

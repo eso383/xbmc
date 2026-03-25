@@ -3,27 +3,34 @@
 # -------
 # Finds the libdisplay-info library
 #
-# This will define the following target:
+# This will define the following variables::
 #
-#   ${APP_NAME_LC}::LibDisplayInfo   - The LibDisplayInfo library
+# LIBDISPLAYINFO_FOUND - system has LIBDISPLAY-INFO
+# LIBDISPLAYINFO_INCLUDE_DIRS - the LIBDISPLAY-INFO include directory
+# LIBDISPLAYINFO_LIBRARIES - the LIBDISPLAY-INFO libraries
+# LIBDISPLAYINFO_DEFINITIONS - the LIBDISPLAY-INFO definitions
+#
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC libdisplay-info)
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
-
-  SETUP_BUILD_VARS()
-
-  SETUP_FIND_SPECS()
-
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-  else()
-    if(LibDisplayInfo_FIND_REQUIRED)
-      message(FATAL_ERROR "Libdisplayinfo libraries were not found.")
-    endif()
-  endif()
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(PC_LIBDISPLAYINFO libdisplay-info QUIET)
 endif()
+
+find_path(LIBDISPLAYINFO_INCLUDE_DIR libdisplay-info/edid.h
+                          PATHS ${PC_LIBDISPLAYINFO_INCLUDEDIR})
+
+find_library(LIBDISPLAYINFO_LIBRARY NAMES display-info
+                         PATHS ${PC_LIBDISPLAYINFO_LIBDIR})
+
+set(LIBDISPLAYINFO_VERSION ${PC_LIBDISPLAYINFO_VERSION})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LibDisplayInfo
+                                  REQUIRED_VARS LIBDISPLAYINFO_LIBRARY LIBDISPLAYINFO_INCLUDE_DIR
+                                  VERSION_VAR LIBDISPLAYINFO_VERSION)
+
+if(LIBDISPLAYINFO_FOUND)
+  set(LIBDISPLAYINFO_LIBRARIES ${LIBDISPLAYINFO_LIBRARY})
+  set(LIBDISPLAYINFO_INCLUDE_DIRS ${LIBDISPLAYINFO_INCLUDE_DIR})
+endif()
+
+mark_as_advanced(LIBDISPLAYINFO_INCLUDE_DIR LIBDISPLAYINFO_LIBRARY)

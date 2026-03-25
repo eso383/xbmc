@@ -17,13 +17,12 @@ class CFileItem;
 namespace PVR
 {
 class CPVRRecording;
-class CPVRSettings;
 
 class CPVRGUIActionsRecordings : public IPVRComponent
 {
 public:
-  CPVRGUIActionsRecordings();
-  ~CPVRGUIActionsRecordings() override;
+  CPVRGUIActionsRecordings() = default;
+  ~CPVRGUIActionsRecordings() override = default;
 
   /*!
    * @brief Open a dialog with information for a given recording.
@@ -74,13 +73,6 @@ public:
    */
   bool UndeleteRecording(const CFileItem& item) const;
 
-  /*!
-   * @brief Process action according to "Delete after watching" setting value.
-   * @param item The watched recording.
-   * @return true on success, false otherwise.
-   */
-  bool ProcessDeleteAfterWatch(const CFileItem& item) const;
-
 private:
   CPVRGUIActionsRecordings(const CPVRGUIActionsRecordings&) = delete;
   CPVRGUIActionsRecordings const& operator=(CPVRGUIActionsRecordings const&) = delete;
@@ -111,8 +103,6 @@ private:
    * @return true, if the dialog was ended successfully, false otherwise.
    */
   bool ShowRecordingSettings(const std::shared_ptr<CPVRRecording>& recording) const;
-
-  std::unique_ptr<CPVRSettings> m_settings;
 };
 
 namespace GUI

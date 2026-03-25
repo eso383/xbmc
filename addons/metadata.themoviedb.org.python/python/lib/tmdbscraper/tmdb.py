@@ -186,42 +186,39 @@ def _parse_artwork(movie, collection, urlbases, language):
     fanart = []
 
     if 'images' in movie:
-        posters = _build_image_list_with_fallback(movie['images']['posters'], urlbases, language)
-        landscape = _build_image_list_with_fallback(movie['images']['backdrops'], urlbases, language)
-        logos = _build_image_list_with_fallback(movie['images']['logos'], urlbases, language)
-        fanart = _build_fanart_list(movie['images']['backdrops'], urlbases)
+        posters = _get_images_with_fallback(movie['images']['posters'], urlbases, language)
+        landscape = _get_images_with_fallback(movie['images']['backdrops'], urlbases, language)
+        logos = _get_images_with_fallback(movie['images']['logos'], urlbases, language)
+        fanart = _get_images(movie['images']['backdrops'], urlbases, None)
 
     setposters = []
     setlandscape = []
     setfanart = []
     if collection and 'images' in collection:
-        setposters = _build_image_list_with_fallback(collection['images']['posters'], urlbases, language)
-        setlandscape = _build_image_list_with_fallback(collection['images']['backdrops'], urlbases, language)
-        setfanart = _build_fanart_list(collection['images']['backdrops'], urlbases)
+        setposters = _get_images_with_fallback(collection['images']['posters'], urlbases, language)
+        setlandscape = _get_images_with_fallback(collection['images']['backdrops'], urlbases, language)
+        setfanart = _get_images(collection['images']['backdrops'], urlbases, None)
 
     return {'poster': posters, 'landscape': landscape, 'fanart': fanart,
         'set.poster': setposters, 'set.landscape': setlandscape, 'set.fanart': setfanart, 'clearlogo': logos}
 
-def _build_image_list_with_fallback(imagelist, urlbases, language, language_fallback='en'):
-    images = _build_image_list(imagelist, urlbases, [language])
+def _get_images_with_fallback(imagelist, urlbases, language, language_fallback='en'):
+    images = _get_images(imagelist, urlbases, language)
 
     # Add backup images
     if language != language_fallback:
-        images.extend(_build_image_list(imagelist, urlbases, [language_fallback]))
+        images.extend(_get_images(imagelist, urlbases, language_fallback))
 
     # Add any images if nothing set so far
     if not images:
-        images = _build_image_list(imagelist, urlbases)
+        images = _get_images(imagelist, urlbases)
 
     return images
 
-def _build_fanart_list(imagelist, urlbases):
-    return _build_image_list(imagelist, urlbases, ['xx', None])
-
-def _build_image_list(imagelist, urlbases, languages=[]):
+def _get_images(imagelist, urlbases, language='_any'):
     result = []
     for img in imagelist:
-        if languages and img['iso_639_1'] not in languages:
+        if language != '_any' and img['iso_639_1'] != language:
             continue
         if img['file_path'].endswith('.svg'):
             continue

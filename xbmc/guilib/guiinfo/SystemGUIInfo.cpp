@@ -9,7 +9,6 @@
 #include "guilib/guiinfo/SystemGUIInfo.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIPassword.h"
 #include "LangInfo.h"
 #include "ServiceBroker.h"
@@ -20,15 +19,13 @@
 #include "application/ApplicationPowerHandling.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/guiinfo/GUIInfo.h"
 #include "guilib/guiinfo/GUIInfoHelper.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
 #include "platform/linux/SysfsPath.h"
 #include "powermanagement/PowerManager.h"
 #include "profiles/ProfileManager.h"
-#include "rendering/RenderSystem.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/MediaSettings.h"
 #include "settings/SettingUtils.h"
@@ -51,8 +48,7 @@ using namespace KODI::GUILIB;
 using namespace KODI::GUILIB::GUIINFO;
 
 CSystemGUIInfo::CSystemGUIInfo()
-  : m_gpuInfo(CGPUInfo::GetGPUInfo()),
-    m_lastSysHeatInfoTime(-SYSTEM_HEAT_UPDATE_INTERVAL)
+  : m_gpuInfo(CGPUInfo::GetGPUInfo()), m_lastSysHeatInfoTime(-SYSTEM_HEAT_UPDATE_INTERVAL)
 {
 }
 
@@ -69,16 +65,12 @@ std::string CSystemGUIInfo::GetSystemHeatInfo(int info) const
   }
 
   std::string text;
-  switch (info)
+  switch(info)
   {
     case SYSTEM_CPU_TEMPERATURE:
-      return m_cpuTemp.IsValid() ? g_langInfo.GetTemperatureAsString(m_cpuTemp)
-                                 : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                       10005); // Not available
+      return m_cpuTemp.IsValid() ? g_langInfo.GetTemperatureAsString(m_cpuTemp) : g_localizeStrings.Get(10005); // Not available
     case SYSTEM_GPU_TEMPERATURE:
-      return m_gpuTemp.IsValid()
-                 ? g_langInfo.GetTemperatureAsString(m_gpuTemp)
-                 : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10005);
+      return m_gpuTemp.IsValid() ? g_langInfo.GetTemperatureAsString(m_gpuTemp) : g_localizeStrings.Get(10005);
     case SYSTEM_FAN_SPEED:
       text = StringUtils::Format("{}%", m_fanSpeed * 2);
       break;
@@ -90,16 +82,13 @@ std::string CSystemGUIInfo::GetSystemHeatInfo(int info) const
         text = CServiceBroker::GetCPUInfo()->GetCoresUsageString();
 #endif
       else
-        text = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            10005); // Not available
+        text = g_localizeStrings.Get(10005); // Not available
       break;
     case SYSTEM_CPU_ALT_USAGE:
       if (CServiceBroker::GetCPUInfo()->SupportsCPUUsage())
         return CServiceBroker::GetCPUInfo()->GetCoresUsageAltString();
       else
-        return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10005); // Not available
-    default:
-      break;
+        return g_localizeStrings.Get(10005); // Not available
   }
   return text;
 }
@@ -109,7 +98,7 @@ void CSystemGUIInfo::UpdateFPS()
   m_frameCounter++;
   unsigned int curTime = CTimeUtils::GetFrameTime();
 
-  auto fTimeSpan{static_cast<float>(curTime - m_lastFPSTime)};
+  float fTimeSpan = static_cast<float>(curTime - m_lastFPSTime);
   if (fTimeSpan >= 1000.0f)
   {
     fTimeSpan /= 1000.0f;
@@ -119,16 +108,12 @@ void CSystemGUIInfo::UpdateFPS()
   }
 }
 
-bool CSystemGUIInfo::InitCurrentItem(CFileItem* item)
+bool CSystemGUIInfo::InitCurrentItem(CFileItem *item)
 {
   return false;
 }
 
-bool CSystemGUIInfo::GetLabel(std::string& value,
-                              const CFileItem* item,
-                              int contextWindow,
-                              const CGUIInfo& info,
-                              std::string* fallback) const
+bool CSystemGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
   const auto settingsComponent = CServiceBroker::GetSettingsComponent();
   const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
@@ -140,8 +125,7 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     // SYSTEM_*
     ///////////////////////////////////////////////////////////////////////////////////////////////
     case SYSTEM_TIME:
-      value = CDateTime::GetCurrentDateTime().GetAsLocalizedTime(
-          static_cast<TIME_FORMAT>(info.GetData1()));
+      value = CDateTime::GetCurrentDateTime().GetAsLocalizedTime(static_cast<TIME_FORMAT>(info.GetData1()));
       return true;
     case SYSTEM_DATE:
       if (info.GetData3().empty())
@@ -154,14 +138,14 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     case SYSTEM_TOTAL_SPACE:
     case SYSTEM_FREE_SPACE_PERCENT:
     case SYSTEM_USED_SPACE_PERCENT:
-      value = g_sysinfo.GetHddSpaceInfo(info.GetInfo());
+      value = g_sysinfo.GetHddSpaceInfo(info.m_info);
       return true;
     case SYSTEM_CPU_TEMPERATURE:
     case SYSTEM_GPU_TEMPERATURE:
     case SYSTEM_FAN_SPEED:
     case SYSTEM_CPU_USAGE:
     case SYSTEM_CPU_ALT_USAGE:
-      value = GetSystemHeatInfo(info.GetInfo());
+      value = GetSystemHeatInfo(info.m_info);
       return true;
     case SYSTEM_VIDEO_ENCODER_INFO:
     case NETWORK_IP_ADDRESS:
@@ -177,7 +161,7 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     case SYSTEM_UPTIME:
     case SYSTEM_TOTALUPTIME:
     case SYSTEM_LINUX_VER:
-      value = g_sysinfo.GetInfo(info.GetInfo());
+      value = g_sysinfo.GetInfo(info.m_info);
       return true;
     case SYSTEM_PRIVACY_POLICY:
       value = g_sysinfo.GetPrivacyPolicy();
@@ -190,14 +174,12 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
         const RESOLUTION_INFO& resInfo = winSystem->GetGfxContext().GetResInfo();
 
         if (winSystem->IsFullScreen())
-          value = StringUtils::Format(
-              "{}x{} @ {:.2f} Hz - {}", resInfo.iScreenWidth, resInfo.iScreenHeight,
-              resInfo.fRefreshRate,
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(244));
+          value = StringUtils::Format("{}x{} @ {:.2f} Hz - {}", resInfo.iScreenWidth,
+                                      resInfo.iScreenHeight, resInfo.fRefreshRate,
+                                      g_localizeStrings.Get(244));
         else
-          value = StringUtils::Format(
-              "{}x{} - {}", resInfo.iScreenWidth, resInfo.iScreenHeight,
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(242));
+          value = StringUtils::Format("{}x{} - {}", resInfo.iScreenWidth, resInfo.iScreenHeight,
+                                      g_localizeStrings.Get(242));
       }
       else
       {
@@ -228,21 +210,19 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
     {
       KODI::MEMORY::MemoryStatus stat;
       KODI::MEMORY::GetMemoryStatus(&stat);
-      int iMemPercentFree =
-          100 -
-          static_cast<int>(100.0f * (stat.totalPhys - stat.availPhys) / stat.totalPhys + 0.5f);
+      int iMemPercentFree = 100 - static_cast<int>(100.0f * (stat.totalPhys - stat.availPhys) / stat.totalPhys + 0.5f);
       int iMemPercentUsed = 100 - iMemPercentFree;
 
-      if (info.GetInfo() == SYSTEM_FREE_MEMORY)
+      if (info.m_info == SYSTEM_FREE_MEMORY)
         value = StringUtils::Format("{}MB", static_cast<unsigned int>(stat.availPhys / MB));
-      else if (info.GetInfo() == SYSTEM_FREE_MEMORY_PERCENT)
+      else if (info.m_info == SYSTEM_FREE_MEMORY_PERCENT)
         value = StringUtils::Format("{}%", iMemPercentFree);
-      else if (info.GetInfo() == SYSTEM_USED_MEMORY)
+      else if (info.m_info == SYSTEM_USED_MEMORY)
         value = StringUtils::Format(
             "{}MB", static_cast<unsigned int>((stat.totalPhys - stat.availPhys) / MB));
-      else if (info.GetInfo() == SYSTEM_USED_MEMORY_PERCENT)
+      else if (info.m_info == SYSTEM_USED_MEMORY_PERCENT)
         value = StringUtils::Format("{}%", iMemPercentUsed);
-      else if (info.GetInfo() == SYSTEM_TOTAL_MEMORY)
+      else if (info.m_info == SYSTEM_TOTAL_MEMORY)
         value = StringUtils::Format("{}MB", static_cast<unsigned int>(stat.totalPhys / MB));
       return true;
     }
@@ -272,13 +252,11 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
       {
         double fTime = g_alarmClock.GetRemaining("shutdowntimer");
         if (fTime > 60.0)
-          value = StringUtils::Format(
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13213),
-              g_alarmClock.GetRemaining("shutdowntimer") / 60.0);
+          value = StringUtils::Format(g_localizeStrings.Get(13213),
+                                      g_alarmClock.GetRemaining("shutdowntimer") / 60.0);
         else
-          value = StringUtils::Format(
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13214),
-              g_alarmClock.GetRemaining("shutdowntimer"));
+          value = StringUtils::Format(g_localizeStrings.Get(13214),
+                                      g_alarmClock.GetRemaining("shutdowntimer"));
       }
       return true;
     case SYSTEM_PROFILENAME:
@@ -296,9 +274,8 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
       if (!profileManager)
         return false;
       int iProfileId = profileManager->GetAutoLoginProfileId();
-      if ((iProfileId < MASTER_PROFILE_ID) || !profileManager->GetProfileName(iProfileId, value))
-        value = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            37014); // Last used profile
+      if ((iProfileId < 0) || !profileManager->GetProfileName(iProfileId, value))
+        value = g_localizeStrings.Get(37014); // Last used profile
       return true;
     }
     case SYSTEM_PROFILETHUMB:
@@ -362,14 +339,26 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
           types += ", HLG";
         if (caps.SupportsHDR10Plus())
           types += ", HDR10+";
-        if (caps.SupportsDolbyVision() == DolbyVisionFormat::DOLBYVISION_TYPE_4K30)
-          types += ", Dolby Vision up to 4k30Hz";
-        if (caps.SupportsDolbyVision() == DolbyVisionFormat::DOLBYVISION_TYPE_4K60)
-          types += ", Dolby Vision up to 4k60Hz";
+        if (caps.SupportsDolbyVision())
+          types += ", Dolby Vision";
 
         value = types;
       }
 
+      return true;
+    }
+
+    case SYSTEM_LOCALE_TIMEZONECOUNTRY:
+    {
+      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
+          CSettings::SETTING_LOCALE_TIMEZONECOUNTRY);
+      return true;
+    }
+
+    case SYSTEM_LOCALE_TIMEZONE:
+    {
+      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
+          CSettings::SETTING_LOCALE_TIMEZONE);
       return true;
     }
 
@@ -384,18 +373,13 @@ bool CSystemGUIInfo::GetLabel(std::string& value,
       value = g_langInfo.GetRegionLocale();
       return true;
     }
-    default:
-      break;
   }
   return false;
 }
 
-bool CSystemGUIInfo::GetInt(int& value,
-                            const CGUIListItem* gitem,
-                            int contextWindow,
-                            const CGUIInfo& info) const
+bool CSystemGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // SYSTEM_*
@@ -405,9 +389,8 @@ bool CSystemGUIInfo::GetInt(int& value,
     {
       KODI::MEMORY::MemoryStatus stat;
       KODI::MEMORY::GetMemoryStatus(&stat);
-      const auto memPercentUsed{
-          static_cast<int>(100.0f * (stat.totalPhys - stat.availPhys) / stat.totalPhys + 0.5f)};
-      if (info.GetInfo() == SYSTEM_FREE_MEMORY)
+      int memPercentUsed = static_cast<int>(100.0f * (stat.totalPhys - stat.availPhys) / stat.totalPhys + 0.5f);
+      if (info.m_info == SYSTEM_FREE_MEMORY)
         value = 100 - memPercentUsed;
       else
         value = memPercentUsed;
@@ -416,23 +399,21 @@ bool CSystemGUIInfo::GetInt(int& value,
     case SYSTEM_FREE_SPACE:
     case SYSTEM_USED_SPACE:
     {
-      g_sysinfo.GetHddSpaceInfo(value, info.GetInfo(), true);
+      g_sysinfo.GetHddSpaceInfo(value, info.m_info, true);
       return true;
     }
     case SYSTEM_CPU_USAGE:
       value = CServiceBroker::GetCPUInfo()->GetUsedPercentage();
       return true;
-    default:
-      break;
+    case SYSTEM_GET_INT:
+      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(info.GetData3());
+      return true;
   }
 
   return false;
 }
 
-bool CSystemGUIInfo::GetBool(bool& value,
-                             const CGUIListItem* gitem,
-                             int contextWindow,
-                             const CGUIInfo& info) const
+bool CSystemGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
   const auto settingsComponent = CServiceBroker::GetSettingsComponent();
   const auto settings = settingsComponent ? settingsComponent->GetSettings() : nullptr;
@@ -451,7 +432,7 @@ bool CSystemGUIInfo::GetBool(bool& value,
       value = false;
       return true;
     case SYSTEM_ETHERNET_LINK_ACTIVE:
-      //! @todo seems this was never implemented!
+      // wtf: not implemented - always returns true?!
       value = true;
       return true;
     case SYSTEM_PLATFORM_LINUX:
@@ -525,11 +506,10 @@ bool CSystemGUIInfo::GetBool(bool& value,
       if (CServiceBroker::GetMediaManager().IsDiscInDrive())
       {
         MEDIA_DETECT::CCdInfo* pCdInfo = CServiceBroker::GetMediaManager().GetCdInfo();
-        value =
-            pCdInfo && (pCdInfo->IsAudio(1) || pCdInfo->IsCDExtra(1) || pCdInfo->IsMixedMode(1));
+        value = pCdInfo && (pCdInfo->IsAudio(1) || pCdInfo->IsCDExtra(1) || pCdInfo->IsMixedMode(1));
       }
       else
-#endif
+    #endif
       {
         value = false;
       }
@@ -542,18 +522,6 @@ bool CSystemGUIInfo::GetBool(bool& value,
       value = CServiceBroker::GetMediaManager().GetDriveStatus() == DriveState::OPEN;
       return true;
 #endif
-    case SYSTEM_MEDIA_BLURAY_PLAYLIST:
-#if defined(HAS_OPTICAL_DRIVE) && defined(HAVE_LIBBLURAY)
-      if (CServiceBroker::GetMediaManager().IsDiscInDrive())
-      {
-        value = CServiceBroker::GetMediaManager().HasMediaBlurayPlaylist();
-      }
-      else
-#endif
-      {
-        value = false;
-      }
-      return true;
     case SYSTEM_CAN_POWERDOWN:
       value = CServiceBroker::GetPowerManager().CanPowerdown();
       return true;
@@ -574,7 +542,7 @@ bool CSystemGUIInfo::GetBool(bool& value,
     {
       auto& components = CServiceBroker::GetAppComponents();
       const auto appPower = components.GetComponent<CApplicationPowerHandling>();
-      switch (info.GetInfo())
+      switch (info.m_info)
       {
         case SYSTEM_SCREENSAVER_ACTIVE:
           value = appPower->IsInScreenSaver();
@@ -631,8 +599,7 @@ bool CSystemGUIInfo::GetBool(bool& value,
       value = (settings->GetInt(CSettings::SETTING_POWERMANAGEMENT_SHUTDOWNTIME) > 0);
       return true;
     case SYSTEM_LOGGEDON:
-      value =
-          !(CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() == WINDOW_LOGIN_SCREEN);
+      value = !(CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow() == WINDOW_LOGIN_SCREEN);
       return true;
     case SYSTEM_SHOW_EXIT_BUTTON:
       value = advancedSettings && advancedSettings->m_showExitButton;
@@ -644,7 +611,7 @@ bool CSystemGUIInfo::GetBool(bool& value,
       return true;
     case SYSTEM_INTERNET_STATE:
     {
-      g_sysinfo.GetInfo(info.GetInfo());
+      g_sysinfo.GetInfo(info.m_info);
       value = g_sysinfo.HasInternet();
       return true;
     }
@@ -703,11 +670,10 @@ bool CSystemGUIInfo::GetBool(bool& value,
     {
       if (StringUtils::EqualsNoCase(info.GetData3(), "hidewatched"))
       {
-        const CGUIMediaWindow* window{GUIINFO::GetMediaWindow(contextWindow)};
+        CGUIMediaWindow* window = GUIINFO::GetMediaWindow(contextWindow);
         if (window)
         {
-          value = CMediaSettings::GetInstance().GetWatchedMode(
-                      window->CurrentDirectory().GetContent()) == WatchedModeUnwatched;
+          value = CMediaSettings::GetInstance().GetWatchedMode(window->CurrentDirectory().GetContent()) == WatchedModeUnwatched;
           return true;
         }
       }
@@ -730,8 +696,6 @@ bool CSystemGUIInfo::GetBool(bool& value,
 
       return true;
     }
-    default:
-      break;
   }
 
   return false;

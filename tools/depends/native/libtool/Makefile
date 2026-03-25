@@ -1,7 +1,15 @@
-include ../../Makefile.include LIBTOOL-VERSION ../../download-files.include
+include ../../Makefile.include
 PREFIX=$(NATIVEPREFIX)
 PLATFORM=$(NATIVEPLATFORM)
-DEPS = ../../Makefile.include LIBTOOL-VERSION Makefile ../../download-files.include
+DEPS = ../../Makefile.include Makefile ../../download-files.include
+
+# lib name, version
+LIBNAME=libtool
+VERSION=2.4.6
+SOURCE=$(LIBNAME)-$(VERSION)
+ARCHIVE=$(SOURCE).tar.gz
+SHA512=3233d81cb2739a54b840a0a82064eebbfaa4fb442fb993a35d6bd41d8395c51f038c90ae048b9252f172d0a5bbfb4b36e2b13d4477001f9ff7d4124237819a18
+include ../../download-files.include
 
 # configuration settings
 CONFIGURE=./configure --prefix=$(PREFIX) \

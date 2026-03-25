@@ -1,1 +1,0 @@
-xbmc/platform/win32/test test/win32

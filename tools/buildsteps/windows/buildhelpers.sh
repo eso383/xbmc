@@ -29,10 +29,7 @@ if which tput >/dev/null 2>&1; then
 fi
 
 if [[ ! -d /build/src ]]; then
-  if ! mkdir -p /build/src; then
-    echo "Unable to create src directory"
-    exit 1
-  fi
+  mkdir /build/src
 fi
 
 do_wget() {
@@ -116,27 +113,18 @@ do_clean() {
 }
 
 do_download() {
-  if [ ! -d "$LOCALSRCDIR" ] || [ -z $( ls -A "$LOCALSRCDIR" ) ]; then
-    if [ -f /downloads/$ARCHIVE ]; then
-      HASH_SUM=$(sha512sum /downloads/$ARCHIVE | cut -f 1 -d " ")
-      if [ "$HASH_SUM" != "$SHA512" ]; then
-        echo "Hash of file '${ARCHIVE}' not match!"
-        echo "Expected: ${SHA512}"
-        echo "Found: ${HASH_SUM}"
-        rm /downloads/$ARCHIVE
-      fi
-    fi
+  if [ ! -d "$LOCALSRCDIR" ]; then
     if [ ! -f /downloads/$ARCHIVE ]; then
       do_print_status "$LIBNAME-$VERSION" "$orange_color" "Downloading"
       do_wget $BASE_URL/$ARCHIVE $ARCHIVE
     fi
 
     do_print_status "$LIBNAME-$VERSION" "$blue_color" "Extracting"
-    mkdir -p $LOCALSRCDIR && cd $LOCALSRCDIR
+    mkdir $LOCALSRCDIR && cd $LOCALSRCDIR
     tar -xf /downloads/$ARCHIVE --strip 1
   fi
   # applying patches
-  local patches=(/xbmc/tools/depends/target/$LIBNAME/*-$LIBNAME-windows-*.patch /xbmc/tools/depends/target/$LIBNAME/*-$LIBNAME-all-*.patch)
+  local patches=(/xbmc/tools/buildsteps/windows/patches/*-$LIBNAME-*.patch)
   for patch in ${patches[@]}; do
     echo "Applying patch ${patch}"
     if [[ -f $patch ]]; then
@@ -150,17 +138,10 @@ do_loaddeps() {
   LIBNAME=$(grep "LIBNAME=" $file | sed 's/LIBNAME=//g;s/#.*$//g;/^$/d')
   VERSION=$(grep "VERSION=" $file | sed 's/VERSION=//g;s/#.*$//g;/^$/d')
   SHA512=$(grep "SHA512=" $file | sed 's/SHA512=//g;s/#.*$//g;/^$/d')
-  ARCHIVE=$(grep "ARCHIVE=" $file | sed 's/ARCHIVE=//g;s/#.*$//g;/^$/d')
   EXT=$(grep "ARCHIVE=" $file | sed 's/ARCHIVE=//g;s/#.*$//g;/^$/d' | cut -d'.' -f2-3)
+  ARCHIVE=$LIBNAME-$VERSION.$EXT
 
-  # replace variables in ARCHIVE string if used.
-  ARCHIVE=$(echo "$ARCHIVE" | sed "s/\$(LIBNAME)/$LIBNAME/g")
-  ARCHIVE=$(echo "$ARCHIVE" | sed "s/\$(VERSION)/$VERSION/g")
-
-  BASE_URL=$(grep "BASE_URL=" $file | sed 's/BASE_URL=//g;s/#.*$//g;/^$/d')
-  if [ -z "$BASE_URL" ]; then
-    BASE_URL=https://mirrors.kodi.tv/build-deps/sources
-  fi
+  BASE_URL=http://mirrors.kodi.tv/build-deps/sources
   local libsrcdir=$LIBNAME-$VERSION
 
   LOCALSRCDIR=$LOCALBUILDDIR/src/$libsrcdir
@@ -172,7 +153,7 @@ do_clean_get() {
   do_download
 
   if [[ ! -d "$LIBBUILDDIR" ]]; then
-    mkdir -p "$LIBBUILDDIR"
+    mkdir "$LIBBUILDDIR"
   fi
   cd "$LIBBUILDDIR"
 }
@@ -184,11 +165,11 @@ PATH_CHANGE_REV_FILENAME=".last_success_revision"
 #params paths to be hashed
 function getBuildHash ()
 {
-  local ver_dav1d="$(extractVersion $3)"
-  local ver_ffmpeg="$(extractVersion $4)"
+  local package="$(extractPackage $3)"
+  local version="$(extractVersion $4)"
   local hashStr
   hashStr="$(git rev-list HEAD --max-count=1  -- $@)"
-  hashStr="$hashStr $@ $ver_ffmpeg $ver_dav1d"
+  hashStr="$hashStr $@ $version $package"
   echo $hashStr
 }
 
@@ -237,6 +218,15 @@ function extractVersion()
   local ver=$(grep "VERSION=" $file | sed 's/VERSION=//g;s/#.*$//g;/^$/d')
 
   echo $ver
+}
+
+function extractPackage()
+{
+  local path="$1"
+  local file="$path/0_package.target-$TRIPLET.list"
+  local package=$(grep '^dav1d-' $file)
+
+  echo $package
 }
 
 function cleanLastSuccess()

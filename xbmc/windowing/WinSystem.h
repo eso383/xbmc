@@ -24,14 +24,6 @@
 
 struct RESOLUTION_WHR
 {
-  // user-defined ctor required for XCode 15.2 and emplace_back
-  RESOLUTION_WHR(int newWidth,
-                 int newHeight,
-                 int screenWidth,
-                 int screenHeight,
-                 int newflags,
-                 int newIdx,
-                 std::string&& newId);
   int width;
   int height;
   int m_screenWidth;
@@ -75,6 +67,8 @@ public:
   virtual bool DestroyWindow(){ return false; }
   virtual bool ResizeWindow(int newWidth, int newHeight, int newLeft, int newTop) = 0;
   virtual bool SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays) = 0;
+  virtual bool DisplayHardwareScalingEnabled() { return false; }
+  virtual void UpdateDisplayHardwareScaling(const RESOLUTION_INFO& resInfo) { }
   virtual void SetDirtyRegions(const CDirtyRegionList& dirtyRegionsList) {}
   virtual int GetBufferAge() { return 2; }
   virtual bool MoveWindow(int topLeft, int topRight){return false;}
@@ -90,8 +84,6 @@ public:
   virtual bool HasInertialGestures(){ return false; }
   //does the output expect limited color range (ie 16-235)
   virtual bool UseLimitedColor();
-  //the number of presentation buffers
-  virtual int NoOfBuffers();
 
   /*!
    * \brief Forces the window to fullscreen provided the window resolution
@@ -165,10 +157,10 @@ public:
   KODI::WINDOWING::COSScreenSaverManager* GetOSScreenSaver();
 
   // resolution interfaces
-  unsigned int GetWidth() { return m_nWidth; }
-  unsigned int GetHeight() { return m_nHeight; }
+  unsigned int GetWidth() const { return m_nWidth; }
+  unsigned int GetHeight() const { return m_nHeight; }
   virtual bool CanDoWindowed() { return true; }
-  bool IsFullScreen() { return m_bFullScreen; }
+  bool IsFullScreen() const { return m_bFullScreen; }
 
   /*!
    * \brief Check if the windowing system supports moving windows across screens

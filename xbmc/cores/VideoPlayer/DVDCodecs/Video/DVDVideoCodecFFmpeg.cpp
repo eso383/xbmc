@@ -19,9 +19,11 @@
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "cores/VideoSettings.h"
+#include "cores/DataCacheCore.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
 #include "utils/CPUInfo.h"
 #include "utils/StringUtils.h"
 #include "utils/XTimeUtils.h"
@@ -79,7 +81,7 @@ public:
   void GetStrides(int(&strides)[YuvImage::MAX_PLANES]) override;
 
   void SetRef(AVFrame *frame);
-  void Unref();
+  void Unref() const;
 
 protected:
   AVFrame* m_pFrame;
@@ -117,8 +119,7 @@ void CVideoBufferFFmpeg::SetRef(AVFrame *frame)
   m_pixFormat = (AVPixelFormat)m_pFrame->format;
 }
 
-void CVideoBufferFFmpeg::Unref()
-{
+void CVideoBufferFFmpeg::Unref() const {
   av_frame_unref(m_pFrame);
 }
 
@@ -148,7 +149,7 @@ CVideoBufferPoolFFmpeg::~CVideoBufferPoolFFmpeg()
 
 CVideoBuffer* CVideoBufferPoolFFmpeg::Get()
 {
-  std::unique_lock lock(m_critSection);
+  std::unique_lock<CCriticalSection> lock(m_critSection);
 
   CVideoBufferFFmpeg *buf = nullptr;
   if (!m_free.empty())
@@ -172,7 +173,7 @@ CVideoBuffer* CVideoBufferPoolFFmpeg::Get()
 
 void CVideoBufferPoolFFmpeg::Return(int id)
 {
-  std::unique_lock lock(m_critSection);
+  std::unique_lock<CCriticalSection> lock(m_critSection);
 
   m_all[id]->Unref();
   auto it = m_used.begin();
@@ -313,8 +314,7 @@ CDVDVideoCodecFFmpeg::CDVDVideoCodecFFmpeg(CProcessInfo& processInfo)
   : CDVDVideoCodec(processInfo),
     m_videoBufferPool(std::make_shared<CVideoBufferPoolFFmpeg>())
 #ifdef HAVE_LIBPOSTPROC
-    ,
-    m_postProc(std::make_unique<CDVDVideoPPFFmpeg>(processInfo))
+  , m_postProc(std::make_unique<CDVDVideoPPFFmpeg>(processInfo))
 #endif
 {
   m_decoderState = STATE_NONE;
@@ -323,6 +323,15 @@ CDVDVideoCodecFFmpeg::CDVDVideoCodecFFmpeg(CProcessInfo& processInfo)
 CDVDVideoCodecFFmpeg::~CDVDVideoCodecFFmpeg()
 {
   Dispose();
+}
+
+void CDVDVideoCodecFFmpeg::SetProcessInfoVideoDetails() const {
+  m_dataCacheCore.SetVideoHdrType(m_hints.hdrType);
+  m_dataCacheCore.SetVideoColorSpace(m_hints.colorSpace);
+  m_dataCacheCore.SetVideoColorRange(m_hints.colorRange);
+  m_dataCacheCore.SetVideoColorPrimaries(m_hints.colorPrimaries);
+  m_dataCacheCore.SetVideoColorTransferCharacteristic(m_hints.colorTransferCharacteristic);
+  m_dataCacheCore.SetVideoBitDepth(m_hints.bitdepth);
 }
 
 bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options)
@@ -348,10 +357,12 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   m_processInfo.SetSwDeinterlacingMethods();
   m_processInfo.SetVideoInterlaced(false);
 
+  SetProcessInfoVideoDetails();
+
   // libdav1d av1 sw decoding is implemented as a separate decoder
   // in ffmpeg which is always found first when calling `avcodec_find_decoder`.
   // To get hwaccels we look for decoders registered for `av1` (unless sw decoding is enforced).
-  // The decoder state check is needed to successfully fallback to sw decoding if
+  // The decoder state check is needed to succesfully fallback to sw decoding if
   // necessary (on retry).
   if (hints.codec == AV_CODEC_ID_AV1 && m_decoderState != STATE_HW_FAILED &&
       !(hints.codecOptions & CODEC_FORCE_SOFTWARE))
@@ -360,7 +371,7 @@ bool CDVDVideoCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
   if (!pCodec)
     pCodec = avcodec_find_decoder(hints.codec);
 
-  if(pCodec == NULL)
+  if(pCodec == nullptr)
   {
     CLog::Log(LOGDEBUG, "CDVDVideoCodecFFmpeg::Open() Unable to find codec {}", hints.codec);
     return false;
@@ -861,7 +872,9 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecFFmpeg::GetPicture(VideoPicture* pVideoPi
   {
     SetFilters();
 
-    bool need_scale = std::ranges::find(m_formats, m_pCodecContext->pix_fmt) == m_formats.end();
+    bool need_scale = std::find(m_formats.begin(),
+                                m_formats.end(),
+                                m_pCodecContext->pix_fmt) == m_formats.end();
 
     bool need_reopen = false;
     if (m_filters != m_filters_next)
@@ -1012,7 +1025,7 @@ bool CDVDVideoCodecFFmpeg::GetPictureCommon(VideoPicture* pVideoPicture)
 
   pVideoPicture->pts = DVD_NOPTS_VALUE;
 
-  AVDictionaryEntry * entry = av_dict_get(m_pFrame->metadata, "stereo_mode", NULL, 0);
+  AVDictionaryEntry * entry = av_dict_get(m_pFrame->metadata, "stereo_mode", nullptr, 0);
   if(entry && entry->value)
   {
     pVideoPicture->stereoMode = (const char*)entry->value;
@@ -1128,47 +1141,6 @@ bool CDVDVideoCodecFFmpeg::GetPictureCommon(VideoPicture* pVideoPicture)
     pVideoPicture->hasLightMetadata = true;
   }
 
-  if (pVideoPicture->hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
-  {
-    sd = av_frame_get_side_data(m_pFrame, AV_FRAME_DATA_DOVI_METADATA);
-    if (sd)
-    {
-      AVDOVIMetadata* dovi = (AVDOVIMetadata*)sd->data;
-      const AVDOVIRpuDataHeader* hdr = av_dovi_get_header(dovi);
-      const AVDOVIDataMapping* mapping = av_dovi_get_mapping(dovi);
-
-      if (hdr != nullptr && hdr->el_spatial_resampling_filter_flag == 1 &&
-          hdr->disable_residual_flag == 0)
-      {
-        pVideoPicture->strDVELType = "MEL";
-        for (int i = 0; i < 3; i++)
-        {
-          if (mapping != nullptr &&
-              (mapping->nlq[i].nlq_offset != 0 || mapping->nlq[i].vdr_in_max != 8388608 ||
-               mapping->nlq[i].linear_deadzone_slope != 0 ||
-               mapping->nlq[i].linear_deadzone_threshold != 0))
-          {
-            pVideoPicture->strDVELType = "FEL";
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  if (pVideoPicture->hdrType == StreamHdrType::HDR_TYPE_HDR10 ||
-      pVideoPicture->hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)
-  {
-    sd = av_frame_get_side_data(m_pFrame, AV_FRAME_DATA_DYNAMIC_HDR_PLUS);
-    if (sd)
-    {
-      if (pVideoPicture->hdrType == StreamHdrType::HDR_TYPE_HDR10)
-        pVideoPicture->hdrType = StreamHdrType::HDR_TYPE_HDR10PLUS;
-      else
-        pVideoPicture->hdrTypeAlt = StreamHdrType::HDR_TYPE_HDR10PLUS;
-    }
-  }
-
   if (pVideoPicture->iRepeatPicture)
     pVideoPicture->dts = DVD_NOPTS_VALUE;
   else
@@ -1246,19 +1218,6 @@ int CDVDVideoCodecFFmpeg::FilterOpen(const std::string& filters, bool scale)
       m_pCodecContext->sample_aspect_ratio.num != 0 ? m_pCodecContext->sample_aspect_ratio.num : 1,
       m_pCodecContext->sample_aspect_ratio.num != 0 ? m_pCodecContext->sample_aspect_ratio.den : 1);
 
-  const AVColorSpace colorSpace = (m_pCodecContext->colorspace == AVCOL_SPC_UNSPECIFIED)
-                                    ? m_hints.colorSpace
-                                    : m_pCodecContext->colorspace;
-  const AVColorRange colorRange = (m_pCodecContext->color_range == AVCOL_RANGE_UNSPECIFIED)
-                                    ? m_hints.colorRange
-                                    : m_pCodecContext->color_range;
-
-  if (colorSpace != AVCOL_SPC_UNSPECIFIED)
-    args += StringUtils::Format(":colorspace={}", static_cast<int>(colorSpace));
-
-  if (colorRange != AVCOL_RANGE_UNSPECIFIED)
-    args += StringUtils::Format(":range={}", static_cast<int>(colorRange));
-
   if (!((m_pFilterOut = avfilter_graph_alloc_filter(m_pFilterGraph, outFilter, "out"))))
   {
     CLog::LogF(LOGERROR, "unable to alloc filter out");
@@ -1306,7 +1265,7 @@ int CDVDVideoCodecFFmpeg::FilterOpen(const std::string& filters, bool scale)
     inputs->pad_idx = 0;
     inputs->next = nullptr;
 
-    result = avfilter_graph_parse_ptr(m_pFilterGraph, m_filters.c_str(), &inputs, &outputs, NULL);
+    result = avfilter_graph_parse_ptr(m_pFilterGraph, m_filters.c_str(), &inputs, &outputs, nullptr);
     avfilter_inout_free(&outputs);
     avfilter_inout_free(&inputs);
 

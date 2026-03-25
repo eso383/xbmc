@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "FileItemList.h"
+#include "FileItem.h"
 #include "threads/CriticalSection.h"
 #include "utils/EventStream.h"
 
@@ -16,8 +16,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-class CFileItem;
 
 class CFavouritesService
 {
@@ -27,9 +25,6 @@ public:
 
   /** For profiles*/
   void ReInit(std::string userDataFolder);
-
-  void OnPlaybackStopped(const CFileItem& item);
-  void OnPlaybackEnded(const CFileItem& item);
 
   bool IsFavourited(const CFileItem& item, int contextWindow) const;
   std::shared_ptr<CFileItem> GetFavourite(const CFileItem& item, int contextWindow) const;
@@ -44,9 +39,7 @@ public:
    */
   void RefreshFavourites();
 
-  struct FavouritesUpdated
-  {
-  };
+  struct FavouritesUpdated { };
 
   CEventStream<FavouritesUpdated>& Events() { return m_events; }
 
@@ -58,9 +51,7 @@ private:
   CFavouritesService& operator=(CFavouritesService&&) = delete;
 
   void OnUpdated();
-  bool Persist() const;
-
-  void CleanupTargetsCache(const CFileItem& item);
+  bool Persist();
 
   std::string m_userDataFolder;
   CFileItemList m_favourites;

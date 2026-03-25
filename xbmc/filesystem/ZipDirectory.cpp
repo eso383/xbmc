@@ -16,29 +16,22 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
-#include <cstdint>
 #include <vector>
 
 namespace XFILE
 {
 
-namespace
-{
-std::shared_ptr<CFileItem> ZipEntryToFileItem(const SZipEntry& entry,
-                                              const std::string& label,
-                                              const std::string& path,
-                                              bool isFolder)
-{
-  std::shared_ptr<CFileItem> item(new CFileItem(label));
-  if (!isFolder)
+  static CFileItemPtr ZipEntryToFileItem(const SZipEntry& entry, const std::string& label, const std::string& path, bool isFolder)
   {
-    item->SetSize(static_cast<int64_t>(entry.usize));
-    item->SetDepth(entry.method);
-  }
+    CFileItemPtr item(new CFileItem(label));
+    if (!isFolder)
+    {
+      item->m_dwSize = entry.usize;
+      item->m_idepth = entry.method;
+    }
 
-  return item;
-}
-} // namespace
+    return item;
+  }
 
   CZipDirectory::CZipDirectory() = default;
 
@@ -48,7 +41,7 @@ std::shared_ptr<CFileItem> ZipEntryToFileItem(const SZipEntry& entry,
   {
     CURL urlZip(urlOrig);
 
-    /* if this isn't a proper archive path, assume it's the path to an archive file */
+    /* if this isn't a proper archive path, assume it's the path to a archive file */
     if (!urlOrig.IsProtocol("zip"))
       urlZip = URIUtils::CreateArchivePath("zip", urlOrig);
 
@@ -72,7 +65,7 @@ std::shared_ptr<CFileItem> ZipEntryToFileItem(const SZipEntry& entry,
   {
     std::vector<SZipEntry> items;
     g_ZipManager.GetZipList(url, items);
-    if (!items.empty())
+    if (items.size())
     {
       if (items.size() > 1)
         return true;

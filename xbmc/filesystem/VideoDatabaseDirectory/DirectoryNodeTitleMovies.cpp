@@ -9,15 +9,13 @@
 #include "DirectoryNodeTitleMovies.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "QueryParams.h"
 #include "video/VideoDatabase.h"
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
-CDirectoryNodeTitleMovies::CDirectoryNodeTitleMovies(const std::string& strName,
-                                                     CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::TITLE_MOVIES, strName, pParent)
+CDirectoryNodeTitleMovies::CDirectoryNodeTitleMovies(const std::string& strName, CDirectoryNode* pParent)
+  : CDirectoryNode(NODE_TYPE_TITLE_MOVIES, strName, pParent)
 {
 
 }
@@ -43,9 +41,4 @@ bool CDirectoryNodeTitleMovies::GetContent(CFileItemList& items) const
   videodatabase.Close();
 
   return bSuccess;
-}
-
-NodeType CDirectoryNodeTitleMovies::GetChildType() const
-{
-  return NodeType::MOVIE_ASSET_TYPES;
 }

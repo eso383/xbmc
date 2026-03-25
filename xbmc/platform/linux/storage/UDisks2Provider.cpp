@@ -8,8 +8,7 @@
 #include "UDisks2Provider.h"
 
 #include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
@@ -43,8 +42,8 @@ CUDisks2Provider::Drive::Drive(const char *object) : m_object(object)
 
 bool CUDisks2Provider::Drive::IsOptical() const
 {
-  return std::ranges::any_of(m_mediaCompatibility, [](const std::string& kind)
-                             { return kind.compare(0, 7, "optical") == 0; });
+  return std::any_of(m_mediaCompatibility.begin(), m_mediaCompatibility.end(),
+                     [](const std::string& kind) { return kind.compare(0, 7, "optical") == 0; });
 }
 
 std::string CUDisks2Provider::Drive::ToString() const
@@ -57,8 +56,7 @@ CUDisks2Provider::Block::Block(const char *object) : m_object(object)
 {
 }
 
-bool CUDisks2Provider::Block::IsReady()
-{
+bool CUDisks2Provider::Block::IsReady() const {
   return m_drive != nullptr;
 }
 
@@ -109,6 +107,16 @@ MEDIA_DETECT::STORAGE::Type CUDisks2Provider::Filesystem::GetStorageType() const
   return MEDIA_DETECT::STORAGE::Type::UNKNOWN;
 }
 
+std::string CUDisks2Provider::Filesystem::GetMountPoint() const
+{
+  return m_mountPoint;
+}
+
+std::string CUDisks2Provider::Filesystem::GetObject() const
+{
+  return m_object;
+}
+
 void CUDisks2Provider::Filesystem::ResetMountPoint()
 {
   m_mountPoint.clear();
@@ -126,8 +134,7 @@ bool CUDisks2Provider::Filesystem::IsMounted() const
   return m_isMounted;
 }
 
-bool CUDisks2Provider::Filesystem::Mount()
-{
+bool CUDisks2Provider::Filesystem::Mount() const {
   if (m_block->m_isSystem) {
     CLog::Log(LOGDEBUG, "UDisks2: Skip mount of system device {}", ToString());
     return false;
@@ -147,8 +154,7 @@ bool CUDisks2Provider::Filesystem::Mount()
   }
 }
 
-bool CUDisks2Provider::Filesystem::Unmount()
-{
+bool CUDisks2Provider::Filesystem::Unmount() const {
   if (m_block->m_isSystem) {
     CLog::Log(LOGDEBUG, "UDisks2: Skip unmount of system device {}", ToString());
     return false;
@@ -173,8 +179,7 @@ std::string CUDisks2Provider::Filesystem::GetDisplayName() const
   if (m_block->m_label.empty())
   {
     std::string strSize = StringUtils::SizeToString(m_block->m_size);
-    return StringUtils::Format(
-        "{} {}", strSize, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(155));
+    return StringUtils::Format("{} {}", strSize, g_localizeStrings.Get(155));
   }
   else
     return m_block->m_label;
@@ -186,11 +191,11 @@ CMediaSource CUDisks2Provider::Filesystem::ToMediaShare() const
   source.strPath = m_mountPoint;
   source.strName = GetDisplayName();
   if (IsOptical())
-    source.m_iDriveType = SourceType::OPTICAL_DISC;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_DVD;
   else if (m_block->m_isSystem)
-    source.m_iDriveType = SourceType::LOCAL;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_LOCAL;
   else
-    source.m_iDriveType = SourceType::REMOVABLE;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_REMOVABLE;
   source.m_ignore = true;
   return source;
 }
@@ -320,8 +325,7 @@ std::vector<std::string> CUDisks2Provider::GetDiskUsage()
   return legacy.GetDiskUsage();
 }
 
-void CUDisks2Provider::GetDisks(std::vector<CMediaSource>& devices, bool enumerateRemovable)
-{
+void CUDisks2Provider::GetDisks(VECSOURCES &devices, bool enumerateRemovable) const {
   for (const auto &elt: m_filesystems)
   {
     Filesystem *fs = elt.second;
@@ -357,7 +361,7 @@ bool CUDisks2Provider::DriveRemoved(const std::string& object)
 {
   CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Drive removed ({})", object);
 
-  if (m_drives.contains(object))
+  if (m_drives.count(object) > 0)
   {
     delete m_drives[object];
     m_drives.erase(object);
@@ -381,7 +385,7 @@ void CUDisks2Provider::BlockAdded(Block *block, bool isNew)
   {
     CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Block added - {}", block->ToString());
 
-    if (m_drives.contains(block->m_driveobject))
+    if (m_drives.count(block->m_driveobject) > 0)
       block->m_drive = m_drives[block->m_driveobject];
 
     if (m_blocks[block->m_object])
@@ -393,7 +397,8 @@ void CUDisks2Provider::BlockAdded(Block *block, bool isNew)
     m_blocks[block->m_object] = block;
   }
 
-  if (m_filesystems.contains(block->m_object))
+
+  if (m_filesystems.count(block->m_object) > 0)
   {
     auto fs = m_filesystems[block->m_object];
     fs->m_block = block;
@@ -405,13 +410,13 @@ bool CUDisks2Provider::BlockRemoved(const std::string& object)
 {
   CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Block removed ({})", object);
 
-  if (m_blocks.contains(object))
+  if (m_blocks.count(object) > 0)
   {
     delete m_blocks[object];
     m_blocks.erase(object);
   }
 
-  if (m_filesystems.contains(object))
+  if (m_filesystems.count(object) > 0)
   {
     m_filesystems[object]->m_block = nullptr;
   }
@@ -425,7 +430,7 @@ void CUDisks2Provider::FilesystemAdded(Filesystem *fs, bool isNew)
   {
     CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Filesystem added - {}", fs->ToString());
 
-    if (m_blocks.contains(fs->GetObject()))
+    if (m_blocks.count(fs->GetObject()) > 0)
       fs->m_block = m_blocks[fs->GetObject()];
 
     if (m_filesystems[fs->GetObject()])
@@ -453,7 +458,7 @@ bool CUDisks2Provider::FilesystemRemoved(const char *object, IStorageEventsCallb
 {
   CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Filesystem removed ({})", object);
   bool result = false;
-  if (m_filesystems.contains(object))
+  if (m_filesystems.count(object) > 0)
   {
     auto fs = m_filesystems[object];
     if (fs->IsMounted())
@@ -535,7 +540,7 @@ bool CUDisks2Provider::HandlePropertiesChanged(DBusMessage *msg, IStorageEventsC
 
 bool CUDisks2Provider::DrivePropertiesChanged(const char *object, DBusMessageIter *propsIter)
 {
-  if (m_drives.contains(object))
+  if (m_drives.count(object) > 0)
   {
     auto drive = m_drives[object];
     CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Before update: {}", drive->ToString());
@@ -549,7 +554,7 @@ bool CUDisks2Provider::DrivePropertiesChanged(const char *object, DBusMessageIte
 
 bool CUDisks2Provider::BlockPropertiesChanged(const char *object, DBusMessageIter *propsIter)
 {
-  if (m_blocks.contains(object))
+  if (m_blocks.count(object) > 0)
   {
     auto block = m_blocks[object];
     CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Before update: {}", block->ToString());
@@ -563,7 +568,7 @@ bool CUDisks2Provider::BlockPropertiesChanged(const char *object, DBusMessageIte
 
 bool CUDisks2Provider::FilesystemPropertiesChanged(const char *object, DBusMessageIter *propsIter, IStorageEventsCallback *callback)
 {
-  if (m_filesystems.contains(object))
+  if (m_filesystems.count(object) > 0)
   {
     auto fs = m_filesystems[object];
     CLog::Log(LOGDEBUG, LOGDBUS, "UDisks2: Before update: {}", fs->ToString());

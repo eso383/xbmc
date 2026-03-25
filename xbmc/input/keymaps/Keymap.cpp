@@ -14,8 +14,7 @@ using namespace KODI;
 using namespace KEYMAP;
 
 CKeymap::CKeymap(std::shared_ptr<const IWindowKeymap> keymap, const IKeymapEnvironment* environment)
-  : m_keymap(std::move(keymap)),
-    m_environment(environment)
+  : m_keymap(std::move(keymap)), m_environment(environment)
 {
 }
 

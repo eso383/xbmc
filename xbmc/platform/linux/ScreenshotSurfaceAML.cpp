@@ -9,14 +9,13 @@
 
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "ScreenshotSurfaceAML.h"
 #include "ServiceBroker.h"
-#include "system_gl.h"
 #include "threads/SingleLock.h"
+#include "ScreenshotSurfaceAML.h"
 #include "utils/Screenshot.h"
 #include "utils/ScreenshotAML.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
+#include "system_gl.h"
 
 void CScreenshotSurfaceAML::Register()
 {
@@ -25,12 +24,13 @@ void CScreenshotSurfaceAML::Register()
 
 std::unique_ptr<IScreenshotSurface> CScreenshotSurfaceAML::CreateSurface()
 {
-  return std::unique_ptr<CScreenshotSurfaceAML>(new CScreenshotSurfaceAML());
+  return std::make_unique<CScreenshotSurfaceAML>();
 }
 
 bool CScreenshotSurfaceAML::Capture()
 {
-  std::unique_lock<CCriticalSection> lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   CServiceBroker::GetGUI()->GetWindowManager().Render();
 
 #ifndef HAS_GLES
@@ -44,7 +44,7 @@ bool CScreenshotSurfaceAML::Capture()
   m_width  = viewport[2] - viewport[0];
   m_height = viewport[3] - viewport[1];
   m_stride = m_width * 4;
-  unsigned char* surface = new unsigned char[m_stride * m_height];
+  auto surface = new unsigned char[m_stride * m_height];
 
   //read pixels from the backbuffer
 #if HAS_GLES >= 2
@@ -70,11 +70,7 @@ bool CScreenshotSurfaceAML::Capture()
 
   delete [] surface;
 
-  return true;
-}
-
-void CScreenshotSurfaceAML::CaptureVideo(bool blendToBuffer)
-{
   // Captures the current visible videobuffer and blend it into m_buffer (captured overlay)
   CScreenshotAML::CaptureVideoFrame(m_buffer, m_width, m_height);
+  return true;
 }

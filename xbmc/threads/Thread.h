@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -37,11 +37,6 @@ enum class ThreadPriority
    *
    */
   PRIORITY_COUNT,
-};
-
-enum class ThreadTask
-{
-  AUDIO,
 };
 
 class IRunnable;
@@ -82,26 +77,9 @@ public:
    *        native threading library to do so.
    *
    */
-  bool SetPriority(const ThreadPriority& priority);
-
-  /*!
-   * \brief Assign the current thread a task for OS scheduling (platform dependent)
-   * \param[in] task Type of task
-   * \return true for success, false for failure
-   */
-  bool SetTask(const ThreadTask& task);
-
-  /*!
-   * \brief Revert the current thread to normal scheduling (platform dependent)
-   * \return true for success, false for failure
-   */
-  bool RevertTask();
+  bool SetPriority(const ThreadPriority& priority) const;
 
   static CThread* GetCurrentThread();
-
-  // Linux-only: reserve a CPU by excluding it from newly created Kodi threads.
-  // Intended for platforms that pin the main render thread to a single core.
-  static void SetGlobalExcludedCpu(int cpu);
 
   virtual void OnException(){} // signal termination handler
 
@@ -127,7 +105,7 @@ protected:
     const CEvent* result =
         duration < std::chrono::milliseconds::zero() ? group.wait() : group.wait(duration);
     return  result == &event ? WAIT_SIGNALED :
-      (result == NULL ? WAIT_TIMEDOUT : WAIT_INTERRUPTED);
+      (result == nullptr ? WAIT_TIMEDOUT : WAIT_INTERRUPTED);
   }
 
 private:

@@ -25,7 +25,7 @@ namespace SUBTITLES
 {
 // This is a placeholder to keep the fontname setting valid
 // even if the default app font could be changed
-constexpr const char* FONT_DEFAULT_FAMILYNAME = "DEFAULT";
+constexpr auto FONT_DEFAULT_FAMILYNAME = "DEFAULT";
 
 enum class Align
 {
@@ -161,12 +161,6 @@ public:
   int GetBlurSize() const;
 
   /*!
-   * \brief Get line spacing
-   * \return The line spacing
-   */
-  int GetLineSpacing() const;
-
-  /*!
    * \brief Get background type
    * \return The background type
    */
@@ -186,13 +180,13 @@ public:
 
   /*!
    * \brief Check if font override is enabled
-   * \return True if fonts must be overridden, otherwise false
+   * \return True if fonts must be overriden, otherwise false
    */
   bool IsOverrideFonts() const;
 
   /*!
    * \brief Get override styles
-   * \return The styles to be overridden
+   * \return The styles to be overriden
    */
   OverrideStyles GetOverrideStyles() const;
 
@@ -204,7 +198,8 @@ public:
 
   static void SettingOptionsSubtitleFontsFiller(const std::shared_ptr<const CSetting>& setting,
                                                 std::vector<StringSettingOption>& list,
-                                                std::string& current);
+                                                std::string& current,
+                                                void* data);
 
 private:
   CSubtitlesSettings() = delete;

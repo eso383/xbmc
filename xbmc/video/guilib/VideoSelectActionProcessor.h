@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023-2025 Team Kodi
+ *  Copyright (C) 2023 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,29 +8,40 @@
 
 #pragma once
 
-#include "video/guilib/VideoActionProcessorBase.h"
+#include "video/guilib/VideoPlayActionProcessor.h"
 
 #include <memory>
 
 class CFileItem;
 
-namespace KODI::VIDEO::GUILIB
+namespace VIDEO
 {
-class CVideoSelectActionProcessor : public CVideoActionProcessorBase
+namespace GUILIB
+{
+class CVideoSelectActionProcessorBase : public CVideoPlayActionProcessorBase
 {
 public:
-  using CVideoActionProcessorBase::CVideoActionProcessorBase;
+  explicit CVideoSelectActionProcessorBase(const std::shared_ptr<CFileItem>& item)
+    : CVideoPlayActionProcessorBase(item)
+  {
+  }
+
+  ~CVideoSelectActionProcessorBase() override = default;
+
+  static Action GetDefaultSelectAction();
 
 protected:
   Action GetDefaultAction() override;
   bool Process(Action action) override;
 
-  virtual bool OnPlaySelected();
-  virtual bool OnQueueSelected();
-  virtual bool OnInfoSelected();
-  virtual bool OnChooseSelected();
+  virtual bool OnPlayPartSelected(unsigned int part) = 0;
+  virtual bool OnQueueSelected() = 0;
+  virtual bool OnInfoSelected() = 0;
+  virtual bool OnChooseSelected() = 0;
 
 private:
-  CVideoSelectActionProcessor() = delete;
+  CVideoSelectActionProcessorBase() = delete;
+  unsigned int ChooseStackItemPartNumber() const;
 };
-} // namespace KODI::VIDEO::GUILIB
+} // namespace GUILIB
+} // namespace VIDEO

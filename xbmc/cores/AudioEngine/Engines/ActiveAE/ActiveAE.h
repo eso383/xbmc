@@ -253,13 +253,12 @@ public:
   /* returns a new stream for data in the specified format */
   IAE::StreamPtr MakeStream(AEAudioFormat& audioFormat,
                             unsigned int options = 0,
-                            IAEClockCallback* clock = NULL) override;
+                            IAEClockCallback* clock = nullptr) override;
 
   /* returns a new sound object */
   IAE::SoundPtr MakeSound(const std::string& file) override;
 
   void EnumerateOutputDevices(AEDeviceList &devices, bool passthrough) override;
-  bool SupportsFormat(AEAudioFormat &format, std::string *device = NULL);
   bool SupportsRaw(AEAudioFormat &format) override;
   bool SupportsSilenceTimeout() override;
   bool UsesDtsCoreFallback() override;
@@ -291,7 +290,7 @@ protected:
   void GetSyncInfo(CAESyncInfo& info, CActiveAEStream *stream) { m_stats.GetSyncInfo(info, stream); }
   float GetCacheTime(CActiveAEStream *stream) { return m_stats.GetCacheTime(stream); }
   float GetCacheTotal() { return m_stats.GetCacheTotal(); }
-  float GetMaxDelay() { return m_stats.GetMaxDelay(); }
+  float GetMaxDelay() const { return m_stats.GetMaxDelay(); }
   void FlushStream(CActiveAEStream *stream);
   void PauseStream(CActiveAEStream *stream, bool pause);
   void StopSound(CActiveAESound *sound);
@@ -310,15 +309,15 @@ protected:
   void DrainSink();
   void UnconfigureSink();
   void Dispose();
-  void LoadSettings(AEAudioFormat *format = NULL);
+  void LoadSettings();
   void ValidateOutputDevices(bool saveChanges);
   bool NeedReconfigureBuffers();
   bool NeedReconfigureSink();
   void ApplySettingsToFormat(AEAudioFormat& format,
                              const AudioSettings& settings,
-                             int* mode = NULL);
-  void Configure(AEAudioFormat *desiredFmt = NULL);
-  AEAudioFormat GetInputFormat(AEAudioFormat *desiredFmt = NULL);
+                             int* mode = nullptr);
+  void Configure(AEAudioFormat *desiredFmt = nullptr);
+  AEAudioFormat GetInputFormat(AEAudioFormat *desiredFmt = nullptr);
   CActiveAEStream* CreateStream(MsgStreamNew *streamMsg);
   void DiscardStream(CActiveAEStream *stream);
   void SFlushStream(CActiveAEStream *stream);
@@ -327,19 +326,15 @@ protected:
   void SStopSound(CActiveAESound *sound);
   void DiscardSound(CActiveAESound *sound);
   void ChangeResamplers();
-  void ConfigureLowLatency();
 
   bool RunStages();
   bool HasWork();
-  CSampleBuffer* SyncStream(CActiveAEStream *stream);
+  CSampleBuffer* SyncStream(CActiveAEStream *stream) const;
 
   void ResampleSounds();
-  bool ResampleSound(CActiveAESound *sound);
+  bool ResampleSound(CActiveAESound *sound) const;
   void MixSounds(CSoundPacket &dstSample);
-  void Deamplify(CSoundPacket &dstSample);
-
-  bool IsOnlyNotRaw(const CActiveAEStream* stream) const;
-  bool IsRawMode() const;
+  void Deamplify(CSoundPacket &dstSample) const;
 
   bool CompareFormat(const AEAudioFormat& lhs, const AEAudioFormat& rhs);
 

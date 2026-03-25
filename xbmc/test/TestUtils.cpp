@@ -52,7 +52,10 @@ public:
     Close();
     return CFile::Delete(m_ptempFilePath);
   };
-  const std::string& getTempFilePath() const { return m_ptempFilePath; }
+  std::string getTempFilePath() const
+  {
+    return m_ptempFilePath;
+  }
   std::string getTempFileDirectory() const
   {
     return URIUtils::GetDirectory(m_ptempFilePath);
@@ -86,24 +89,25 @@ bool CXBMCTestUtils::SetReferenceFileBasePath()
   /* Set xbmc, xbmcbin and home path */
   CSpecialProtocol::SetXBMCPath(xbmcPath);
   CSpecialProtocol::SetXBMCBinPath(xbmcPath);
+  CSpecialProtocol::SetHomePath(URIUtils::AddFileToFolder(xbmcPath, "portable_data"));
 
   return true;
 }
 
 XFILE::CFile *CXBMCTestUtils::CreateTempFile(std::string const& suffix)
 {
-  CTempFile *f = new CTempFile();
+  auto f = new CTempFile();
   if (f->Create(suffix))
     return f;
   delete f;
-  return NULL;
+  return nullptr;
 }
 
 bool CXBMCTestUtils::DeleteTempFile(XFILE::CFile *tempfile)
 {
   if (!tempfile)
     return true;
-  CTempFile *f = static_cast<CTempFile*>(tempfile);
+  auto f = static_cast<CTempFile*>(tempfile);
   bool retval = f->Delete();
   delete f;
   return retval;
@@ -113,7 +117,7 @@ std::string CXBMCTestUtils::TempFilePath(XFILE::CFile const* const tempfile)
 {
   if (!tempfile)
     return "";
-  CTempFile const* const f = static_cast<CTempFile const*>(tempfile);
+  auto const f = static_cast<CTempFile const*>(tempfile);
   return f->getTempFilePath();
 }
 
@@ -121,7 +125,7 @@ std::string CXBMCTestUtils::TempFileDirectory(XFILE::CFile const* const tempfile
 {
   if (!tempfile)
     return "";
-  CTempFile const* const f = static_cast<CTempFile const*>(tempfile);
+  auto const f = static_cast<CTempFile const*>(tempfile);
   return f->getTempFileDirectory();
 }
 
@@ -134,7 +138,7 @@ XFILE::CFile *CXBMCTestUtils::CreateCorruptedFile(std::string const& strFileName
 
   if (tmpfile && inputfile.Open(strFileName))
   {
-    srand(time(NULL));
+    srand(time(nullptr));
     while ((size = inputfile.Read(buf, sizeof(buf))) > 0)
     {
       for (i = 0; i < size; i++)
@@ -153,7 +157,7 @@ XFILE::CFile *CXBMCTestUtils::CreateCorruptedFile(std::string const& strFileName
         inputfile.Close();
         tmpfile->Close();
         DeleteTempFile(tmpfile);
-        return NULL;
+        return nullptr;
       }
     }
     inputfile.Close();
@@ -161,7 +165,7 @@ XFILE::CFile *CXBMCTestUtils::CreateCorruptedFile(std::string const& strFileName
     return tmpfile;
   }
   delete tmpfile;
-  return NULL;
+  return nullptr;
 }
 
 

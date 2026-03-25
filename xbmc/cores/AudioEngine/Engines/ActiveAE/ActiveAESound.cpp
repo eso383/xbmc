@@ -23,9 +23,9 @@ using namespace XFILE;
 CActiveAESound::CActiveAESound(const std::string& filename, CActiveAE* ae)
   : IAESound(filename), m_filename(filename)
 {
-  m_orig_sound = NULL;
-  m_dst_sound = NULL;
-  m_pFile = NULL;
+  m_orig_sound = nullptr;
+  m_dst_sound = nullptr;
+  m_pFile = nullptr;
   m_isSeekPossible = false;
   m_fileSize = 0;
   m_isConverted = false;
@@ -100,8 +100,7 @@ bool CActiveAESound::StoreSound(bool orig, uint8_t **buffer, int samples, int li
   return true;
 }
 
-CSoundPacket *CActiveAESound::GetSound(bool orig)
-{
+CSoundPacket *CActiveAESound::GetSound(bool orig) const {
   if (orig)
     return m_orig_sound;
   else
@@ -110,16 +109,16 @@ CSoundPacket *CActiveAESound::GetSound(bool orig)
 
 bool CActiveAESound::Prepare()
 {
-  unsigned int flags = READ_TRUNCATED;
+  unsigned int flags = READ_TRUNCATED | READ_CHUNKED;
   m_pFile = new CFile();
 
   if (!m_pFile->Open(m_filename, flags))
   {
     delete m_pFile;
-    m_pFile = NULL;
+    m_pFile = nullptr;
     return false;
   }
-  m_isSeekPossible = m_pFile->IoControl(IOControl::SEEK_POSSIBLE, NULL) != 0;
+  m_isSeekPossible = m_pFile->IoControl(IOCTRL_SEEK_POSSIBLE, nullptr) != 0;
   m_fileSize = m_pFile->GetLength();
   return true;
 }
@@ -127,11 +126,10 @@ bool CActiveAESound::Prepare()
 void CActiveAESound::Finish()
 {
   delete m_pFile;
-  m_pFile = NULL;
+  m_pFile = nullptr;
 }
 
-int CActiveAESound::GetChunkSize()
-{
+int CActiveAESound::GetChunkSize() const {
   return m_pFile->GetChunkSize();
 }
 

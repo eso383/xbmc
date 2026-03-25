@@ -192,7 +192,8 @@ public:
 
   static void SettingOptionsCharsetsFiller(const std::shared_ptr<const CSetting>& setting,
                                            std::vector<StringSettingOption>& list,
-                                           std::string& current);
+                                           std::string& current,
+                                           void* data);
 
 private:
   static void resetUserCharset(void);

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2024 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -30,7 +30,8 @@ enum class ShaderMethodGLES
   SM_FONTS,
   SM_FONTS_SHADER_CLIP,
   SM_TEXTURE_NOBLEND,
-  SM_TEXTURE_NOBLEND_NO_PQ,
+  SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT,
+  SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT,
   SM_MULTI_BLENDCOLOR,
   SM_MULTI_RGBA_111R_BLENDCOLOR,
   SM_MULTI_111R_111R_BLENDCOLOR,
@@ -66,12 +67,11 @@ private:
       {ShaderMethodGLES::SM_FONTS, "fonts"},
       {ShaderMethodGLES::SM_FONTS_SHADER_CLIP, "fonts with vertex shader based clipping"},
       {ShaderMethodGLES::SM_TEXTURE_NOBLEND, "texture no blending"},
-      {ShaderMethodGLES::SM_TEXTURE_NOBLEND_NO_PQ, "texture no blending (no PQ transfer)"},
+      {ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_PQ_OUTPUT, "texture no blending (HDR PGS PQ output)"},
+      {ShaderMethodGLES::SM_TEXTURE_NOBLEND_HDR_PGS_SDR_OUTPUT,"texture no blending (HDR PGS SDR output)"},
       {ShaderMethodGLES::SM_MULTI_BLENDCOLOR, "multi blend colour"},
-      {ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR,
-       "multi with color/alpha texture and blend color"},
-      {ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR,
-       "multi with alpha/alpha texture and blend color"},
+      {ShaderMethodGLES::SM_MULTI_RGBA_111R_BLENDCOLOR, "multi with color/alpha texture and blend color"},
+      {ShaderMethodGLES::SM_MULTI_111R_111R_BLENDCOLOR, "multi with alpha/alpha texture and blend color"},
       {ShaderMethodGLES::SM_TEXTURE_RGBA, "texture rgba"},
       {ShaderMethodGLES::SM_TEXTURE_RGBA_OES, "texture rgba OES"},
       {ShaderMethodGLES::SM_TEXTURE_RGBA_BLENDCOLOR, "texture rgba blend colour"},
@@ -99,7 +99,7 @@ public:
   bool EndRender() override;
   void PresentRender(bool rendered, bool videoLayer) override;
   void InvalidateColorBuffer() override;
-  bool ClearBuffers(KODI::UTILS::COLOR::Color color) override;
+  bool ClearBuffers(UTILS::COLOR::Color color) override;
   bool IsExtSupported(const char* extension) const override;
 
   void SetVSync(bool vsync);
@@ -113,14 +113,14 @@ public:
   void SetScissors(const CRect& rect) override;
   void ResetScissors() override;
 
-  void SetDepthCulling(DepthCulling culling) override;
+  void SetDepthCulling(DEPTH_CULLING culling) override;
 
   void CaptureStateBlock() override;
   void ApplyStateBlock() override;
 
   void SetCameraPosition(const CPoint &camera, int screenWidth, int screenHeight, float stereoFactor = 0.0f) override;
 
-  bool SupportsStereo(RenderStereoMode mode) const override;
+  bool SupportsStereo(RENDER_STEREO_MODE mode) const override;
 
   void Project(float &x, float &y, float &z) override;
 

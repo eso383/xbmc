@@ -44,9 +44,9 @@ public:
   explicit NPT_XbmcFileStream(const NPT_XbmcFileReference& file) : m_FileReference(file) {}
 
     // NPT_FileInterface methods
-    NPT_Result Seek(NPT_Position offset);
-    NPT_Result Tell(NPT_Position& offset);
-    NPT_Result Flush();
+    NPT_Result Seek(NPT_Position offset) const;
+    NPT_Result Tell(NPT_Position& offset) const;
+    NPT_Result Flush() const;
 
 protected:
     // constructors and destructors
@@ -60,8 +60,7 @@ protected:
 |   NPT_XbmcFileStream::Seek
 +---------------------------------------------------------------------*/
 NPT_Result
-NPT_XbmcFileStream::Seek(NPT_Position offset)
-{
+NPT_XbmcFileStream::Seek(NPT_Position offset) const {
     int64_t result;
 
     result = m_FileReference->Seek(offset, SEEK_SET)    ;
@@ -76,8 +75,7 @@ NPT_XbmcFileStream::Seek(NPT_Position offset)
 |   NPT_XbmcFileStream::Tell
 +---------------------------------------------------------------------*/
 NPT_Result
-NPT_XbmcFileStream::Tell(NPT_Position& offset)
-{
+NPT_XbmcFileStream::Tell(NPT_Position& offset) const {
     int64_t result = m_FileReference->GetPosition();
     if (result >= 0) {
         offset = (NPT_Position)result;
@@ -91,8 +89,7 @@ NPT_XbmcFileStream::Tell(NPT_Position& offset)
 |   NPT_XbmcFileStream::Flush
 +---------------------------------------------------------------------*/
 NPT_Result
-NPT_XbmcFileStream::Flush()
-{
+NPT_XbmcFileStream::Flush() const {
     m_FileReference->Flush();
     return NPT_SUCCESS;
 }
@@ -134,7 +131,7 @@ NPT_XbmcFileInputStream::Read(void*     buffer,
     unsigned int nb_read;
 
     // check the parameters
-    if (buffer == NULL) {
+    if (buffer == nullptr) {
         return NPT_ERROR_INVALID_PARAMETERS;
     }
 
@@ -281,7 +278,7 @@ NPT_XbmcFile::Open(NPT_File::OpenMode mode)
     m_Mode = mode;
 
     // check for special names
-    const char* name = (const char*)m_Delegator.GetPath();
+    auto name = (const char*)m_Delegator.GetPath();
     if (NPT_StringsEqual(name, NPT_FILE_STANDARD_INPUT)) {
         return NPT_ERROR_FILE_NOT_READABLE;
     } else if (NPT_StringsEqual(name, NPT_FILE_STANDARD_OUTPUT)) {
@@ -296,14 +293,16 @@ NPT_XbmcFile::Open(NPT_File::OpenMode mode)
         }
 
         bool result;
-        const CURL url{name};
-        const CURL authUrl{URIUtils::AddCredentials(URIUtils::SubstitutePath(url))};
+        CURL url(URIUtils::SubstitutePath(name));
+
+        if (CPasswordManager::GetInstance().IsURLSupported(url) && url.GetUserName().empty())
+          CPasswordManager::GetInstance().AuthenticateURL(url);
 
         // compute mode
         if (mode & NPT_FILE_OPEN_MODE_WRITE)
-          result = file->OpenForWrite(authUrl, (mode & NPT_FILE_OPEN_MODE_TRUNCATE) ? true : false);
+          result = file->OpenForWrite(url, (mode & NPT_FILE_OPEN_MODE_TRUNCATE) ? true : false);
         else
-          result = file->Open(authUrl);
+          result = file->Open(url);
 
         if (!result) return NPT_ERROR_NO_SUCH_FILE;
     }
@@ -321,7 +320,7 @@ NPT_Result
 NPT_XbmcFile::Close()
 {
     // release the file reference
-    m_FileReference = NULL;
+    m_FileReference = nullptr;
 
     // reset the mode
     m_Mode = 0;
@@ -336,7 +335,7 @@ NPT_Result
 NPT_XbmcFile::GetInputStream(NPT_InputStreamReference& stream)
 {
     // default value
-    stream = NULL;
+    stream = nullptr;
 
     // check that the file is open
     if (m_FileReference.IsNull()) return NPT_ERROR_FILE_NOT_OPEN;
@@ -359,7 +358,7 @@ NPT_Result
 NPT_XbmcFile::GetOutputStream(NPT_OutputStreamReference& stream)
 {
     // default value
-    stream = NULL;
+    stream = nullptr;
 
     // check that the file is open
     if (m_FileReference.IsNull()) return NPT_ERROR_FILE_NOT_OPEN;

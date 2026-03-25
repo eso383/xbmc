@@ -13,7 +13,6 @@
 #include "GUIImage.h"
 #include "GUIInfoManager.h"
 #include "GUIListLabel.h"
-#include "ServiceBroker.h"
 #include "utils/XBMCTinyXML.h"
 
 using namespace KODI::GUILIB;
@@ -142,8 +141,7 @@ bool CGUIListItemLayout::MoveRight()
   return m_group.MoveRight();
 }
 
-bool CGUIListItemLayout::CheckCondition()
-{
+bool CGUIListItemLayout::CheckCondition() const {
   return !m_condition || m_condition->Get(INFO::DEFAULT_CONTEXT);
 }
 
@@ -211,21 +209,21 @@ void CGUIListItemLayout::CreateListControlLayouts(float width, float height, boo
   m_height = height;
   m_focused = focused;
   m_isPlaying.Parse("listitem.isplaying", 0);
-  CGUIImage *tex = new CGUIImage(0, 0, 0, 0, width, texHeight, texture);
+  auto tex = new CGUIImage(0, 0, 0, 0, width, texHeight, texture);
   tex->SetVisibleCondition(nofocusCondition);
   m_group.AddControl(tex);
   if (focused)
   {
-    CGUIImage *tex = new CGUIImage(0, 0, 0, 0, width, texHeight, textureFocus);
+    auto tex = new CGUIImage(0, 0, 0, 0, width, texHeight, textureFocus);
     tex->SetVisibleCondition(focusCondition);
     m_group.AddControl(tex);
   }
-  CGUIImage *image = new CGUIImage(0, 0, 8, 0, iconWidth, texHeight, CTextureInfo(""));
+  auto image = new CGUIImage(0, 0, 8, 0, iconWidth, texHeight, CTextureInfo(""));
   image->SetInfo(GUIINFO::CGUIInfoLabel("$INFO[ListItem.Icon]", "", m_group.GetParentID()));
-  image->SetAspectRatio(CAspectRatio::KEEP);
+  image->SetAspectRatio(CAspectRatio::AR_KEEP);
   m_group.AddControl(image);
   float x = iconWidth + labelInfo.offsetX + 10;
-  CGUIListLabel *label = new CGUIListLabel(0, 0, x, labelInfo.offsetY, width - x - 18, height, labelInfo, GUIINFO::CGUIInfoLabel("$INFO[ListItem.Label]", "", m_group.GetParentID()), CGUIControl::FOCUS);
+  auto label = new CGUIListLabel(0, 0, x, labelInfo.offsetY, width - x - 18, height, labelInfo, GUIINFO::CGUIInfoLabel("$INFO[ListItem.Label]", "", m_group.GetParentID()), CGUIControl::FOCUS);
   m_group.AddControl(label);
   x = labelInfo2.offsetX ? labelInfo2.offsetX : m_width - 16;
   label = new CGUIListLabel(0, 0, x, labelInfo2.offsetY, x - iconWidth - 20, height, labelInfo2, GUIINFO::CGUIInfoLabel("$INFO[ListItem.Label2]", "", m_group.GetParentID()), CGUIControl::FOCUS);

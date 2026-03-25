@@ -13,8 +13,6 @@
 #include "rendering/dx/RenderContext.h"
 #include "utils/log.h"
 
-#include "platform/win32/WIN32Util.h"
-
 extern "C"
 {
 #include <libavutil/mem.h>
@@ -45,9 +43,11 @@ void CRenderCaptureDX::BeginRender()
     if (m_flags & CAPTUREFLAG_CONTINUOUS)
     {
       if (!m_asyncSupported)
-        CLog::LogF(LOGWARNING, "D3D11_QUERY_OCCLUSION not supported, performance might suffer.");
+        CLog::Log(LOGWARNING, "{}: D3D11_QUERY_OCCLUSION not supported, performance might suffer.",
+                  __FUNCTION__);
       if (!UseOcclusionQuery())
-        CLog::LogF(LOGWARNING, "D3D11_QUERY_OCCLUSION disabled, performance might suffer.");
+        CLog::Log(LOGWARNING, "{}: D3D11_QUERY_OCCLUSION disabled, performance might suffer.",
+                  __FUNCTION__);
     }
     m_asyncChecked = true;
   }
@@ -92,7 +92,7 @@ void CRenderCaptureDX::BeginRender()
       result = pDevice->CreateQuery(&queryDesc, m_query.ReleaseAndGetAddressOf());
       if (FAILED(result))
       {
-        CLog::LogF(LOGERROR, "CreateQuery failed {}", CWIN32Util::FormatHRESULT(result));
+        CLog::LogF(LOGERROR, "CreateQuery failed {}", DX::GetErrorDescription(result));
         m_asyncSupported = false;
         m_query = nullptr;
       }
@@ -139,7 +139,7 @@ void CRenderCaptureDX::ReadOut()
     }
     else
     {
-      CLog::LogF(LOGERROR, "GetData failed.");
+      CLog::Log(LOGERROR, "{}: GetData failed.", __FUNCTION__);
       SurfaceToBuffer();
     }
   }
@@ -170,7 +170,7 @@ void CRenderCaptureDX::SurfaceToBuffer()
   }
   else
   {
-    CLog::LogF(LOGERROR, "locking m_copySurface failed.");
+    CLog::Log(LOGERROR, "{}: locking m_copySurface failed.", __FUNCTION__);
     SetState(CAPTURESTATE_FAILED);
   }
 }

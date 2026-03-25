@@ -18,9 +18,9 @@ namespace ADDON
 {
 
 CImageResource::CImageResource(const AddonInfoPtr& addonInfo)
-  : CResource(addonInfo, AddonType::RESOURCE_IMAGES),
-    m_type(Type(AddonType::RESOURCE_IMAGES)->GetValue("@type").asString())
+  : CResource(addonInfo, AddonType::RESOURCE_IMAGES)
 {
+  m_type = Type(AddonType::RESOURCE_IMAGES)->GetValue("@type").asString();
 }
 
 void CImageResource::OnPreUnInstall()

@@ -59,7 +59,8 @@ std::map<const CThread*, std::string> g_logbuffer;
 
 void ff_flush_avutil_log_buffers(void)
 {
-  std::unique_lock lock(m_logSection);
+  std::lock_guard lock(m_logSection);
+
   /* Loop through the logbuffer list and remove any blank buffers
      If the thread using the buffer is still active, it will just
      add a new buffer next time it writes to the log */

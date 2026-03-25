@@ -13,35 +13,33 @@
 class CVariant;
 namespace ANNOUNCEMENT
 {
-enum AnnouncementFlag
-{
-  Player = 0x001,
-  Playlist = 0x002,
-  GUI = 0x004,
-  System = 0x008,
-  VideoLibrary = 0x010,
-  AudioLibrary = 0x020,
-  Application = 0x040,
-  Input = 0x080,
-  PVR = 0x100,
-  Other = 0x200,
-  Info = 0x400,
-  Sources = 0x800
-};
+  enum AnnouncementFlag
+  {
+    Player        = 0x001,
+    Playlist      = 0x002,
+    GUI           = 0x004,
+    System        = 0x008,
+    VideoLibrary  = 0x010,
+    AudioLibrary  = 0x020,
+    Application   = 0x040,
+    Input         = 0x080,
+    PVR           = 0x100,
+    Other         = 0x200,
+    Info          = 0x400
+  };
 
-const auto ANNOUNCE_ALL = (Player | Playlist | GUI | System | VideoLibrary | AudioLibrary |
-                           Application | Input | ANNOUNCEMENT::PVR | Other | Info | Sources);
+  const auto ANNOUNCE_ALL = (Player | Playlist | GUI | System | VideoLibrary | AudioLibrary | Application | Input | ANNOUNCEMENT::PVR | Other);
 
-/*!
+  /*!
     \brief Returns a string representation for the
     given AnnouncementFlag
     \param notification Specific AnnouncementFlag
     \return String representation of the given AnnouncementFlag
     */
-inline const char* AnnouncementFlagToString(const AnnouncementFlag& notification)
-{
-  switch (notification)
+  inline const char *AnnouncementFlagToString(const AnnouncementFlag &notification)
   {
+    switch (notification)
+    {
     case Player:
       return "Player";
     case Playlist:
@@ -64,12 +62,10 @@ inline const char* AnnouncementFlagToString(const AnnouncementFlag& notification
       return "Other";
     case Info:
       return "Info";
-    case Sources:
-      return "Sources";
     default:
       return "Unknown";
+    }
   }
-}
 
   class IAnnouncer
   {

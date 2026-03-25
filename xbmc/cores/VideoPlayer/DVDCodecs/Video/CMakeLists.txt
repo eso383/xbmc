@@ -12,7 +12,7 @@ if(TARGET ffmpeg::libpostproc)
   list(APPEND HEADERS DVDVideoPPFFmpeg.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::AML)
+if(AML_FOUND)
   list(APPEND SOURCES AMLCodec.cpp
                       DVDVideoCodecAmlogic.cpp)
   list(APPEND HEADERS AMLCodec.h
@@ -24,12 +24,12 @@ if(CORE_SYSTEM_NAME STREQUAL windows OR CORE_SYSTEM_NAME STREQUAL windowsstore)
   list(APPEND HEADERS DXVA.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::VDPAU)
+if(TARGET VDPAU::VDPAU)
   list(APPEND SOURCES VDPAU.cpp)
   list(APPEND HEADERS VDPAU.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::VAAPI)
+if(VAAPI_FOUND)
   list(APPEND SOURCES VAAPI.cpp)
   list(APPEND HEADERS VAAPI.h)
 endif()
@@ -47,6 +47,11 @@ endif()
 if("gbm" IN_LIST CORE_PLATFORM_NAME_LC OR "wayland" IN_LIST CORE_PLATFORM_NAME_LC)
   list(APPEND SOURCES DVDVideoCodecDRMPRIME.cpp)
   list(APPEND HEADERS DVDVideoCodecDRMPRIME.h)
+endif()
+
+if("webos" IN_LIST CORE_PLATFORM_NAME_LC)
+  list(APPEND SOURCES DVDVideoCodecStarfish.cpp)
+  list(APPEND HEADERS DVDVideoCodecStarfish.h)
 endif()
 
 core_add_library(dvdvideocodecs)

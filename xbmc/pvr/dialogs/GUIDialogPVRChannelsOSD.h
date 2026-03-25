@@ -18,6 +18,8 @@
 
 namespace PVR
 {
+enum class PVREvent;
+
 class CPVRChannelGroup;
 
 class CGUIDialogPVRChannelsOSD : public CGUIDialogPVRItemsViewBase,
@@ -28,6 +30,12 @@ public:
   ~CGUIDialogPVRChannelsOSD() override;
   bool OnMessage(CGUIMessage& message) override;
   bool OnAction(const CAction& action) override;
+
+  /*!
+   * @brief CEventStream callback for PVR events.
+   * @param event The event.
+   */
+  void Notify(const PVREvent& event);
 
   // CPVRChannelNumberInputHandler implementation
   void GetChannelNumbers(std::vector<std::string>& channelNumbers) override;

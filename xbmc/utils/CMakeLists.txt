@@ -2,7 +2,6 @@ set(SOURCES ActorProtocol.cpp
             AlarmClock.cpp
             AliasShortcutUtils.cpp
             Archive.cpp
-            ArtUtils.cpp
             Base64.cpp
             BitstreamConverter.cpp
             BitstreamConverterDoVi.cpp
@@ -43,6 +42,7 @@ set(SOURCES ActorProtocol.cpp
             HttpRangeUtils.cpp
             HttpResponse.cpp
             InfoLoader.cpp
+            JobManager.cpp
             JSONVariantParser.cpp
             JSONVariantWriter.cpp
             LabelFormatter.cpp
@@ -52,12 +52,12 @@ set(SOURCES ActorProtocol.cpp
             log.cpp
             Mime.cpp
             MovingSpeed.cpp
-            Mp4ChplReader.cpp
             Observer.cpp
             POUtils.cpp
             PlayerUtils.cpp
             RecentlyAddedJob.cpp
             RegExp.cpp
+            rfft.cpp
             RingBuffer.cpp
             RssManager.cpp
             RssReader.cpp
@@ -91,8 +91,6 @@ set(HEADERS ActorProtocol.h
             AlarmClock.h
             AliasShortcutUtils.h
             Archive.h
-            ArtUtils.h
-            Artwork.h
             Base64.h
             BitstreamConverter.h
             BitstreamIoReader.h
@@ -146,13 +144,14 @@ set(HEADERS ActorProtocol.h
             ISerializable.h
             ISortable.h
             IXmlDeserializable.h
+            Job.h
+            JobManager.h
             JSONVariantParser.h
             JSONVariantWriter.h
             LabelFormatter.h
             LangCodeExpander.h
             LegacyPathTranslation.h
             Locale.h
-            LockInfo.h
             log.h
             logtypes.h
             Map.h
@@ -160,7 +159,6 @@ set(HEADERS ActorProtocol.h
             MemUtils.h
             Mime.h
             MovingSpeed.h
-            Mp4ChplReader.h
             Observer.h
             params_check_macros.h
             POUtils.h
@@ -168,16 +166,15 @@ set(HEADERS ActorProtocol.h
             ProgressJob.h
             RecentlyAddedJob.h
             RegExp.h
+            rfft.h
             RingBuffer.h
             RssManager.h
             RssReader.h
             SaveFileStateJob.h
-            ScopeExit.h
             ScopeGuard.h
             ScraperParser.h
             ScraperUrl.h
             Screenshot.h
-            Set.h
             SortUtils.h
             Speed.h
             Stopwatch.h
@@ -202,11 +199,11 @@ set(HEADERS ActorProtocol.h
             XMLUtils.h
             XTimeUtils.h)
 
-if(TARGET ${APP_NAME_LC}::XSLT)
+if(TARGET XSLT::XSLT)
   list(APPEND SOURCES XSLTUtils.cpp)
   list(APPEND HEADERS XSLTUtils.h)
 endif()
-if(TARGET ${APP_NAME_LC}::EGL)
+if(TARGET EGL::EGL)
   list(APPEND SOURCES EGLUtils.cpp
                       EGLFence.cpp)
   list(APPEND HEADERS EGLUtils.h
@@ -218,7 +215,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   set_source_files_properties(Mime.cpp PROPERTIES COMPILE_FLAGS -O0)
 endif()
 
-if(TARGET ${APP_NAME_LC}::OpenGl OR TARGET ${APP_NAME_LC}::OpenGLES)
+if(TARGET OpenGL::GL OR TARGET OpenGL::GLES)
   list(APPEND SOURCES GLUtils.cpp)
   list(APPEND HEADERS GLUtils.h)
 endif()
@@ -249,23 +246,23 @@ if("gbm" IN_LIST CORE_PLATFORM_NAME_LC OR "wayland" IN_LIST CORE_PLATFORM_NAME_L
     list(APPEND HEADERS GBMBufferObject.h)
   endif()
 
-  if(TARGET ${APP_NAME_LC}::EGL)
+  if(TARGET EGL::EGL)
     list(APPEND SOURCES EGLImage.cpp)
     list(APPEND HEADERS EGLImage.h)
   endif()
 
-  if(TARGET ${APP_NAME_LC}::LibDRM)
+  if(TARGET LIBDRM::LIBDRM)
     list(APPEND SOURCES DRMHelpers.cpp)
     list(APPEND HEADERS DRMHelpers.h)
   endif()
 
-  if(TARGET ${APP_NAME_LC}::LibDisplayInfo)
+  if(LIBDISPLAYINFO_FOUND)
     list(APPEND SOURCES DisplayInfo.cpp)
     list(APPEND HEADERS DisplayInfo.h)
   endif()
 endif()
 
-if(TARGET ${APP_NAME_LC}::AML)
+if(AML_FOUND)
   list(APPEND SOURCES AMLUtils.cpp
                       ScreenshotAML.cpp)
   list(APPEND HEADERS AMLUtils.h

@@ -42,7 +42,7 @@ public:
   bool Open(const std::string& gamePath);
   bool IsConfirmed() const { return m_bConfirmed; }
   bool IsNewPressed() const { return m_bNewPressed; }
-  std::string GetSelectedItemPath();
+  std::string GetSelectedItemPath() const;
 
 protected:
   // implementation of CGUIWIndow via CGUIDialog
@@ -57,7 +57,7 @@ private:
   /*!
    * \breif Called when opening to set the item list
    */
-  void SetItems(const CFileItemList& itemList);
+  void SetItems(const CFileItemList& itemList) const;
 
   /*!
    * \brief Called when an item has been selected
@@ -82,12 +82,12 @@ private:
   /*!
   * \brief Called when "Rename" is selected from the context menu
   */
-  void OnRename(CFileItem& item);
+  void OnRename(CFileItem& item) const;
 
   /*!
   * \brief Called when "Delete" is selected from the context menu
   */
-  void OnDelete(const CFileItem& item);
+  void OnDelete(CFileItem& item) const;
 
   /*!
    * \brief Called every frame with the caption to set
@@ -98,11 +98,6 @@ private:
   * \brief Called every frame with the game client to set
   */
   void HandleGameClient(const std::string& gameClientId);
-
-  /*!
-  * \brief Called every frame with the game client version to set
-  */
-  void HandleGameClientVersion(const std::string& gameClientVersion);
 
   // Dialog parameters
   std::unique_ptr<CGUIViewControl> m_viewControl;
@@ -116,7 +111,6 @@ private:
   // State parameters
   std::string m_currentCaption;
   std::string m_currentGameClient;
-  std::string m_currentGameClientVersion;
 };
 } // namespace GAME
 } // namespace KODI

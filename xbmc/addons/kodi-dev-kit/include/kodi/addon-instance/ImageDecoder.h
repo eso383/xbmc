@@ -253,8 +253,7 @@ public:
                   char& longitude_ref,
                   float longitude[3],
                   int& altitude_ref,
-                  float& altitude)
-  {
+                  float& altitude) const {
     if (!latitude || !longitude)
       return;
 
@@ -289,31 +288,31 @@ public:
   }
 
   /// @brief Get camera manufacturer
-  const std::string& GetCameraManufacturer() const { return m_camera_manufacturer; }
+  std::string GetCameraManufacturer() const { return m_camera_manufacturer; }
 
   /// @brief Set camera model
   void SetCameraModel(const std::string& camera_model) { m_camera_model = camera_model; }
 
   /// @brief Get camera model
-  const std::string& GetCameraModel() const { return m_camera_model; }
+  std::string GetCameraModel() const { return m_camera_model; }
 
   /// @brief Set author
   void SetAuthor(const std::string& author) { m_author = author; }
 
   /// @brief Get author
-  const std::string& GetAuthor() const { return m_author; }
+  std::string GetAuthor() const { return m_author; }
 
   /// @brief Set description
   void SetDescription(const std::string& description) { m_description = description; }
 
   /// @brief Get description
-  const std::string& GetDescription() const { return m_description; }
+  std::string GetDescription() const { return m_description; }
 
   /// @brief Set copyright
   void SetCopyright(const std::string& copyright) { m_copyright = copyright; }
 
   /// @brief Get copyright
-  const std::string& GetCopyright() const { return m_copyright; }
+  std::string GetCopyright() const { return m_copyright; }
 
   ///@}
 

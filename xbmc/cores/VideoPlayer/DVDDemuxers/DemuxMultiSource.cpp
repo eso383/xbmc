@@ -38,7 +38,7 @@ void CDemuxMultiSource::Dispose()
 
   m_demuxerMap.clear();
   m_DemuxerToInputStreamMap.clear();
-  m_pInput = NULL;
+  m_pInput = nullptr;
 
 }
 
@@ -75,7 +75,7 @@ CDemuxStream* CDemuxMultiSource::GetStream(int64_t demuxerId, int iStreamId) con
     return iter->second->GetStream(demuxerId, iStreamId);
   }
   else
-    return NULL;
+    return nullptr;
 }
 
 std::vector<CDemuxStream*> CDemuxMultiSource::GetStreams() const
@@ -127,7 +127,7 @@ bool CDemuxMultiSource::Open(const std::shared_ptr<CDVDInputStream>& pInput)
   auto iter = m_pInput->m_InputStreams.begin();
   while (iter != m_pInput->m_InputStreams.end())
   {
-    DemuxPtr demuxer = DemuxPtr(CDVDFactoryDemuxer::CreateDemuxer((*iter)));
+    auto demuxer = DemuxPtr(CDVDFactoryDemuxer::CreateDemuxer((*iter)));
     if (!demuxer)
     {
       iter = m_pInput->m_InputStreams.erase(iter);
@@ -159,13 +159,13 @@ bool CDemuxMultiSource::Reset()
 DemuxPacket* CDemuxMultiSource::Read()
 {
   if (m_demuxerQueue.empty())
-    return NULL;
+    return nullptr;
 
   DemuxPtr currentDemuxer = m_demuxerQueue.top().second;
   m_demuxerQueue.pop();
 
   if (!currentDemuxer)
-    return NULL;
+    return nullptr;
 
   DemuxPacket* packet = currentDemuxer->Read();
   if (packet)
@@ -197,7 +197,7 @@ DemuxPacket* CDemuxMultiSource::Read()
 
 bool CDemuxMultiSource::SeekTime(double time, bool backwards, double* startpts)
 {
-  DemuxQueue demuxerQueue = DemuxQueue();
+  auto demuxerQueue = DemuxQueue();
   bool ret = false;
   for (auto& iter : m_demuxerMap)
   {
@@ -216,8 +216,7 @@ bool CDemuxMultiSource::SeekTime(double time, bool backwards, double* startpts)
   return ret;
 }
 
-void CDemuxMultiSource::SetMissingStreamDetails(const DemuxPtr& demuxer)
-{
+void CDemuxMultiSource::SetMissingStreamDetails(const DemuxPtr& demuxer) const {
   std::string baseFileName = m_pInput->GetFileName();
   std::string fileName = demuxer->GetFileName();
   for (auto& stream : demuxer->GetStreams())

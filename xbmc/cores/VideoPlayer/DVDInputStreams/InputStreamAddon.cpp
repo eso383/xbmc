@@ -37,11 +37,11 @@ CInputStreamProvider::CInputStreamProvider(const ADDON::AddonInfoPtr& addonInfo,
 {
 }
 
-void CInputStreamProvider::GetAddonInstance(InstanceType instance_type,
+void CInputStreamProvider::GetAddonInstance(INSTANCE_TYPE instance_type,
                                             ADDON::AddonInfoPtr& addonInfo,
                                             KODI_HANDLE& parentInstance)
 {
-  if (instance_type == ADDON::IAddonProvider::InstanceType::VIDEOCODEC)
+  if (instance_type == ADDON::IAddonProvider::INSTANCE_VIDEOCODEC)
   {
     addonInfo = m_addonInfo;
     parentInstance = m_parentInstance;
@@ -85,10 +85,10 @@ bool CInputStreamAddon::Supports(const AddonInfoPtr& addonInfo, const CFileItem&
   CVariant oldAddonProp = fileitem.GetProperty("inputstreamaddon");
   if (!oldAddonProp.isNull())
   {
-    CLog::LogF(
-        LOGERROR,
-        "'inputstreamaddon' has been deprecated, please use `#KODIPROP:inputstream={}` instead",
-        oldAddonProp.asString());
+    CLog::Log(LOGERROR,
+              "CInputStreamAddon::{} - 'inputstreamaddon' has been deprecated, "
+              "please use `#KODIPROP:inputstream={}` instead",
+              __func__, oldAddonProp.asString());
   }
 
   // check if a specific inputstream addon is requested
@@ -174,8 +174,10 @@ bool CInputStreamAddon::Open()
 
     if (props.m_nCountInfoValues >= STREAM_MAX_PROPERTY_COUNT)
     {
-      CLog::LogF(LOGERROR, "Hit max count of stream properties, have {}, actual count: {}",
-                 STREAM_MAX_PROPERTY_COUNT, propsMap.size());
+      CLog::Log(LOGERROR,
+                "CInputStreamAddon::{} - Hit max count of stream properties, "
+                "have {}, actual count: {}",
+                __func__, STREAM_MAX_PROPERTY_COUNT, propsMap.size());
       break;
     }
   }
@@ -393,7 +395,7 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
                                                       int streamId,
                                                       INPUTSTREAM_INFO* stream)
 {
-  CInputStreamAddon* thisClass = static_cast<CInputStreamAddon*>(handle);
+  auto thisClass = static_cast<CInputStreamAddon*>(handle);
   if (!thisClass || !stream)
     return nullptr;
 
@@ -413,7 +415,7 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
 
   if (stream->m_streamType == INPUTSTREAM_TYPE_AUDIO)
   {
-    CDemuxStreamAudio *audioStream = new CDemuxStreamAudio();
+    auto audioStream = new CDemuxStreamAudio();
 
     audioStream->iChannels = stream->m_Channels;
     audioStream->iSampleRate = stream->m_SampleRate;
@@ -425,7 +427,7 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
   }
   else if (stream->m_streamType == INPUTSTREAM_TYPE_VIDEO)
   {
-    CDemuxStreamVideo *videoStream = new CDemuxStreamVideo();
+    auto videoStream = new CDemuxStreamVideo();
 
     videoStream->iFpsScale = stream->m_FpsScale;
     videoStream->iFpsRate = stream->m_FpsRate;
@@ -448,19 +450,6 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
     videoStream->colorPrimaries = static_cast<AVColorPrimaries>(stream->m_colorPrimaries);
     videoStream->colorTransferCharacteristic =
         static_cast<AVColorTransferCharacteristic>(stream->m_colorTransferCharacteristic);
-
-    // Determine the HDR type
-    if (stream->m_codecFourCC == MKTAG('d', 'v', 'h', '1') ||
-        stream->m_codecFourCC == MKTAG('d', 'v', 'h', 'e'))
-      videoStream->hdr_type = StreamHdrType::HDR_TYPE_DOLBYVISION;
-    else if (videoStream->colorTransferCharacteristic == AVCOL_TRC_SMPTE2084)
-    {
-      videoStream->hdr_type = StreamHdrType::HDR_TYPE_HDR10;
-    }
-    else if (videoStream->colorTransferCharacteristic == AVCOL_TRC_ARIB_STD_B67)
-      videoStream->hdr_type = StreamHdrType::HDR_TYPE_HLG;
-    else
-      videoStream->hdr_type = StreamHdrType::HDR_TYPE_NONE;
 
     if (stream->m_masteringMetadata)
     {
@@ -499,22 +488,6 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
     }
     //@}
 
-    // Dolby Vision DVCC metadata mapping
-    if (stream->m_dvccMetadata)
-    {
-      videoStream->dovi.dv_version_major = stream->m_dvccMetadata->m_dvVersionMajor;
-      videoStream->dovi.dv_version_minor = stream->m_dvccMetadata->m_dvVersionMinor;
-      videoStream->dovi.dv_profile = stream->m_dvccMetadata->m_dvProfile;
-      videoStream->dovi.dv_level = stream->m_dvccMetadata->m_dvLevel;
-      videoStream->dovi.rpu_present_flag = stream->m_dvccMetadata->m_rpuPresentFlag;
-      videoStream->dovi.el_present_flag = stream->m_dvccMetadata->m_elPresentFlag;
-      videoStream->dovi.bl_present_flag = stream->m_dvccMetadata->m_blPresentFlag;
-      videoStream->dovi.dv_bl_signal_compatibility_id =
-          stream->m_dvccMetadata->m_dvBlSignalCompatibilityId;
-      videoStream->dovi.dv_md_compression = stream->m_dvccMetadata->m_dvMdCompression;
-    }
-    //@}
-
     /*
     // Way to include part on new API version
     if (Addon()->GetTypeVersionDll(ADDON_TYPE::ADDON_INSTANCE_INPUTSTREAM) >= AddonVersion("3.0.0")) // Set the version to your new
@@ -527,22 +500,22 @@ KODI_HANDLE CInputStreamAddon::cb_get_stream_transfer(KODI_HANDLE handle,
   }
   else if (stream->m_streamType == INPUTSTREAM_TYPE_SUBTITLE)
   {
-    CDemuxStreamSubtitle *subtitleStream = new CDemuxStreamSubtitle();
+    auto subtitleStream = new CDemuxStreamSubtitle();
     demuxStream = subtitleStream;
   }
   else if (stream->m_streamType == INPUTSTREAM_TYPE_TELETEXT)
   {
-    CDemuxStreamTeletext* teletextStream = new CDemuxStreamTeletext();
+    auto teletextStream = new CDemuxStreamTeletext();
     demuxStream = teletextStream;
   }
   else if (stream->m_streamType == INPUTSTREAM_TYPE_RDS)
   {
-    CDemuxStreamRadioRDS* rdsStream = new CDemuxStreamRadioRDS();
+    auto rdsStream = new CDemuxStreamRadioRDS();
     demuxStream = rdsStream;
   }
   else if (stream->m_streamType == INPUTSTREAM_TYPE_ID3)
   {
-    CDemuxStreamAudioID3* id3Stream = new CDemuxStreamAudioID3();
+    auto id3Stream = new CDemuxStreamAudioID3();
     demuxStream = id3Stream;
   }
   else
@@ -706,13 +679,12 @@ void CInputStreamAddon::GetChapterName(std::string& name, int ch)
   }
 }
 
-std::chrono::milliseconds CInputStreamAddon::GetChapterPos(int ch)
+int64_t CInputStreamAddon::GetChapterPos(int ch)
 {
-  //! @todo add API for ms precision
   if (m_ifc.inputstream->toAddon->get_chapter_pos)
-    return std::chrono::seconds{m_ifc.inputstream->toAddon->get_chapter_pos(m_ifc.inputstream, ch)};
+    return m_ifc.inputstream->toAddon->get_chapter_pos(m_ifc.inputstream, ch);
 
-  return std::chrono::milliseconds{0};
+  return 0;
 }
 
 bool CInputStreamAddon::SeekChapter(int ch)

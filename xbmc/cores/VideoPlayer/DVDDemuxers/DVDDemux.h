@@ -11,12 +11,19 @@
 #include "Interface/StreamInfo.h"
 #include "cores/FFmpeg.h"
 
-#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <fmt/format.h>
+struct DemuxPacket;
+struct DemuxCryptoSession;
+
+class CDVDInputStream;
+
+namespace ADDON
+{
+class IAddonProvider;
+}
 
 #ifndef __GNUC__
 #pragma warning(push)
@@ -35,61 +42,16 @@ extern "C"
 #pragma warning(pop)
 #endif
 
-struct DemuxPacket;
-struct DemuxCryptoSession;
-
-namespace ADDON
+enum StreamType
 {
-class IAddonProvider;
-}
-
-enum class StreamType
-{
-  NONE = 0, // if unknown
-  AUDIO, // audio stream
-  VIDEO, // video stream
-  DATA, // data stream
-  SUBTITLE, // subtitle stream
-  TELETEXT, // Teletext data stream
-  RADIO_RDS, // Radio RDS data stream
-  AUDIO_ID3 // Audio ID3 data stream
-};
-
-template<>
-struct fmt::formatter<StreamType> : fmt::formatter<std::string_view>
-{
-  template<typename FormatContext>
-  constexpr auto format(const StreamType& type, FormatContext& ctx) const
-  {
-    return fmt::formatter<std::string_view>::format(enumToStreamType(type), ctx);
-  }
-
-private:
-  static constexpr std::string_view enumToStreamType(StreamType type)
-  {
-    using namespace std::literals::string_view_literals;
-    switch (type)
-    {
-      using enum StreamType;
-      case NONE:
-        return "none"sv;
-      case AUDIO:
-        return "audio"sv;
-      case VIDEO:
-        return "video"sv;
-      case DATA:
-        return "data"sv;
-      case SUBTITLE:
-        return "subtitle"sv;
-      case TELETEXT:
-        return "teletext"sv;
-      case RADIO_RDS:
-        return "radio rds"sv;
-      case AUDIO_ID3:
-        return "audio id3"sv;
-    }
-    throw std::invalid_argument("no streamtype string found");
-  }
+  STREAM_NONE = 0, // if unknown
+  STREAM_AUDIO, // audio stream
+  STREAM_VIDEO, // video stream
+  STREAM_DATA, // data stream
+  STREAM_SUBTITLE, // subtitle stream
+  STREAM_TELETEXT, // Teletext data stream
+  STREAM_RADIO_RDS, // Radio RDS data stream
+  STREAM_AUDIO_ID3 // Audio ID3 data stream
 };
 
 enum StreamSource
@@ -111,39 +73,52 @@ enum StreamSource
 class CDemuxStream
 {
 public:
-  CDemuxStream() = default;
-  explicit CDemuxStream(StreamType t) : type(t) {}
+  CDemuxStream()
+  {
+    uniqueId = 0;
+    dvdNavId = 0;
+    demuxerId = -1;
+    codec_fourcc = 0;
+    profile = AV_PROFILE_UNKNOWN;
+    level = AV_LEVEL_UNKNOWN;
+    type = STREAM_NONE;
+    source = STREAM_SOURCE_NONE;
+    iDuration = 0;
+    pPrivate = nullptr;
+    disabled = false;
+    changes = 0;
+    flags = StreamFlags::FLAG_NONE;
+  }
+
   virtual ~CDemuxStream() = default;
   CDemuxStream(CDemuxStream&&) = default;
 
   virtual std::string GetStreamName();
 
-  int uniqueId{0}; // unique stream id
-  int dvdNavId{0};
-  bool isDualStream{false};
-  bool isELPackage{false};
-  int64_t demuxerId{-1}; // id of the associated demuxer
-  AVCodecID codec{AV_CODEC_ID_NONE};
-  unsigned int codec_fourcc{0}; // if available
-  int profile{
-      AV_PROFILE_UNKNOWN}; // encoder profile of the stream reported by the decoder. used to qualify hw decoders.
-  int level{
-      AV_LEVEL_UNKNOWN}; // encoder level of the stream reported by the decoder. used to qualify hw decoders.
-  StreamType type{StreamType::NONE};
-  int source{STREAM_SOURCE_NONE};
+  int uniqueId; // unique stream id
+  int dvdNavId;
+  bool isDualStream;
+  bool isELPackage;
+  int64_t demuxerId; // id of the associated demuxer
+  AVCodecID codec = AV_CODEC_ID_NONE;
+  unsigned int codec_fourcc; // if available
+  int profile; // encoder profile of the stream reported by the decoder. used to qualify hw decoders.
+  int level; // encoder level of the stream reported by the decoder. used to qualify hw decoders.
+  StreamType type;
+  int source;
 
-  int iDuration{0}; // in mseconds
-  void* pPrivate{nullptr}; // private pointer for the demuxer
+  int iDuration; // in mseconds
+  void* pPrivate; // private pointer for the demuxer
   FFmpegExtraData extraData;
 
-  StreamFlags flags{StreamFlags::FLAG_NONE};
+  StreamFlags flags;
   std::string language; // RFC 5646 language code (empty string if undefined)
-  bool disabled{false}; // set when stream is disabled. (when no decoder exists)
+  bool disabled; // set when stream is disabled. (when no decoder exists)
 
   std::string name;
   std::string codecName;
 
-  int changes{0}; // increment on change which player may need to know about
+  int changes; // increment on change which player may need to know about
 
   std::shared_ptr<DemuxCryptoSession> cryptoSession;
   std::shared_ptr<ADDON::IAddonProvider> externalInterfaces;
@@ -152,7 +127,23 @@ public:
 class CDemuxStreamVideo : public CDemuxStream
 {
 public:
-  CDemuxStreamVideo() : CDemuxStream(StreamType::VIDEO) {}
+  CDemuxStreamVideo() : CDemuxStream()
+  {
+    iFpsScale = 0;
+    iFpsRate = 0;
+    bInterlaced = true;
+    bUnknownIP = true;
+    iHeight = 0;
+    iWidth = 0;
+    fAspect = 0.0;
+    bVFR = false;
+    bPTSInvalid = false;
+    bForcedAspect = false;
+    type = STREAM_VIDEO;
+    iOrientation = 0;
+    iBitsPerPixel = 0;
+    iBitRate = 0;
+  }
 
   ~CDemuxStreamVideo() override = default;
   int iFpsScale = 0; // scale of 1000 and a rate of 29970 will result in 29.97 fps
@@ -180,52 +171,75 @@ public:
   std::string stereo_mode; // expected stereo mode
   StreamHdrType hdr_type = StreamHdrType::HDR_TYPE_NONE; // type of HDR for this stream (hdr10, etc)
   AVDOVIDecoderConfigurationRecord dovi{};
-  bool bInterlaced = false; // progressive/interlaced flag
-  bool bUnknownIP = false; // progressive/interlace unknown
+  bool bInterlaced; // progressive/interlaced flag
+  bool bUnknownIP; // progressive/interlace unknown
 };
 
 class CDemuxStreamAudio : public CDemuxStream
 {
 public:
-  CDemuxStreamAudio() : CDemuxStream(StreamType::AUDIO) {}
+  CDemuxStreamAudio()
+    : CDemuxStream()
+  {
+    iChannels = 0;
+    iSampleRate = 0;
+    iBlockAlign = 0;
+    iBitRate = 0;
+    iBitsPerSample = 0;
+    iChannelLayout = 0;
+    type = STREAM_AUDIO;
+  }
 
   ~CDemuxStreamAudio() override = default;
 
   std::string GetStreamType() const;
 
-  int iChannels{0};
-  int iSampleRate{0};
-  int iBlockAlign{0};
-  int iBitRate{0};
-  int iBitsPerSample{0};
-  uint64_t iChannelLayout{0};
+  int iChannels;
+  int iSampleRate;
+  int iBlockAlign;
+  int iBitRate;
+  int iBitsPerSample;
+  uint64_t iChannelLayout;
   std::string m_channelLayoutName;
 };
 
 class CDemuxStreamSubtitle : public CDemuxStream
 {
 public:
-  CDemuxStreamSubtitle() : CDemuxStream(StreamType::SUBTITLE) {}
+  CDemuxStreamSubtitle()
+    : CDemuxStream()
+  {
+    type = STREAM_SUBTITLE;
+    m_3dSubtitlePlane = 0;
+  }
 
-  int m_3dSubtitlePlane = 0;
+  int m_3dSubtitlePlane;
 };
 
 class CDemuxStreamTeletext : public CDemuxStream
 {
 public:
-  CDemuxStreamTeletext() : CDemuxStream(StreamType::TELETEXT) {}
+  CDemuxStreamTeletext()
+    : CDemuxStream()
+  {
+    type = STREAM_TELETEXT;
+  }
 };
 
 class CDemuxStreamAudioID3 : public CDemuxStream
 {
 public:
-  CDemuxStreamAudioID3() : CDemuxStream(StreamType::AUDIO_ID3) {}
+  CDemuxStreamAudioID3() : CDemuxStream() { type = STREAM_AUDIO_ID3; }
 };
 
 class CDemuxStreamRadioRDS : public CDemuxStream
 {
 public:
-  CDemuxStreamRadioRDS() : CDemuxStream(StreamType::RADIO_RDS) {}
+  CDemuxStreamRadioRDS()
+    : CDemuxStream()
+  {
+    type = STREAM_RADIO_RDS;
+  }
 };
 
 class CDVDDemux
@@ -255,7 +269,7 @@ public:
   virtual void Flush() = 0;
 
   /*
-   * Read a packet, returns nullptr on error
+   * Read a packet, returns NULL on error
    *
    */
   virtual DemuxPacket* Read() = 0;
@@ -289,13 +303,10 @@ public:
   virtual void GetChapterName(std::string& strChapterName, int chapterIdx = -1) {}
 
   /*
-   * Get the position of a chapter in milliseconds
-   * \param[in] chapterIdx -1 for current chapter, else a chapter index
+   * Get the position of a chapter
+   * \param chapterIdx -1 for current chapter, else a chapter index
    */
-  virtual std::chrono::milliseconds GetChapterPos(int chapterIdx = -1)
-  {
-    return std::chrono::milliseconds(0);
-  }
+  virtual int64_t GetChapterPos(int chapterIdx = -1) { return 0; }
 
   /*
    * Set the playspeed, if demuxer can handle different
@@ -314,7 +325,7 @@ public:
   virtual int GetStreamLength() { return 0; }
 
   /*
-   * returns the stream or nullptr on error
+   * returns the stream or NULL on error
    */
   virtual CDemuxStream* GetStream(int64_t demuxerId, int iStreamId) const
   {
@@ -346,7 +357,7 @@ public:
   /*
    * return nr of subtitle streams, 0 if none
    */
-  int GetNrOfSubtitleStreams() const;
+  int GetNrOfSubtitleStreams();
 
   /*
    * return a user-presentable codec name of the given stream
@@ -385,12 +396,12 @@ protected:
 
   int GetNrOfStreams(StreamType streamType) const;
 
+  int64_t m_demuxerId;
+
 private:
-  static int64_t NewGuid()
+  int64_t NewGuid()
   {
     static int64_t guid = 0;
     return guid++;
   }
-
-  int64_t m_demuxerId{0};
 };

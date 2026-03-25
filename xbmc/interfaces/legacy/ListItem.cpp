@@ -57,8 +57,7 @@ namespace XBMCAddon
       item.reset();
     }
 
-    String ListItem::getLabel()
-    {
+    String ListItem::getLabel() const {
       if (!item) return "";
 
       String ret;
@@ -70,8 +69,7 @@ namespace XBMCAddon
       return ret;
     }
 
-    String ListItem::getLabel2()
-    {
+    String ListItem::getLabel2() const {
       if (!item) return "";
 
       String ret;
@@ -83,8 +81,7 @@ namespace XBMCAddon
       return ret;
     }
 
-    void ListItem::setLabel(const String& label)
-    {
+    void ListItem::setLabel(const String& label) const {
       if (!item) return;
       // set label
       {
@@ -93,8 +90,7 @@ namespace XBMCAddon
       }
     }
 
-    void ListItem::setLabel2(const String& label)
-    {
+    void ListItem::setLabel2(const String& label) const {
       if (!item) return;
       // set label
       {
@@ -103,17 +99,15 @@ namespace XBMCAddon
       }
     }
 
-    String ListItem::getDateTime()
-    {
+    String ListItem::getDateTime() const {
       if (!item)
         return "";
 
       String ret;
       {
         XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
-        const CDateTime& dateTime{item->GetDateTime()};
-        if (dateTime.IsValid())
-          ret = dateTime.GetAsW3CDateTime();
+        if (item->m_dateTime.IsValid())
+          ret = item->m_dateTime.GetAsW3CDateTime();
       }
 
       return ret;
@@ -161,7 +155,7 @@ namespace XBMCAddon
       if (!item)
         return;
 
-      std::map<String, String, std::less<>> uniqueIDs;
+      std::map<String, String> uniqueIDs;
       for (const auto& it : dictionary)
         uniqueIDs.emplace(it.first, it.second);
 
@@ -198,8 +192,7 @@ namespace XBMCAddon
       xbmc::InfoTagVideo::addSeasonRaw(GetVideoInfoTag(), number, std::move(name));
     }
 
-    void ListItem::select(bool selected)
-    {
+    void ListItem::select(bool selected) const {
       if (!item) return;
       {
         XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
@@ -208,8 +201,7 @@ namespace XBMCAddon
     }
 
 
-    bool ListItem::isSelected()
-    {
+    bool ListItem::isSelected() const {
       if (!item) return false;
 
       bool ret;
@@ -305,8 +297,7 @@ namespace XBMCAddon
       return value;
     }
 
-    String ListItem::getArt(const char* key)
-    {
+    String ListItem::getArt(const char* key) const {
       XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
       return item->GetArt(key);
     }
@@ -314,7 +305,7 @@ namespace XBMCAddon
     bool ListItem::isFolder() const
     {
       XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
-      return item->IsFolder();
+      return item->m_bIsFolder;
     }
 
     String ListItem::getUniqueID(const char* key)
@@ -366,8 +357,7 @@ namespace XBMCAddon
       setContentLookupRaw(enable);
     }
 
-    String ListItem::getPath()
-    {
+    String ListItem::getPath() const {
       XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
       return item->GetPath();
     }
@@ -572,11 +562,11 @@ namespace XBMCAddon
             hasDeprecatedInfoLabel = true;
 
             if (key == "dbid")
-              dbId = static_cast<int>(strtol(value.c_str(), NULL, 10));
+              dbId = static_cast<int>(strtol(value.c_str(), nullptr, 10));
             else if (key == "mediatype")
               mediaType = value;
             else if (key == "tracknumber")
-              InfoTagMusic::setTrackRaw(musictag, strtol(value.c_str(), NULL, 10));
+              InfoTagMusic::setTrackRaw(musictag, strtol(value.c_str(), nullptr, 10));
             else if (key == "discnumber")
               InfoTagMusic::setDiscRaw(musictag, strtol(value.c_str(), nullptr, 10));
             else if (key == "duration")
@@ -814,7 +804,7 @@ namespace XBMCAddon
       auto infoTag = GetVideoInfoTag();
       if (StringUtils::CompareNoCase(cType, "video") == 0)
       {
-        CStreamDetailVideo* video = new CStreamDetailVideo;
+        auto video = new CStreamDetailVideo;
         for (const auto& it : dictionary)
         {
           const String& key = it.first;
@@ -839,7 +829,7 @@ namespace XBMCAddon
       }
       else if (StringUtils::CompareNoCase(cType, "audio") == 0)
       {
-        CStreamDetailAudio* audio = new CStreamDetailAudio;
+        auto audio = new CStreamDetailAudio;
         for (const auto& it : dictionary)
         {
           const String& key = it.first;
@@ -856,7 +846,7 @@ namespace XBMCAddon
       }
       else if (StringUtils::CompareNoCase(cType, "subtitle") == 0)
       {
-        CStreamDetailSubtitle* subtitle = new CStreamDetailSubtitle;
+        auto subtitle = new CStreamDetailSubtitle;
         for (const auto& it : dictionary)
         {
           const String& key = it.first;
@@ -870,8 +860,7 @@ namespace XBMCAddon
       xbmc::InfoTagVideo::finalizeStreamsRaw(infoTag);
     } // end ListItem::addStreamInfo
 
-    void ListItem::addContextMenuItems(const std::vector<Tuple<String,String> >& items, bool replaceItems /* = false */)
-    {
+    void ListItem::addContextMenuItems(const std::vector<Tuple<String,String> >& items, bool replaceItems /* = false */) const {
       for (size_t i = 0; i < items.size(); ++i)
       {
         auto& tuple = items[i];
@@ -902,14 +891,12 @@ namespace XBMCAddon
       return new xbmc::InfoTagMusic(GetMusicInfoTag(), m_offscreen);
     }
 
-    xbmc::InfoTagPicture* ListItem::getPictureInfoTag()
-    {
+    xbmc::InfoTagPicture* ListItem::getPictureInfoTag() const {
       XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
       return new xbmc::InfoTagPicture(item->GetPictureInfoTag(), m_offscreen);
     }
 
-    xbmc::InfoTagGame* ListItem::getGameInfoTag()
-    {
+    xbmc::InfoTagGame* ListItem::getGameInfoTag() const {
       XBMCAddonUtils::GuiLock lock(languageHook, m_offscreen);
       return new xbmc::InfoTagGame(item->GetGameInfoTag(), m_offscreen);
     }
@@ -974,84 +961,66 @@ namespace XBMCAddon
       return item->GetMusicInfoTag();
     }
 
-    void ListItem::setTitleRaw(const std::string& title)
-    {
-      item->SetTitle(title);
+    void ListItem::setTitleRaw(std::string title) const {
+      item->m_strTitle = std::move(title);
     }
 
-    void ListItem::setPathRaw(const std::string& path)
-    {
+    void ListItem::setPathRaw(const std::string& path) const {
       item->SetPath(path);
     }
 
-    void ListItem::setCountRaw(int count)
-    {
-      item->SetProgramCount(count);
+    void ListItem::setCountRaw(int count) const {
+      item->m_iprogramCount = count;
     }
 
-    void ListItem::setSizeRaw(int64_t size)
-    {
-      item->SetSize(size);
+    void ListItem::setSizeRaw(int64_t size) const {
+      item->m_dwSize = size;
     }
 
-    void ListItem::setDateTimeRaw(const std::string& dateTime)
-    {
+    void ListItem::setDateTimeRaw(const std::string& dateTime) const {
       if (dateTime.length() == 10)
       {
         int year = strtol(dateTime.substr(dateTime.size() - 4).c_str(), nullptr, 10);
         int month = strtol(dateTime.substr(3, 4).c_str(), nullptr, 10);
         int day = strtol(dateTime.substr(0, 2).c_str(), nullptr, 10);
-        CDateTime dt{item->GetDateTime()};
-        dt.SetDate(year, month, day);
-        item->SetDateTime(dt);
+        item->m_dateTime.SetDate(year, month, day);
       }
       else
-      {
-        CDateTime dt;
-        dt.SetFromW3CDateTime(dateTime);
-        item->SetDateTime(dt);
-      }
+        item->m_dateTime.SetFromW3CDateTime(dateTime);
     }
 
-    void ListItem::setIsFolderRaw(bool isFolder)
-    {
-      item->SetFolder(isFolder);
+    void ListItem::setIsFolderRaw(bool isFolder) const {
+      item->m_bIsFolder = isFolder;
     }
 
-    void ListItem::setStartOffsetRaw(double startOffset)
-    {
+    void ListItem::setStartOffsetRaw(double startOffset) const {
       // we store the offset in frames, or 1/75th of a second
       item->SetStartOffset(CUtil::ConvertSecsToMilliSecs(startOffset));
     }
 
-    void ListItem::setMimeTypeRaw(const std::string& mimetype)
-    {
+    void ListItem::setMimeTypeRaw(const std::string& mimetype) const {
       item->SetMimeType(mimetype);
     }
 
-    void ListItem::setSpecialSortRaw(std::string specialSort)
-    {
+    void ListItem::setSpecialSortRaw(std::string specialSort) const {
       StringUtils::ToLower(specialSort);
 
       if (specialSort == "bottom")
-        item->SetSpecialSort(SortSpecial::BOTTOM);
+        item->SetSpecialSort(SortSpecialOnBottom);
       else if (specialSort == "top")
-        item->SetSpecialSort(SortSpecial::TOP);
+        item->SetSpecialSort(SortSpecialOnTop);
     }
 
-    void ListItem::setContentLookupRaw(bool enable)
-    {
+    void ListItem::setContentLookupRaw(bool enable) const {
       item->SetContentLookup(enable);
     }
 
-    void ListItem::addArtRaw(std::string type, const std::string& url)
-    {
+    void ListItem::addArtRaw(std::string type, const std::string& url) const {
       StringUtils::ToLower(type);
       item->SetArt(type, url);
     }
 
-    void ListItem::addPropertyRaw(std::string type, const CVariant& value)
-    {
+    void ListItem::addPropertyRaw(std::string type, const CVariant& value) const {
       StringUtils::ToLower(type);
       item->SetProperty(type, value);
     }

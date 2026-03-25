@@ -1,7 +1,8 @@
 include ../../Makefile.include GNUTLS-VERSION ../../download-files.include
 DEPS = ../../Makefile.include Makefile ../../download-files.include \
                               add-dl-as-private-lib.patch \
-                              03-support-correct-cisdigit.patch
+                              03-support-correct-cisdigit.patch \
+                              android-fpending.patch
 
 # disable rpl_malloc and rpl_realloc symbols in glib
 # causes linking errors in libmicrohttpd and ffmpeg with missing symbols
@@ -31,12 +32,10 @@ CONFIGURE=./configure --prefix=$(PREFIX) \
                       --disable-guile \
                       --disable-tools \
                       --without-idn \
-                      --without-brotli \
-                      --without-zstd \
                       $(CONFIGURE_OPTIONS)
 
 # LLVM 15 has raised this to error by default. drop back to warning
-CFLAGS+= -Wno-error=implicit-int -Wno-error=implicit-function-declaration -Wno-error=int-conversion 
+CFLAGS+= -Wno-error=implicit-int
 export CFLAGS
 
 LIBDYLIB=$(PLATFORM)/lib/.libs/lib$(LIBNAME).a
@@ -48,6 +47,7 @@ $(PLATFORM): $(DEPS) | $(TARBALLS_LOCATION)/$(ARCHIVE).$(HASH_TYPE)
 	cd $(PLATFORM); $(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
 	cd $(PLATFORM); patch -p1 -i ../add-dl-as-private-lib.patch
 	cd $(PLATFORM); patch -p1 -i ../03-support-correct-cisdigit.patch
+	cd $(PLATFORM); patch -p1 -i ../android-fpending.patch
 	cd $(PLATFORM); $(AUTORECONF) -vif
 	cd $(PLATFORM); $(CONFIGURE)
 

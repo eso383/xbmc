@@ -12,7 +12,6 @@
 #include "GUIInfoManager.h"
 #include "ServiceBroker.h"
 #include "addons/Skin.h"
-#include "commons/ilog.h"
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIControlFactory.h"
@@ -27,7 +26,7 @@
 #include "utils/MemUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
-#include "windowing/WinSystem.h"
+#include "utils/log.h"
 
 #include <inttypes.h>
 
@@ -43,10 +42,7 @@ CGUIWindowDebugInfo::~CGUIWindowDebugInfo(void) = default;
 
 void CGUIWindowDebugInfo::UpdateVisibility()
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (LOG_LEVEL_DEBUG_FREEMEM <=
-          CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_logLevel ||
-      (skin && skin->IsDebugging()))
+  if (LOG_LEVEL_DEBUG_FREEMEM <= CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_logLevel || g_SkinInfo->IsDebugging())
     Open();
   else
     Close();
@@ -136,8 +132,7 @@ void CGUIWindowDebugInfo::Process(unsigned int currentTime, CDirtyRegionList &di
   }
 
   // render the skin debug info
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (skin && skin->IsDebugging())
+  if (g_SkinInfo->IsDebugging())
   {
     if (!info.empty())
       info += "\n";

@@ -9,8 +9,12 @@
 #pragma once
 
 #include "EventPacket.h"
+#include "ServiceBroker.h"
 #include "Socket.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "threads/CriticalSection.h"
+#include "threads/Thread.h"
 
 #include <chrono>
 #include <list>
@@ -139,7 +143,14 @@ namespace EVENTCLIENT
       return m_deviceName;
     }
 
-    void RefreshSettings();
+    void RefreshSettings()
+    {
+      const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+      m_iRepeatDelay =
+          std::chrono::milliseconds(settings->GetInt(CSettings::SETTING_SERVICES_ESINITIALDELAY));
+      m_iRepeatSpeed = std::chrono::milliseconds(
+          settings->GetInt(CSettings::SETTING_SERVICES_ESCONTINUOUSDELAY));
+    }
 
     SOCKETS::CAddress& Address()
     {
@@ -186,15 +197,15 @@ namespace EVENTCLIENT
     virtual bool OnPacketNOTIFICATION(EVENTPACKET::CEventPacket *packet);
     virtual bool OnPacketLOG(EVENTPACKET::CEventPacket *packet);
     virtual bool OnPacketACTION(EVENTPACKET::CEventPacket *packet);
-    bool CheckButtonRepeat(std::chrono::time_point<std::chrono::steady_clock>& next);
+    bool CheckButtonRepeat(std::chrono::time_point<std::chrono::steady_clock>& next) const;
 
     // returns true if the client has received the HELO packet
-    bool Greeted() { return m_bGreeted; }
+    bool Greeted() const { return m_bGreeted; }
 
     // reset the timeout counter
     void ResetTimeout()
     {
-      m_lastPing = time(NULL);
+      m_lastPing = time(nullptr);
     }
 
     // helper functions

@@ -58,14 +58,14 @@ public:
    */
   std::optional<Animation> LoadAnim(const std::string& filename);
 
-  static std::optional<std::vector<uint8_t>> UnpackFrame(const CXBTFReader& reader,
-                                                         const CXBTFFrame& frame);
+  //! @todo Change return to std::optional<std::vector<uint8_t>>> when c++17 is allowed
+  static std::vector<uint8_t> UnpackFrame(const CXBTFReader& reader, const CXBTFFrame& frame);
 
-  void CloseBundle();
+  void CloseBundle() const;
 
 private:
   bool OpenBundle();
-  std::unique_ptr<CTexture> ConvertFrameToTexture(const std::string& name, const CXBTFFrame& frame);
+  std::unique_ptr<CTexture> ConvertFrameToTexture(const std::string& name, const CXBTFFrame& frame) const;
 
   time_t m_TimeStamp;
 

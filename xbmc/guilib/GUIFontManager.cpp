@@ -8,7 +8,6 @@
 
 #include "GUIFontManager.h"
 
-#include "FileItemList.h"
 #include "GUIComponent.h"
 #include "GUIFontTTF.h"
 #include "GUIWindowManager.h"
@@ -18,7 +17,6 @@
 #include "addons/addoninfo/AddonType.h"
 #include "filesystem/SpecialProtocol.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 #if defined(HAS_GL)
@@ -50,7 +48,7 @@ using namespace ADDON;
 
 namespace
 {
-constexpr const char* XML_FONTCACHE_FILENAME = "fontcache.xml";
+constexpr auto XML_FONTCACHE_FILENAME = "fontcache.xml";
 
 bool LoadXMLData(const std::string& filepath, CXBMCTinyXML& xmlDoc)
 {
@@ -128,8 +126,8 @@ static bool CheckFont(std::string& strPath, const std::string& newPath, const st
 
 CGUIFont* GUIFontManager::LoadTTF(const std::string& strFontName,
                                   const std::string& strFilename,
-                                  KODI::UTILS::COLOR::Color textColor,
-                                  KODI::UTILS::COLOR::Color shadowColor,
+                                  UTILS::COLOR::Color textColor,
+                                  UTILS::COLOR::Color shadowColor,
                                   const int iSize,
                                   const int iStyle,
                                   bool border,
@@ -141,7 +139,10 @@ CGUIFont* GUIFontManager::LoadTTF(const std::string& strFontName,
   CWinSystemBase* const winSystem = CServiceBroker::GetWinSystem();
   if (!winSystem)
   {
-    CLog::LogF(LOGFATAL, "Something tries to call function without an available GUI window system");
+    CLog::Log(LOGFATAL,
+              "GUIFontManager::{}: Something tries to call function without an available GUI "
+              "window system",
+              __func__);
     return nullptr;
   }
 
@@ -205,12 +206,13 @@ CGUIFont* GUIFontManager::LoadTTF(const std::string& strFontName,
       // font could not be loaded - try Arial.ttf, which we distribute
       if (strFilename != "arial.ttf")
       {
-        CLog::LogF(LOGERROR, "Couldn't load font name: {}({}), trying arial.ttf", strFontName,
-                   strFilename);
+        CLog::Log(LOGERROR, "GUIFontManager::{}: Couldn't load font name: {}({}), trying arial.ttf",
+                  __func__, strFontName, strFilename);
         return LoadTTF(strFontName, "arial.ttf", textColor, shadowColor, iSize, iStyle, border,
                        lineSpacing, originalAspect);
       }
-      CLog::LogF(LOGERROR, "Couldn't load font name:{} file:{}", strFontName, strPath);
+      CLog::Log(LOGERROR, "GUIFontManager::{}: Couldn't load font name:{} file:{}", __func__,
+                strFontName, strPath);
 
       return nullptr;
     }
@@ -219,7 +221,7 @@ CGUIFont* GUIFontManager::LoadTTF(const std::string& strFontName,
   }
 
   // font file is loaded, create our CGUIFont
-  CGUIFont* pNewFont = new CGUIFont(strFontName, iStyle, textColor, shadowColor, lineSpacing,
+  auto pNewFont = new CGUIFont(strFontName, iStyle, textColor, shadowColor, lineSpacing,
                                     static_cast<float>(iSize), pFontFile);
   m_vecFonts.emplace_back(pNewFont);
 
@@ -300,7 +302,8 @@ void GUIFontManager::ReloadTTFFonts(void)
       {
         delete pFontFile;
         // font could not be loaded
-        CLog::LogF(LOGERROR, "Couldn't re-load font file: '{}'", strPath);
+        CLog::Log(LOGERROR, "GUIFontManager::{}: Couldn't re-load font file: '{}'", __func__,
+                  strPath);
         return;
       }
 
@@ -335,8 +338,7 @@ void GUIFontManager::FreeFontFile(CGUIFontTTF* pFont)
   }
 }
 
-CGUIFontTTF* GUIFontManager::GetFontFile(const std::string& fontIdent)
-{
+CGUIFontTTF* GUIFontManager::GetFontFile(const std::string& fontIdent) const {
   for (const auto& it : m_vecFontFiles)
   {
     if (StringUtils::EqualsNoCase(it->GetFontIdent(), fontIdent))
@@ -390,7 +392,7 @@ CGUIFont* GUIFontManager::GetDefaultFont(bool border)
     { // create it
       const auto& font13 = m_vecFonts[font13index];
       OrigFontInfo fontInfo = m_vecFontInfo[font13index];
-      font13border = LoadTTF("__defaultborder__", fontInfo.fileName, KODI::UTILS::COLOR::BLACK, 0,
+      font13border = LoadTTF("__defaultborder__", fontInfo.fileName, UTILS::COLOR::BLACK, 0,
                              fontInfo.size, font13->GetStyle(), true, 1.0f, fontInfo.aspect,
                              &fontInfo.sourceRes, fontInfo.preserveAspect);
     }
@@ -423,9 +425,7 @@ bool GUIFontManager::LoadFontsFromFile(const std::string& fontsetFilePath,
   if (LoadXMLData(fontsetFilePath, xmlDoc))
   {
     TiXmlElement* rootElement = xmlDoc.RootElement();
-    auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-    if (skin)
-      skin->ResolveIncludes(rootElement);
+    g_SkinInfo->ResolveIncludes(rootElement);
     const TiXmlElement* fontsetElement = rootElement->FirstChildElement("fontset");
     while (fontsetElement)
     {
@@ -453,13 +453,9 @@ bool GUIFontManager::LoadFontsFromFile(const std::string& fontsetFilePath,
 
 void GUIFontManager::LoadFonts(const std::string& fontSet)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-
   std::string firstFontset;
   // Try to load the fontset from Font.xml
-  const std::string fontsetFilePath = skin->GetSkinPath("Font.xml", &m_skinResolution);
+  const std::string fontsetFilePath = g_SkinInfo->GetSkinPath("Font.xml", &m_skinResolution);
   if (LoadFontsFromFile(fontsetFilePath, fontSet, firstFontset))
     return;
 
@@ -495,8 +491,8 @@ void GUIFontManager::LoadFonts(const TiXmlNode* fontNode)
     int iSize = 20;
     float aspect = 1.0f;
     float lineSpacing = 1.0f;
-    KODI::UTILS::COLOR::Color shadowColor = 0;
-    KODI::UTILS::COLOR::Color textColor = 0;
+    UTILS::COLOR::Color shadowColor = 0;
+    UTILS::COLOR::Color textColor = 0;
     int iStyle = FONT_STYLE_NORMAL;
 
     XMLUtils::GetString(fontNode, "name", fontName);
@@ -510,7 +506,10 @@ void GUIFontManager::LoadFonts(const TiXmlNode* fontNode)
 
     if (!fontName.empty() && URIUtils::HasExtension(fileName, ".ttf"))
     {
-      LoadTTF(fontName, fileName, textColor, shadowColor, iSize, iStyle, false, lineSpacing,
+      //! @todo Why do we tolower() this shit?
+      std::string strFontFileName = fileName;
+      StringUtils::ToLower(strFontFileName);
+      LoadTTF(fontName, strFontFileName, textColor, shadowColor, iSize, iStyle, false, lineSpacing,
               aspect);
     }
     fontNode = fontNode->NextSibling("font");
@@ -546,17 +545,18 @@ void GUIFontManager::GetStyle(const TiXmlNode* fontNode, int& iStyle)
 
 void GUIFontManager::SettingOptionsFontsFiller(const SettingConstPtr& setting,
                                                std::vector<StringSettingOption>& list,
-                                               std::string& current)
+                                               std::string& current,
+                                               void* data)
 {
   CFileItemList itemsRoot;
   CFileItemList items;
 
   // Find font files
-  XFILE::CDirectory::GetDirectory(KODI::UTILS::FONT::FONTPATH::SYSTEM, itemsRoot,
-                                  KODI::UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
+  XFILE::CDirectory::GetDirectory(UTILS::FONT::FONTPATH::SYSTEM, itemsRoot,
+                                  UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
                                   XFILE::DIR_FLAG_NO_FILE_DIRS | XFILE::DIR_FLAG_NO_FILE_INFO);
-  XFILE::CDirectory::GetDirectory(KODI::UTILS::FONT::FONTPATH::USER, items,
-                                  KODI::UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
+  XFILE::CDirectory::GetDirectory(UTILS::FONT::FONTPATH::USER, items,
+                                  UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
                                   XFILE::DIR_FLAG_NO_FILE_DIRS | XFILE::DIR_FLAG_NO_FILE_INFO);
 
   for (auto itItem = itemsRoot.rbegin(); itItem != itemsRoot.rend(); ++itItem)
@@ -564,7 +564,7 @@ void GUIFontManager::SettingOptionsFontsFiller(const SettingConstPtr& setting,
 
   for (const auto& item : items)
   {
-    if (item->IsFolder())
+    if (item->m_bIsFolder)
       continue;
 
     list.emplace_back(item->GetLabel(), item->GetLabel());
@@ -573,19 +573,20 @@ void GUIFontManager::SettingOptionsFontsFiller(const SettingConstPtr& setting,
 
 void GUIFontManager::Initialize()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   LoadUserFonts();
 }
 
 void GUIFontManager::LoadUserFonts()
 {
-  if (!XFILE::CDirectory::Exists(KODI::UTILS::FONT::FONTPATH::USER))
+  if (!XFILE::CDirectory::Exists(UTILS::FONT::FONTPATH::USER))
     return;
 
   CLog::LogF(LOGDEBUG, "Updating user fonts cache...");
   CXBMCTinyXML xmlDoc;
   std::string userFontCacheFilepath =
-      URIUtils::AddFileToFolder(KODI::UTILS::FONT::FONTPATH::USER, XML_FONTCACHE_FILENAME);
+      URIUtils::AddFileToFolder(UTILS::FONT::FONTPATH::USER, XML_FONTCACHE_FILENAME);
   if (LoadXMLData(userFontCacheFilepath, xmlDoc))
   {
     // Load in cache the fonts metadata previously stored in the XML
@@ -615,8 +616,8 @@ void GUIFontManager::LoadUserFonts()
   size_t previousCacheSize = m_userFontsCache.size();
   CFileItemList dirItems;
   // Get the current files list from user fonts folder
-  XFILE::CDirectory::GetDirectory(KODI::UTILS::FONT::FONTPATH::USER, dirItems,
-                                  KODI::UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
+  XFILE::CDirectory::GetDirectory(UTILS::FONT::FONTPATH::USER, dirItems,
+                                  UTILS::FONT::SUPPORTED_EXTENSIONS_MASK,
                                   XFILE::DIR_FLAG_NO_FILE_DIRS | XFILE::DIR_FLAG_NO_FILE_INFO);
   dirItems.SetFastLookup(true);
 
@@ -624,7 +625,7 @@ void GUIFontManager::LoadUserFonts()
   auto it = m_userFontsCache.begin();
   while (it != m_userFontsCache.end())
   {
-    const std::string filePath = KODI::UTILS::FONT::FONTPATH::USER + (*it).m_filename;
+    const std::string filePath = UTILS::FONT::FONTPATH::USER + (*it).m_filename;
     if (!dirItems.Contains(filePath))
     {
       it = m_userFontsCache.erase(it);
@@ -647,11 +648,11 @@ void GUIFontManager::LoadUserFonts()
   for (auto& item : dirItems)
   {
     std::string filepath = item->GetPath();
-    if (item->IsFolder())
+    if (item->m_bIsFolder)
       continue;
 
     std::set<std::string> familyNames;
-    if (KODI::UTILS::FONT::GetFontFamilyNames(filepath, familyNames))
+    if (UTILS::FONT::GetFontFamilyNames(filepath, familyNames))
     {
       m_userFontsCache.emplace_back(item->GetLabel(), familyNames);
     }
@@ -690,8 +691,7 @@ void GUIFontManager::LoadUserFonts()
   CLog::LogF(LOGDEBUG, "Updating user fonts cache... DONE");
 }
 
-std::vector<std::string> GUIFontManager::GetUserFontsFamilyNames()
-{
+std::vector<std::string> GUIFontManager::GetUserFontsFamilyNames() const {
   // We ensure to have unique font family names and sorted alphabetically
   // Duplicated family names can happens for example when a font have each style
   // on different files

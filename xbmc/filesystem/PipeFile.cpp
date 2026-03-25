@@ -15,7 +15,7 @@
 
 using namespace XFILE;
 
-CPipeFile::CPipeFile() : m_pipe(NULL)
+CPipeFile::CPipeFile() : m_pipe(nullptr)
 {
 }
 
@@ -45,7 +45,7 @@ bool CPipeFile::Open(const CURL& url)
   m_pipe = PipesManager::GetInstance().OpenPipe(name);
   if (m_pipe)
     m_pipe->AddListener(this);
-  return (m_pipe != NULL);
+  return (m_pipe != nullptr);
 }
 
 bool CPipeFile::Exists(const CURL& url)
@@ -89,22 +89,19 @@ ssize_t CPipeFile::Write(const void* lpBuf, size_t uiBufSize)
   return m_pipe->Write((const char *)lpBuf,uiBufSize) ? uiBufSize : -1;
 }
 
-void CPipeFile::SetEof()
-{
+void CPipeFile::SetEof() const {
   if (!m_pipe)
     return ;
   m_pipe->SetEof();
 }
 
-bool CPipeFile::IsEof()
-{
+bool CPipeFile::IsEof() const {
   if (!m_pipe)
     return true;
   return m_pipe->IsEof();
 }
 
-bool CPipeFile::IsEmpty()
-{
+bool CPipeFile::IsEmpty() const {
   if (!m_pipe)
     return true;
   return m_pipe->IsEmpty();
@@ -122,12 +119,11 @@ void CPipeFile::Close()
     m_pipe->RemoveListener(this);
     PipesManager::GetInstance().ClosePipe(m_pipe);
   }
-  m_pipe = NULL;
+  m_pipe = nullptr;
 }
 
-bool CPipeFile::IsClosed()
-{
-  return (m_pipe == NULL);
+bool CPipeFile::IsClosed() const {
+  return (m_pipe == nullptr);
 }
 
 void CPipeFile::Flush()
@@ -143,7 +139,7 @@ bool CPipeFile::OpenForWrite(const CURL& url, bool bOverWrite)
   m_pipe = PipesManager::GetInstance().CreatePipe(name);
   if (m_pipe)
     m_pipe->AddListener(this);
-  return (m_pipe != NULL);
+  return (m_pipe != nullptr);
 }
 
 bool CPipeFile::Delete(const CURL& url)
@@ -156,7 +152,7 @@ bool CPipeFile::Rename(const CURL& url, const CURL& urlnew)
   return false;
 }
 
-int CPipeFile::IoControl(IOControl, void* param)
+int CPipeFile::IoControl(EIoControl, void* param)
 {
   return -1;
 }
@@ -170,7 +166,8 @@ std::string CPipeFile::GetName() const
 
 void CPipeFile::OnPipeOverFlow()
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   for (size_t l=0; l<m_listeners.size(); l++)
     m_listeners[l]->OnPipeOverFlow();
 }
@@ -188,7 +185,8 @@ void CPipeFile::OnPipeUnderFlow()
 
 void CPipeFile::AddListener(IPipeListener *l)
 {
-  std::unique_lock lock(m_lock);
+  std::lock_guard lock(m_lock);
+
   for (size_t i=0; i<m_listeners.size(); i++)
   {
     if (m_listeners[i] == l)
@@ -199,8 +197,9 @@ void CPipeFile::AddListener(IPipeListener *l)
 
 void CPipeFile::RemoveListener(IPipeListener *l)
 {
-  std::unique_lock lock(m_lock);
-  std::vector<XFILE::IPipeListener *>::iterator i = m_listeners.begin();
+  std::lock_guard lock(m_lock);
+
+  auto i = m_listeners.begin();
   while(i != m_listeners.end())
   {
     if ( (*i) == l)
@@ -210,8 +209,7 @@ void CPipeFile::RemoveListener(IPipeListener *l)
   }
 }
 
-void CPipeFile::SetOpenThreshold(int threshold)
-{
+void CPipeFile::SetOpenThreshold(int threshold) const {
   m_pipe->SetOpenThreshold(threshold);
 }
 

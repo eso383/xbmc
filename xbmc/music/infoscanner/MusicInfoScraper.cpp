@@ -125,8 +125,7 @@ bool CMusicInfoScraper::Completed()
   return Join(10ms);
 }
 
-bool CMusicInfoScraper::Succeeded()
-{
+bool CMusicInfoScraper::Succeeded() const {
   return !m_bCanceled && m_bSucceeded;
 }
 
@@ -137,8 +136,7 @@ void CMusicInfoScraper::Cancel()
   m_http->Reset();
 }
 
-bool CMusicInfoScraper::IsCanceled()
-{
+bool CMusicInfoScraper::IsCanceled() const {
   return m_bCanceled;
 }
 
@@ -152,13 +150,13 @@ void CMusicInfoScraper::Process()
 {
   try
   {
-    if (!m_strAlbum.empty())
+    if (m_strAlbum.size())
     {
       FindAlbumInfo();
       m_strAlbum.clear();
       m_strArtist.clear();
     }
-    else if (!m_strArtist.empty())
+    else if (m_strArtist.size())
     {
       FindArtistInfo();
       m_strArtist.clear();

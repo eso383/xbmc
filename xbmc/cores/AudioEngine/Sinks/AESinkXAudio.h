@@ -13,10 +13,14 @@
 
 #include <stdint.h>
 
+#include <mmdeviceapi.h>
+#include <ppltasks.h>
+#include <wrl/implements.h>
 #include <x3daudio.h>
 #include <xapofx.h>
 #include <xaudio2.h>
 #include <xaudio2fx.h>
+#pragma comment(lib,"xaudio2.lib")
 
 class CAESinkXAudio : public IAESink
 {
@@ -62,27 +66,14 @@ private:
         mBufferEnd.reset(CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE));
         if (!mBufferEnd)
         {
-          throw std::exception("CreateEventEx BufferEnd");
-        }
-        if (NULL == (m_StreamEndEvent = CreateEventEx(nullptr, nullptr, CREATE_EVENT_MANUAL_RESET,
-                                                      EVENT_MODIFY_STATE | SYNCHRONIZE)))
-        {
-          throw std::exception("CreateEventEx StreamEnd");
+          throw std::exception("CreateEvent");
         }
       }
-      virtual ~VoiceCallback()
-      {
-        if (m_StreamEndEvent != NULL)
-          CloseHandle(m_StreamEndEvent);
-      }
+      virtual ~VoiceCallback() { }
 
       STDMETHOD_(void, OnVoiceProcessingPassStart) (UINT32) override {}
       STDMETHOD_(void, OnVoiceProcessingPassEnd)() override {}
-      STDMETHOD_(void, OnStreamEnd)() override
-      {
-        if (m_StreamEndEvent != NULL)
-          SetEvent(m_StreamEndEvent);
-      }
+      STDMETHOD_(void, OnStreamEnd)() override {}
       STDMETHOD_(void, OnBufferStart)(void*) override {}
       STDMETHOD_(void, OnBufferEnd)(void* context) override
       {
@@ -104,43 +95,37 @@ private:
         }
       };
       std::unique_ptr<void, handle_closer> mBufferEnd;
-      HANDLE m_StreamEndEvent{0};
     };
 
-    bool InitializeInternal(std::string deviceId, AEAudioFormat& format);
-
-    /*!
-     * \brief Add a 1 frame long buffer with the end of stream flag to the voice.
-     * \return true for success, false for failure
-     */
-    bool AddEndOfStreamPacket();
-    /*!
-     * \brief Create a XAUDIO2_BUFFER with a struct buffer_ctx in pContext member, which must
-     * be deleted either manually or by XAudio2 BufferEnd callback to avoid memory leaks.
-     * \param data data of the frames to copy. if null, the new buffer will contain silence.
-     * \param frames number of frames
-     * \param offset offset from the start in the data buffer.
-     * \return the new buffer
-     */
-    XAUDIO2_BUFFER BuildXAudio2Buffer(uint8_t** data, unsigned int frames, unsigned int offset);
+    bool InitializeInternal(std::string deviceId, AEAudioFormat &format);
+    bool IsUSBDevice();
 
     Microsoft::WRL::ComPtr<IXAudio2> m_xAudio2;
-    IXAudio2MasteringVoice* m_masterVoice{nullptr};
-    IXAudio2SourceVoice* m_sourceVoice{nullptr};
+    IXAudio2MasteringVoice* m_masterVoice;
+    IXAudio2SourceVoice* m_sourceVoice;
     VoiceCallback m_voiceCallback;
 
     AEAudioFormat m_format;
+    unsigned int m_encodedChannels;
+    unsigned int m_encodedSampleRate;
+    CAEChannelInfo m_channelLayout;
+    std::string m_device;
 
-    uint64_t m_sinkFrames{0};
-    std::atomic<uint16_t> m_framesInBuffers{0};
+    enum AEDataFormat sinkReqFormat;
+    enum AEDataFormat sinkRetFormat;
 
-    // time between next buffer of data from SoftAE and driver call for data
-    double m_avgTimeWaiting{50.0};
+    unsigned int m_uiBufferLen;    /* xaudio endpoint buffer size, in frames */
+    unsigned int m_AvgBytesPerSec;
+    unsigned int m_dwChunkSize;
+    unsigned int m_dwFrameSize;
+    unsigned int m_dwBufferLen;
+    uint64_t m_sinkFrames;
+    std::atomic<uint16_t> m_framesInBuffers;
 
-    bool m_running{false};
-    bool m_initialized{false};
-    bool m_isSuspended{false}; // sink is in a suspended state - release audio device
-    bool m_isDirty{false}; // sink output failed - needs re-init or new device
+    double m_avgTimeWaiting;       /* time between next buffer of data from SoftAE and driver call for data */
 
-    LARGE_INTEGER m_timerFreq{}; // performance counter frequency for latency calculations
+    bool m_running;
+    bool m_initialized;
+    bool m_isSuspended;            /* sink is in a suspended state - release audio device */
+    bool m_isDirty;                /* sink output failed - needs re-init or new device */
 };

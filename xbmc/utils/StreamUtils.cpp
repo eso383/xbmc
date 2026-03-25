@@ -8,12 +8,6 @@
 
 #include "StreamUtils.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
-
-#include <array>
-
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -109,53 +103,4 @@ std::string StreamUtils::GetCodecName(int codecId, int profile)
     codecName = avcodec_get_name(codec->id);
 
   return codecName;
-}
-
-std::string StreamUtils::GetDefaultLayout(unsigned int channels)
-{
-  static constexpr std::array layouts{
-      "0.0", // 0
-      "1.0", // 1
-      "2.0", // 2
-      "2.1", // 3
-      "4.0", // 4
-      "5.0", // 5
-      "5.1", // 6
-      "6.1", // 7
-      "7.1", // 8
-      "", // 9
-      "5.1.4", // 10
-      "", // 11
-      "7.1.4", // 12
-      "", // 13
-      "9.1.4", // 14
-      "", // 15
-      "9.1.6", // 16
-  };
-
-  if (channels < layouts.size())
-    return layouts[channels];
-
-  return {};
-}
-
-std::string StreamUtils::GetLayout(unsigned int channels)
-{
-  std::string layout{GetDefaultLayout(channels)};
-
-  if (layout.empty())
-  {
-    layout = std::to_string(channels);
-    layout.append(" ");
-    layout.append(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10127)); // "channels"
-  }
-
-  return layout;
-}
-
-bool StreamUtils::IsCodecSupportForcedOverlay(int codecId)
-{
-  return codecId == AV_CODEC_ID_DVD_SUBTITLE || codecId == AV_CODEC_ID_HDMV_PGS_SUBTITLE ||
-         codecId == AV_CODEC_ID_DVB_SUBTITLE;
 }

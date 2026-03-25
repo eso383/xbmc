@@ -37,8 +37,7 @@ CJoystickFeature::CJoystickFeature(const FeatureName& name,
 {
 }
 
-bool CJoystickFeature::AcceptsInput(bool bActivation)
-{
+bool CJoystickFeature::AcceptsInput(bool bActivation) const {
   bool bAcceptsInput = false;
 
   if (m_bEnabled)
@@ -198,8 +197,7 @@ void CScalarFeature::ProcessDigitalMotion()
   }
 }
 
-void CScalarFeature::ProcessAnalogMotion()
-{
+void CScalarFeature::ProcessAnalogMotion() const {
   float magnitude = m_analogState;
 
   // Calculate time elapsed since motion began
@@ -289,7 +287,7 @@ CWheel::CWheel(const FeatureName& name, IInputHandler* handler, IButtonMap* butt
 
 bool CWheel::OnAnalogMotion(const CDriverPrimitive& source, float magnitude)
 {
-  WHEEL_DIRECTION direction = WHEEL_DIRECTION::NONE;
+  auto direction = WHEEL_DIRECTION::NONE;
 
   std::vector<WHEEL_DIRECTION> dirs = {
       WHEEL_DIRECTION::RIGHT,
@@ -335,7 +333,7 @@ CThrottle::CThrottle(const FeatureName& name, IInputHandler* handler, IButtonMap
 
 bool CThrottle::OnAnalogMotion(const CDriverPrimitive& source, float magnitude)
 {
-  THROTTLE_DIRECTION direction = THROTTLE_DIRECTION::NONE;
+  auto direction = THROTTLE_DIRECTION::NONE;
 
   std::vector<THROTTLE_DIRECTION> dirs = {
       THROTTLE_DIRECTION::UP,
@@ -386,7 +384,7 @@ bool CAnalogStick::OnDigitalMotion(const CDriverPrimitive& source, bool bPressed
 
 bool CAnalogStick::OnAnalogMotion(const CDriverPrimitive& source, float magnitude)
 {
-  ANALOG_STICK_DIRECTION direction = ANALOG_STICK_DIRECTION::NONE;
+  auto direction = ANALOG_STICK_DIRECTION::NONE;
 
   std::vector<ANALOG_STICK_DIRECTION> dirs = {
       ANALOG_STICK_DIRECTION::UP,

@@ -39,10 +39,9 @@ struct IcmpPacket
   icmphdr header;
   uint8_t data[ICMP_PACKET_SIZE - sizeof(icmphdr)];
 
-  uint16_t Checksum()
-  {
-    auto data = reinterpret_cast<const uint16_t*>(this);
-    unsigned int length = sizeof(IcmpPacket);
+  uint16_t Checksum() const {
+    auto data = reinterpret_cast<const uint16_t*>(&header);
+    unsigned int length = sizeof(header) + sizeof(data);
 
     unsigned int sum;
 
@@ -84,7 +83,7 @@ std::string CNetworkInterfaceLinux::GetCurrentDefaultGateway() const
     return result;
   }
 
-  char* line = NULL;
+  char* line = nullptr;
   char iface[16];
   char dst[128];
   char gateway[128];
@@ -196,7 +195,7 @@ void CNetworkLinux::queryInterfaceList()
     return;
   }
 
-  char* line = NULL;
+  char* line = nullptr;
   size_t linel = 0;
   int n;
   char* p;

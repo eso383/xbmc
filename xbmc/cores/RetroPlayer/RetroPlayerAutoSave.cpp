@@ -23,9 +23,7 @@ constexpr auto AUTOSAVE_DURATION_SECS = 10s; // Auto-save every 10 seconds
 
 CRetroPlayerAutoSave::CRetroPlayerAutoSave(IAutoSaveCallback& callback,
                                            GAME::CGameSettings& settings)
-  : CThread("CRetroPlayerAutoSave"),
-    m_callback(callback),
-    m_settings(settings)
+  : CThread("CRetroPlayerAutoSave"), m_callback(callback), m_settings(settings)
 {
   CLog::Log(LOGDEBUG, "RetroPlayer[SAVE]: Initializing autosave");
 

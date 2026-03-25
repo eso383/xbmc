@@ -1,19 +1,5 @@
-set(SOURCES PVRCustomTimerSettings.cpp
-            PVRIntSettingDefinition.cpp
-            PVRIntSettingValues.cpp
-            PVRSettings.cpp
-            PVRStringSettingDefinition.cpp
-            PVRStringSettingValues.cpp
-            PVRTimerSettingDefinition.cpp)
+set(SOURCES PVRSettings.cpp)
 
-set(HEADERS IPVRSettingsContainer.h
-            PVRCustomProperty.h
-            PVRCustomTimerSettings.h
-            PVRIntSettingDefinition.h
-            PVRIntSettingValues.h
-            PVRSettings.h
-            PVRStringSettingDefinition.h
-            PVRStringSettingValues.h
-            PVRTimerSettingDefinition.h)
+set(HEADERS PVRSettings.h)
 
 core_add_library(pvr_settings)

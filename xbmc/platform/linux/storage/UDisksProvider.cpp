@@ -8,8 +8,7 @@
 #include "UDisksProvider.h"
 
 #include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
@@ -87,7 +86,7 @@ bool CUDiskDevice::Mount()
     if (reply)
     {
       char *mountPoint;
-      if (dbus_message_get_args (reply, NULL, DBUS_TYPE_STRING, &mountPoint, DBUS_TYPE_INVALID))
+      if (dbus_message_get_args (reply, nullptr, DBUS_TYPE_STRING, &mountPoint, DBUS_TYPE_INVALID))
       {
         m_MountPath = mountPoint;
         CLog::Log(LOGDEBUG, "UDisks: Successfully mounted {} on {}", m_DeviceKitUDI, mountPoint);
@@ -131,27 +130,24 @@ CMediaSource CUDiskDevice::ToMediaShare() const
   if (m_Label.empty())
   {
     std::string strSize = StringUtils::SizeToString(m_PartitionSize);
-    source.strName = StringUtils::Format(
-        "{} {}", strSize, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(155));
+    source.strName = StringUtils::Format("{} {}", strSize, g_localizeStrings.Get(155));
   }
   else
     source.strName = m_Label;
   if (m_isOptical)
-    source.m_iDriveType = SourceType::OPTICAL_DISC;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_DVD;
   else if (m_isSystemInternal)
-    source.m_iDriveType = SourceType::LOCAL;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_LOCAL;
   else
-    source.m_iDriveType = SourceType::REMOVABLE;
+    source.m_iDriveType = CMediaSource::SOURCE_TYPE_REMOVABLE;
   source.m_ignore = true;
   return source;
 }
 
 bool CUDiskDevice::IsApproved() const
 {
-  return (m_isFileSystem && m_isMounted && !m_UDI.empty() &&
-          (!m_FileSystem.empty() && m_FileSystem != "swap") && m_MountPath != "/" &&
-          m_MountPath != "/boot") ||
-         m_isOptical;
+  return (m_isFileSystem && m_isMounted && m_UDI.length() > 0 && (m_FileSystem.length() > 0 && m_FileSystem != "swap")
+      && m_MountPath != "/" && m_MountPath != "/boot") || m_isOptical;
 }
 
 bool CUDiskDevice::IsOptical() const
@@ -170,6 +166,16 @@ MEDIA_DETECT::STORAGE::Type CUDiskDevice::GetStorageType() const
 bool CUDiskDevice::IsMounted() const
 {
   return m_isMounted;
+}
+
+std::string CUDiskDevice::GetDisplayName() const
+{
+  return m_Label;
+}
+
+std::string CUDiskDevice::GetMountPoint() const
+{
+  return m_MountPath;
 }
 
 bool CUDiskDevice::IsSystemInternal() const
@@ -237,7 +243,7 @@ void CUDisksProvider::Initialize()
   CLog::Log(LOGDEBUG, "UDisks: Querying available devices");
   std::vector<std::string> devices = EnumerateDisks();
   for (unsigned int i = 0; i < devices.size(); i++)
-    DeviceAdded(devices[i].c_str(), NULL);
+    DeviceAdded(devices[i].c_str(), nullptr);
 }
 
 bool CUDisksProvider::Eject(const std::string& mountpath)
@@ -272,7 +278,7 @@ bool CUDisksProvider::PumpDriveChangeEvents(IStorageEventsCallback *callback)
     if (msg)
     {
       char *object;
-      if (dbus_message_get_args (msg.get(), NULL, DBUS_TYPE_OBJECT_PATH, &object, DBUS_TYPE_INVALID))
+      if (dbus_message_get_args (msg.get(), nullptr, DBUS_TYPE_OBJECT_PATH, &object, DBUS_TYPE_INVALID))
       {
         result = true;
         if (dbus_message_is_signal(msg.get(), "org.freedesktop.UDisks", "DeviceAdded"))
@@ -302,7 +308,7 @@ void CUDisksProvider::DeviceAdded(const char *object, IStorageEventsCallback *ca
     delete m_AvailableDevices[object];
   }
 
-  CUDiskDevice *device = NULL;
+  CUDiskDevice *device = nullptr;
     device = new CUDiskDevice(object);
   m_AvailableDevices[object] = device;
 
@@ -344,7 +350,7 @@ void CUDisksProvider::DeviceChanged(const char *object, IStorageEventsCallback *
   CLog::Log(LOGDEBUG, LOGDBUS, "UDisks: DeviceChanged ({})", object);
 
   CUDiskDevice *device = m_AvailableDevices[object];
-  if (device == NULL)
+  if (device == nullptr)
   {
     CLog::Log(LOGWARNING, "UDisks: Inconsistency found! DeviceChanged on an unindexed disk");
     DeviceAdded(object, callback);
@@ -380,10 +386,10 @@ std::vector<std::string> CUDisksProvider::EnumerateDisks()
   DBusMessage *reply = message.SendSystem();
   if (reply)
   {
-    char** disks  = NULL;
+    char** disks  = nullptr;
     int    length = 0;
 
-    if (dbus_message_get_args (reply, NULL, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &disks, &length, DBUS_TYPE_INVALID))
+    if (dbus_message_get_args (reply, nullptr, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &disks, &length, DBUS_TYPE_INVALID))
     {
       for (int i = 0; i < length; i++)
         devices.emplace_back(disks[i]);
@@ -395,8 +401,7 @@ std::vector<std::string> CUDisksProvider::EnumerateDisks()
   return devices;
 }
 
-void CUDisksProvider::GetDisks(std::vector<CMediaSource>& devices, bool EnumerateRemovable)
-{
+void CUDisksProvider::GetDisks(VECSOURCES& devices, bool EnumerateRemovable) const {
   for (auto& itr : m_AvailableDevices)
   {
     CUDiskDevice* device = itr.second;

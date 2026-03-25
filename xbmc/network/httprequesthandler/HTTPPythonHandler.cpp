@@ -52,9 +52,9 @@ CHTTPPythonHandler::CHTTPPythonHandler(const HTTPRequest &request)
   // get the real path of the script and check if it actually exists
   m_response.status = CHTTPWebinterfaceHandler::ResolveUrl(m_request.pathUrl, m_scriptPath, m_addon);
   // only allow requests to a non-static webinterface addon
-  if (m_addon == NULL || m_addon->Type() != ADDON::AddonType::WEB_INTERFACE ||
+  if (m_addon == nullptr || m_addon->Type() != ADDON::AddonType::WEB_INTERFACE ||
       std::dynamic_pointer_cast<ADDON::CWebinterface>(m_addon)->GetType() ==
-          ADDON::WebinterfaceType::TYPE_STATIC)
+          ADDON::WebinterfaceTypeStatic)
   {
     m_response.type = HTTPError;
     m_response.status = MHD_HTTP_INTERNAL_SERVER_ERROR;
@@ -93,7 +93,7 @@ CHTTPPythonHandler::CHTTPPythonHandler(const HTTPRequest &request)
 #else
   time = localtime((time_t *)&statBuffer.st_mtime);
 #endif
-  if (time == NULL)
+  if (time == nullptr)
     return;
 
   m_lastModified = *time;
@@ -104,13 +104,13 @@ bool CHTTPPythonHandler::CanHandleRequest(const HTTPRequest &request) const
   ADDON::AddonPtr addon;
   std::string path;
   // try to resolve the addon as any python script must be part of a webinterface
-  if (!CHTTPWebinterfaceHandler::ResolveAddon(request.pathUrl, addon, path) || addon == NULL ||
+  if (!CHTTPWebinterfaceHandler::ResolveAddon(request.pathUrl, addon, path) || addon == nullptr ||
       addon->Type() != ADDON::AddonType::WEB_INTERFACE)
     return false;
 
   // static webinterfaces aren't allowed to run python scripts
-  ADDON::CWebinterface* webinterface = static_cast<ADDON::CWebinterface*>(addon.get());
-  if (webinterface->GetType() != ADDON::WebinterfaceType::TYPE_WSGI)
+  auto webinterface = static_cast<ADDON::CWebinterface*>(addon.get());
+  if (webinterface->GetType() != ADDON::WebinterfaceTypeWsgi)
     return false;
 
   return true;
@@ -126,7 +126,7 @@ MHD_RESULT CHTTPPythonHandler::HandleRequest()
 
   try
   {
-    HTTPPythonRequest* pythonRequest = new HTTPPythonRequest();
+    auto pythonRequest = new HTTPPythonRequest();
     pythonRequest->connection = m_request.connection;
     pythonRequest->file = URIUtils::GetFileName(m_request.pathUrl);
     HTTPRequestHandlerUtils::GetRequestHeaderValues(m_request.connection, MHD_GET_ARGUMENT_KIND, pythonRequest->getValues);
@@ -151,10 +151,10 @@ MHD_RESULT CHTTPPythonHandler::HandleRequest()
       pythonRequest->port = port;
     }
 
-    auto languageInvokerPtr =
-        std::make_shared<CHTTPPythonWsgiInvoker>(&CServiceBroker::GetXBPython(), pythonRequest);
-    int result = CScriptInvocationManager::GetInstance().ExecuteSync(
-        m_scriptPath, languageInvokerPtr, m_addon, args, 30000, false);
+    CHTTPPythonInvoker* pythonInvoker =
+        new CHTTPPythonWsgiInvoker(&CServiceBroker::GetXBPython(), pythonRequest);
+    LanguageInvokerPtr languageInvokerPtr(pythonInvoker);
+    int result = CScriptInvocationManager::GetInstance().ExecuteSync(m_scriptPath, languageInvokerPtr, m_addon, args, 30000, false);
 
     // check if the script couldn't be started
     if (result < 0)
@@ -177,8 +177,8 @@ MHD_RESULT CHTTPPythonHandler::HandleRequest()
       return MHD_YES;
     }
 
-    HTTPPythonRequest* pythonFinalizedRequest = languageInvokerPtr->GetRequest();
-    if (pythonFinalizedRequest == NULL)
+    HTTPPythonRequest* pythonFinalizedRequest = pythonInvoker->GetRequest();
+    if (pythonFinalizedRequest == nullptr)
     {
       m_response.type = HTTPError;
       m_response.status = MHD_HTTP_INTERNAL_SERVER_ERROR;

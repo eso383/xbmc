@@ -11,9 +11,7 @@
 #include "CurlFile.h"
 #include "FTPParse.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
-#include "filesystem/IFile.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -44,7 +42,7 @@ bool CFTPDirectory::GetDirectory(const CURL& url2, CFileItemList &items)
   bool serverNotUseUTF8 = url.GetProtocolOption("utf8") == "0";
 
   char buffer[MAX_PATH + 1024];
-  while (reader.ReadLine(buffer, sizeof(buffer)).code == IFile::ReadLineResult::OK)
+  while( reader.ReadString(buffer, sizeof(buffer)) )
   {
     std::string strBuffer = buffer;
 
@@ -53,7 +51,7 @@ bool CFTPDirectory::GetDirectory(const CURL& url2, CFileItemList &items)
     CFTPParse parse;
     if (parse.FTPParse(strBuffer))
     {
-      if (parse.getName().empty())
+      if( parse.getName().length() == 0 )
         continue;
 
       if( parse.getFlagtrycwd() == 0 && parse.getFlagtryretr() == 0 )
@@ -83,17 +81,17 @@ bool CFTPDirectory::GetDirectory(const CURL& url2, CFileItemList &items)
 
       CFileItemPtr pItem(new CFileItem(name));
 
-      pItem->SetFolder(parse.getFlagtrycwd() != 0);
+      pItem->m_bIsFolder = parse.getFlagtrycwd() != 0;
       std::string filePath = path + name;
-      if (pItem->IsFolder())
+      if (pItem->m_bIsFolder)
         URIUtils::AddSlashAtEnd(filePath);
 
       /* qualify the url with host and all */
       url.SetFileName(filePath);
       pItem->SetPath(url.Get());
 
-      pItem->SetSize(parse.getSize());
-      pItem->SetDateTime(parse.getTime());
+      pItem->m_dwSize = parse.getSize();
+      pItem->m_dateTime=parse.getTime();
 
       items.Add(pItem);
     }

@@ -13,6 +13,7 @@
 #include <optional>
 #include <stdint.h>
 
+#include "ServiceBroker.h"
 #include "cores/DataCacheCore.h"
 #include "cores/VideoPlayer/DVDStreamInfo.h"
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
@@ -100,7 +101,9 @@ enum DOVICMv40Mode : int
   CMV40_NONE = 0,
   CMV40_NO_L2,
   CMV40_ALWAYS,
+  CMV40_AUTO
 };
+
 class CBitstreamParser
 {
 public:
@@ -115,13 +118,6 @@ public:
 class CBitstreamConverter
 {
 public:
-  enum class StartDecodePolicy
-  {
-    None = 0,
-    Default,
-    Strict,
-  };
-
   CBitstreamConverter(CDVDStreamInfo& hints);
   ~CBitstreamConverter();
 
@@ -136,14 +132,14 @@ public:
   const uint8_t* GetExtraData() const;
   int GetExtraSize() const;
   void ResetStartDecode();
-  bool CanStartDecode(StartDecodePolicy policy = StartDecodePolicy::Default) const;
-  void SetConvertDovi(enum DOVIMode value) {
+  bool CanStartDecode() const;
+  void SetConvertDovi(enum DOVIMode value) { 
     if (m_convert_dovi != value) InvalidateDoViCache();
-    m_convert_dovi = value;
+    m_convert_dovi = value; 
   }
-  void SetAppendCMv40(enum DOVICMv40Mode value) {
+  void SetAppendCMv40(enum DOVICMv40Mode value) { 
     if (m_append_cmv40 != value) InvalidateDoViCache();
-    m_append_cmv40 = value;
+    m_append_cmv40 = value; 
   }
   void SetConvertHdr10Plus(bool value) { m_convert_Hdr10Plus = value; }
   void SetPreferCovertHdr10Plus(bool value) { m_prefer_Hdr10Plus_conversion = value; }
@@ -170,13 +166,9 @@ protected:
   int isom_write_avcc(AVIOContext* pb, const uint8_t* data, int len);
   // bitstream to bytestream (Annex B) conversion support.
   bool IsIDR(uint8_t unit_type);
-  StartDecodePolicy GetStartDecodePolicy(uint8_t unit_type) const;
-  void SetStartDecode(StartDecodePolicy policy);
-  void SetStartDecode(uint8_t unit_type);
   bool IsSlice(uint8_t unit_type);
   bool BitstreamConvertInitAVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvertInitHEVC(void* in_extradata, int in_extrasize);
-  bool BitstreamConvertInitVVC(void* in_extradata, int in_extrasize);
   bool BitstreamConvert(uint8_t* pData, int iSize, uint8_t** poutbuf, int* poutbuf_size, double pts);
   static void BitstreamAllocAndCopy(uint8_t** poutbuf,
                                     int* poutbuf_size,
@@ -192,6 +184,7 @@ protected:
                                     uint8_t nal_type);
   void ApplyMasteringDisplayColourVolume(const MasteringDisplayColourVolume& metadata, bool& update);
   void ApplyContentLightLevel(const ContentLightLevel& metadata, bool& update);
+  void ApplyAlternativeTransferCharacteristics(uint8_t transfer);
   void UpdateHdrStaticMetadata() const;
 
   void AddDoViRpuNaluWrap(const Hdr10PlusMetadata& meta, uint8_t **poutbuf, uint32_t& poutbuf_size, double pts);
@@ -229,7 +222,7 @@ protected:
   CDVDStreamInfo& m_hints;
   CDataCacheCore& m_dataCacheCore;
   StreamHdrType m_initial_hdrType;
-  StartDecodePolicy m_start_decode_policy;
+  bool m_start_decode;
   enum DOVIMode m_convert_dovi;
   enum DOVICMv40Mode m_append_cmv40;
   uint8_t m_cmv40_trim{1};
@@ -246,3 +239,9 @@ protected:
   std::vector<uint8_t> m_cached_dovi_rpu_out_nal;
   DOVIFrameMetadata m_cached_dovi_frame_metadata{};
 };
+
+void aml_dv_send_md_levels();
+void aml_dv_send_hdr10_data();
+void aml_dv_send_el_type();
+void aml_dv_send_profile(int dvprofile);
+void aml_kodi_set_cd_cs(int cd_cs_type);

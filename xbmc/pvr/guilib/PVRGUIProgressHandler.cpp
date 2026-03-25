@@ -25,14 +25,14 @@ namespace PVR
 {
 
 CPVRGUIProgressHandler::CPVRGUIProgressHandler(const std::string& strTitle)
-  : CThread("PVRGUIProgressHandler"),
-    m_strTitle(strTitle)
+  : CThread("PVRGUIProgressHandler"), m_strTitle(strTitle)
 {
 }
 
-void CPVRGUIProgressHandler::UpdateProgress(std::string_view strText, float fProgress)
+void CPVRGUIProgressHandler::UpdateProgress(const std::string& strText, float fProgress)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bChanged = true;
   m_strText = strText;
   m_fProgress = fProgress;
@@ -44,15 +44,13 @@ void CPVRGUIProgressHandler::UpdateProgress(std::string_view strText, float fPro
   }
 }
 
-void CPVRGUIProgressHandler::UpdateProgress(std::string_view text,
-                                            size_t currentValue,
-                                            size_t maxValue)
+void CPVRGUIProgressHandler::UpdateProgress(const std::string& strText, int iCurrent, int iMax)
 {
-  float percentage = (currentValue * 100.0f) / maxValue;
-  if (!std::isnan(percentage))
-    percentage = std::min(100.0f, percentage);
+  float fPercentage = (iCurrent * 100.0f) / iMax;
+  if (!std::isnan(fPercentage))
+    fPercentage = std::min(100.0f, fPercentage);
 
-  UpdateProgress(text, percentage);
+  UpdateProgress(strText, fPercentage);
 }
 
 void CPVRGUIProgressHandler::Process()
@@ -74,7 +72,8 @@ void CPVRGUIProgressHandler::Process()
     bool bUpdate = false;
 
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+      
       if (m_bChanged)
       {
         m_bChanged = false;

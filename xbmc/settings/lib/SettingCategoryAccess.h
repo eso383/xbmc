@@ -16,7 +16,9 @@
 class CSettingCategoryAccessCondition : public CSettingConditionItem
 {
 public:
-  using CSettingConditionItem::CSettingConditionItem;
+  explicit CSettingCategoryAccessCondition(CSettingsManager *settingsManager = nullptr)
+    : CSettingConditionItem(settingsManager)
+  { }
   ~CSettingCategoryAccessCondition() override = default;
 
   bool Check() const override;
@@ -25,7 +27,9 @@ public:
 class CSettingCategoryAccessConditionCombination : public CSettingConditionCombination
 {
 public:
-  using CSettingConditionCombination::CSettingConditionCombination;
+  explicit CSettingCategoryAccessConditionCombination(CSettingsManager *settingsManager = nullptr)
+    : CSettingConditionCombination(settingsManager)
+  { }
   ~CSettingCategoryAccessConditionCombination() override = default;
 
   bool Check() const override;

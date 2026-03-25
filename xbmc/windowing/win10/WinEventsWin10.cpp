@@ -157,7 +157,7 @@ void CWinEventsWin10::InitEventHandlers(const CoreWindow& window)
       m_smtc.ButtonPressed(CWinEventsWin10::OnSystemMediaButtonPressed);
     }
     m_smtc.IsEnabled(true);;
-    CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::Player);
+    CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
   }
   if (CSysInfo::GetWindowsDeviceFamily() == CSysInfo::WindowsDeviceFamily::Xbox)
   {
@@ -170,9 +170,10 @@ void CWinEventsWin10::UpdateWindowSize()
 {
   auto size = DX::DeviceResources::Get()->GetOutputSize();
 
-  CLog::LogF(LOGDEBUG, "window resize event {:f} x {:f} (as:{})", size.Width, size.Height,
-             CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_fullScreen ? "true"
-                                                                                         : "false");
+  CLog::Log(LOGDEBUG, __FUNCTION__ ": window resize event {:f} x {:f} (as:{})", size.Width,
+            size.Height,
+            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_fullScreen ? "true"
+                                                                                        : "false");
 
   auto appView = ApplicationView::GetForCurrentView();
   appView.SetDesiredBoundsMode(ApplicationViewBoundsMode::UseCoreWindow);
@@ -193,7 +194,7 @@ void CWinEventsWin10::UpdateWindowSize()
 
 void CWinEventsWin10::OnResize(float width, float height)
 {
-  CLog::LogF(LOGDEBUG, "window size changed.");
+  CLog::Log(LOGDEBUG, __FUNCTION__": window size changed.");
   m_logicalWidth = width;
   m_logicalHeight = height;
   m_bResized = true;
@@ -212,7 +213,7 @@ void CWinEventsWin10::OnWindowSizeChanged(const CoreWindow&, const WindowSizeCha
 
 void CWinEventsWin10::OnWindowResizeStarted(const CoreWindow& sender, const winrt::IInspectable&)
 {
-  CLog::LogF(LOGDEBUG, "window resize started.");
+  CLog::Log(LOGDEBUG, __FUNCTION__": window resize started.");
   m_logicalPosX = sender.Bounds().X;
   m_logicalPosY = sender.Bounds().Y;
   m_sizeChanging = true;
@@ -220,7 +221,7 @@ void CWinEventsWin10::OnWindowResizeStarted(const CoreWindow& sender, const winr
 
 void CWinEventsWin10::OnWindowResizeCompleted(const CoreWindow& sender, const winrt::IInspectable&)
 {
-  CLog::LogF(LOGDEBUG, "window resize completed.");
+  CLog::Log(LOGDEBUG, __FUNCTION__": window resize completed.");
   m_sizeChanging = false;
 
   if (m_logicalPosX != sender.Bounds().X || m_logicalPosY != sender.Bounds().Y)
@@ -231,7 +232,7 @@ void CWinEventsWin10::OnWindowResizeCompleted(const CoreWindow& sender, const wi
 
 void CWinEventsWin10::HandleWindowSizeChanged()
 {
-  CLog::LogF(LOGDEBUG, "window size/move handled.");
+  CLog::Log(LOGDEBUG, __FUNCTION__": window size/move handled.");
   if (m_bMoved)
   {
     // it will get position from CoreWindow
@@ -255,7 +256,8 @@ void CWinEventsWin10::OnVisibilityChanged(const CoreWindow& sender, const Visibi
 
   if (g_application.GetRenderGUI() != active)
     DX::Windowing()->NotifyAppActiveChange(g_application.GetRenderGUI());
-  CLog::LogF(LOGDEBUG, "window is {}", g_application.GetRenderGUI() ? "shown" : "hidden");
+  CLog::Log(LOGDEBUG, __FUNCTION__ ": window is {}",
+            g_application.GetRenderGUI() ? "shown" : "hidden");
 }
 
 void CWinEventsWin10::OnWindowActivationChanged(const CoreWindow& sender, const WindowActivatedEventArgs& args)
@@ -278,7 +280,8 @@ void CWinEventsWin10::OnWindowActivationChanged(const CoreWindow& sender, const 
     DX::Windowing()->NotifyAppActiveChange(g_application.GetRenderGUI());
 
   if (CServiceBroker::IsLoggingUp())
-    CLog::LogF(LOGDEBUG, "window is {}", g_application.GetRenderGUI() ? "active" : "inactive");
+    CLog::Log(LOGDEBUG, __FUNCTION__ ": window is {}",
+              g_application.GetRenderGUI() ? "active" : "inactive");
 }
 
 void CWinEventsWin10::OnWindowClosed(const CoreWindow& sender, const CoreWindowEventArgs& args)
@@ -543,7 +546,7 @@ void CWinEventsWin10::OnOrientationChanged(const DisplayInformation&, const winr
 
 void CWinEventsWin10::OnDisplayContentsInvalidated(const DisplayInformation&, const winrt::IInspectable&)
 {
-  CLog::LogF(LOGDEBUG, "on event");
+  CLog::Log(LOGDEBUG, __FUNCTION__": onevent.");
   DX::DeviceResources::Get()->ValidateDevice();
 }
 

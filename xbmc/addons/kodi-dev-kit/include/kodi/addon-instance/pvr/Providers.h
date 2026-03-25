@@ -36,14 +36,14 @@ namespace addon
 /// @copydetails cpp_kodi_addon_pvr_Defs_PVRProvider_Help
 ///
 ///@{
-class PVRProvider : public DynamicCStructHdl<PVRProvider, PVR_PROVIDER>
+class PVRProvider : public CStructHdl<PVRProvider, PVR_PROVIDER>
 {
   friend class CInstancePVRClient;
 
 public:
   /*! \cond PRIVATE */
-  PVRProvider() = default;
-  PVRProvider(const PVRProvider& provider) : DynamicCStructHdl(provider) {}
+  PVRProvider() { memset(m_cStructure, 0, sizeof(PVR_PROVIDER)); }
+  PVRProvider(const PVRProvider& provider) : CStructHdl(provider) {}
   /*! \endcond */
 
   /// @defgroup cpp_kodi_addon_pvr_Defs_PVRProvider_Help Value Help
@@ -65,20 +65,19 @@ public:
 
   /// @brief **required**\n
   /// Unique identifier for this provider.
-  void SetUniqueId(unsigned int uniqueId) { m_cStructure->iUniqueId = uniqueId; }
+  void SetUniqueId(unsigned int uniqueId) const { m_cStructure->iUniqueId = uniqueId; }
 
   /// @brief To get with @ref SetUniqueId changed values.
   unsigned int GetUniqueId() const { return m_cStructure->iUniqueId; }
 
   /// @brief **required**\n
   /// Name given to this provider.
-  void SetName(const std::string& name)
-  {
-    ReallocAndCopyString(&m_cStructure->strName, name.c_str());
+  void SetName(const std::string& name) const {
+    strncpy(m_cStructure->strName, name.c_str(), sizeof(m_cStructure->strName) - 1);
   }
 
   /// @brief To get with @ref SetName changed values.
-  std::string GetName() const { return m_cStructure->strName ? m_cStructure->strName : ""; }
+  std::string GetName() const { return m_cStructure->strName; }
 
   /// @brief **optional**\n
   /// Provider type.
@@ -94,43 +93,34 @@ public:
   /// tag.SetType(PVR_PROVIDER_TYPE_SATELLITE);
   /// ~~~~~~~~~~~~~
   ///
-  void SetType(PVR_PROVIDER_TYPE type) { m_cStructure->type = type; }
+  void SetType(PVR_PROVIDER_TYPE type) const { m_cStructure->type = type; }
 
   /// @brief To get with @ref SetType changed values
   PVR_PROVIDER_TYPE GetType() const { return m_cStructure->type; }
 
   /// @brief **optional**\n
   /// Path to the provider icon (if present).
-  void SetIconPath(const std::string& iconPath)
-  {
-    ReallocAndCopyString(&m_cStructure->strIconPath, iconPath.c_str());
+  void SetIconPath(const std::string& iconPath) const {
+    strncpy(m_cStructure->strIconPath, iconPath.c_str(), sizeof(m_cStructure->strIconPath) - 1);
   }
 
   /// @brief To get with @ref SetIconPath changed values.
-  std::string GetIconPath() const
-  {
-    return m_cStructure->strIconPath ? m_cStructure->strIconPath : "";
-  }
+  std::string GetIconPath() const { return m_cStructure->strIconPath; }
   ///@}
 
   /// @brief **optional**\n
   /// The country codes for the provider.
   ///
   /// @note ISO 3166 country codes required (e.g 'GB,IE,CA').
-  void SetCountries(const std::vector<std::string>& countries)
-  {
-    ReallocAndCopyString(
-        &m_cStructure->strCountries,
-        tools::StringUtils::Join(countries, PROVIDER_STRING_TOKEN_SEPARATOR).c_str());
+  void SetCountries(const std::vector<std::string>& countries) const {
+    const std::string str = tools::StringUtils::Join(countries, PROVIDER_STRING_TOKEN_SEPARATOR);
+    strncpy(m_cStructure->strCountries, str.c_str(), sizeof(m_cStructure->strCountries) - 1);
   }
 
   /// @brief To get with @ref SetCountries changed values.
   std::vector<std::string> GetCountries() const
   {
-    if (m_cStructure->strCountries)
-      return tools::StringUtils::Split(m_cStructure->strCountries, PROVIDER_STRING_TOKEN_SEPARATOR);
-    else
-      return {};
+    return tools::StringUtils::Split(m_cStructure->strCountries, PROVIDER_STRING_TOKEN_SEPARATOR);
   }
   ///@}
 
@@ -138,42 +128,21 @@ public:
   /// The language codes for the provider.
   ///
   /// @note RFC 5646 standard codes required (e.g.: 'en_GB,fr_CA').
-  void SetLanguages(const std::vector<std::string>& languages)
-  {
-    ReallocAndCopyString(
-        &m_cStructure->strLanguages,
-        tools::StringUtils::Join(languages, PROVIDER_STRING_TOKEN_SEPARATOR).c_str());
+  void SetLanguages(const std::vector<std::string>& languages) const {
+    const std::string str = tools::StringUtils::Join(languages, PROVIDER_STRING_TOKEN_SEPARATOR);
+    strncpy(m_cStructure->strLanguages, str.c_str(), sizeof(m_cStructure->strLanguages) - 1);
   }
 
   /// @brief To get with @ref SetLanguages changed values.
   std::vector<std::string> GetLanguages() const
   {
-    if (m_cStructure->strLanguages)
-      return tools::StringUtils::Split(m_cStructure->strLanguages, PROVIDER_STRING_TOKEN_SEPARATOR);
-    else
-      return {};
+    return tools::StringUtils::Split(m_cStructure->strLanguages, PROVIDER_STRING_TOKEN_SEPARATOR);
   }
   ///@}
 
-  static void AllocResources(const PVR_PROVIDER* source, PVR_PROVIDER* target)
-  {
-    target->strName = AllocAndCopyString(source->strName);
-    target->strIconPath = AllocAndCopyString(source->strIconPath);
-    target->strCountries = AllocAndCopyString(source->strCountries);
-    target->strLanguages = AllocAndCopyString(source->strLanguages);
-  }
-
-  static void FreeResources(PVR_PROVIDER* target)
-  {
-    FreeString(target->strName);
-    FreeString(target->strIconPath);
-    FreeString(target->strCountries);
-    FreeString(target->strLanguages);
-  }
-
 private:
-  PVRProvider(const PVR_PROVIDER* provider) : DynamicCStructHdl(provider) {}
-  PVRProvider(PVR_PROVIDER* provider) : DynamicCStructHdl(provider) {}
+  PVRProvider(const PVR_PROVIDER* provider) : CStructHdl(provider) {}
+  PVRProvider(PVR_PROVIDER* provider) : CStructHdl(provider) {}
 };
 ///@}
 //------------------------------------------------------------------------------
@@ -191,8 +160,7 @@ public:
   /*! \cond PRIVATE */
   PVRProvidersResultSet() = delete;
   PVRProvidersResultSet(const AddonInstance_PVR* instance, PVR_HANDLE handle)
-    : m_instance(instance),
-      m_handle(handle)
+    : m_instance(instance), m_handle(handle)
   {
   }
   /*! \endcond */
@@ -203,8 +171,7 @@ public:
   /// @brief To add and give content from addon to Kodi on related call.
   ///
   /// @param[in] provider The to transferred data.
-  void Add(const kodi::addon::PVRProvider& provider)
-  {
+  void Add(const kodi::addon::PVRProvider& provider) const {
     m_instance->toKodi->TransferProviderEntry(m_instance->toKodi->kodiInstance, m_handle, provider);
   }
 

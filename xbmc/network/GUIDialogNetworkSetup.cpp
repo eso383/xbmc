@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -15,9 +15,8 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIEditControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/lib/Setting.h"
 #include "settings/windows/GUIControlSettings.h"
 #include "utils/StringUtils.h"
@@ -25,6 +24,7 @@
 #include "utils/log.h"
 
 #include <utility>
+
 
 using namespace ADDON;
 using namespace KODI::MESSAGING;
@@ -40,27 +40,6 @@ using namespace KODI::MESSAGING;
 #define SETTING_USERNAME        "username"
 #define SETTING_PASSWORD        "password"
 #define SETTING_REMOTE_PATH     "remotepath"
-
-CGUIDialogNetworkSetup::Protocol::Protocol(bool newSupportPath,
-                                           bool newSupportUsername,
-                                           bool newSupportPassword,
-                                           bool newSupportPort,
-                                           bool newSupportBrowsing,
-                                           int newDefaultPort,
-                                           std::string newType,
-                                           int newLabel,
-                                           std::string newAddonId)
-  : supportPath(newSupportPath),
-    supportUsername(newSupportUsername),
-    supportPassword(newSupportPassword),
-    supportPort(newSupportPort),
-    supportBrowsing(newSupportBrowsing),
-    defaultPort(newDefaultPort),
-    type(newType),
-    label(newLabel),
-    addonId(newAddonId)
-{
-}
 
 CGUIDialogNetworkSetup::CGUIDialogNetworkSetup(void)
     : CGUIDialogSettingsManualBase(WINDOW_DIALOG_NETWORK_SETUP, "DialogSettings.xml")
@@ -103,7 +82,7 @@ bool CGUIDialogNetworkSetup::OnMessage(CGUIMessage& message)
 
 void CGUIDialogNetworkSetup::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingChanged(setting);
@@ -132,7 +111,7 @@ void CGUIDialogNetworkSetup::OnSettingChanged(const std::shared_ptr<const CSetti
 
 void CGUIDialogNetworkSetup::OnSettingAction(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingAction(setting);
@@ -175,7 +154,7 @@ void CGUIDialogNetworkSetup::OnDeinitWindow(int nextWindowID)
 {
   // clear protocol spinner
   BaseSettingControlPtr settingControl = GetSettingControl(SETTING_PROTOCOL);
-  if (settingControl != NULL && settingControl->GetControl() != NULL)
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
   {
     CGUIMessage msg(GUI_MSG_LABEL_RESET, GetID(), settingControl->GetID());
     OnMessage(msg);
@@ -199,14 +178,14 @@ void CGUIDialogNetworkSetup::InitializeSettings()
   CGUIDialogSettingsManualBase::InitializeSettings();
 
   const std::shared_ptr<CSettingCategory> category = AddCategory("networksetupsettings", -1);
-  if (category == NULL)
+  if (category == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogNetworkSetup: unable to setup settings");
     return;
   }
 
   const std::shared_ptr<CSettingGroup> group = AddGroup(category);
-  if (group == NULL)
+  if (group == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogNetworkSetup: unable to setup settings");
     return;
@@ -220,7 +199,7 @@ void CGUIDialogNetworkSetup::InitializeSettings()
   AddSpinner(group, SETTING_PROTOCOL, 1008, SettingLevel::Basic, m_protocol, labels);
   AddEdit(group, SETTING_SERVER_ADDRESS, 1010, SettingLevel::Basic, m_server, true);
   std::shared_ptr<CSettingAction> subsetting = AddButton(group, SETTING_SERVER_BROWSE, 1024, SettingLevel::Basic, "", false);
-  if (subsetting != NULL)
+  if (subsetting != nullptr)
     subsetting->SetParent(SETTING_SERVER_ADDRESS);
 
   AddEdit(group, SETTING_REMOTE_PATH, 1012, SettingLevel::Basic, m_path, true);
@@ -232,7 +211,7 @@ void CGUIDialogNetworkSetup::InitializeSettings()
 void CGUIDialogNetworkSetup::OnServerBrowse()
 {
   // open a filebrowser dialog with the current address
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   std::string path = ConstructPath();
   // get the share as the base path
   CMediaSource share;
@@ -245,8 +224,7 @@ void CGUIDialogNetworkSetup::OnServerBrowse()
   CURL url(share.strPath);
   share.strName = url.GetWithoutUserDetails();
   shares.push_back(share);
-  if (CGUIDialogFileBrowser::ShowAndGetDirectory(
-          shares, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1015), path))
+  if (CGUIDialogFileBrowser::ShowAndGetDirectory(shares, g_localizeStrings.Get(1015), path))
   {
     SetPath(path);
     UpdateButtons();
@@ -268,7 +246,7 @@ void CGUIDialogNetworkSetup::OnCancel()
 void CGUIDialogNetworkSetup::OnProtocolChange()
 {
   BaseSettingControlPtr settingControl = GetSettingControl(SETTING_PROTOCOL);
-  if (settingControl != NULL && settingControl->GetControl() != NULL)
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
   {
     CGUIMessage msg(GUI_MSG_ITEM_SELECTED, GetID(), settingControl->GetID());
     if (!OnMessage(msg))
@@ -285,7 +263,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 {
   // Address label
   BaseSettingControlPtr addressControl = GetSettingControl(SETTING_SERVER_ADDRESS);
-  if (addressControl != NULL && addressControl->GetControl() != NULL)
+  if (addressControl != nullptr && addressControl->GetControl() != nullptr)
   {
     int addressControlID = addressControl->GetID();
     SET_CONTROL_LABEL2(addressControlID, m_server);
@@ -302,7 +280,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 
   // remote path
   BaseSettingControlPtr pathControl = GetSettingControl(SETTING_REMOTE_PATH);
-  if (pathControl != NULL && pathControl->GetControl() != NULL)
+  if (pathControl != nullptr && pathControl->GetControl() != nullptr)
   {
     int pathControlID = pathControl->GetID();
     SET_CONTROL_LABEL2(pathControlID, m_path);
@@ -320,7 +298,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 
   // username
   BaseSettingControlPtr userControl = GetSettingControl(SETTING_USERNAME);
-  if (userControl != NULL && userControl->GetControl() != NULL)
+  if (userControl != nullptr && userControl->GetControl() != nullptr)
   {
     int userControlID = userControl->GetID();
     SET_CONTROL_LABEL2(userControlID, m_username);
@@ -332,7 +310,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 
   // port
   BaseSettingControlPtr portControl = GetSettingControl(SETTING_PORT_NUMBER);
-  if (portControl != NULL && portControl->GetControl() != NULL)
+  if (portControl != nullptr && portControl->GetControl() != nullptr)
   {
     int portControlID = portControl->GetID();
     SET_CONTROL_LABEL2(portControlID, m_port);
@@ -343,7 +321,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 
   // password
   BaseSettingControlPtr passControl = GetSettingControl(SETTING_PASSWORD);
-  if (passControl != NULL && passControl->GetControl() != NULL)
+  if (passControl != nullptr && passControl->GetControl() != nullptr)
   {
     int passControlID = passControl->GetID();
     SET_CONTROL_LABEL2(passControlID, m_password);
@@ -355,7 +333,7 @@ void CGUIDialogNetworkSetup::UpdateButtons()
 
   // server browse should be disabled if we are in FTP, FTPS, HTTP, HTTPS, RSS, RSSS, DAV or DAVS
   BaseSettingControlPtr browseControl = GetSettingControl(SETTING_SERVER_BROWSE);
-  if (browseControl != NULL && browseControl->GetControl() != NULL)
+  if (browseControl != nullptr && browseControl->GetControl() != nullptr)
   {
     int browseControlID = browseControl->GetID();
     CONTROL_ENABLE_ON_CONDITION(browseControlID,
@@ -456,7 +434,7 @@ void CGUIDialogNetworkSetup::UpdateAvailableProtocols()
   m_protocols.clear();
 #ifdef HAS_FILESYSTEM_SMB
   // most popular protocol at the first place
-  m_protocols.emplace_back(true, true, true, false, true, 0, "smb", 20171, "");
+  m_protocols.emplace_back(Protocol{true, true, true, false, true, 0, "smb", 20171, ""});
 #endif
   // protocols from vfs addon next
   if (CServiceBroker::IsAddonInterfaceUp())
@@ -468,9 +446,9 @@ void CGUIDialogNetworkSetup::UpdateAvailableProtocols()
       {
         // only use first protocol
         auto prots = StringUtils::Split(info.type, "|");
-        m_protocols.emplace_back(info.supportPath, info.supportUsername, info.supportPassword,
-                                 info.supportPort, info.supportBrowsing, info.defaultPort,
-                                 prots.front(), info.label, addon->ID());
+        m_protocols.emplace_back(Protocol{
+            info.supportPath, info.supportUsername, info.supportPassword, info.supportPort,
+            info.supportBrowsing, info.defaultPort, prots.front(), info.label, addon->ID()});
       }
     }
   }
@@ -487,6 +465,6 @@ void CGUIDialogNetworkSetup::UpdateAvailableProtocols()
 
   m_protocols.insert(m_protocols.end(), defaults.begin(), defaults.end());
 #ifdef HAS_FILESYSTEM_NFS
-  m_protocols.emplace_back(true, false, false, false, true, 0, "nfs", 20259, "");
+  m_protocols.emplace_back(Protocol{true, false, false, false, true, 0, "nfs", 20259, ""});
 #endif
 }

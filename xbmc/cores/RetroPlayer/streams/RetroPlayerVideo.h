@@ -30,24 +30,24 @@ struct VideoStreamProperties : public StreamProperties
   VideoStreamProperties(AVPixelFormat pixfmt,
                         unsigned int nominalWidth,
                         unsigned int nominalHeight,
-                        float nominalDisplayAspectRatio,
                         unsigned int maxWidth,
-                        unsigned int maxHeight)
+                        unsigned int maxHeight,
+                        float pixelAspectRatio)
     : pixfmt(pixfmt),
       nominalWidth(nominalWidth),
       nominalHeight(nominalHeight),
-      nominalDisplayAspectRatio(nominalDisplayAspectRatio),
       maxWidth(maxWidth),
-      maxHeight(maxHeight)
+      maxHeight(maxHeight),
+      pixelAspectRatio(pixelAspectRatio)
   {
   }
 
   AVPixelFormat pixfmt;
   unsigned int nominalWidth;
   unsigned int nominalHeight;
-  float nominalDisplayAspectRatio;
   unsigned int maxWidth;
   unsigned int maxHeight;
+  float pixelAspectRatio;
 };
 
 struct VideoStreamBuffer : public StreamBuffer
@@ -56,11 +56,7 @@ struct VideoStreamBuffer : public StreamBuffer
 
   VideoStreamBuffer(
       AVPixelFormat pixfmt, uint8_t* data, size_t size, DataAccess access, DataAlignment alignment)
-    : pixfmt(pixfmt),
-      data(data),
-      size(size),
-      access(access),
-      alignment(alignment)
+    : pixfmt(pixfmt), data(data), size(size), access(access), alignment(alignment)
   {
   }
 
@@ -75,22 +71,15 @@ struct VideoStreamPacket : public StreamPacket
 {
   VideoStreamPacket(unsigned int width,
                     unsigned int height,
-                    float displayAspectRatio,
                     VideoRotation rotation,
                     const uint8_t* data,
                     size_t size)
-    : width(width),
-      height(height),
-      displayAspectRatio(displayAspectRatio),
-      rotation(rotation),
-      data(data),
-      size(size)
+    : width(width), height(height), rotation(rotation), data(data), size(size)
   {
   }
 
   unsigned int width;
   unsigned int height;
-  float displayAspectRatio;
   VideoRotation rotation;
   const uint8_t* data;
   size_t size;

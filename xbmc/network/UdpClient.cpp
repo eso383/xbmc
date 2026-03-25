@@ -79,7 +79,7 @@ void CUdpClient::OnStartup()
 
 bool CUdpClient::Broadcast(int aPort, const std::string& aMessage)
 {
-  std::unique_lock lock(critical_section);
+  std::lock_guard lock(critical_section);
 
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
@@ -87,7 +87,7 @@ bool CUdpClient::Broadcast(int aPort, const std::string& aMessage)
   addr.sin_addr.s_addr = INADDR_BROADCAST;
   memset(&addr.sin_zero, 0, sizeof(addr.sin_zero));
 
-  UdpCommand broadcast = {addr, aMessage, NULL, 0};
+  UdpCommand broadcast = {addr, aMessage, nullptr, 0};
   commands.push_back(broadcast);
 
   return true;
@@ -96,7 +96,7 @@ bool CUdpClient::Broadcast(int aPort, const std::string& aMessage)
 
 bool CUdpClient::Send(const std::string& aIpAddress, int aPort, const std::string& aMessage)
 {
-  std::unique_lock lock(critical_section);
+  std::lock_guard lock(critical_section);
 
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
@@ -104,7 +104,7 @@ bool CUdpClient::Send(const std::string& aIpAddress, int aPort, const std::strin
   addr.sin_addr.s_addr = inet_addr(aIpAddress.c_str());
   memset(&addr.sin_zero, 0, sizeof(addr.sin_zero));
 
-  UdpCommand transmit = {addr, aMessage, NULL, 0};
+  UdpCommand transmit = {addr, aMessage, nullptr, 0};
   commands.push_back(transmit);
 
   return true;
@@ -112,9 +112,9 @@ bool CUdpClient::Send(const std::string& aIpAddress, int aPort, const std::strin
 
 bool CUdpClient::Send(struct sockaddr_in aAddress, const std::string& aMessage)
 {
-  std::unique_lock lock(critical_section);
+  std::lock_guard lock(critical_section);
 
-  UdpCommand transmit = {aAddress, aMessage, NULL, 0};
+  UdpCommand transmit = {aAddress, aMessage, nullptr, 0};
   commands.push_back(transmit);
 
   return true;
@@ -122,7 +122,7 @@ bool CUdpClient::Send(struct sockaddr_in aAddress, const std::string& aMessage)
 
 bool CUdpClient::Send(struct sockaddr_in aAddress, unsigned char* pMessage, DWORD dwSize)
 {
-  std::unique_lock lock(critical_section);
+  std::lock_guard lock(critical_section);
 
   UdpCommand transmit = {aAddress, "", pMessage, dwSize};
   commands.push_back(transmit);
@@ -149,7 +149,7 @@ void CUdpClient::Process()
 
     int nfds = (int)(client_socket);
     timeval tv = { 0, 100000 };
-    if (select(nfds, &readset, NULL, &exceptset, &tv) < 0)
+    if (select(nfds, &readset, nullptr, &exceptset, &tv) < 0)
     {
       CLog::Log(LOGERROR, "UDPCLIENT: failed to select on socket");
       break;
@@ -212,9 +212,9 @@ bool CUdpClient::DispatchNextCommand()
 {
   UdpCommand command;
   {
-    std::unique_lock lock(critical_section);
+    std::lock_guard lock(critical_section);
 
-    if (commands.empty())
+    if (commands.size() <= 0)
       return false;
 
     COMMANDITERATOR it = commands.begin();

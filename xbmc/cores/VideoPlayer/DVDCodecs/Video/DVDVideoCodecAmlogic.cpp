@@ -15,7 +15,6 @@
 #include "DVDStreamInfo.h"
 #include "AMLCodec.h"
 #include "ServiceBroker.h"
-#include "cores/DataCacheCore.h"
 #include "utils/AMLUtils.h"
 #include "utils/log.h"
 #include "settings/AdvancedSettings.h"
@@ -65,7 +64,6 @@ void CAMLVideoBufferPool::Return(int id)
 
 CDVDVideoCodecAmlogic::CDVDVideoCodecAmlogic(CProcessInfo &processInfo)
   : CDVDVideoCodec(processInfo)
-  , m_dataCacheCore(CServiceBroker::GetDataCacheCore())
   , m_pFormatName("amcodec")
   , m_opened(false)
   , m_codecControlFlags(0)
@@ -127,8 +125,8 @@ void CDVDVideoCodecAmlogic::ApplyDynamicDoViSettings()
   m_bitstream->SetAppendCMv40(mode);
   m_appendCMv40ModeApplied = mode;
 
-  logM(LOGINFO, "DV HEVC bitstream - CMv4.0 append mode changed to [{:d}]",
-                static_cast<int>(mode));
+  logM(LOGINFO, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 append mode changed to [{:d}]",
+       static_cast<int>(mode));
 }
 
 std::unique_ptr<CDVDVideoCodec> CDVDVideoCodecAmlogic::Create(CProcessInfo& processInfo)
@@ -182,7 +180,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           m_hints.aspect = 16.0 / 9.0;
 
       m_mpeg2_sequence_pts = 0;
-      m_mpeg2_sequence = new mpeg2_sequence;
+      m_mpeg2_sequence = std::make_unique<mpeg2_sequence>();
       m_mpeg2_sequence->width  = m_hints.width;
       m_mpeg2_sequence->height = m_hints.height;
       m_mpeg2_sequence->ratio  = m_hints.aspect;
@@ -217,7 +215,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       if (m_hints.aspect == 0.0)
       {
         m_h264_sequence_pts = 0;
-        m_h264_sequence = new h264_sequence;
+        m_h264_sequence = std::make_unique<h264_sequence>();
         m_h264_sequence->width  = m_hints.width;
         m_h264_sequence->height = m_hints.height;
         m_h264_sequence->ratio  = m_hints.aspect;
@@ -231,7 +229,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       // under streamers can have issues when seeking.
       if (m_hints.extradata && m_hints.extradata.GetData()[0] == 1)
       {
-        m_bitstream = new CBitstreamConverter(m_hints);
+        m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
         m_bitstream->Open(true);
         m_bitstream->ResetStartDecode();
         // make sure we do not leak the existing m_hints.extradata
@@ -241,7 +239,7 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       }
       else
       {
-        m_bitparser = new CBitstreamParser();
+        m_bitparser = std::make_unique<CBitstreamParser>();
         m_bitparser->Open();
       }
 
@@ -281,10 +279,38 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
       CLog::Log(LOGDEBUG, "{}::{} - amcodec does not support RMVB", __MODULE_NAME__, __FUNCTION__);
       goto FAIL;
     case AV_CODEC_ID_VC1:
-      m_pFormatName = "am-vc1";
-      break;
     case AV_CODEC_ID_WMV3:
-      m_pFormatName = "am-wmv3";
+      if (m_hints.width <= CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+        CSettings::SETTING_VIDEOPLAYER_USEAMCODECVC1))
+      {
+        if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+          CSettings::SETTING_VIDEOPLAYER_USEAMCODECVC1) != 9998)
+        {
+          CLog::Log(LOGDEBUG, "CDVDVideoCodecAmlogic::vc1 {:d} disabled by user",
+            CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+            CSettings::SETTING_VIDEOPLAYER_USEAMCODECVC1));
+          goto FAIL;
+        }
+        else if (m_hints.fpsrate <= 24000)
+        {
+          CLog::Log(LOGDEBUG, "CDVDVideoCodecAmlogic::vc1 {:d} disabled by user",
+            CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+            CSettings::SETTING_VIDEOPLAYER_USEAMCODECVC1));
+          goto FAIL;
+        }
+      }
+
+      switch(m_hints.codec)
+      {
+        case AV_CODEC_ID_VC1:
+          m_pFormatName = "am-vc1";
+          break;
+        case AV_CODEC_ID_WMV3:
+          m_pFormatName = "am-wmv3";
+          break;
+        default:
+          goto FAIL;
+      }
       break;
     case AV_CODEC_ID_AVS:
     case AV_CODEC_ID_CAVS:
@@ -327,11 +353,11 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         goto FAIL;
       }
       m_pFormatName = "am-h265";
-      m_bitstream = new CBitstreamConverter(m_hints);
+      m_bitstream = std::make_unique<CBitstreamConverter>(m_hints);
       m_bitstream->Open(true);
 
       // check for hevc-hvcC and convert to h265-annex-b - and DV is on.
-      if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && (aml_dv_mode() != DV_MODE::OFF))
+      if (m_hints.extradata && !m_hints.cryptoSession && m_bitstream && (aml_dv_mode() != DV_MODE_OFF))
       {
         auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
 
@@ -343,33 +369,38 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           if (cmv40Mode != DOVICMv40Mode::CMV40_NONE)
           {
             if (cmv40Mode == DOVICMv40Mode::CMV40_NO_L2)
-              logM(LOGINFO, "DV HEVC bitstream - if CMv2.9 without L2 trims then CMv4.0 metadata block will be appended.");
-            else
-              logM(LOGINFO, "DV HEVC bitstream - CMv4.0 metadata block will always be appended.");
+              logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - if CMv2.9 without L2 trims then CMv4.0 metadata block will be appended.");
+            else if (cmv40Mode != DOVICMv40Mode::CMV40_ALWAYS)
+              logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 metadata block will always be appended.");
+            else if (cmv40Mode != DOVICMv40Mode::CMV40_AUTO)
+              logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "DV HEVC bitstream - CMv4.0 metadata block will be appended automatically based on L2 and display max lum.");
             m_bitstream->SetAppendCMv40(cmv40Mode);
           }
           m_appendCMv40ModeApplied = cmv40Mode;
 
           if (dualPriorityHdr10Plus)
           {
-            logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.");
+            CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - if stream also contains HDR10+, native HDR10+ has priority.",
+                      __MODULE_NAME__, __FUNCTION__);
             m_bitstream->SetDualPriorityHdr10Plus(true);
           }
-          else if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
+          else if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT)) 
           {
             bool preferConvertHdr10Plus = settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PREFER_CONVERT);
             m_bitstream->SetPreferCovertHdr10Plus(preferConvertHdr10Plus);
 
-            if (preferConvertHdr10Plus)
-              logM(LOGINFO, "DV HEVC bitstream - if stream also contains HDR10+, conversion will be preferred over original Dolby Vision.");
+            if (preferConvertHdr10Plus) 
+              CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - if stream also contains HDR10+, conversion will be prefered over original Dolby Vision.",
+                        __MODULE_NAME__, __FUNCTION__);
           }
 
           if (m_hints.dovi.dv_profile == 7)
           {
-            auto convertDovi = static_cast<DOVIMode>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_RPU_CONVERT));
+            DOVIMode convertDovi = static_cast<DOVIMode>(settings->GetInt(CSettings::SETTING_VIDEOPLAYER_CONVERTDOVI));
             if (convertDovi)
             {
-              logM(LOGINFO, "DV HEVC bitstream - user chooses to convert to mode [{:d}]", convertDovi);
+              CLog::Log(LOGINFO, "{}::{} - DV HEVC bitstream - user chooses to convert to mode [{:d}]",
+                        __MODULE_NAME__, __FUNCTION__, convertDovi);
               m_bitstream->SetConvertDovi(convertDovi);
             }
           }
@@ -378,9 +409,9 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
         // Potential HDR10+ (Cannot tell at this point)
         if (settings->GetBool(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_CONVERT))
         {
-          auto peakBrightnessSource = static_cast<PeakBrightnessSource>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE));
-          logM(LOGINFO, "HEVC bitstream - if also HDR10+ then will be considered for conversion to Dolby Vision P8.1 with brightness source [{:d}]",
-                        static_cast<int>(peakBrightnessSource));
+          PeakBrightnessSource peakBrightnessSource = static_cast<PeakBrightnessSource>(settings->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE));
+          CLog::Log(LOGDEBUG, "{}::{} - HDR10 HEVC bitstream - if HDR10+ then will be converted to Dolby Vision P8.1 with brightness source [{:d}]",
+            __MODULE_NAME__, __FUNCTION__, peakBrightnessSource);
           m_bitstream->SetConvertHdr10Plus(true);
           m_bitstream->SetConvertHdr10PlusPeakBrightnessSource(peakBrightnessSource);
         }
@@ -392,7 +423,8 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
           if (mode < DOLBY_VISION_OUTPUT_MODE_BYPASS)
           {
             // for VS10 conversion need to remove the HDR10plus metadata.
-            logM(LOGINFO, "HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing");
+            CLog::Log(LOGINFO, "{}::{} - HDR10 HEVC bitstream - if HDR10+ then metadata will be removed to allow correct VS10 processing",
+              __MODULE_NAME__, __FUNCTION__);
             m_bitstream->SetRemoveHdr10Plus(true);
             m_bitstream->SetRemoveDovi(true);
           }
@@ -445,7 +477,6 @@ bool CDVDVideoCodecAmlogic::Open(CDVDStreamInfo &hints, CDVDCodecOptions &option
   m_processInfo.SetVideoDimensions(m_hints.width, m_hints.height);
   m_processInfo.SetVideoDeintMethod("hardware");
   m_processInfo.SetVideoDAR(m_hints.aspect);
-//  m_processInfo.SetVideoDAR(m_hints.aspect);
 
   m_has_keyframe = false;
 
@@ -460,6 +491,8 @@ void CDVDVideoCodecAmlogic::Close(void)
 {
   CLog::Log(LOGDEBUG, "{}::{}", __MODULE_NAME__, __FUNCTION__);
 
+  aml_kodi_reset_cd_cs();
+
   m_videoBufferPool = nullptr;
 
   if (m_Codec)
@@ -467,53 +500,31 @@ void CDVDVideoCodecAmlogic::Close(void)
 
   m_videobuffer.iFlags = 0;
 
-  if (m_mpeg2_sequence)
-    delete m_mpeg2_sequence, m_mpeg2_sequence = NULL;
-  if (m_h264_sequence)
-    delete m_h264_sequence, m_h264_sequence = NULL;
-
-  if (m_bitstream)
-    delete m_bitstream, m_bitstream = NULL;
-
-  if (m_bitparser)
-    delete m_bitparser, m_bitparser = NULL;
-
   m_opened = false;
 
-  ClearBitstreamCommon();
-}
-
-void CDVDVideoCodecAmlogic::ClearBitstreamCommon(void)
-{
   while (!m_packages.empty())
   {
-    KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
+    DLDemuxPacket dual_layer_packet= m_packages.front();
+    uint8_t *pDataBackup = std::get<0>(dual_layer_packet);
+    KODI::MEMORY::AlignedFree(pDataBackup);
     m_packages.pop_front();
   }
-
   m_last_added = true;
   m_last_pData = nullptr;
   m_last_iSize = 0;
+  m_mpeg2_sequence_pts = 0;
+  m_has_keyframe = false;
 
-  if (m_bitstream) m_bitstream->ResetStartDecode();
-}
-
-bool CDVDVideoCodecAmlogic::CanStartDecode() const
-{
-  const auto policy = (m_hints.codec == AV_CODEC_ID_HEVC)
-                        ? CBitstreamConverter::StartDecodePolicy::Strict
-                        : CBitstreamConverter::StartDecodePolicy::Default;
-  return m_bitstream->CanStartDecode(policy);
+  if (m_bitstream && m_hints.codec == AV_CODEC_ID_H264)
+    m_bitstream->ResetStartDecode();
 }
 
 bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet)
 {
   bool dual_layer_converted = false;
 
-  logComponentM(LOGDEBUG, LOGVIDEO, "DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} arrived, list {} empty",
-                                    packet.isELPackage ? "EL" : "BL",
-                                    (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE),
-                                    iSize, m_packages.empty() ? "is" : "is not");
+  logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} arrived, list {} empty",
+    packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE, iSize, m_packages.empty() ? "is" : "is not");
 
   if (!m_packages.empty())
   {
@@ -523,17 +534,15 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
 
     if (isELPackageBackup != packet.isELPackage)
     {
-      logComponentM(LOGDEBUG, LOGVIDEO, "found DT-DL {} package with dts: {:.3f} in list",
-                                        packet.isELPackage ? "BL" : "EL", dts/DVD_TIME_BASE);
+      logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "found DT-DL {} package with dts: {:.3f} in list",
+        packet.isELPackage ? "BL" : "EL", dts/DVD_TIME_BASE);
 
-      if (packet.dts < dts) // prior dts arrived - out of step - remove and attempt next.
-      {
-        logComponentM(LOGDEBUG, LOGVIDEO, "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
-                                          packet.isELPackage ? "EL" : "BL",
-                                          (packet.dts/DVD_TIME_BASE), (dts/DVD_TIME_BASE));
-
-        return false;
-      }
+      // if (packet.dts < dts) // prior dts arrived - out of step - remove and attempt next.
+      // {
+      //   logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "discarding DT-DL {} package with dts {:.3f} as before package in list with dts: {:.3f}",
+      //     packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, dts/DVD_TIME_BASE);
+      //   return false;
+      // }
 
       if (packet.isELPackage)
         dual_layer_converted = m_bitstream->Convert(pDataBackup, iSizeBackup, pData, iSize, packet.pts);
@@ -548,24 +557,23 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
     memcpy(pDataBackup, packet.pData, packet.iSize);
     m_packages.emplace_back(pDataBackup, iSize, packet.isELPackage, packet.dts);
 
-    logComponentM(LOGDEBUG, LOGVIDEO, "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
-                                      packet.isELPackage ? "EL" : "BL",
-                                      (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE), packet.iSize);
+    logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "did add DT-DL {} package with dts: {:.3f}, pts: {:.3f} and size {} in list",
+      packet.isELPackage ? "EL" : "BL", packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE, packet.iSize);
 
     return false;
   }
   else
   {
-    logComponentM(LOGDEBUG, LOGVIDEO, "converted DT-DL with dts: {:.3f}, pts: {:.3f}",
-                                      (packet.dts/DVD_TIME_BASE), (packet.pts/DVD_TIME_BASE));
+    logComponentM(LOGDEBUG, LOGVIDEO, "CDVDVideoCodecAmlogic", "converted DT-DL with dts: {:.3f}, pts: {:.3f}",
+      packet.dts/DVD_TIME_BASE, packet.pts/DVD_TIME_BASE);
 
     // All good can remove the backed up package
     KODI::MEMORY::AlignedFree(std::get<0>(m_packages.front()));
     m_packages.pop_front();
 
-    if (!CanStartDecode())
+    if (!m_bitstream->CanStartDecode())
     {
-      logM(LOGDEBUG, "waiting for keyframe (bitstream)");
+      logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
       return false;
     }
   }
@@ -573,14 +581,13 @@ bool CDVDVideoCodecAmlogic::DualLayerConvert(uint8_t *pData, uint32_t iSize, con
   return true;
 }
 
-bool CDVDVideoCodecAmlogic::SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const
-{
+bool CDVDVideoCodecAmlogic::SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const {
   if (!m_bitstream->Convert(pData, iSize, packet.pts))
     return false;
 
-  if (!CanStartDecode())
+  if (!m_bitstream->CanStartDecode())
   {
-    logM(LOGDEBUG, "waiting for keyframe (bitstream)");
+    logM(LOGDEBUG, "CDVDVideoCodecAmlogic", "waiting for keyframe (bitstream)");
     return false;
   }
 
@@ -656,8 +663,8 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
   // Make change in luminance as late a possible to try and avoid starting change in luminance in menu.
   if (set_osd_max)
   {
-    // if DV_MODE::ON (i.e. on in Kodi Menu), then set graphics max to 0 (OSD luminance will be handled by amlogic).
-    if (aml_dv_mode() == DV_MODE::ON) aml_dv_set_osd_max(0);
+    // if DV_MODE_ON (i.e. on in Kodi Menu), then set graphics max to 0 (OSD luminance will be handled by amlogic).
+    if (aml_dv_mode() == DV_MODE_ON) aml_dv_set_osd_max(0);
   }
 
   return m_last_added;
@@ -665,22 +672,23 @@ bool CDVDVideoCodecAmlogic::AddData(const DemuxPacket &packet)
 
 void CDVDVideoCodecAmlogic::Reset(void)
 {
-  if (m_Codec->IsH264())
-  {
-    if (m_dataCacheCore.GetSpeed() == 1.0f)
-    {
-      // Cannot just do reset, needs fuller open and close to have correct pts.
-      m_Codec->CloseDecoder(true);
-      m_Codec->OpenDecoder(true);
-    }
-  }
-  else
-    m_Codec->Reset();
+  m_Codec->Reset();
 
-  ClearBitstreamCommon();
+  while (!m_packages.empty())
+  {
+    DLDemuxPacket dual_layer_packet= m_packages.front();
+    uint8_t *pDataBackup = std::get<0>(dual_layer_packet);
+    KODI::MEMORY::AlignedFree(pDataBackup);
+    m_packages.pop_front();
+  }
+  m_last_added = true;
+  m_last_pData = nullptr;
+  m_last_iSize = 0;
 
   m_mpeg2_sequence_pts = 0;
   m_has_keyframe = false;
+  if (m_bitstream && m_hints.codec == AV_CODEC_ID_H264)
+    m_bitstream->ResetStartDecode();
 }
 
 CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoPicture)
@@ -692,11 +700,15 @@ CDVDVideoCodec::VCReturn CDVDVideoCodecAmlogic::GetPicture(VideoPicture* pVideoP
 
   if (retVal == VC_PICTURE)
   {
+    pVideoPicture->videoBuffer = nullptr;
     pVideoPicture->SetParams(m_videobuffer);
 
     pVideoPicture->videoBuffer = m_videoBufferPool->Get();
     static_cast<CAMLVideoBuffer*>(pVideoPicture->videoBuffer)->Set(this, m_Codec,
      m_Codec->GetOMXPts(), m_Codec->GetAmlDuration(), m_Codec->GetBufferIndex());;
+
+    m_dataCacheCore.SetVideoPts(m_Codec->GetPts());
+
   }
 
   // check for mpeg2 aspect ratio changes
@@ -742,10 +754,7 @@ void CDVDVideoCodecAmlogic::SetCodecControl(int flags)
 void CDVDVideoCodecAmlogic::SetSpeed(int iSpeed)
 {
   if (m_Codec)
-  {
     m_Codec->SetSpeed(iSpeed);
-    if (m_hints.codec == AV_CODEC_ID_H264) m_Codec->Reset();
-  }
 }
 
 void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double dts, double pts)
@@ -755,7 +764,7 @@ void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double 
   {
     // probe demux for sequence_header_code NAL and
     // decode aspect ratio and frame rate.
-    if (CBitstreamConverter::mpeg2_sequence_header(pData, iSize, m_mpeg2_sequence) &&
+    if (CBitstreamConverter::mpeg2_sequence_header(pData, iSize, m_mpeg2_sequence.get()) &&
        (m_mpeg2_sequence->fps_rate > 0) && (m_mpeg2_sequence->fps_scale > 0))
     {
       if (!m_mpeg2_sequence->fps_scale || !m_mpeg2_sequence->fps_scale)
@@ -797,7 +806,7 @@ void CDVDVideoCodecAmlogic::FrameRateTracking(uint8_t *pData, int iSize, double 
   if (m_h264_sequence)
   {
     // probe demux for SPS NAL and decode aspect ratio
-    if (CBitstreamConverter::h264_sequence_header(pData, iSize, m_h264_sequence))
+    if (CBitstreamConverter::h264_sequence_header(pData, iSize, m_h264_sequence.get()))
     {
       m_h264_sequence_pts = pts;
       if (m_h264_sequence_pts == DVD_NOPTS_VALUE)

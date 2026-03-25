@@ -35,7 +35,7 @@ CPasswordManager::CPasswordManager()
 
 bool CPasswordManager::AuthenticateURL(CURL &url)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (!m_loaded)
     Load();
@@ -58,7 +58,7 @@ bool CPasswordManager::AuthenticateURL(CURL &url)
 
 bool CPasswordManager::PromptToAuthenticateURL(CURL &url)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   std::string passcode;
   std::string username = url.GetUserName();
@@ -99,7 +99,7 @@ void CPasswordManager::SaveAuthenticatedURL(const CURL &url, bool saveToProfile)
   if (url.GetUserName().empty())
     return;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   std::string path = GetLookupPath(url);
   std::string authenticatedPath = url.Get();
@@ -191,7 +191,7 @@ void CPasswordManager::Save() const
   if (root == nullptr)
     return;
 
-  for (std::map<std::string, std::string>::const_iterator i = m_permanentCache.begin(); i != m_permanentCache.end(); ++i)
+  for (auto i = m_permanentCache.begin(); i != m_permanentCache.end(); ++i)
   {
     auto* pathElement = doc.NewElement("path");
     if (pathElement == nullptr)

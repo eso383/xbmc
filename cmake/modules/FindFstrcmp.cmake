@@ -5,19 +5,17 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::Fstrcmp   - The fstrcmp library
+#   fstrcmp::fstrcmp   - The fstrcmp library
 #
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
-
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC fstrcmp)
-
-  SETUP_BUILD_VARS()
-
+if(NOT TARGET fstrcmp::fstrcmp)
   if(ENABLE_INTERNAL_FSTRCMP)
-    message(STATUS "Building ${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}: \(version \"${${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_VER}\"\)")
     find_program(LIBTOOL libtool REQUIRED)
+    include(cmake/scripts/common/ModuleHelpers.cmake)
+
+    set(MODULE_LC fstrcmp)
+
+    SETUP_BUILD_VARS()
 
     find_program(AUTORECONF autoreconf REQUIRED)
 
@@ -29,23 +27,37 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
 
     BUILD_DEP_TARGET()
   else()
-    SETUP_FIND_SPECS()
-  
-    SEARCH_EXISTING_PACKAGES()
+    find_package(PkgConfig)
+    if(PKG_CONFIG_FOUND)
+      pkg_check_modules(PC_FSTRCMP fstrcmp QUIET)
+    endif()
+
+    find_path(FSTRCMP_INCLUDE_DIR NAMES fstrcmp.h
+                                  HINTS ${DEPENDS_PATH}/include ${PC_FSTRCMP_INCLUDEDIR}
+                                  ${${CORE_PLATFORM_LC}_SEARCH_CONFIG}
+                                  NO_CACHE)
+
+    find_library(FSTRCMP_LIBRARY NAMES fstrcmp
+                                 HINTS ${DEPENDS_PATH}/lib ${PC_FSTRCMP_LIBDIR}
+                                 ${${CORE_PLATFORM_LC}_SEARCH_CONFIG}
+                                 NO_CACHE)
+
+    set(FSTRCMP_VER ${PC_FSTRCMP_VERSION})
   endif()
 
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    if(TARGET PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-    elseif(TARGET fstrcmp::fstrcmp)
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS fstrcmp::fstrcmp)
-    else()
-      SETUP_BUILD_TARGET()
-      add_dependencies(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ${${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_BUILD_NAME})
-    endif()
-  else()
-    if(Fstrcmp_FIND_REQUIRED)
-      message(FATAL_ERROR "Fstrcmp libraries were not found. You may want to use -DENABLE_INTERNAL_FSTRCMP=ON")
-    endif()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Fstrcmp
+                                    REQUIRED_VARS FSTRCMP_LIBRARY FSTRCMP_INCLUDE_DIR
+                                    VERSION_VAR FSTRCMP_VER)
+
+  add_library(fstrcmp::fstrcmp UNKNOWN IMPORTED)
+  set_target_properties(fstrcmp::fstrcmp PROPERTIES
+                                         IMPORTED_LOCATION "${FSTRCMP_LIBRARY}"
+                                         INTERFACE_INCLUDE_DIRECTORIES "${FSTRCMP_INCLUDE_DIR}")
+
+  if(TARGET fstrcmp)
+    add_dependencies(fstrcmp::fstrcmp fstrcmp)
   endif()
+
+  set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP fstrcmp::fstrcmp)
 endif()

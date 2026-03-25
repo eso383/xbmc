@@ -10,7 +10,6 @@
 
 #include "XBDateTime.h"
 #include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/pvr/pvr_channels.h" // PVR_CHANNEL_INVALID_UID
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
 #include "pvr/epg/EpgInfoTag.h"
 #include "pvr/timers/PVRTimerInfoTag.h"
 #include "utils/RegExp.h"
@@ -21,9 +20,8 @@ using namespace PVR;
 
 CPVRTimerRuleMatcher::CPVRTimerRuleMatcher(const std::shared_ptr<CPVRTimerInfoTag>& timerRule,
                                            const CDateTime& start)
-  : m_timerRule(timerRule)
+  : m_timerRule(timerRule), m_start(CPVRTimerInfoTag::ConvertUTCToLocalTime(start))
 {
-  m_start.SetFromUTCDateTime(start);
 }
 
 CPVRTimerRuleMatcher::~CPVRTimerRuleMatcher() = default;
@@ -75,9 +73,9 @@ CDateTime CPVRTimerRuleMatcher::GetNextTimerStart() const
 
 bool CPVRTimerRuleMatcher::Matches(const std::shared_ptr<const CPVREpgInfoTag>& epgTag) const
 {
-  return epgTag && epgTag->EndAsLocalTime() > m_start && MatchSeriesLink(epgTag) &&
-         MatchChannel(epgTag) && MatchStart(epgTag) && MatchEnd(epgTag) && MatchDayOfWeek(epgTag) &&
-         MatchSearchText(epgTag);
+  return epgTag && CPVRTimerInfoTag::ConvertUTCToLocalTime(epgTag->EndAsUTC()) > m_start &&
+         MatchSeriesLink(epgTag) && MatchChannel(epgTag) && MatchStart(epgTag) &&
+         MatchEnd(epgTag) && MatchDayOfWeek(epgTag) && MatchSearchText(epgTag);
 }
 
 bool CPVRTimerRuleMatcher::MatchSeriesLink(
@@ -92,10 +90,8 @@ bool CPVRTimerRuleMatcher::MatchSeriesLink(
 bool CPVRTimerRuleMatcher::MatchChannel(const std::shared_ptr<const CPVREpgInfoTag>& epgTag) const
 {
   if (m_timerRule->GetTimerType()->SupportsAnyChannel() &&
-      m_timerRule->ClientChannelUID() == PVR_CHANNEL_INVALID_UID &&
-      (m_timerRule->ClientID() == PVR_CLIENT_INVALID_UID ||
-       m_timerRule->ClientID() == epgTag->ClientID()))
-    return true; // matches any channel from any client / any channel from a certain client
+      m_timerRule->ClientChannelUID() == PVR_CHANNEL_INVALID_UID)
+    return true; // matches any channel
 
   if (m_timerRule->GetTimerType()->SupportsChannels())
     return m_timerRule->ClientChannelUID() != PVR_CHANNEL_INVALID_UID &&
@@ -110,7 +106,7 @@ bool CPVRTimerRuleMatcher::MatchStart(const std::shared_ptr<const CPVREpgInfoTag
   if (m_timerRule->GetTimerType()->SupportsFirstDay())
   {
     // only year, month and day do matter here...
-    const CDateTime startEpgLocal(epgTag->StartAsLocalTime());
+    const CDateTime startEpgLocal = CPVRTimerInfoTag::ConvertUTCToLocalTime(epgTag->StartAsUTC());
     const CDateTime startEpg(startEpgLocal.GetYear(), startEpgLocal.GetMonth(),
                              startEpgLocal.GetDay(), 0, 0, 0);
     const CDateTime firstDayLocal = m_timerRule->FirstDayAsLocalTime();
@@ -126,7 +122,7 @@ bool CPVRTimerRuleMatcher::MatchStart(const std::shared_ptr<const CPVREpgInfoTag
   if (m_timerRule->GetTimerType()->SupportsStartTime())
   {
     // only hours and minutes do matter here...
-    const CDateTime startEpgLocal(epgTag->StartAsLocalTime());
+    const CDateTime startEpgLocal = CPVRTimerInfoTag::ConvertUTCToLocalTime(epgTag->StartAsUTC());
     const CDateTime startEpg(2000, 1, 1, startEpgLocal.GetHour(), startEpgLocal.GetMinute(), 0);
     const CDateTime startTimerLocal = m_timerRule->StartAsLocalTime();
     const CDateTime startTimer(2000, 1, 1, startTimerLocal.GetHour(), startTimerLocal.GetMinute(),
@@ -145,7 +141,7 @@ bool CPVRTimerRuleMatcher::MatchEnd(const std::shared_ptr<const CPVREpgInfoTag>&
   if (m_timerRule->GetTimerType()->SupportsEndTime())
   {
     // only hours and minutes do matter here...
-    const CDateTime endEpgLocal(epgTag->EndAsLocalTime());
+    const CDateTime endEpgLocal = CPVRTimerInfoTag::ConvertUTCToLocalTime(epgTag->EndAsUTC());
     const CDateTime endEpg(2000, 1, 1, endEpgLocal.GetHour(), endEpgLocal.GetMinute(), 0);
     const CDateTime endTimerLocal = m_timerRule->EndAsLocalTime();
     const CDateTime endTimer(2000, 1, 1, endTimerLocal.GetHour(), endTimerLocal.GetMinute(), 0);
@@ -157,15 +153,17 @@ bool CPVRTimerRuleMatcher::MatchEnd(const std::shared_ptr<const CPVREpgInfoTag>&
 
 bool CPVRTimerRuleMatcher::MatchDayOfWeek(const std::shared_ptr<const CPVREpgInfoTag>& epgTag) const
 {
-  if (m_timerRule->GetTimerType()->SupportsWeekdays() &&
-      m_timerRule->WeekDays() != PVR_WEEKDAY_ALLDAYS)
+  if (m_timerRule->GetTimerType()->SupportsWeekdays())
   {
-    const CDateTime startEpgLocal{epgTag->StartAsLocalTime()};
-    int startWeekday{startEpgLocal.GetDayOfWeek()};
-    if (startWeekday == 0)
-      startWeekday = 7;
+    if (m_timerRule->WeekDays() != PVR_WEEKDAY_ALLDAYS)
+    {
+      const CDateTime startEpgLocal = CPVRTimerInfoTag::ConvertUTCToLocalTime(epgTag->StartAsUTC());
+      int startWeekday = startEpgLocal.GetDayOfWeek();
+      if (startWeekday == 0)
+        startWeekday = 7;
 
-    return ((1 << (startWeekday - 1)) & m_timerRule->WeekDays());
+      return ((1 << (startWeekday - 1)) & m_timerRule->WeekDays());
+    }
   }
   return true;
 }

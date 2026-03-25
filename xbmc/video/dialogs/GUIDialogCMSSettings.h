@@ -34,5 +34,6 @@ protected:
 private:
   static void Cms3dLutsFiller(const std::shared_ptr<const CSetting>& setting,
                               std::vector<StringSettingOption>& list,
-                              std::string& current);
+                              std::string& current,
+                              void* data);
 };

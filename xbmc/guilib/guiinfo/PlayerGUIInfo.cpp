@@ -32,12 +32,10 @@
 #include "utils/log.h"
 #include "utils/AMLUtils.h"
 #include "utils/BitstreamConverter.h"
-#include "windowing/WinSystem.h"
 
 #include "platform/linux/SysfsPath.h"
 
 #include <charconv>
-#include <chrono>
 #include <cmath>
 #include <fmt/format.h>
 #include <memory>
@@ -120,25 +118,7 @@ std::string CPlayerGUIInfo::GetAMLConfigInfo(std::string item) const
 
 int CPlayerGUIInfo::GetPlayTime() const
 {
-  int playTime = std::lrint(g_application.GetTime());
-
-  const auto& dataCache = CServiceBroker::GetDataCacheCore();
-  if (dataCache.HasPerformedSeek(3))
-  {
-    const int64_t seekTarget = dataCache.GetSeekTarget();
-    if (seekTarget >= 0)
-    {
-      const int64_t playTimeMs = static_cast<int64_t>(playTime) * 1000;
-
-      // Keep the timeline pinned to the last requested seek target until the
-      // player state catches up, otherwise the UI briefly snaps back to the
-      // pre-seek position before jumping to the new location.
-      if (std::llabs(playTimeMs - seekTarget) > 1000)
-        playTime = static_cast<int>((seekTarget + 500) / 1000);
-    }
-  }
-
-  return playTime;
+  return std::lrint(g_application.GetTime());
 }
 
 int CPlayerGUIInfo::GetPlayTimeRemaining() const
@@ -153,9 +133,10 @@ float CPlayerGUIInfo::GetSeekPercent() const
   if (iTotal == 0)
     return 0.0f;
 
-  int seekTime = GetPlayTime() + m_appPlayer->GetSeekHandler().GetSeekSize();
-
-  float fPercent = static_cast<float>(seekTime) * 100.0f / static_cast<float>(iTotal);
+  float fPercentPlayTime = static_cast<float>(GetPlayTime() * 1000) / iTotal * 0.1f;
+  float fPercentPerSecond = 100.0f / static_cast<float>(iTotal);
+  float fPercent =
+      fPercentPlayTime + fPercentPerSecond * m_appPlayer->GetSeekHandler().GetSeekSize();
   fPercent = std::max(0.0f, std::min(fPercent, 100.0f));
   return fPercent;
 }
@@ -228,7 +209,7 @@ bool CPlayerGUIInfo::ToggleShowInfo()
   return m_playerShowInfo;
 }
 
-bool CPlayerGUIInfo::InitCurrentItem(CFileItem* item)
+bool CPlayerGUIInfo::InitCurrentItem(CFileItem *item)
 {
   if (item && m_appPlayer->IsPlaying())
   {
@@ -293,7 +274,7 @@ std::string FormatSampleRate(int rate) {
   // Convert to kHz
   double kHzRate = static_cast<double>(rate) / 1000.0;
   std::ostringstream oss;
-
+  
   if (std::floor(kHzRate) == kHzRate) {
     // If it's a whole number, display without decimal places
     oss << static_cast<int>(kHzRate);
@@ -334,26 +315,22 @@ static double pq_to_nits(uint16_t pq) {
 
   // Normalize 12-bit PQ value to 0-1 range
   double pq_normalized = pq / 4095.0;
-
+  
   double pq_pow = std::pow(pq_normalized, 1.0 / ST2084_M2);
   double num = std::max(pq_pow - ST2084_C1, 0.0);
   double den = ST2084_C2 - ST2084_C3 * pq_pow;
-
+  
   // Protect against division by zero
   if (std::abs(den) < std::numeric_limits<double>::epsilon()) {
     return 0.0;
   }
-
+  
   return ST2084_Y_MAX * std::pow(num / den, 1.0 / ST2084_M1);
 }
 
-bool CPlayerGUIInfo::GetLabel(std::string& value,
-                              const CFileItem* item,
-                              int contextWindow,
-                              const CGUIInfo& info,
-                              std::string* fallback) const
+bool CPlayerGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYER_*
@@ -397,14 +374,16 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PATH:
     case PLAYER_FILENAME:
     case PLAYER_FILEPATH:
-      value = GUIINFO::GetFileInfoLabelValueFromPath(info.GetInfo(), item->GetPath());
+      value = GUIINFO::GetFileInfoLabelValueFromPath(info.m_info, item->GetPath());
       return true;
     case PLAYER_TITLE:
+    {
       // use label or drop down to title from path
       value = item->GetLabel();
       if (value.empty())
         value = CUtil::GetTitleFromPath(item->GetPath());
       return true;
+    }
     case PLAYER_PLAYSPEED:
     {
       float speed = m_appPlayer->GetPlaySpeed();
@@ -457,8 +436,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_SEEKSTEPSIZE:
     {
       int seekSize = m_appPlayer->GetSeekHandler().GetSeekSize();
-      std::string strSeekSize = StringUtils::SecondsToTimeString(
-          abs(seekSize), static_cast<TIME_FORMAT>(info.GetData1()));
+      std::string strSeekSize = StringUtils::SecondsToTimeString(abs(seekSize), static_cast<TIME_FORMAT>(info.GetData1()));
       if (seekSize < 0)
         value = "-" + strSeekSize;
       if (seekSize > 0)
@@ -491,8 +469,9 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_EDITLIST:
     case PLAYER_CUTS:
     case PLAYER_SCENE_MARKERS:
+    case PLAYER_CUTLIST:
     case PLAYER_CHAPTERS:
-      value = GetContentRanges(info.GetInfo());
+      value = GetContentRanges(info.m_info);
       return true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -572,7 +551,6 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_AUDIO_SPK_TBR:
       value = (CServiceBroker::GetDataCacheCore().GetAudioSpeakerMask() & (1ULL << 16)) ? "1" : "0";
       return true;
-
     case PLAYER_PROCESS_AUDIO_SPK_SINK_FL:
       value = (CServiceBroker::GetDataCacheCore().GetAudioSpeakerMaskSink() & (1ULL << 0)) ? "1" : "0";
       return true;
@@ -797,7 +775,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_VIDEO_DOVI_SOURCE_MAX_NITS:
       value = std::to_string(static_cast<int>(pq_to_nits(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().source_max_pq)));
       return true;
-
+  
     case PLAYER_PROCESS_VIDEO_DOVI_HAS_L6:
       value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().has_level6_metadata);
       return true;
@@ -812,7 +790,7 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
       return true;
     case PLAYER_PROCESS_VIDEO_DOVI_L6_MAX_LUM:
       value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata().level6_max_lum);
-      return true;
+      return true;    
 
     case PLAYER_PROCESS_VIDEO_HDR_HAS_CLL:
       value = std::to_string(CServiceBroker::GetDataCacheCore().GetVideoHDRStaticMetadataInfo().has_cll_metadata);
@@ -861,9 +839,6 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYER_PROCESS_AV_CHANGE:
       value = std::to_string(CServiceBroker::GetDataCacheCore().GetAVChange());
       return true;
-    case PLAYER_PROCESS_RENDER_PTS:
-      value = std::to_string((int)CServiceBroker::GetDataCacheCore().GetRenderPts());
-      return true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYLIST_*
@@ -872,22 +847,16 @@ bool CPlayerGUIInfo::GetLabel(std::string& value,
     case PLAYLIST_POSITION:
     case PLAYLIST_RANDOM:
     case PLAYLIST_REPEAT:
-      value = GUIINFO::GetPlaylistLabel(info.GetInfo(),
-                                        PLAYLIST::Id{static_cast<int>(info.GetData1())});
+      value = GUIINFO::GetPlaylistLabel(info.m_info, info.GetData1());
       return true;
-    default:
-      break;
   }
 
   return false;
 }
 
-bool CPlayerGUIInfo::GetInt(int& value,
-                            const CGUIListItem* gitem,
-                            int contextWindow,
-                            const CGUIInfo& info) const
+bool CPlayerGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYER_*
@@ -896,8 +865,7 @@ bool CPlayerGUIInfo::GetInt(int& value,
       value = static_cast<int>(m_appVolume->GetVolumePercent());
       return true;
     case PLAYER_PROGRESS:
-      value = std::lrintf(CServiceBroker::GetDataCacheCore().HasPerformedSeek(3) ? GetSeekPercent()
-                                                                                 : g_application.GetPercentage());
+      value = std::lrintf(g_application.GetPercentage());
       return true;
     case PLAYER_PROGRESS_CACHE:
       value = std::lrintf(g_application.GetCachePercentage());
@@ -935,23 +903,18 @@ bool CPlayerGUIInfo::GetInt(int& value,
     case PLAYER_PROCESS_VIDEO_SOURCE_HDR_TYPE_RAW:
       value = static_cast<int>(CServiceBroker::GetDataCacheCore().GetVideoSourceHdrType());
       return true;
-    default:
-      break;
   }
 
   return false;
 }
 
-bool CPlayerGUIInfo::GetBool(bool& value,
-                             const CGUIListItem* gitem,
-                             int contextWindow,
-                             const CGUIInfo& info) const
+bool CPlayerGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  const CFileItem* item = nullptr;
+  const CFileItem *item = nullptr;
   if (gitem->IsFileItem())
     item = static_cast<const CFileItem*>(gitem);
 
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // PLAYER_*
@@ -983,9 +946,6 @@ bool CPlayerGUIInfo::GetBool(bool& value,
       return true;
     case PLAYER_IS_EXTERNAL:
       value = m_appPlayer->IsExternalPlaying();
-      return true;
-    case PLAYER_IS_LIVE:
-      value = m_appPlayer->IsLiveStream();
       return true;
     case PLAYER_PLAYING:
       value = m_appPlayer->GetPlaySpeed() == 1.0f;
@@ -1046,8 +1006,7 @@ bool CPlayerGUIInfo::GetBool(bool& value,
       return true;
     case PLAYER_SEEKBAR:
     {
-      const CGUIDialog* seekBar{
-          CServiceBroker::GetGUI()->GetWindowManager().GetDialog(WINDOW_DIALOG_SEEK_BAR)};
+      CGUIDialog *seekBar = CServiceBroker::GetGUI()->GetWindowManager().GetDialog(WINDOW_DIALOG_SEEK_BAR);
       value = seekBar ? seekBar->IsDialogRunning() : false;
       return true;
     }
@@ -1101,9 +1060,9 @@ bool CPlayerGUIInfo::GetBool(bool& value,
     ///////////////////////////////////////////////////////////////////////////////////////////////
     case PLAYLIST_ISRANDOM:
     {
-      const PLAYLIST::CPlayListPlayer& player{CServiceBroker::GetPlaylistPlayer()};
-      const PLAYLIST::Id playlistid{static_cast<int>(info.GetData1())};
-      if (info.GetData2() > 0 && playlistid != PLAYLIST::Id::TYPE_NONE)
+      PLAYLIST::CPlayListPlayer& player = CServiceBroker::GetPlaylistPlayer();
+      PLAYLIST::Id playlistid = info.GetData1();
+      if (info.GetData2() > 0 && playlistid != PLAYLIST::TYPE_NONE)
         value = player.IsShuffled(playlistid);
       else
         value = player.IsShuffled(player.GetCurrentPlaylist());
@@ -1111,9 +1070,9 @@ bool CPlayerGUIInfo::GetBool(bool& value,
     }
     case PLAYLIST_ISREPEAT:
     {
-      const PLAYLIST::CPlayListPlayer& player{CServiceBroker::GetPlaylistPlayer()};
-      const PLAYLIST::Id playlistid{static_cast<int>(info.GetData1())};
-      if (info.GetData2() > 0 && playlistid != PLAYLIST::Id::TYPE_NONE)
+      PLAYLIST::CPlayListPlayer& player = CServiceBroker::GetPlaylistPlayer();
+      PLAYLIST::Id playlistid = info.GetData1();
+      if (info.GetData2() > 0 && playlistid != PLAYLIST::TYPE_NONE)
         value = (player.GetRepeat(playlistid) == PLAYLIST::RepeatState::ALL);
       else
         value = player.GetRepeat(player.GetCurrentPlaylist()) == PLAYLIST::RepeatState::ALL;
@@ -1121,9 +1080,9 @@ bool CPlayerGUIInfo::GetBool(bool& value,
     }
     case PLAYLIST_ISREPEATONE:
     {
-      const PLAYLIST::CPlayListPlayer& player{CServiceBroker::GetPlaylistPlayer()};
-      const PLAYLIST::Id playlistid{static_cast<int>(info.GetData1())};
-      if (info.GetData2() > 0 && playlistid != PLAYLIST::Id::TYPE_NONE)
+      PLAYLIST::CPlayListPlayer& player = CServiceBroker::GetPlaylistPlayer();
+      PLAYLIST::Id playlistid = info.GetData1();
+      if (info.GetData2() > 0 && playlistid != PLAYLIST::TYPE_NONE)
         value = (player.GetRepeat(playlistid) == PLAYLIST::RepeatState::ONE);
       else
         value = player.GetRepeat(player.GetCurrentPlaylist()) == PLAYLIST::RepeatState::ONE;
@@ -1146,7 +1105,7 @@ bool CPlayerGUIInfo::GetBool(bool& value,
       {
         if (item->HasProperty("playlistposition"))
         {
-          value = PLAYLIST::Id{item->GetProperty("playlisttype").asInteger32()} ==
+          value = static_cast<int>(item->GetProperty("playlisttype").asInteger()) ==
                       CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist() &&
                   static_cast<int>(item->GetProperty("playlistposition").asInteger()) ==
                       CServiceBroker::GetPlaylistPlayer().GetCurrentItemIdx();
@@ -1157,8 +1116,7 @@ bool CPlayerGUIInfo::GetBool(bool& value,
           if (!g_application.m_strPlayListFile.empty())
           {
             //playlist file that is currently playing or the playlistitem that is currently playing.
-            value =
-                item->IsPath(g_application.m_strPlayListFile) || m_currentItem->IsSamePath(item);
+            value = item->IsPath(g_application.m_strPlayListFile) || m_currentItem->IsSamePath(item);
           }
           else
           {
@@ -1169,8 +1127,6 @@ bool CPlayerGUIInfo::GetBool(bool& value,
       }
       break;
     }
-    default:
-      break;
   }
 
   return false;
@@ -1195,6 +1151,7 @@ std::string CPlayerGUIInfo::GetContentRanges(int iInfo) const
     switch (iInfo)
     {
       case PLAYER_EDITLIST:
+      case PLAYER_CUTLIST:
         ranges = GetEditList(data, duration);
         break;
       case PLAYER_CUTS:
@@ -1212,8 +1169,8 @@ std::string CPlayerGUIInfo::GetContentRanges(int iInfo) const
     }
 
     // create csv string from ranges
-    for (const auto& [rangeBegin, rangeEnd] : ranges)
-      values += StringUtils::Format("{:.5f},{:.5f},", rangeBegin, rangeEnd);
+    for (const auto& range : ranges)
+      values += StringUtils::Format("{:.5f},{:.5f},", range.first, range.second);
 
     if (!values.empty())
       values.pop_back(); // remove trailing comma
@@ -1230,8 +1187,8 @@ std::vector<std::pair<float, float>> CPlayerGUIInfo::GetEditList(const CDataCach
   const std::vector<EDL::Edit>& edits = data.GetEditList();
   for (const auto& edit : edits)
   {
-    float editStart = edit.start.count() * 100.0f / duration;
-    float editEnd = edit.end.count() * 100.0f / duration;
+    float editStart = edit.start * 100.0f / duration;
+    float editEnd = edit.end * 100.0f / duration;
     ranges.emplace_back(editStart, editEnd);
   }
   return ranges;
@@ -1242,11 +1199,11 @@ std::vector<std::pair<float, float>> CPlayerGUIInfo::GetCuts(const CDataCacheCor
 {
   std::vector<std::pair<float, float>> ranges;
 
-  const std::vector<std::chrono::milliseconds>& cuts = data.GetCuts();
+  const std::vector<int64_t>& cuts = data.GetCuts();
   float lastMarker = 0.0f;
   for (const auto& cut : cuts)
   {
-    float marker = cut.count() * 100.0f / duration;
+    float marker = cut * 100.0f / duration;
     if (marker != 0)
       ranges.emplace_back(lastMarker, marker);
 
@@ -1260,11 +1217,11 @@ std::vector<std::pair<float, float>> CPlayerGUIInfo::GetSceneMarkers(const CData
 {
   std::vector<std::pair<float, float>> ranges;
 
-  const std::vector<std::chrono::milliseconds>& scenes = data.GetSceneMarkers();
+  const std::vector<int64_t>& scenes = data.GetSceneMarkers();
   float lastMarker = 0.0f;
   for (const auto& scene : scenes)
   {
-    float marker = scene.count() * 100.0f / duration;
+    float marker = scene * 100.0f / duration;
     if (marker != 0)
       ranges.emplace_back(lastMarker, marker);
 
@@ -1280,11 +1237,10 @@ std::vector<std::pair<float, float>> CPlayerGUIInfo::GetChapters(const CDataCach
 
   const std::vector<std::pair<std::string, int64_t>>& chapters = data.GetChapters();
   float lastMarker = 0.0f;
-  for (const auto& [_, chapterEnd] : chapters)
+  for (const auto& chapter : chapters)
   {
-    const float marker =
-        static_cast<float>(chapterEnd * 1000) * 100.0f / static_cast<float>(duration);
-    if (marker != 0.0f)
+    float marker = chapter.second * 1000 * 100.0f / duration;
+    if (marker != 0)
       ranges.emplace_back(lastMarker, marker);
 
     lastMarker = marker;

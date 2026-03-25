@@ -684,8 +684,7 @@ public:
   ///
   /// @note The function should only be called once, if possible
   ///
-  inline void TransferPresets(const std::vector<std::string>& presets)
-  {
+  inline void TransferPresets(const std::vector<std::string>& presets) const {
     m_instanceData->visualization->toKodi->clear_presets(m_instanceData->info->kodi);
     for (const auto& it : presets)
       m_instanceData->visualization->toKodi->transfer_preset(m_instanceData->info->kodi,
@@ -714,7 +713,7 @@ public:
   /// ..
   /// ~~~~~~~~~~~~~
   ///
-  inline kodi::HardwareContext Device() { return m_props.device; }
+  inline kodi::HardwareContext Device() const { return m_props.device; }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -723,7 +722,7 @@ public:
   ///
   /// @return The X position, in pixels
   ///
-  inline int X() { return m_props.x; }
+  inline int X() const { return m_props.x; }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -732,7 +731,7 @@ public:
   ///
   /// @return The Y position, in pixels
   ///
-  inline int Y() { return m_props.y; }
+  inline int Y() const { return m_props.y; }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -741,7 +740,7 @@ public:
   ///
   /// @return The width, in pixels
   ///
-  inline int Width() { return m_props.width; }
+  inline int Width() const { return m_props.width; }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -750,7 +749,7 @@ public:
   ///
   /// @return The height, in pixels
   ///
-  inline int Height() { return m_props.height; }
+  inline int Height() const { return m_props.height; }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -760,7 +759,7 @@ public:
   ///
   /// @return The pixel aspect ratio used by the display
   ///
-  inline float PixelRatio() { return m_props.pixelRatio; }
+  inline float PixelRatio() const { return m_props.pixelRatio; }
   //----------------------------------------------------------------------------
 
   ///@}
@@ -797,14 +796,14 @@ private:
                                  int bitsPerSample,
                                  const char* songName)
   {
-    CInstanceVisualization* thisClass = static_cast<CInstanceVisualization*>(hdl);
+    auto thisClass = static_cast<CInstanceVisualization*>(hdl);
     thisClass->m_renderHelper = kodi::gui::GetRenderHelper();
     return thisClass->Start(channels, samplesPerSec, bitsPerSample, songName);
   }
 
   inline static void ADDON_stop(const KODI_ADDON_VISUALIZATION_HDL hdl)
   {
-    CInstanceVisualization* thisClass = static_cast<CInstanceVisualization*>(hdl);
+    auto thisClass = static_cast<CInstanceVisualization*>(hdl);
     thisClass->Stop();
     thisClass->m_renderHelper = nullptr;
   }
@@ -823,7 +822,7 @@ private:
 
   inline static void ADDON_render(const KODI_ADDON_VISUALIZATION_HDL hdl)
   {
-    CInstanceVisualization* thisClass = static_cast<CInstanceVisualization*>(hdl);
+    auto thisClass = static_cast<CInstanceVisualization*>(hdl);
     if (!thisClass->m_renderHelper)
       return;
     thisClass->m_renderHelper->Begin();
@@ -838,7 +837,7 @@ private:
 
   inline static unsigned int ADDON_get_presets(const KODI_ADDON_VISUALIZATION_HDL hdl)
   {
-    CInstanceVisualization* thisClass = static_cast<CInstanceVisualization*>(hdl);
+    auto thisClass = static_cast<CInstanceVisualization*>(hdl);
     std::vector<std::string> presets;
     if (thisClass->GetPresets(presets))
     {
@@ -878,7 +877,7 @@ private:
 
   inline static bool ADDON_lock_preset(const KODI_ADDON_VISUALIZATION_HDL hdl)
   {
-    CInstanceVisualization* thisClass = static_cast<CInstanceVisualization*>(hdl);
+    auto thisClass = static_cast<CInstanceVisualization*>(hdl);
     thisClass->m_presetLockedByUser = !thisClass->m_presetLockedByUser;
     return thisClass->LockPreset(thisClass->m_presetLockedByUser);
   }

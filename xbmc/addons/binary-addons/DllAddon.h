@@ -21,6 +21,7 @@ public:
 
 class DllAddon : public DllDynamic, public DllAddonInterface
 {
+public:
   DECLARE_DLL_WRAPPER_TEMPLATE(DllAddon)
   DEFINE_METHOD1(ADDON_STATUS, Create, (void* p1))
   DEFINE_METHOD1(const char*, GetAddonTypeVersion, (int p1))

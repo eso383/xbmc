@@ -9,8 +9,8 @@
 #pragma once
 
 #include "InfoLoader.h"
-#include "jobs/Job.h"
 #include "settings/ISubSettings.h"
+#include "utils/Job.h"
 
 #include <string>
 #include <vector>
@@ -24,7 +24,6 @@
 
 #define REG_CURRENT_VERSION L"Software\\Microsoft\\Windows NT\\CurrentVersion"
 
-class TiXmlNode;
 
 class CSysData
 {
@@ -143,7 +142,7 @@ public:
   static std::string GetVersionGit();
   static std::string GetBuildDate();
 
-  bool HasInternet();
+  bool HasInternet() const;
   bool IsAeroDisabled();
   static bool IsWindowsVersion(WindowsVersion ver);
   static bool IsWindowsVersionAtLeast(WindowsVersion ver);

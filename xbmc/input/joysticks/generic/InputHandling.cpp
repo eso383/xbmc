@@ -25,8 +25,7 @@ using namespace JOYSTICK;
 CGUIDialogNewJoystick* const CInputHandling::m_dialog = new CGUIDialogNewJoystick;
 
 CInputHandling::CInputHandling(IInputHandler* handler, IButtonMap* buttonMap)
-  : m_handler(handler),
-    m_buttonMap(buttonMap)
+  : m_handler(handler), m_buttonMap(buttonMap)
 {
 }
 
@@ -151,8 +150,7 @@ bool CInputHandling::OnAnalogMotion(const CDriverPrimitive& source, float magnit
   return bHandled;
 }
 
-CJoystickFeature* CInputHandling::CreateFeature(const FeatureName& featureName)
-{
+CJoystickFeature* CInputHandling::CreateFeature(const FeatureName& featureName) const {
   CJoystickFeature* feature = nullptr;
 
   switch (m_buttonMap->GetFeatureType(featureName))

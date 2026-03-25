@@ -12,15 +12,19 @@
 #include "playlists/SmartPlaylistFileItemListModifier.h"
 #include "video/windows/VideoFileItemListModifier.h"
 
-#include <algorithm>
-
-using namespace KODI;
-
 CFileItemListModification::CFileItemListModification()
 {
-  m_modifiers.push_back(std::make_unique<PLAYLIST::CSmartPlaylistFileItemListModifier>());
-  m_modifiers.push_back(std::make_unique<CMusicFileItemListModifier>());
-  m_modifiers.push_back(std::make_unique<CVideoFileItemListModifier>());
+  m_modifiers.insert(new CSmartPlaylistFileItemListModifier());
+  m_modifiers.insert(new CMusicFileItemListModifier());
+  m_modifiers.insert(new CVideoFileItemListModifier());
+}
+
+CFileItemListModification::~CFileItemListModification()
+{
+  for (auto modifier = m_modifiers.begin(); modifier != m_modifiers.end(); ++modifier)
+    delete *modifier;
+
+  m_modifiers.clear();
 }
 
 CFileItemListModification& CFileItemListModification::GetInstance()
@@ -31,14 +35,20 @@ CFileItemListModification& CFileItemListModification::GetInstance()
 
 bool CFileItemListModification::CanModify(const CFileItemList &items) const
 {
-  return std::ranges::any_of(m_modifiers,
-                             [&items](const auto& mod) { return mod->CanModify(items); });
+  for (auto modifier = m_modifiers.begin(); modifier != m_modifiers.end(); ++modifier)
+  {
+    if ((*modifier)->CanModify(items))
+      return true;
+  }
+
+  return false;
 }
 
 bool CFileItemListModification::Modify(CFileItemList &items) const
 {
   bool result = false;
-  std::ranges::for_each(m_modifiers,
-                        [&result, &items](const auto& mod) { result |= mod->Modify(items); });
+  for (auto modifier = m_modifiers.begin(); modifier != m_modifiers.end(); ++modifier)
+    result |= (*modifier)->Modify(items);
+
   return result;
 }

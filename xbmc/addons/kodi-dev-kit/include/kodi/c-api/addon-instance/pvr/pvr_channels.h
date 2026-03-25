@@ -43,10 +43,10 @@ extern "C"
     bool bIsRadio;
     unsigned int iChannelNumber;
     unsigned int iSubChannelNumber;
-    const char* strChannelName;
-    const char* strMimeType;
+    char strChannelName[PVR_ADDON_NAME_STRING_LENGTH];
+    char strMimeType[PVR_ADDON_INPUT_FORMAT_STRING_LENGTH];
     unsigned int iEncryptionSystem;
-    const char* strIconPath;
+    char strIconPath[PVR_ADDON_URL_STRING_LENGTH];
     bool bIsHidden;
     bool bHasArchive;
     int iOrder;
@@ -62,11 +62,11 @@ extern "C"
    */
   typedef struct PVR_SIGNAL_STATUS
   {
-    const char* strAdapterName;
-    const char* strAdapterStatus;
-    const char* strServiceName;
-    const char* strProviderName;
-    const char* strMuxName;
+    char strAdapterName[PVR_ADDON_NAME_STRING_LENGTH];
+    char strAdapterStatus[PVR_ADDON_NAME_STRING_LENGTH];
+    char strServiceName[PVR_ADDON_NAME_STRING_LENGTH];
+    char strProviderName[PVR_ADDON_NAME_STRING_LENGTH];
+    char strMuxName[PVR_ADDON_NAME_STRING_LENGTH];
     int iSNR;
     int iSignal;
     long iBER;
@@ -95,10 +95,10 @@ extern "C"
     int iProvid;
     int iEcmTime;
     int iHops;
-    const char* strCardSystem;
-    const char* strReader;
-    const char* strFrom;
-    const char* strProtocol;
+    char strCardSystem[PVR_ADDON_DESCRAMBLE_INFO_STRING_LENGTH];
+    char strReader[PVR_ADDON_DESCRAMBLE_INFO_STRING_LENGTH];
+    char strFrom[PVR_ADDON_DESCRAMBLE_INFO_STRING_LENGTH];
+    char strProtocol[PVR_ADDON_DESCRAMBLE_INFO_STRING_LENGTH];
   } PVR_DESCRAMBLE_INFO;
 
 #ifdef __cplusplus

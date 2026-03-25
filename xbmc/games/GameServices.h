@@ -17,11 +17,6 @@
 class CInputManager;
 class CProfileManager;
 
-namespace ADDON
-{
-class CAddonMgr;
-} // namespace ADDON
-
 namespace PERIPHERALS
 {
 class CPeripherals;
@@ -32,11 +27,6 @@ namespace KODI
 namespace RETRO
 {
 class CGUIGameRenderManager;
-}
-
-namespace SHADER
-{
-class CShaderPresetFactory;
 }
 
 namespace GAME
@@ -55,15 +45,14 @@ public:
                 RETRO::CGUIGameRenderManager& renderManager,
                 PERIPHERALS::CPeripherals& peripheralManager,
                 const CProfileManager& profileManager,
-                CInputManager& inputManager,
-                ADDON::CAddonMgr& addons);
+                CInputManager& inputManager);
   ~CGameServices();
 
-  ControllerPtr GetController(const std::string& controllerId);
-  ControllerPtr GetDefaultController();
-  ControllerPtr GetDefaultKeyboard();
-  ControllerPtr GetDefaultMouse();
-  ControllerVector GetControllers();
+  ControllerPtr GetController(const std::string& controllerId) const;
+  ControllerPtr GetDefaultController() const;
+  ControllerPtr GetDefaultKeyboard() const;
+  ControllerPtr GetDefaultMouse() const;
+  ControllerVector GetControllers() const;
 
   /*!
    * \brief Translate a feature on a controller into its localized name
@@ -74,17 +63,15 @@ public:
    * \return The localized feature name, or empty if the controller or feature
    *         doesn't exist
    */
-  std::string TranslateFeature(const std::string& controllerId, const std::string& featureName);
+  std::string TranslateFeature(const std::string& controllerId, const std::string& featureName) const;
 
   std::string GetSavestatesFolder() const;
 
-  CGameSettings& GameSettings() { return *m_gameSettings; }
+  CGameSettings& GameSettings() const { return *m_gameSettings; }
 
-  RETRO::CGUIGameRenderManager& GameRenderManager() { return m_gameRenderManager; }
+  RETRO::CGUIGameRenderManager& GameRenderManager() const { return m_gameRenderManager; }
 
-  CAgentInput& AgentInput() { return *m_agentInput; }
-
-  SHADER::CShaderPresetFactory& VideoShaders() { return *m_videoShaders; }
+  CAgentInput& AgentInput() const { return *m_agentInput; }
 
   /*!
    * \brief Called when an add-on repo is installed
@@ -103,7 +90,6 @@ private:
   // Game services
   std::unique_ptr<CGameSettings> m_gameSettings;
   std::unique_ptr<CAgentInput> m_agentInput;
-  std::unique_ptr<SHADER::CShaderPresetFactory> m_videoShaders;
 
   // Game threads
   std::future<void> m_initializationTask;

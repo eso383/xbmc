@@ -62,10 +62,9 @@ set(package_files strings.xml
                   src/interfaces/XBMCNsdManagerRegistrationListener.java
                   src/interfaces/XBMCNsdManagerDiscoveryListener.java
                   src/interfaces/XBMCMediaDrmOnEventListener.java
-                  src/interfaces/XBMCMediaDrmOnKeyStatusChangeListener.java
                   src/interfaces/XBMCDisplayManagerDisplayListener.java
                   src/interfaces/XBMCSpeechRecognitionListener.java
-                  src/interfaces/XBMCConnectivityManagerNetworkCallback.java
+		  src/interfaces/XBMCConnectivityManagerNetworkCallback.java
                   src/model/TVEpisode.java
                   src/model/Movie.java
                   src/model/TVShow.java
@@ -75,10 +74,9 @@ set(package_files strings.xml
                   src/model/MusicVideo.java
                   src/model/Media.java
                   src/content/XBMCFileContentProvider.java
-                  src/content/XBMCFileProvider.java
                   src/content/XBMCMediaContentProvider.java
                   src/content/XBMCContentProvider.java
-                  src/util/Storage.java
+                  src/content/XBMCYTDLContentProvider.java
                   )
 foreach(file IN LISTS package_files)
   configure_file(${CMAKE_SOURCE_DIR}/tools/android/packaging/xbmc/${file}.in
@@ -143,20 +141,17 @@ foreach(library IN LISTS LIBRARY_FILES)
   add_bundle_file(${library} ${libdir}/${APP_NAME_LC} ${CMAKE_BINARY_DIR})
 endforeach()
 
-if(TARGET ${APP_NAME_LC}::Shairplay)
-  add_bundle_file(${APP_NAME_LC}::Shairplay ${libdir} "")
+if(TARGET Shairplay::Shairplay)
+  add_bundle_file(Shairplay::Shairplay ${libdir} "")
 endif()
 
 # Main targets from Makefile.in
 if(CPU MATCHES i686)
   set(CPU x86)
 endif()
-
-find_program(MAKE_EXECUTABLE make REQUIRED)
-
 foreach(target apk apk-clean)
   add_custom_target(${target}
-      COMMAND env PATH=${NATIVEPREFIX}/bin:$ENV{PATH} ${MAKE_EXECUTABLE} -j1
+      COMMAND env PATH=${NATIVEPREFIX}/bin:$ENV{PATH} ${CMAKE_MAKE_PROGRAM} -j1
               -C ${CMAKE_BINARY_DIR}/tools/android/packaging
               CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
               CC=${CMAKE_C_COMPILER}

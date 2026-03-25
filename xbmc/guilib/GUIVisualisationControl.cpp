@@ -28,10 +28,8 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 #include <memory>
 
@@ -61,8 +59,7 @@ int CAudioBuffer::Size() const
   return m_iLen;
 }
 
-void CAudioBuffer::Set(const float* psBuffer, int iSize)
-{
+void CAudioBuffer::Set(const float* psBuffer, int iSize) const {
   if (iSize < 0)
     return;
 
@@ -84,8 +81,7 @@ CGUIVisualisationControl::CGUIVisualisationControl(const CGUIVisualisationContro
   ControlType = GUICONTROL_VISUALISATION;
 }
 
-std::string CGUIVisualisationControl::Name() const
-{
+std::string CGUIVisualisationControl::Name() const {
   if (m_instance == nullptr)
     return "";
   return m_instance->Name();
@@ -311,46 +307,40 @@ void CGUIVisualisationControl::UpdateTrack()
   m_instance->UpdateTrack(&track);
 }
 
-bool CGUIVisualisationControl::IsLocked() const
-{
+bool CGUIVisualisationControl::IsLocked() const {
   if (m_instance && m_alreadyStarted)
     return m_instance->IsLocked();
 
   return false;
 }
 
-bool CGUIVisualisationControl::HasPresets() const
-{
+bool CGUIVisualisationControl::HasPresets() const {
   if (m_instance && m_alreadyStarted)
     return m_instance->HasPresets();
 
   return false;
 }
 
-int CGUIVisualisationControl::GetActivePreset() const
-{
+int CGUIVisualisationControl::GetActivePreset() const {
   if (m_instance && m_alreadyStarted)
     return m_instance->GetActivePreset();
 
   return -1;
 }
 
-void CGUIVisualisationControl::SetPreset(int idx)
-{
+void CGUIVisualisationControl::SetPreset(int idx) const {
   if (m_instance && m_alreadyStarted)
     m_instance->LoadPreset(idx);
 }
 
-std::string CGUIVisualisationControl::GetActivePresetName() const
-{
+std::string CGUIVisualisationControl::GetActivePresetName() const {
   if (m_instance && m_alreadyStarted)
     return m_instance->GetActivePresetName();
 
   return "";
 }
 
-bool CGUIVisualisationControl::GetPresetList(std::vector<std::string>& vecpresets) const
-{
+bool CGUIVisualisationControl::GetPresetList(std::vector<std::string>& vecpresets) const {
   if (m_instance && m_alreadyStarted)
     return m_instance->GetPresetList(vecpresets);
 

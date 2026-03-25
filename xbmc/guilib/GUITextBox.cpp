@@ -10,15 +10,13 @@
 
 #include "GUIInfoManager.h"
 #include "GUIMessage.h"
-#include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/guiinfo/GUIInfoLabels.h"
 #include "utils/MathUtils.h"
-#include "windowing/WinSystem.h"
+#include "utils/StringUtils.h"
+#include "utils/XBMCTinyXML.h"
 
 #include <algorithm>
-
-#include <tinyxml.h>
 
 using namespace KODI::GUILIB;
 
@@ -41,7 +39,7 @@ CGUITextBox::CGUITextBox(int parentID, int controlID, float posX, float posY, fl
   m_autoScrollTime = 0;
   m_autoScrollDelay = 3000;
   m_autoScrollDelayTime = 0;
-  m_autoScrollRepeatAnim = NULL;
+  m_autoScrollRepeatAnim = nullptr;
   m_minHeight = 0;
   m_renderHeight = height;
   if (labelInfoMono)
@@ -57,7 +55,7 @@ CGUITextBox::CGUITextBox(const CGUITextBox& from)
   m_autoScrollDelay = from.m_autoScrollDelay;
   m_minHeight = from.m_minHeight;
   m_renderHeight = from.m_renderHeight;
-  m_autoScrollRepeatAnim = NULL;
+  m_autoScrollRepeatAnim = nullptr;
   if (from.m_autoScrollRepeatAnim)
     m_autoScrollRepeatAnim = new CAnimation(*from.m_autoScrollRepeatAnim);
   m_label = from.m_label;
@@ -76,7 +74,7 @@ CGUITextBox::CGUITextBox(const CGUITextBox& from)
 CGUITextBox::~CGUITextBox(void)
 {
   delete m_autoScrollRepeatAnim;
-  m_autoScrollRepeatAnim = NULL;
+  m_autoScrollRepeatAnim = nullptr;
 }
 
 bool CGUITextBox::UpdateColors(const CGUIListItem* item)
@@ -240,7 +238,7 @@ void CGUITextBox::Render()
       int current = offset;
 
       // set the main text color
-      if (!m_colors.empty())
+      if (m_colors.size())
         m_colors[0] = m_label.textColor;
 
       while (posY < m_posY + m_renderHeight && current < (int)m_lines.size())
@@ -248,7 +246,7 @@ void CGUITextBox::Render()
         const CGUIString& lineString = m_lines[current];
         uint32_t align = alignment;
 
-        if (!lineString.m_text.empty() && lineString.m_carriageReturn)
+        if (lineString.m_text.size() && lineString.m_carriageReturn)
           align &= ~XBFONT_JUSTIFIED; // last line of a paragraph shouldn't be justified
 
         m_font->DrawText(posX, posY, m_colors, m_label.shadowColor, lineString.m_text, align,
@@ -321,8 +319,7 @@ void CGUITextBox::SetMinHeight(float minHeight)
   m_minHeight = minHeight;
 }
 
-void CGUITextBox::UpdatePageControl()
-{
+void CGUITextBox::UpdatePageControl() const {
   if (m_pageControl)
   {
     CGUIMessage msg(GUI_MSG_LABEL_RESET, GetID(), m_pageControl, m_itemsPerPage, m_lines.size());

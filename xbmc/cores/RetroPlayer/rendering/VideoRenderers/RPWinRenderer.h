@@ -12,9 +12,7 @@
 #include "cores/RetroPlayer/buffers/BaseRenderBufferPool.h"
 #include "cores/RetroPlayer/buffers/video/RenderBufferSysMem.h"
 #include "cores/RetroPlayer/process/RPProcessInfo.h"
-#include "cores/RetroPlayer/shaders/windows/RPWinOutputShader.h"
 
-#include <map>
 #include <memory>
 #include <stdint.h>
 #include <vector>
@@ -26,11 +24,6 @@ struct SwsContext;
 
 namespace KODI
 {
-namespace SHADER
-{
-class CShaderTextureDX;
-} // namespace SHADER
-
 namespace RETRO
 {
 class CRenderContext;
@@ -58,7 +51,7 @@ public:
   // implementation of IRenderBuffer via CRenderBufferSysMem
   bool UploadTexture() override;
 
-  SHADER::CShaderTextureDX* GetTarget() { return m_intermediateTarget.get(); }
+  CD3DTexture* GetTarget() { return m_intermediateTarget.get(); }
 
 private:
   bool CreateTexture();
@@ -78,7 +71,7 @@ private:
   const DXGI_FORMAT m_targetDxFormat;
 
   AVPixelFormat m_targetPixFormat;
-  std::unique_ptr<SHADER::CShaderTextureDX> m_intermediateTarget;
+  std::unique_ptr<CD3DTexture> m_intermediateTarget;
 
   SwsContext* m_swsContext = nullptr;
 };
@@ -97,7 +90,7 @@ public:
 
   // DirectX interface
   bool ConfigureDX();
-  SHADER::CRPWinOutputShader* GetShader(SCALINGMETHOD scalingMethod) const;
+  CRPWinOutputShader* GetShader(SCALINGMETHOD scalingMethod) const;
 
 private:
   static const std::vector<SCALINGMETHOD>& GetScalingMethods();
@@ -105,7 +98,7 @@ private:
   void CompileOutputShaders();
 
   DXGI_FORMAT m_targetDxFormat = DXGI_FORMAT_UNKNOWN;
-  std::map<SCALINGMETHOD, std::unique_ptr<SHADER::CRPWinOutputShader>> m_outputShaders;
+  std::map<SCALINGMETHOD, std::unique_ptr<CRPWinOutputShader>> m_outputShaders;
 };
 
 class CRPWinRenderer : public CRPBaseRenderer

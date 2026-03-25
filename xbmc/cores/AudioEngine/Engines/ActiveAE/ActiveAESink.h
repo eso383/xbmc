@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2026 Team Kodi
+ *  Copyright (C) 2010-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -16,8 +16,6 @@
 #include "threads/SystemClock.h"
 #include "threads/Thread.h"
 #include "utils/ActorProtocol.h"
-#include "utils/AMLUtils.h"
-#include "utils/StringUtils.h"
 
 #include <memory>
 #include <utility>
@@ -105,16 +103,14 @@ public:
   AEDeviceType GetDeviceType(const std::string &device);
   bool HasPassthroughDevice();
   bool SupportsFormat(const std::string &device, AEAudioFormat &format);
-  bool DeviceExist(std::string driver, const std::string& device);
+  bool DeviceExist(std::string driver, const std::string& device) const;
   bool NeedIecPack() const { return m_needIecPack; }
   CSinkControlProtocol m_controlPort;
   CSinkDataProtocol m_dataPort;
 
 protected:
-  void OnStartup() override;
   void Process() override;
-  void OnExit() override;
-  void StateMachine(int signal, Protocol* port, Message* msg);
+  void StateMachine(int signal, Protocol *port, Message *msg);
   void PrintSinks(std::string& driver);
   void GetDeviceFriendlyName(const std::string& device);
   void OpenSink();
@@ -125,7 +121,7 @@ protected:
   unsigned int OutputSamples(CSampleBuffer* samples);
   void SwapInit(CSampleBuffer* samples);
 
-  void GenerateNoise();
+  void GenerateNoise() const;
 
   CEvent m_outMsgEvent;
   CEvent *m_inMsgEvent;

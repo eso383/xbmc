@@ -8,10 +8,8 @@
 
 #include "KeyboardLayout.h"
 
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/InputCodingTableFactory.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
@@ -61,14 +59,14 @@ bool CKeyboardLayout::Load(const tinyxml2::XMLElement* element)
     m_codingtable = IInputCodingTablePtr(
         CInputCodingTableFactory::CreateCodingTable(element->Attribute("codingtable")));
   else
-    m_codingtable = NULL;
+    m_codingtable = nullptr;
   while (keyboard != nullptr)
   {
     // parse modifiers keys
     std::set<unsigned int> modifierKeysSet;
 
     const char* strModifiers = keyboard->Attribute("modifiers");
-    if (strModifiers != NULL)
+    if (strModifiers != nullptr)
     {
       std::string modifiers = strModifiers;
       StringUtils::ToLower(modifiers);
@@ -129,15 +127,14 @@ std::string CKeyboardLayout::GetIdentifier() const
 
 std::string CKeyboardLayout::GetName() const
 {
-  return StringUtils::Format(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(311),
-                             m_language, m_layout);
+  return StringUtils::Format(g_localizeStrings.Get(311), m_language, m_layout);
 }
 
 std::string CKeyboardLayout::GetCharAt(unsigned int row,
                                        unsigned int column,
                                        unsigned int modifiers) const
 {
-  Keyboards::const_iterator mod = m_keyboards.find(modifiers);
+  auto mod = m_keyboards.find(modifiers);
   if (modifiers != ModifierKeyNone && mod != m_keyboards.end() && mod->second.empty())
   {
     // fallback to basic keyboard

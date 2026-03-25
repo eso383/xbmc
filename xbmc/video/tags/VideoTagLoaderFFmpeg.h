@@ -21,7 +21,7 @@ namespace XFILE
 }
 
 //! \brief Video tag loader using FFMPEG.
-class CVideoTagLoaderFFmpeg : public KODI::VIDEO::IVideoInfoTagLoader
+class CVideoTagLoaderFFmpeg : public VIDEO::IVideoInfoTagLoader
 {
 public:
   //! \brief Constructor.
@@ -37,9 +37,8 @@ public:
 
   //! \brief Load "tag" from nfo file.
   //! \brief tag Tag to load info into
-  CInfoScanner::InfoType Load(CVideoInfoTag& tag,
-                              bool,
-                              std::vector<EmbeddedArt>* art = nullptr) override;
+  CInfoScanner::INFO_TYPE Load(CVideoInfoTag& tag, bool,
+                               std::vector<EmbeddedArt>* art = nullptr) override;
 
   ADDON::ScraperPtr GetScraperInfo() const { return m_info; }
 
@@ -52,12 +51,12 @@ protected:
   mutable bool m_override_data = false; //!< Data is for overriding
 
   //! \brief Load tags from MKV file.
-  CInfoScanner::InfoType LoadMKV(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art);
+  CInfoScanner::INFO_TYPE LoadMKV(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art);
 
   //! \brief Load tags from MP4 file.
-  CInfoScanner::InfoType LoadMP4(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art);
+  CInfoScanner::INFO_TYPE LoadMP4(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art) const;
 
   //! \brief Load tags from AVI file.
-  CInfoScanner::InfoType LoadAVI(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art);
+  CInfoScanner::INFO_TYPE LoadAVI(CVideoInfoTag& tag, std::vector<EmbeddedArt>* art) const;
 };
 

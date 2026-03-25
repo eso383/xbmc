@@ -61,14 +61,14 @@ private:
   struct ServiceInfo;
   typedef std::map<std::string, std::shared_ptr<ServiceInfo> > tServiceMap;
 
-  //goes through a list of todos and publishes them (takes the client a param, as it might be called from
+  //goes through a list of todos and publishs them (takes the client a param, as it might be called from
   // from the callbacks)
   void updateServices(AvahiClient* fp_client);
   //helper that actually does the work of publishing
   void addService(const tServiceMap::mapped_type& fp_service_info, AvahiClient* fp_client);
 
-  AvahiClient* mp_client = 0;
-  AvahiThreadedPoll* mp_poll = 0;
+  AvahiClient* mp_client = nullptr;
+  AvahiThreadedPoll* mp_poll = nullptr;
 
   //this holds all published and unpublished services including info on howto create them
   tServiceMap m_services;

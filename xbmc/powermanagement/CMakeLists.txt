@@ -5,7 +5,6 @@ set(SOURCES DPMSSupport.cpp
 set(HEADERS DPMSSupport.h
             IPowerSyscall.h
             PowerManager.h
-            PowerState.h
             PowerTypes.h)
 
 if(CORE_SYSTEM_NAME MATCHES windows)

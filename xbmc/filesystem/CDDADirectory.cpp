@@ -10,7 +10,6 @@
 
 #include "File.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "music/MusicDatabase.h"
 #include "storage/MediaManager.h"
@@ -34,7 +33,7 @@ bool CCDDADirectory::GetDirectory(const CURL& url, CFileItemList &items)
 
   // Get information for the inserted disc
   CCdInfo* pCdInfo = CServiceBroker::GetMediaManager().GetCdInfo(strPath);
-  if (pCdInfo == NULL)
+  if (pCdInfo == nullptr)
     return false;
 
   //  Preload CDDB info
@@ -58,13 +57,13 @@ bool CCDDADirectory::GetDirectory(const CURL& url, CFileItemList &items)
     std::string strLabel = StringUtils::Format("Track {:02}", i);
 
     CFileItemPtr pItem(new CFileItem(strLabel));
-    pItem->SetFolder(false);
+    pItem->m_bIsFolder = false;
     std::string path = StringUtils::Format("cdda://local/{:02}.cdda", i);
     pItem->SetPath(path);
 
     struct __stat64 s64;
     if (CFile::Stat(pItem->GetPath(), &s64) == 0)
-      pItem->SetSize(s64.st_size);
+      pItem->m_dwSize = s64.st_size;
 
     items.Add(pItem);
   }

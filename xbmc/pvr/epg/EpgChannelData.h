@@ -8,11 +8,8 @@
 
 #pragma once
 
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
-
 #include <ctime>
 #include <string>
-#include <string_view>
 
 namespace PVR
 {
@@ -42,14 +39,14 @@ public:
   void SetChannelId(int iChannelId);
 
   const std::string& ChannelName() const;
-  void SetChannelName(std::string_view strChannelName);
+  void SetChannelName(const std::string& strChannelName);
 
   const std::string& ChannelIconPath() const;
-  void SetChannelIconPath(std::string_view strChannelIconPath);
+  void SetChannelIconPath(const std::string& strChannelIconPath);
 
 private:
   const bool m_bIsRadio = false;
-  const int m_iClientId = PVR_CLIENT_INVALID_UID;
+  const int m_iClientId = -1;
   const int m_iUniqueClientChannelId = -1;
 
   bool m_bIsHidden = false;

@@ -13,7 +13,7 @@
 class CInputStreamPVRRecording : public CInputStreamPVRBase
 {
 public:
-  using CInputStreamPVRBase::CInputStreamPVRBase;
+  CInputStreamPVRRecording(IVideoPlayer* pPlayer, const CFileItem& fileitem);
   ~CInputStreamPVRRecording() override;
 
 protected:
@@ -25,10 +25,4 @@ protected:
   ENextStream NextPVRStream() override;
   bool CanPausePVRStream() override;
   bool CanSeekPVRStream() override;
-  bool IsRealtimePVRStream() override;
-  void PausePVRStream(bool paused) override;
-  bool GetPVRStreamTimes(Times& times) override;
-
-private:
-  int64_t m_streamId{-1};
 };

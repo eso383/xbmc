@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "utils/Artwork.h"
-
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -17,6 +15,7 @@
 #include <vector>
 
 class CDateTime;
+class TiXmlElement;
 
 namespace ADDON
 {
@@ -32,9 +31,9 @@ struct DependencyInfo;
 
 using AddonInstanceId = uint32_t;
 
-constexpr const char* ADDON_SETTING_INSTANCE_GROUP = "kodi_addon_instance";
-constexpr const char* ADDON_SETTING_INSTANCE_NAME_VALUE = "kodi_addon_instance_name";
-constexpr const char* ADDON_SETTING_INSTANCE_ENABLED_VALUE = "kodi_addon_instance_enabled";
+constexpr auto ADDON_SETTING_INSTANCE_GROUP = "kodi_addon_instance";
+constexpr auto ADDON_SETTING_INSTANCE_NAME_VALUE = "kodi_addon_instance_name";
+constexpr auto ADDON_SETTING_INSTANCE_ENABLED_VALUE = "kodi_addon_instance_enabled";
 
 /*!
  * @brief Identifier denoting default add-on instance.
@@ -62,12 +61,14 @@ constexpr AddonInstanceId ADDON_INSTANCE_ID_UNUSED = ADDON_SINGLETON_INSTANCE_ID
  */
 constexpr AddonInstanceId ADDON_SETTINGS_ID = ADDON_SINGLETON_INSTANCE_ID;
 
-constexpr char const* ORIGIN_SYSTEM = "b6a50484-93a0-4afb-a01c-8d17e059feda";
+constexpr auto ORIGIN_SYSTEM = "b6a50484-93a0-4afb-a01c-8d17e059feda";
 
 class IAddon;
-using AddonPtr = std::shared_ptr<IAddon>;
-using VECADDONS = std::vector<AddonPtr>;
-using InfoMap = std::map<std::string, std::string, std::less<>>;
+typedef std::shared_ptr<IAddon> AddonPtr;
+typedef std::vector<AddonPtr> VECADDONS;
+
+using InfoMap = std::map<std::string, std::string>;
+using ArtMap = std::map<std::string, std::string>;
 
 typedef enum {
   LE_ADDON_ENABLED,
@@ -99,7 +100,7 @@ public:
   virtual std::string LibPath() const = 0;
   virtual std::string ChangeLog() const = 0;
   virtual std::string FanArt() const = 0;
-  virtual KODI::ART::Artwork Art() const = 0;
+  virtual ArtMap Art() const = 0;
   virtual std::vector<std::string> Screenshots() const = 0;
   virtual std::string Author() const = 0;
   virtual std::string Icon() const = 0;

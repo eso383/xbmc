@@ -69,57 +69,9 @@ if(NOT TARGET TexturePacker::TexturePacker::Executable)
 
     # Build and install internal TexturePacker if needed
     if (INTERNAL_TEXTUREPACKER_EXECUTABLE OR INTERNAL_TEXTUREPACKER_INSTALLABLE)
-      set(CMAKE_ARGS "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} $<$<CONFIG:Debug>:${CMAKE_C_FLAGS_DEBUG}> $<$<CONFIG:Release>:${CMAKE_C_FLAGS_RELEASE}>"
-                     "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} $<$<CONFIG:Debug>:${CMAKE_CXX_FLAGS_DEBUG}> $<$<CONFIG:Release>:${CMAKE_CXX_FLAGS_RELEASE}>"
-                     "-DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS} $<$<CONFIG:Debug>:${CMAKE_EXE_LINKER_FLAGS_DEBUG}> $<$<CONFIG:Release>:${CMAKE_EXE_LINKER_FLAGS_RELEASE}>"
-                     "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-                     "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-                     "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-                     "-DCMAKE_AR=${CMAKE_AR}"
-                     "-DCMAKE_LINKER=${CMAKE_LINKER}"
-                     "-DCMAKE_NM=${CMAKE_NM}"
-                     "-DCMAKE_STRIP=${CMAKE_STRIP}"
-                     "-DCMAKE_OBJDUMP=${CMAKE_OBJDUMP}"
-                     "-DCMAKE_RANLIB=${CMAKE_RANLIB}"
-                     "-DDEPENDS_PATH=${DEPENDS_PATH}"
-                     -DKODI_SOURCE_DIR=${CMAKE_SOURCE_DIR})
-
-      # Create a list with an alternate separator e.g. pipe symbol
-      string(REPLACE ";" "|" string_ARCH_DEFINES "${ARCH_DEFINES}")
-
-      list(APPEND CMAKE_ARGS -DARCH_DEFINES=${string_ARCH_DEFINES})
-      if(ENABLE_CLANGTIDY)
-        string(REPLACE ";" "|" string_CMAKE_CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
-        list(APPEND CMAKE_ARGS "-DCMAKE_CXX_CLANG_TIDY=${string_CMAKE_CXX_CLANG_TIDY}")
-      else()
-        list(APPEND CMAKE_ARGS -UCMAKE_CXX_CLANG_TIDY)
-      endif()
-      if(ENABLE_CPPCHECK)
-        list(APPEND CMAKE_ARGS "-DCMAKE_CXX_CPPCHECK:FILEPATH=${CMAKE_CXX_CPPCHECK}")
-      else()
-        list(APPEND CMAKE_ARGS -UCMAKE_CXX_CPPCHECK)
-      endif()
-      if(ENABLE_INCLUDEWHATYOUUSE)
-        list(APPEND CMAKE_ARGS "-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE:FILEPATH=${CMAKE_CXX_INCLUDE_WHAT_YOU_USE}")
-      else()
-        list(APPEND CMAKE_ARGS -UCMAKE_CXX_INCLUDE_WHAT_YOU_USE)
-      endif()
-
-      externalproject_add(buildtexturepacker
-                          SOURCE_DIR ${CMAKE_SOURCE_DIR}/tools/depends/native/TexturePacker/src
-                          PREFIX ${CORE_BUILD_DIR}/build-texturepacker
-                          LIST_SEPARATOR |
-                          INSTALL_COMMAND ""
-                          CMAKE_ARGS ${CMAKE_ARGS}
-                          BUILD_ALWAYS ON
-                          BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/build-texturepacker/src/buildtexturepacker-build/TexturePacker)
-
-      add_executable(TexturePacker IMPORTED)
-      set_target_properties(TexturePacker PROPERTIES
-                                          IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/build-texturepacker/src/buildtexturepacker-build/TexturePacker")
-
-      add_dependencies(TexturePacker buildtexturepacker)
-
+      set(KODI_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+      add_subdirectory(${CMAKE_SOURCE_DIR}/tools/depends/native/TexturePacker/src build/texturepacker)
+      unset(KODI_SOURCE_DIR)
       message(STATUS "Building internal TexturePacker")
     endif()
 

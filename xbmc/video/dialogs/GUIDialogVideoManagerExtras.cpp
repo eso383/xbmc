@@ -9,7 +9,6 @@
 #include "GUIDialogVideoManagerExtras.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIUserMessages.h"
 #include "ServiceBroker.h"
 #include "URL.h"
@@ -19,8 +18,7 @@
 #include "dialogs/GUIDialogYesNo.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -111,7 +109,7 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
   const MediaType mediaType{m_videoAsset->GetVideoInfoTag()->m_type};
 
   // prompt to choose a video file
-  std::vector<CMediaSource> sources{*CMediaSourceSettings::GetInstance().GetSources("files")};
+  VECSOURCES sources{*CMediaSourceSettings::GetInstance().GetSources("files")};
 
   CServiceBroker::GetMediaManager().GetLocalDrives(sources);
   CServiceBroker::GetMediaManager().GetNetworkLocations(sources);
@@ -120,7 +118,7 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
   std::string path;
   if (CGUIDialogFileBrowser::ShowAndGetFile(
           sources, CServiceBroker::GetFileExtensionProvider().GetVideoExtensions(),
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(40015), path))
+          g_localizeStrings.Get(40015), path))
   {
     const int dbId{m_videoAsset->GetVideoInfoTag()->m_iDbId};
     const VideoDbContentType itemType = m_videoAsset->GetVideoContentType();
@@ -132,9 +130,9 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
 
     if (newAsset.m_idFile != -1 && newAsset.m_assetTypeId != -1)
     {
-      // The video already is an extra of the movie
-      if (newAsset.m_idMedia == dbId && newAsset.m_mediaType == mediaType &&
-          newAsset.m_assetType == VideoAssetType::EXTRA)
+      // The video already is an asset of the movie
+      if (newAsset.m_idMedia == dbId &&
+          newAsset.m_mediaType == m_videoAsset->GetVideoInfoTag()->m_type)
       {
         unsigned int msgid{};
 
@@ -150,20 +148,16 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
 
         CGUIDialogOK::ShowAndGetInput(
             CVariant{40015},
-            StringUtils::Format(
-                CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(msgid),
-                newAsset.m_assetTypeName));
+            StringUtils::Format(g_localizeStrings.Get(msgid), newAsset.m_assetTypeName));
         return false;
       }
 
-      // The video is an asset of another movie or different asset type of same movie
+      // The video is an asset of another movie
 
-      // The video is a version, ask for confirmation of the asset type change
+      // The video is a version, ask for confirmation
       if (newAsset.m_assetType == VideoAssetType::VERSION &&
-          !CGUIDialogYesNo::ShowAndGetInput(
-              CVariant{40015},
-              StringUtils::Format(
-                  CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(40036))))
+          !CGUIDialogYesNo::ShowAndGetInput(CVariant{40015},
+                                            StringUtils::Format(g_localizeStrings.Get(40036))))
       {
         return false;
       }
@@ -176,7 +170,6 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
       else
         return false;
 
-      if (newAsset.m_idMedia != dbId && newAsset.m_mediaType == mediaType)
       {
         unsigned int msgid{};
 
@@ -191,16 +184,14 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
         }
 
         if (!CGUIDialogYesNo::ShowAndGetInput(
-                CVariant{40015},
-                StringUtils::Format(
-                    CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(msgid),
-                    newAsset.m_assetTypeName, videoTitle)))
+                CVariant{40015}, StringUtils::Format(g_localizeStrings.Get(msgid),
+                                                     newAsset.m_assetTypeName, videoTitle)))
         {
           return false;
         }
       }
 
-      // Additional constraints for the conversion of a movie version
+      // Additional constraints for the converion of a movie version
       if (newAsset.m_assetType == VideoAssetType::VERSION &&
           m_database.IsDefaultVideoVersion(newAsset.m_idFile))
       {
@@ -221,17 +212,14 @@ bool CGUIDialogVideoManagerExtras::AddVideoExtra()
           return false;
 
         return m_database.ConvertVideoToVersion(itemType, newAsset.m_idMedia, dbId,
-                                                idNewVideoVersion, VideoAssetType::EXTRA,
-                                                DeleteMovieCascadeAction::ALL_ASSETS);
+                                                idNewVideoVersion, VideoAssetType::EXTRA);
       }
     }
 
     CFileItem item{path, false};
 
-    // Imperfect test of the existence of stream details but comes at no extra cost.
-    // File is already a video asset implies stream details were extracted => skip extraction
-    if (newAsset.m_idFile <= 0 && CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-                                      CSettings::SETTING_MYVIDEOS_EXTRACTFLAGS))
+    if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+            CSettings::SETTING_MYVIDEOS_EXTRACTFLAGS))
     {
       CDVDFileInfo::GetFileStreamDetails(&item);
       CLog::LogF(LOGDEBUG, "Extracted filestream details from video file {}",

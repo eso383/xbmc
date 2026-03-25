@@ -72,9 +72,12 @@ function(core_add_library name)
     add_library(${name} STATIC ${SOURCES} ${HEADERS} ${OTHERS})
     set_target_properties(${name} PROPERTIES PREFIX "")
     set(core_DEPENDS ${name} ${core_DEPENDS} CACHE STRING "" FORCE)
+    add_dependencies(${name} ${GLOBAL_TARGET_DEPS})
 
     # Adds global target to library. This propagates dep lib info (eg include_dir locations)
     core_target_link_libraries(${name})
+    # ToDo: remove the next line when the GLOBAL_TARGET_DEPS is removed completely
+    target_link_libraries(${name} PRIVATE ${GLOBAL_TARGET_DEPS})
 
     set(CORE_LIBRARY ${name} PARENT_SCOPE)
 
@@ -85,6 +88,8 @@ function(core_add_library name)
     # Add precompiled headers to Kodi main libraries
     if(CORE_SYSTEM_NAME MATCHES windows)
       add_precompiled_header(${name} pch.h ${CMAKE_SOURCE_DIR}/xbmc/platform/win32/pch.cpp PCH_TARGET kodi)
+      set_language_cxx(${name})
+      target_link_libraries(${name} PUBLIC effects11)
     endif()
   else()
     foreach(src IN LISTS SOURCES HEADERS OTHERS)
@@ -103,7 +108,7 @@ function(core_add_test_library name)
     set_target_properties(${name} PROPERTIES PREFIX ""
                                              EXCLUDE_FROM_ALL 1
                                              FOLDER "Build Utilities/tests")
-
+    add_dependencies(${name} ${GLOBAL_TARGET_DEPS})
     set(test_archives ${test_archives} ${name} CACHE STRING "" FORCE)
 
     if(NOT MSVC)
@@ -179,6 +184,19 @@ function(core_add_shared_library name)
   endif()
 endfunction()
 
+# Sets the compile language for all C source files in a target to CXX.
+# Needs to be called from the CMakeLists.txt that defines the target.
+# Arguments:
+#   target   target
+function(set_language_cxx target)
+  get_property(sources TARGET ${target} PROPERTY SOURCES)
+  foreach(file IN LISTS sources)
+    if(file MATCHES "\.c$")
+      set_source_files_properties(${file} PROPERTIES LANGUAGE CXX)
+    endif()
+  endforeach()
+endfunction()
+
 # Add a data file to installation list with a mirror in build tree
 # Mirroring files in the buildtree allows to execute the app from there.
 # Arguments:
@@ -234,7 +252,7 @@ function(copy_file_to_buildtree file)
   endif()
 
   if(${CORE_SYSTEM_NAME} MATCHES "windows")
-    # if DEPENDS_PATH in file
+    # if DEPENDS_PATH in fille
     if(${file} MATCHES ${DEPENDS_PATH})
       file(APPEND ${CMAKE_BINARY_DIR}/${CORE_BUILD_DIR}/ExportFiles.cmake
 "file(GLOB filenames ${file})
@@ -342,6 +360,15 @@ function(copy_files_from_filelist_to_buildtree pattern)
   set(install_data ${install_data} PARENT_SCOPE)
 endfunction()
 
+# helper macro to set modified variables in parent scope
+macro(export_dep)
+  set(SYSTEM_INCLUDES ${SYSTEM_INCLUDES} PARENT_SCOPE)
+  set(DEPLIBS ${DEPLIBS} PARENT_SCOPE)
+  set(DEP_DEFINES ${DEP_DEFINES} PARENT_SCOPE)
+  set(${depup}_FOUND ${${depup}_FOUND} PARENT_SCOPE)
+  mark_as_advanced(${depup}_LIBRARIES)
+endmacro()
+
 # split dependency specification to name and version
 # Arguments:
 #   depspec dependency specification that can optionally include a required
@@ -384,20 +411,17 @@ endmacro()
 # Arguments:
 #   dep_list One or many dependency specifications (see split_dependency_specification)
 #            for syntax). The dependency name is used uppercased as variable prefix.
+# On return:
+#   dependencies added to ${SYSTEM_INCLUDES}, ${DEPLIBS} and ${DEP_DEFINES}
 function(core_require_dep)
   foreach(depspec ${ARGN})
     split_dependency_specification(${depspec} dep version)
     find_package_with_ver(${dep} ${version} REQUIRED)
     string(TOUPPER ${dep} depup)
-
-    # We dont want to add a build tool
-    if (NOT ${depspec} IN_LIST optional_buildtools AND NOT ${depspec} IN_LIST required_buildtools)
-      # If dependency is found and is not in the list (eg shairplay) add to list
-      if (NOT ${depspec} IN_LIST required_deps)
-        set(required_deps  ${required_deps} ${depspec} PARENT_SCOPE)
-      endif()
-    endif()
-
+    list(APPEND SYSTEM_INCLUDES ${${depup}_INCLUDE_DIRS})
+    list(APPEND DEPLIBS ${${depup}_LIBRARIES})
+    list(APPEND DEP_DEFINES ${${depup}_DEFINITIONS})
+    export_dep()
   endforeach()
 endfunction()
 
@@ -417,6 +441,8 @@ endmacro()
 # Arguments:
 #   dep_list One or many dependency specifications (see split_dependency_specification)
 #            for syntax). The dependency name is used uppercased as variable prefix.
+# On return:
+#   dependency optionally added to ${SYSTEM_INCLUDES}, ${DEPLIBS} and ${DEP_DEFINES}
 function(core_optional_dep)
   foreach(depspec ${ARGN})
     set(_required False)
@@ -429,56 +455,12 @@ function(core_optional_dep)
       set(_required True)
     endif()
 
-    if(TARGET ${APP_NAME_LC}::${dep} OR (${depup}_FOUND AND ${depspec} IN_LIST optional_buildtools))
+    if(${depup}_FOUND)
+      list(APPEND SYSTEM_INCLUDES ${${depup}_INCLUDE_DIRS})
+      list(APPEND DEPLIBS ${${depup}_LIBRARIES})
+      list(APPEND DEP_DEFINES ${${depup}_DEFINITIONS})
       set(final_message ${final_message} "${depup} enabled: Yes")
-
-      # We dont want to add a build tool
-      if (NOT ${depspec} IN_LIST optional_buildtools)
-        # If dependency is found and is not in the list (eg mariadb/mysql) add to list
-        if (NOT ${depspec} IN_LIST optional_deps)
-          set(optional_deps  ${optional_deps} ${depspec} PARENT_SCOPE)
-        endif()
-      else()
-        # Propagate _FOUND variable for build tool optional deps. We dont use targets
-        # for build tools in general, and still rely on variables
-        set(${depup}_FOUND ${${depup}_FOUND} PARENT_SCOPE)
-      endif()
-
-    elseif(_required)
-      message(FATAL_ERROR "${depup} enabled but not found")
-    else()
-      set(final_message ${final_message} "${depup} enabled: No")
-    endif()
-  endforeach()
-  set(final_message ${final_message} PARENT_SCOPE)
-endfunction()
-
-# Find optional libraries that we want to package with main app.
-# These libraries are not directly linked to the main app.
-# The function returns a list of TARGET names that are found based on the dep_list.
-#
-# Arguments:
-#   dep_list One or more dependency specifications (see split_dependency_specification)
-#            for syntax).
-# Return:
-#   package_libs - A variable that contains a list of TARGETS found from dep_list
-#
-function(core_optional_package_lib)
-  foreach(depspec ${ARGN})
-    set(_required False)
-    split_dependency_specification(${depspec} dep version)
-    setup_enable_switch()
-    if(${enable_switch} STREQUAL AUTO)
-      find_package_with_ver(${dep} ${version})
-    elseif(${${enable_switch}})
-      find_package_with_ver(${dep} ${version} REQUIRED)
-      set(_required True)
-    endif()
-
-    if(TARGET ${APP_NAME_LC}::${dep})
-      set(final_message ${final_message} "${depup} enabled: Yes")
-      list(APPEND package_libs ${APP_NAME_LC}::${dep})
-      set(package_libs ${package_libs} PARENT_SCOPE)
+      export_dep()
     elseif(_required)
       message(FATAL_ERROR "${depup} enabled but not found")
     else()
@@ -581,6 +563,38 @@ macro(core_add_optional_subdirs_from_filelist pattern)
   endforeach()
 endmacro()
 
+# Generates an RFC2822 timestamp
+#
+# The following variable is set:
+#   RFC2822_TIMESTAMP
+function(rfc2822stamp)
+  execute_process(COMMAND date -R
+                  OUTPUT_VARIABLE RESULT)
+  set(RFC2822_TIMESTAMP ${RESULT} PARENT_SCOPE)
+endfunction()
+
+# Generates an user stamp from git config info
+#
+# The following variable is set:
+#   PACKAGE_MAINTAINER - user stamp in the form of "username <username@example.com>"
+#                        if no git tree is found, value is set to "nobody <nobody@example.com>"
+function(userstamp)
+  find_package(Git)
+  if(GIT_FOUND AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    execute_process(COMMAND ${GIT_EXECUTABLE} config user.name
+                    OUTPUT_VARIABLE username
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${GIT_EXECUTABLE} config user.email
+                    OUTPUT_VARIABLE useremail
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(PACKAGE_MAINTAINER "${username} <${useremail}>" PARENT_SCOPE)
+  else()
+    set(PACKAGE_MAINTAINER "nobody <nobody@example.com>" PARENT_SCOPE)
+  endif()
+endfunction()
+
 # Parses git info and sets variables used to identify the build
 # Arguments:
 #   stamp variable name to return
@@ -599,7 +613,7 @@ function(core_find_git_rev stamp)
     string(TIMESTAMP APP_BUILD_DATE "%Y%m%d%H%M%S")
     set(APP_BUILD_DATE ${APP_BUILD_DATE} PARENT_SCOPE)
   else()
-    find_package(Git ${SEARCH_QUIET})
+    find_package(Git)
     if(GIT_FOUND AND EXISTS ${CMAKE_SOURCE_DIR}/.git)
       # get tree status i.e. clean working tree vs dirty (uncommitted or unstashed changes, etc.)
       execute_process(COMMAND ${GIT_EXECUTABLE} update-index --ignore-submodules -q --refresh
@@ -833,24 +847,6 @@ function(core_target_link_libraries core_lib)
     split_dependency_specification(${_depspec} dep version)
     if(TARGET ${APP_NAME_LC}::${dep})
       target_link_libraries(${core_lib} PUBLIC ${APP_NAME_LC}::${dep})
-    endif()
-  endforeach()
-endfunction()
-
-# Iterate over optional/required dep lists and create dependency
-# to the target supplied as first argument
-function(core_target_add_dependencies core_target)
-  foreach(_depspec ${required_deps})
-    split_dependency_specification(${_depspec} dep version)
-    if(TARGET ${APP_NAME_LC}::${dep})
-      add_dependencies(${core_target} ${APP_NAME_LC}::${dep})
-    endif()
-  endforeach()
-
-  foreach(_depspec ${optional_deps})
-    split_dependency_specification(${_depspec} dep version)
-    if(TARGET ${APP_NAME_LC}::${dep})
-      add_dependencies(${core_target} ${APP_NAME_LC}::${dep})
     endif()
   endforeach()
 endfunction()

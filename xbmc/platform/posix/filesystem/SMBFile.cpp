@@ -79,7 +79,7 @@ bool CSMB::IsFirstInit = true;
 
 CSMB::CSMB()
 {
-  m_context = NULL;
+  m_context = nullptr;
   m_OpenConnections = 0;
   m_IdleTimeout = 0;
 }
@@ -91,20 +91,20 @@ CSMB::~CSMB()
 
 void CSMB::Deinit()
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   /* samba goes loco if deinited while it has some files opened */
   if (m_context)
   {
-    smbc_set_context(NULL);
+    smbc_set_context(nullptr);
     smbc_free_context(m_context, 1);
-    m_context = NULL;
+    m_context = nullptr;
   }
 }
 
 void CSMB::Init()
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   if (!m_context)
   {
@@ -126,50 +126,28 @@ void CSMB::Init()
     {
       smb_conf += "/smb.conf";
       FILE* f = fopen(smb_conf.c_str(), "w");
-      if (f != NULL)
+      if (f != nullptr)
       {
         fprintf(f, "[global]\n");
 
         fprintf(f, "\tlock directory = %s/.smb/\n", home.c_str());
 
         // set minimum smbclient protocol version
-        switch (settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL))
+        if (settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL) > 0)
         {
-          case 0:
-          default:
-            break;
-          case 1:
+          if (settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL) == 1)
             fprintf(f, "\tclient min protocol = NT1\n");
-            break;
-          case 2:
-            fprintf(f, "\tclient min protocol = SMB2_02\n");
-            break;
-          case 21:
-            fprintf(f, "\tclient min protocol = SMB2_10\n");
-            break;
-          case 3:
-            fprintf(f, "\tclient min protocol = SMB3\n");
-            break;
+          else
+            fprintf(f, "\tclient min protocol = SMB%d\n", settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL));
         }
 
         // set maximum smbclient protocol version
-        switch (settings->GetInt(CSettings::SETTING_SMB_MAXPROTOCOL))
+        if (settings->GetInt(CSettings::SETTING_SMB_MAXPROTOCOL) > 0)
         {
-          case 0:
-          default:
-            break;
-          case 1:
+          if (settings->GetInt(CSettings::SETTING_SMB_MAXPROTOCOL) == 1)
             fprintf(f, "\tclient max protocol = NT1\n");
-            break;
-          case 2:
-            fprintf(f, "\tclient max protocol = SMB2_02\n");
-            break;
-          case 21:
-            fprintf(f, "\tclient max protocol = SMB2_10\n");
-            break;
-          case 3:
-            fprintf(f, "\tclient max protocol = SMB3\n");
-            break;
+          else
+            fprintf(f, "\tclient max protocol = SMB%d\n", settings->GetInt(CSettings::SETTING_SMB_MAXPROTOCOL));
         }
 
         // set legacy security options
@@ -181,9 +159,7 @@ void CSMB::Init()
 
         // set wins server if there's one. name resolve order defaults to 'lmhosts host wins bcast'.
         // if no WINS server has been specified the wins method will be ignored.
-        if (!settings->GetString(CSettings::SETTING_SMB_WINSSERVER).empty() &&
-            !StringUtils::EqualsNoCase(settings->GetString(CSettings::SETTING_SMB_WINSSERVER),
-                                       "0.0.0.0"))
+        if (settings->GetString(CSettings::SETTING_SMB_WINSSERVER).length() > 0 && !StringUtils::EqualsNoCase(settings->GetString(CSettings::SETTING_SMB_WINSSERVER), "0.0.0.0") )
         {
           fprintf(f, "\twins server = %s\n", settings->GetString(CSettings::SETTING_SMB_WINSSERVER).c_str());
           fprintf(f, "\tname resolve order = bcast wins host\n");
@@ -193,9 +169,7 @@ void CSMB::Init()
 
         // use user-configured charset. if no charset is specified,
         // samba tries to use charset 850 but falls back to ASCII in case it is not available
-        if (!CServiceBroker::GetSettingsComponent()
-                 ->GetAdvancedSettings()
-                 ->m_sambadoscodepage.empty())
+        if (CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_sambadoscodepage.length() > 0)
           fprintf(f, "\tdos charset = %s\n", CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_sambadoscodepage.c_str());
 
         // include users configuration if available
@@ -231,7 +205,7 @@ void CSMB::Init()
     smbc_setOptionBrowseMaxLmbCount(m_context, 0);
     smbc_setTimeout(m_context, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_sambaclienttimeout * 1000);
     // we do not need to strdup these, smbc_setXXX below will make their own copies
-    if (!settings->GetString(CSettings::SETTING_SMB_WORKGROUP).empty())
+    if (settings->GetString(CSettings::SETTING_SMB_WORKGROUP).length() > 0)
       //! @bug libsmbclient < 4.9 isn't const correct
       smbc_setWorkgroup(m_context, const_cast<char*>(settings->GetString(CSettings::SETTING_SMB_WORKGROUP).c_str()));
     std::string guest = "guest";
@@ -271,7 +245,7 @@ void CSMB::Init()
     else
     {
       smbc_free_context(m_context, 1);
-      m_context = NULL;
+      m_context = nullptr;
     }
   }
   m_IdleTimeout = 180;
@@ -285,7 +259,7 @@ std::string CSMB::URLEncode(const CURL &url)
 
   /* samba messes up of password is set but no username is set. don't know why yet */
   /* probably the url parser that goes crazy */
-  if (!url.GetUserName().empty() /* || url.GetPassWord().length() > 0 */)
+  if(url.GetUserName().length() > 0 /* || url.GetPassWord().length() > 0 */)
   {
     if(!url.GetDomain().empty())
     {
@@ -293,7 +267,7 @@ std::string CSMB::URLEncode(const CURL &url)
       flat += ";";
     }
     flat += URLEncode(url.GetUserName());
-    if (!url.GetPassWord().empty())
+    if(url.GetPassWord().length() > 0)
     {
       flat += ":";
       flat += URLEncode(url.GetPassWord());
@@ -333,8 +307,8 @@ void CSMB::CheckIfIdle()
    worst case scenario is that m_OpenConnections could read 0 and then changed to 1 if this happens it will enter the if which will lead to another check, which is locked.  */
   if (m_OpenConnections == 0)
   { /* I've set the the maximum IDLE time to be 1 min and 30 sec. */
-    std::unique_lock lock(*this);
-    if (m_OpenConnections == 0 /* check again - when locked */ && m_context != NULL)
+    std::unique_lock<CCriticalSection> lock(*this);
+    if (m_OpenConnections == 0 /* check again - when locked */ && m_context != nullptr)
     {
       if (m_IdleTimeout > 0)
 	  {
@@ -360,12 +334,12 @@ void CSMB::SetActivityTime()
    This makes the idle timer not count if a movie is paused for example */
 void CSMB::AddActiveConnection()
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
   m_OpenConnections++;
 }
 void CSMB::AddIdleConnection()
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
   m_OpenConnections--;
   /* If we close a file we reset the idle timer so that we don't have any weird behaviours if a user
      leaves the movie paused for a long while and then press stop */
@@ -377,7 +351,7 @@ CURL CSMB::GetResolvedUrl(const CURL& url)
   CURL tmpUrl(url);
   std::string resolvedHostName;
 
-  if (CServiceBroker::GetDNSNameCache()->Lookup(tmpUrl.GetHostName(), resolvedHostName))
+  if (CDNSNameCache::Lookup(tmpUrl.GetHostName(), resolvedHostName))
     tmpUrl.SetHostName(resolvedHostName);
 
   return tmpUrl;
@@ -403,7 +377,9 @@ int64_t CSMBFile::GetPosition()
 {
   if (m_fd == -1)
     return -1;
-  std::unique_lock lock(smb);
+
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return -1;
   return smbc_lseek(m_fd, 0, SEEK_CUR);
@@ -445,7 +421,8 @@ bool CSMBFile::Open(const CURL& url)
     return false;
   }
 
-  std::unique_lock lock(smb);
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return false;
   struct stat tmpBuffer;
@@ -504,7 +481,8 @@ int CSMBFile::OpenFile(const CURL &url, std::string& strAuth)
   std::string strPath = strAuth;
 
   {
-    std::unique_lock lock(smb);
+    std::lock_guard lock(smb);
+
     if (smb.IsSmbValid())
       fd = smbc_open(strPath.c_str(), O_RDONLY, 0);
   }
@@ -526,7 +504,8 @@ bool CSMBFile::Exists(const CURL& url)
 
   struct stat info;
 
-  std::unique_lock lock(smb);
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return false;
   int iResult = smbc_stat(strFileName.c_str(), &info);
@@ -542,7 +521,8 @@ int CSMBFile::Stat(struct __stat64* buffer)
 
   struct stat tmpBuffer = {};
 
-  std::unique_lock lock(smb);
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return -1;
   int iResult = smbc_fstat(m_fd, &tmpBuffer);
@@ -554,7 +534,8 @@ int CSMBFile::Stat(const CURL& url, struct __stat64* buffer)
 {
   smb.Init();
   std::string strFileName = GetAuthenticatedPath(CSMB::GetResolvedUrl(url));
-  std::unique_lock lock(smb);
+
+  std::lock_guard lock(smb);
 
   if (!smb.IsSmbValid())
     return -1;
@@ -571,7 +552,7 @@ int CSMBFile::Truncate(int64_t size)
  * This would force us to be dependant on SMBv3.2 which is GPLv3
  * This is only used by the TagLib writers, which are not currently in use
  * So log and warn until we implement TagLib writing & can re-implement this better.
-  std::unique_lock lock(smb); // Init not called since it has to be "inited" by now
+  std::lock_guard lock(smb); // Init not called since it has to be "inited" by now
 
 #if defined(TARGET_ANDROID)
   int iResult = 0;
@@ -596,10 +577,12 @@ ssize_t CSMBFile::Read(void *lpBuf, size_t uiBufSize)
   // libsmbclient always return "-1" if called with null buffer
   // regardless of buffer size.
   // To overcome this, force return "0" in that case.
-  if (uiBufSize == 0 && lpBuf == NULL)
+  if (uiBufSize == 0 && lpBuf == nullptr)
     return 0;
 
-  std::unique_lock lock(smb); // Init not called since it has to be "inited" by now
+  std::lock_guard lock(
+      smb); // Init not called since it has to be "inited" by now
+
   if (!smb.IsSmbValid())
     return -1;
   smb.SetActivityTime();
@@ -624,7 +607,9 @@ int64_t CSMBFile::Seek(int64_t iFilePosition, int iWhence)
 {
   if (m_fd == -1) return -1;
 
-  std::unique_lock lock(smb); // Init not called since it has to be "inited" by now
+  std::lock_guard lock(
+      smb); // Init not called since it has to be "inited" by now
+
   if (!smb.IsSmbValid())
     return -1;
   smb.SetActivityTime();
@@ -644,7 +629,9 @@ void CSMBFile::Close()
   if (m_fd != -1)
   {
     CLog::Log(LOGDEBUG, "CSMBFile::Close closing fd {}", m_fd);
-    std::unique_lock lock(smb);
+
+    std::lock_guard lock(smb);
+
     if (!smb.IsSmbValid())
       return;
     smbc_close(m_fd);
@@ -657,7 +644,8 @@ ssize_t CSMBFile::Write(const void* lpBuf, size_t uiBufSize)
   if (m_fd == -1) return -1;
 
   // lpBuf can be safely casted to void* since xbmc_write will only read from it.
-  std::unique_lock lock(smb);
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return -1;
 
@@ -669,7 +657,8 @@ bool CSMBFile::Delete(const CURL& url)
   smb.Init();
   std::string strFile = GetAuthenticatedPath(CSMB::GetResolvedUrl(url));
 
-  std::unique_lock lock(smb);
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return false;
 
@@ -686,7 +675,9 @@ bool CSMBFile::Rename(const CURL& url, const CURL& urlnew)
   smb.Init();
   std::string strFile = GetAuthenticatedPath(CSMB::GetResolvedUrl(url));
   std::string strFileNew = GetAuthenticatedPath(CSMB::GetResolvedUrl(urlnew));
-  std::unique_lock lock(smb);
+
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return false;
 
@@ -709,7 +700,9 @@ bool CSMBFile::OpenForWrite(const CURL& url, bool bOverWrite)
   if (!IsValidFile(url.GetFileName())) return false;
 
   std::string strFileName = GetAuthenticatedPath(CSMB::GetResolvedUrl(url));
-  std::unique_lock lock(smb);
+
+  std::lock_guard lock(smb);
+
   if (!smb.IsSmbValid())
     return false;
 
@@ -752,12 +745,12 @@ std::string CSMBFile::GetAuthenticatedPath(const CURL &url)
   return smb.URLEncode(authURL);
 }
 
-int CSMBFile::IoControl(IOControl request, void* param)
+int CSMBFile::IoControl(EIoControl request, void* param)
 {
-  if (request == IOControl::SEEK_POSSIBLE)
+  if (request == IOCTRL_SEEK_POSSIBLE)
     return 1;
 
-  if (request == IOControl::SET_RETRY)
+  if (request == IOCTRL_SET_RETRY)
   {
     m_allowRetry = *(bool*) param;
     return 0;
@@ -773,11 +766,14 @@ int CSMBFile::GetChunkSize()
   if (!settings)
     return (64 * 1024);
 
-  // Only SMBv2.1 and SMBv3 supports large MTU
-  if (settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL) > 2)
+  int chunkSize = settings->GetInt(CSettings::SETTING_SMB_CHUNKSIZE) * 1024;
+
+  if (settings->GetInt(CSettings::SETTING_SMB_MINPROTOCOL) == 1 &&
+      settings->GetInt(CSettings::SETTING_SMB_MAXPROTOCOL) == 1)
   {
-    return (settings->GetInt(CSettings::SETTING_SMB_CHUNKSIZE) * 1024);
+    if (chunkSize > 64 * 1024)
+      chunkSize = 64 * 1024;
   }
 
-  return (64 * 1024);
+  return chunkSize;
 }

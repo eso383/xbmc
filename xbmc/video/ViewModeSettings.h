@@ -41,5 +41,6 @@ public:
    */
   static void ViewModesFiller(const std::shared_ptr<const CSetting>& setting,
                               std::vector<IntegerSettingOption>& list,
-                              int& current);
+                              int& current,
+                              void* data);
 };

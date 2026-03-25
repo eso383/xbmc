@@ -12,7 +12,6 @@
 #include "AirPlayServer.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "application/ApplicationComponents.h"
@@ -45,7 +44,6 @@
 
 #include <plist/plist.h>
 
-using namespace KODI;
 using KODI::UTILITY::CDigest;
 using namespace std::chrono_literals;
 
@@ -65,7 +63,7 @@ using namespace std::chrono_literals;
 #define AIRPLAY_STATUS_NO_RESPONSE_NEEDED  1000
 
 CCriticalSection CAirPlayServer::ServerInstanceLock;
-CAirPlayServer *CAirPlayServer::ServerInstance = NULL;
+CAirPlayServer *CAirPlayServer::ServerInstance = nullptr;
 int CAirPlayServer::m_isPlaying = 0;
 
 #define EVENT_NONE     -1
@@ -167,7 +165,11 @@ void CAirPlayServer::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
                               const std::string& message,
                               const CVariant& data)
 {
-  std::unique_lock lock(ServerInstanceLock);
+  // We are only interested in player changes
+  if ((flag & ANNOUNCEMENT::Player) == 0)
+    return;
+
+  std::lock_guard lock(ServerInstanceLock);
 
   if (sender == ANNOUNCEMENT::CAnnouncementManager::ANNOUNCEMENT_SENDER && ServerInstance)
   {
@@ -175,8 +177,7 @@ void CAirPlayServer::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
     {
       bool shouldRestoreVolume = true;
       if (data.isMember("player") && data["player"].isMember("playerid"))
-        shouldRestoreVolume =
-            (data["player"]["playerid"] != static_cast<int>(PLAYLIST::Id::TYPE_PICTURE));
+        shouldRestoreVolume = (data["player"]["playerid"] != PLAYLIST::TYPE_PICTURE);
 
       if (shouldRestoreVolume)
         restoreVolume();
@@ -198,7 +199,7 @@ bool CAirPlayServer::StartServer(int port, bool nonlocal)
 {
   StopServer(true);
 
-  std::unique_lock lock(ServerInstanceLock);
+  std::lock_guard lock(ServerInstanceLock);
 
   ServerInstance = new CAirPlayServer(port, nonlocal);
   if (ServerInstance->Initialize())
@@ -212,7 +213,8 @@ bool CAirPlayServer::StartServer(int port, bool nonlocal)
 
 bool CAirPlayServer::SetCredentials(bool usePassword, const std::string& password)
 {
-  std::unique_lock lock(ServerInstanceLock);
+  std::lock_guard lock(ServerInstanceLock);
+
   bool ret = false;
 
   if (ServerInstance)
@@ -239,7 +241,7 @@ void ClearPhotoAssetCache()
   for (int i = 0; i < items.Size(); ++i)
   {
     CFileItemPtr pItem = items[i];
-    if (!pItem->IsFolder())
+    if (!pItem->m_bIsFolder)
     {
       if (StringUtils::StartsWithNoCase(pItem->GetLabel(), "airplayasset") &&
           (StringUtils::EndsWithNoCase(pItem->GetLabel(), ".jpg") ||
@@ -253,7 +255,8 @@ void ClearPhotoAssetCache()
 
 void CAirPlayServer::StopServer(bool bWait)
 {
-  std::unique_lock lock(ServerInstanceLock);
+  std::lock_guard lock(ServerInstanceLock);
+
   //clean up the photo cache temp folder
   ClearPhotoAssetCache();
 
@@ -263,14 +266,14 @@ void CAirPlayServer::StopServer(bool bWait)
     if (bWait)
     {
       delete ServerInstance;
-      ServerInstance = NULL;
+      ServerInstance = nullptr;
     }
   }
 }
 
 bool CAirPlayServer::IsRunning()
 {
-  if (ServerInstance == NULL)
+  if (ServerInstance == nullptr)
     return false;
 
   return static_cast<CThread*>(ServerInstance)->IsRunning();
@@ -278,7 +281,7 @@ bool CAirPlayServer::IsRunning()
 
 void CAirPlayServer::AnnounceToClients(int state)
 {
-  std::unique_lock lock(m_connectionLock);
+  std::lock_guard lock(m_connectionLock);
 
   for (auto& it : m_connections)
   {
@@ -290,7 +293,7 @@ void CAirPlayServer::AnnounceToClients(int state)
 
     // Send event status per reverse http socket (play, loading, paused)
     // if we have a reverse header and a reverse socket
-    if (!reverseHeader.empty() && m_reverseSockets.contains(it.m_sessionId))
+    if (!reverseHeader.empty() && m_reverseSockets.find(it.m_sessionId) != m_reverseSockets.end())
     {
       //search the reverse socket to this sessionid
       response = StringUtils::Format("POST /event HTTP/1.1\r\n");
@@ -319,7 +322,7 @@ CAirPlayServer::CAirPlayServer(int port, bool nonlocal) : CThread("AirPlayServer
   m_nonlocal = nonlocal;
   m_usePassword = false;
   m_origVolume = -1;
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::Player);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 }
 
 CAirPlayServer::~CAirPlayServer()
@@ -365,7 +368,7 @@ void CAirPlayServer::Process()
         max_fd = m_connections[i].m_socket;
     }
 
-    int res = select(max_fd+1, &rfds, NULL, NULL, &to);
+    int res = select(max_fd+1, &rfds, nullptr, nullptr, &to);
     if (res < 0)
     {
       CLog::Log(LOGERROR, "AIRPLAY Server: Select failed");
@@ -389,7 +392,8 @@ void CAirPlayServer::Process()
           }
           if (nread <= 0)
           {
-            std::unique_lock lock(m_connectionLock);
+            std::lock_guard lock(m_connectionLock);
+
             CLog::Log(LOGINFO, "AIRPLAY Server: Disconnection detected");
             m_connections[i].Disconnect();
             m_connections.erase(m_connections.begin() + i);
@@ -419,7 +423,8 @@ void CAirPlayServer::Process()
           }
           else
           {
-            std::unique_lock lock(m_connectionLock);
+            std::lock_guard lock(m_connectionLock);
+
             CLog::Log(LOGINFO, "AIRPLAY Server: New connection added");
             m_connections.push_back(newconnection);
           }
@@ -451,7 +456,8 @@ bool CAirPlayServer::Initialize()
 
 void CAirPlayServer::Deinitialize()
 {
-  std::unique_lock lock(m_connectionLock);
+  std::lock_guard lock(m_connectionLock);
+
   for (unsigned int i = 0; i < m_connections.size(); i++)
     m_connections[i].Disconnect();
 
@@ -536,7 +542,7 @@ void CAirPlayServer::CTCPClient::PushBuffer(CAirPlayServer *host, const char *bu
 
     // Prepare the response
     std::string response;
-    const time_t ltime = time(NULL);
+    const time_t ltime = time(nullptr);
     char *date = asctime(gmtime(&ltime)); //Fri, 17 Dec 2010 11:18:01 GMT;
     date[strlen(date) - 1] = '\0'; // remove \n
     response = StringUtils::Format("HTTP/1.1 {} {}\nDate: {}\r\n", status, statusMsg, date);
@@ -568,12 +574,13 @@ void CAirPlayServer::CTCPClient::Disconnect()
 {
   if (m_socket != INVALID_SOCKET)
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+    
     shutdown(m_socket, SHUT_RDWR);
     close(m_socket);
     m_socket = INVALID_SOCKET;
     delete m_httpParser;
-    m_httpParser = NULL;
+    m_httpParser = nullptr;
   }
 }
 
@@ -731,7 +738,7 @@ bool CAirPlayServer::CTCPClient::checkAuthorization(const std::string& authStr,
 
 void CAirPlayServer::backupVolume()
 {
-  std::unique_lock lock(ServerInstanceLock);
+  std::lock_guard lock(ServerInstanceLock);
 
   if (ServerInstance && ServerInstance->m_origVolume == -1)
   {
@@ -743,7 +750,7 @@ void CAirPlayServer::backupVolume()
 
 void CAirPlayServer::restoreVolume()
 {
-  std::unique_lock lock(ServerInstanceLock);
+  std::lock_guard lock(ServerInstanceLock);
 
   const auto& settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   if (ServerInstance && ServerInstance->m_origVolume != -1 &&
@@ -845,7 +852,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
   else if (uri == "/volume")
   {
       const char* found = strstr(queryString.c_str(), "volume=");
-      float volume = found ? (float)strtod(found + strlen("volume="), NULL) : 0;
+      float volume = found ? (float)strtod(found + strlen("volume="), nullptr) : 0;
 
       CLog::Log(LOGDEBUG, "AIRPLAY: got request {} with volume {:f}", uri, volume);
 
@@ -893,7 +900,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
 
       const char* bodyChr = m_httpParser->getBody();
 
-      plist_t dict = NULL;
+      plist_t dict = nullptr;
       plist_from_bin(bodyChr, m_httpParser->getContentLength(), &dict);
 
       if (plist_dict_get_size(dict))
@@ -910,7 +917,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
         if (tmpNode)
         {
           location = getStringFromPlist(tmpNode);
-          tmpNode = NULL;
+          tmpNode = nullptr;
         }
 
         tmpNode = plist_dict_get_item(dict, "rate");
@@ -922,7 +929,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
           {
             startPlayback = false;
           }
-          tmpNode = NULL;
+          tmpNode = nullptr;
         }
 
         // in newer protocol versions the location is given
@@ -983,7 +990,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
       fileToPlay.SetProperty("StartPercent", position*100.0f);
       ServerInstance->AnnounceToClients(EVENT_LOADING);
 
-      CFileItemList *l = new CFileItemList; //don't delete,
+      auto l = new CFileItemList; //don't delete,
       l->Add(std::make_shared<CFileItem>(fileToPlay));
       CServiceBroker::GetAppMessenger()->PostMsg(TMSG_MEDIA_PLAY, -1, -1, static_cast<void*>(l));
 
@@ -1078,11 +1085,11 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
       else if (photoAction == "displayCached")
       {
         receivePhoto = false;
-        if (!photoCacheId.empty())
+        if (photoCacheId.length())
           CLog::Log(LOGDEBUG, "AIRPLAY: Trying to show from cache asset: {}", photoCacheId);
       }
 
-      if (!photoCacheId.empty())
+      if (photoCacheId.length())
         tmpFileName += photoCacheId;
       else
         tmpFileName += "airplay_photo";
@@ -1107,7 +1114,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
           writtenBytes = tmpFile.Write(m_httpParser->getBody(), m_httpParser->getContentLength());
           tmpFile.Close();
         }
-        if (!photoCacheId.empty())
+        if (photoCacheId.length())
           CLog::Log(LOGDEBUG, "AIRPLAY: Cached asset: {}", photoCacheId);
       }
 
@@ -1118,7 +1125,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( std::string& responseHeader,
           if (!receivePhoto && !XFILE::CFile::Exists(tmpFileName))
           {
             status = AIRPLAY_STATUS_PRECONDITION_FAILED; //image not found in the cache
-            if (!photoCacheId.empty())
+            if (photoCacheId.length())
               CLog::Log(LOGWARNING, "AIRPLAY: Asset {} not found in our cache.", photoCacheId);
           }
           else

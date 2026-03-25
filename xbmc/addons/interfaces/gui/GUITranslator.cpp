@@ -328,8 +328,6 @@ ADDON_ACTION CAddonGUITranslator::TranslateActionIdToAddon(int kodiId)
       return ADDON_ACTION_MENU;
     case ACTION_SET_RATING:
       return ADDON_ACTION_SET_RATING;
-    case ACTION_PREV_SUBTITLE:
-      return ADDON_ACTION_PREV_SUBTITLE;
     case ACTION_RECORD:
       return ADDON_ACTION_RECORD;
     case ACTION_PASTE:
@@ -554,12 +552,6 @@ int CAddonGUITranslator::TranslateActionIdToKodi(ADDON_ACTION addonId)
       return ACTION_SHOW_SUBTITLES;
     case ADDON_ACTION_NEXT_SUBTITLE:
       return ACTION_NEXT_SUBTITLE;
-    case ADDON_ACTION_DIALOG_SELECT_VIDEO:
-      return ACTION_DIALOG_SELECT_VIDEO;
-    case ADDON_ACTION_DIALOG_SELECT_AUDIO:
-      return ACTION_DIALOG_SELECT_AUDIO;
-    case ADDON_ACTION_DIALOG_SELECT_SUBTITLE:
-      return ACTION_DIALOG_SELECT_SUBTITLE;
     case ADDON_ACTION_PLAYER_DEBUG:
       return ACTION_PLAYER_DEBUG;
     case ADDON_ACTION_NEXT_PICTURE:
@@ -818,8 +810,6 @@ int CAddonGUITranslator::TranslateActionIdToKodi(ADDON_ACTION addonId)
       return ACTION_MENU;
     case ADDON_ACTION_SET_RATING:
       return ACTION_SET_RATING;
-    case ADDON_ACTION_PREV_SUBTITLE:
-      return ACTION_PREV_SUBTITLE;
     case ADDON_ACTION_RECORD:
       return ACTION_RECORD;
     case ADDON_ACTION_PASTE:

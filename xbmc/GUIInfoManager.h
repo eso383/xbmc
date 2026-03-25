@@ -18,7 +18,6 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <string_view>
 #include <vector>
 
 class CFileItem;
@@ -26,15 +25,21 @@ class CVideoInfoTag;
 
 class CGUIListItem;
 
-namespace KODI::GAME
+namespace KODI
+{
+namespace GAME
 {
 class CGameInfoTag;
 }
-namespace KODI::GUILIB::GUIINFO
+namespace GUILIB
+{
+namespace GUIINFO
 {
   class CGUIInfo;
   class IGUIInfoProvider;
-  } // namespace KODI::GUILIB::GUIINFO
+}
+}
+}
 namespace INFO
 {
   class InfoSingle;
@@ -83,7 +88,7 @@ public:
   void UnRegister(const INFO::InfoPtr& expression);
 
   /// \brief iterates through boolean conditions and compares their stored values to current values. Returns true if any condition changed value.
-  bool ConditionsChangedValues(const std::map<INFO::InfoPtr, bool>& map) const;
+  bool ConditionsChangedValues(const std::map<INFO::InfoPtr, bool>& map);
 
   /*! \brief Evaluate a boolean expression
    \param expression the expression to evaluate
@@ -99,7 +104,7 @@ public:
   int TranslateSingleString(const std::string &strCondition, bool &listItemDependent);
 
   std::string GetLabel(int info, int contextWindow, std::string* fallback = nullptr) const;
-  std::string GetImage(int info, int contextWindow, std::string *fallback = nullptr);
+  std::string GetImage(int info, int contextWindow, std::string *fallback = nullptr) const;
   bool GetInt(int& value, int info, int contextWindow, const CGUIListItem* item = nullptr) const;
   bool GetBool(int condition, int contextWindow, const CGUIListItem* item = nullptr);
 
@@ -120,10 +125,10 @@ public:
    */
   void SetCurrentItem(const CFileItem &item);
   void ResetCurrentItem();
-  void UpdateCurrentItem(const CFileItem &item);
+  void UpdateCurrentItem(const CFileItem &item) const;
 
   // Current song stuff
-  void SetCurrentAlbumThumb(const std::string &thumbFileName);
+  void SetCurrentAlbumThumb(const std::string &thumbFileName) const;
   const MUSIC_INFO::CMusicInfoTag *GetCurrentSongTag() const;
 
   // Current video stuff
@@ -132,7 +137,7 @@ public:
   // Current game stuff
   const KODI::GAME::CGameInfoTag* GetCurrentGameTag() const;
 
-  void UpdateAVInfo() const;
+  void UpdateAVInfo();
 
   int RegisterSkinVariableString(const INFO::CSkinVariableString* info);
   int TranslateSkinVariableString(const std::string& name, int context);
@@ -160,13 +165,11 @@ private:
   public:
     Property(const std::string &property, const std::string &parameters);
 
-    const std::string& Name() const { return m_name; }
-
-    const std::string& param(size_t n = 0) const;
+    const std::string &param(unsigned int n = 0) const;
     unsigned int num_params() const;
 
+    std::string name;
   private:
-    std::string m_name;
     std::vector<std::string> params;
   };
 
@@ -180,13 +183,13 @@ private:
    \param infoString the original string
    \param info the resulting pairs of info and parameters.
    */
-  void SplitInfoString(const std::string& infoString, std::vector<Property>& info) const;
+  void SplitInfoString(const std::string &infoString, std::vector<Property> &info);
 
   int TranslateSingleString(const std::string &strCondition);
   int TranslateListItem(const Property& cat, const Property& prop, int id, bool container);
-  int TranslateMusicPlayerString(std::string_view info) const;
-  int TranslateVideoPlayerString(std::string_view info) const;
-  int TranslatePlayerString(std::string_view info) const;
+  int TranslateMusicPlayerString(const std::string &info) const;
+  int TranslateVideoPlayerString(const std::string& info) const;
+  int TranslatePlayerString(const std::string& info) const;
   static TIME_FORMAT TranslateTimeFormat(const std::string &format);
 
   std::string GetMultiInfoLabel(const KODI::GUILIB::GUIINFO::CGUIInfo &info, int contextWindow, std::string *fallback = nullptr) const;
@@ -206,24 +209,17 @@ private:
   int ResolveMultiInfo(int info) const;
   bool IsListItemInfo(int info) const;
 
-  void SetCurrentSongTag(const MUSIC_INFO::CMusicInfoTag &tag);
-  void SetCurrentVideoTag(const CVideoInfoTag &tag);
+  void SetCurrentSongTag(const MUSIC_INFO::CMusicInfoTag &tag) const;
+  void SetCurrentVideoTag(const CVideoInfoTag &tag) const;
 
   // Vector of multiple information mapped to a single integer lookup
   std::vector<KODI::GUILIB::GUIINFO::CGUIInfo> m_multiInfo;
 
   // Current playing stuff
-  std::unique_ptr<CFileItem> m_currentFile;
+  CFileItem* m_currentFile;
 
-  using INFOBOOLTYPE =
-      std::set<INFO::InfoPtr, bool (*)(const INFO::InfoPtr&, const INFO::InfoPtr&)>;
-
-  static bool InfoBoolComparator(const INFO::InfoPtr& right, const INFO::InfoPtr& left)
-  {
-    return *right < *left;
-  }
-
-  INFOBOOLTYPE m_bools{&CGUIInfoManager::InfoBoolComparator};
+  typedef std::set<INFO::InfoPtr, bool(*)(const INFO::InfoPtr&, const INFO::InfoPtr&)> INFOBOOLTYPE;
+  INFOBOOLTYPE m_bools;
   unsigned int m_refreshCounter = 0;
   std::vector<INFO::CSkinVariableString> m_skinVariableStrings;
 

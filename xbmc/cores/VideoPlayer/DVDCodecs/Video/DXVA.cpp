@@ -29,8 +29,6 @@
 #include "utils/SystemInfo.h"
 #include "utils/log.h"
 
-#include "platform/win32/WIN32Util.h"
-
 #include <algorithm>
 #include <mutex>
 
@@ -263,7 +261,7 @@ CContext::~CContext()
 
 void CContext::Release(CDecoder* decoder)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   const auto it = std::find(m_decoders.begin(), m_decoders.end(), decoder);
   if (it != m_decoders.end())
@@ -278,7 +276,7 @@ void CContext::Close()
 
 CContext::shared_ptr CContext::EnsureContext(CDecoder* decoder)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   auto context = m_context.lock();
   if (context)
@@ -349,7 +347,7 @@ bool CContext::CreateContext()
       if (FAILED(pD3DDevice.As(&m_d3d11Debug)))
       {
         CLog::LogF(LOGDEBUG, "unable to create debug interface. Error {}",
-                   CWIN32Util::FormatHRESULT(hr));
+                   DX::GetErrorDescription(hr));
       }
 #endif
     }
@@ -357,7 +355,7 @@ bool CContext::CreateContext()
     {
       CLog::LogF(LOGWARNING,
                  "unable to create device for decoding, fallback to using app device. Error {}",
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
       m_sharingAllowed = false;
     }
   }
@@ -608,7 +606,7 @@ bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC& format, uint32_t c
   if (FAILED(hr = pD3DDevice->CreateTexture2D(&texDesc, NULL, texture.GetAddressOf())))
   {
     CLog::LogF(LOGERROR, "failed creating decoder texture array. Error {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return false;
   }
 
@@ -639,7 +637,7 @@ bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC& format, uint32_t c
     hr = m_pD3D11Device->CreateVideoDecoderOutputView(texture.Get(), &vdovDesc, &surfaces[i]);
     if (FAILED(hr))
     {
-      CLog::LogF(LOGERROR, "failed creating surfaces. Error {}", CWIN32Util::FormatHRESULT(hr));
+      CLog::LogF(LOGERROR, "failed creating surfaces. Error {}", DX::GetErrorDescription(hr));
       break;
     }
     if (pD3DDeviceContext1)
@@ -661,7 +659,7 @@ bool CContext::CreateSurfaces(const D3D11_VIDEO_DECODER_DESC& format, uint32_t c
 bool CContext::CreateDecoder(const D3D11_VIDEO_DECODER_DESC &format, const D3D11_VIDEO_DECODER_CONFIG &config
                                , ID3D11VideoDecoder **decoder, ID3D11VideoContext **context)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   int retry = 0;
   while (retry < 2)
@@ -806,7 +804,7 @@ HRESULT CVideoBufferShared::GetResource(ID3D11Resource** ppResource)
     if (FAILED(hr = pD3DDevice->OpenSharedResource(handle, __uuidof(ID3D11Resource), &m_sharedRes)))
     {
       CLog::LogF(LOGDEBUG, "unable to open the shared resource, error description: {}",
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
       return hr;
     }
 
@@ -818,18 +816,18 @@ HRESULT CVideoBufferShared::GetResource(ID3D11Resource** ppResource)
       if (FAILED(hr = context1.As(&m_appContext4)))
       {
         CLog::LogF(LOGDEBUG, "ID3D11DeviceContext4 is not available, error description: {}",
-                   CWIN32Util::FormatHRESULT(hr));
+                   DX::GetErrorDescription(hr));
       }
       else if (FAILED(hr = pD3DDevice.As(&device5)))
       {
         CLog::LogF(LOGDEBUG, "ID3D11Device5 is not available, error description: {}",
-                   CWIN32Util::FormatHRESULT(hr));
+                   DX::GetErrorDescription(hr));
         m_appContext4 = nullptr;
       }
       else if (FAILED(hr = device5->OpenSharedFence(m_handleFence, IID_PPV_ARGS(&m_appFence))))
       {
         CLog::LogF(LOGDEBUG, "unable to open the shared fence, error description: {}",
-                   CWIN32Util::FormatHRESULT(hr));
+                   DX::GetErrorDescription(hr));
         m_appContext4 = nullptr;
       }
     }
@@ -841,7 +839,7 @@ HRESULT CVideoBufferShared::GetResource(ID3D11Resource** ppResource)
     if (FAILED(hr = m_appContext4->Wait(m_appFence.Get(), m_fenceValue)))
     {
       CLog::LogF(LOGDEBUG, "error waiting for the fence value, error description: {}",
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
     }
   }
 
@@ -882,28 +880,28 @@ void CVideoBufferShared::InitializeFence(CDecoder* decoder)
   if (FAILED(hr = immediateContext.As(&m_deviceContext4)))
   {
     CLog::LogF(LOGDEBUG, "ID3D11DeviceContext4 is not available, error description: {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     goto error;
   }
 
   if (FAILED(hr = device.As(&d3ddev5)))
   {
     CLog::LogF(LOGDEBUG, "ID3D11Device5 is not available, error description: {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     goto error;
   }
 
   if (FAILED(hr = d3ddev5->CreateFence(0, D3D11_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_fence))))
   {
     CLog::LogF(LOGDEBUG, "unable to create ID3D11Fence, error description: {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     goto error;
   }
 
   if (FAILED(hr = m_fence->CreateSharedHandle(NULL, GENERIC_ALL, NULL, &m_handleFence)))
   {
     CLog::LogF(LOGDEBUG, "unable to create the shared handle of the fence, error description: {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     goto error;
   }
 
@@ -953,15 +951,13 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     if (FAILED(hr = CVideoBuffer::GetResource(&pResource)))
     {
-      CLog::LogF(LOGDEBUG, "unable to get decoder resource. Error {}",
-                 CWIN32Util::FormatHRESULT(hr));
+      CLog::LogF(LOGDEBUG, "unable to get decoder resource. Error {}", DX::GetErrorDescription(hr));
       return;
     }
 
     if (FAILED(hr = pResource.As(&pDecoderTexture)))
     {
-      CLog::LogF(LOGDEBUG, "unable to get decoder texture. Error {}",
-                 CWIN32Util::FormatHRESULT(hr));
+      CLog::LogF(LOGDEBUG, "unable to get decoder texture. Error {}", DX::GetErrorDescription(hr));
       return;
     }
 
@@ -973,21 +969,20 @@ void CVideoBufferCopy::Initialize(CDecoder* decoder)
 
     if (FAILED(hr = pDevice->CreateTexture2D(&desc, nullptr, &pCopyTexture)))
     {
-      CLog::LogF(LOGDEBUG, "unable to create copy texture. Error {}",
-                 CWIN32Util::FormatHRESULT(hr));
+      CLog::LogF(LOGDEBUG, "unable to create copy texture. Error {}", DX::GetErrorDescription(hr));
       return;
     }
     if (FAILED(hr = pCopyTexture.As(&pDXGIResource)))
     {
       CLog::LogF(LOGDEBUG, "unable to get DXGI resource for copy texture. Error {}",
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
       return;
     }
 
     HANDLE shared_handle;
     if (FAILED(hr = pDXGIResource->GetSharedHandle(&shared_handle)))
     {
-      CLog::LogF(LOGDEBUG, "unable to get shared handle. Error {}", CWIN32Util::FormatHRESULT(hr));
+      CLog::LogF(LOGDEBUG, "unable to get shared handle. Error {}", DX::GetErrorDescription(hr));
       return;
     }
 
@@ -1025,7 +1020,7 @@ CVideoBufferPool::~CVideoBufferPool()
 
 ::CVideoBuffer* CVideoBufferPool::Get()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   CVideoBuffer* retPic;
   if (!m_freeOut.empty())
@@ -1047,7 +1042,7 @@ CVideoBufferPool::~CVideoBufferPool()
 
 void CVideoBufferPool::Return(int id)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   auto buf = m_out[id];
   buf->Unref();
@@ -1057,7 +1052,8 @@ void CVideoBufferPool::Return(int id)
 
 void CVideoBufferPool::AddView(ID3D11View* view)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   const size_t idx = m_views.size();
   m_views.push_back(view);
   m_freeViews.push_back(idx);
@@ -1065,13 +1061,14 @@ void CVideoBufferPool::AddView(ID3D11View* view)
 
 bool CVideoBufferPool::IsValid(ID3D11View* view)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   return std::find(m_views.begin(), m_views.end(), view) != m_views.end();
 }
 
 bool CVideoBufferPool::ReturnView(ID3D11View* view)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   const auto it = std::find(m_views.begin(), m_views.end(), view);
   if (it == m_views.end())
@@ -1084,7 +1081,7 @@ bool CVideoBufferPool::ReturnView(ID3D11View* view)
 
 ID3D11View* CVideoBufferPool::GetView()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (!m_freeViews.empty())
   {
@@ -1098,7 +1095,7 @@ ID3D11View* CVideoBufferPool::GetView()
 
 void CVideoBufferPool::Reset()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   for (auto v : m_views)
     if (v)
@@ -1115,13 +1112,15 @@ void CVideoBufferPool::Reset()
 
 size_t CVideoBufferPool::Size()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   return m_views.size();
 }
 
 bool CVideoBufferPool::HasFree()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   return !m_freeViews.empty();
 }
 
@@ -1170,7 +1169,8 @@ CDecoder::~CDecoder()
 
 void CDecoder::Close()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_pD3D11Decoder = nullptr;
   m_pD3D11Context = nullptr;
 
@@ -1314,7 +1314,8 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, enum AVPixel
   if (avctx->codec_id == AV_CODEC_ID_MPEG2VIDEO && avctx->height <= 576)
     m_DVDWorkaround = true;
 
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   Close();
 
   if (m_state == DXVA_LOST)
@@ -1468,7 +1469,8 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, enum AVPixel
 
 CDVDVideoCodec::VCReturn CDecoder::Decode(AVCodecContext* avctx, AVFrame* frame)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   const CDVDVideoCodec::VCReturn result = Check(avctx);
   if (result != CDVDVideoCodec::VC_NONE)
     return result;
@@ -1499,7 +1501,7 @@ CDVDVideoCodec::VCReturn CDecoder::Decode(AVCodecContext* avctx, AVFrame* frame)
 bool CDecoder::GetPicture(AVCodecContext* avctx, VideoPicture* picture)
 {
   static_cast<ICallbackHWAccel*>(avctx->opaque)->GetPictureCommon(picture);
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (picture->videoBuffer)
     picture->videoBuffer->Release();
@@ -1741,6 +1743,7 @@ unsigned CDecoder::GetAllowedReferences()
 
 void CDecoder::CloseDXVADecoder()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+  
   m_pD3D11Decoder = nullptr;
 }

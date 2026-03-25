@@ -18,7 +18,6 @@
 #include <vector>
 
 class CSettingsManager;
-class TiXmlNode;
 
 /*!
  \ingroup settings

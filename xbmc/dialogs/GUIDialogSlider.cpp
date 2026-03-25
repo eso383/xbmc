@@ -12,10 +12,9 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUISliderControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 
 #define CONTROL_HEADING 10
 #define CONTROL_SLIDER  11
@@ -24,8 +23,8 @@
 CGUIDialogSlider::CGUIDialogSlider(void)
     : CGUIDialog(WINDOW_DIALOG_SLIDER, "DialogSlider.xml")
 {
-  m_callback = NULL;
-  m_callbackData = NULL;
+  m_callback = nullptr;
+  m_callbackData = nullptr;
   m_loadType = KEEP_IN_MEMORY;
 }
 
@@ -48,7 +47,7 @@ bool CGUIDialogSlider::OnMessage(CGUIMessage& message)
   case GUI_MSG_CLICKED:
     if (message.GetSenderId() == CONTROL_SLIDER)
     {
-      CGUISliderControl *slider = dynamic_cast<CGUISliderControl *>(GetControl(CONTROL_SLIDER));
+      auto slider = dynamic_cast<CGUISliderControl *>(GetControl(CONTROL_SLIDER));
       if (slider && m_callback)
       {
         m_callback->OnSliderChange(m_callbackData, slider);
@@ -57,8 +56,8 @@ bool CGUIDialogSlider::OnMessage(CGUIMessage& message)
     }
     break;
   case GUI_MSG_WINDOW_DEINIT:
-    m_callback = NULL;
-    m_callbackData = NULL;
+    m_callback = nullptr;
+    m_callbackData = nullptr;
     break;
   }
   return CGUIDialog::OnMessage(message);
@@ -67,7 +66,7 @@ bool CGUIDialogSlider::OnMessage(CGUIMessage& message)
 void CGUIDialogSlider::SetSlider(const std::string &label, float value, float min, float delta, float max, ISliderCallback *callback, void *callbackData)
 {
   SET_CONTROL_LABEL(CONTROL_HEADING, label);
-  CGUISliderControl *slider = dynamic_cast<CGUISliderControl *>(GetControl(CONTROL_SLIDER));
+  auto slider = dynamic_cast<CGUISliderControl *>(GetControl(CONTROL_SLIDER));
   m_callback = callback;
   m_callbackData = callbackData;
   if (slider)
@@ -87,8 +86,8 @@ void CGUIDialogSlider::SetSlider(const std::string &label, float value, float mi
 void CGUIDialogSlider::OnWindowLoaded()
 {
   // ensure our callbacks are NULL, incase we were loaded via some non-standard means
-  m_callback = NULL;
-  m_callbackData = NULL;
+  m_callback = nullptr;
+  m_callbackData = nullptr;
   CGUIDialog::OnWindowLoaded();
 }
 
@@ -121,8 +120,7 @@ void CGUIDialogSlider::Display(int label, float value, float min, float delta, f
   // set the label and value
   slider->Initialize();
   slider->SetAutoClose(1000);
-  slider->SetSlider(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(label), value,
-                    min, delta, max, callback, NULL);
+  slider->SetSlider(g_localizeStrings.Get(label), value, min, delta, max, callback, nullptr);
   slider->SetModalityType(DialogModalityType::MODELESS);
   slider->Open();
 }

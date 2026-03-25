@@ -12,7 +12,7 @@
 #include "video/VideoDatabase.h"
 
 CVideoLibraryCleaningJob::CVideoLibraryCleaningJob(const std::set<int>& paths /* = std::set<int>() */, bool showDialog /* = false */)
-  : CVideoLibraryProgressJob(NULL),
+  : CVideoLibraryProgressJob(nullptr),
     m_paths(paths),
     m_showDialog(showDialog)
 { }
@@ -25,13 +25,13 @@ CVideoLibraryCleaningJob::CVideoLibraryCleaningJob(const std::set<int>& paths, C
 
 CVideoLibraryCleaningJob::~CVideoLibraryCleaningJob() = default;
 
-bool CVideoLibraryCleaningJob::Equals(const CJob* job) const
+bool CVideoLibraryCleaningJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CVideoLibraryCleaningJob* cleaningJob = dynamic_cast<const CVideoLibraryCleaningJob*>(job);
-  if (cleaningJob == NULL)
+  auto cleaningJob = dynamic_cast<const CVideoLibraryCleaningJob*>(job);
+  if (cleaningJob == nullptr)
     return false;
 
   return m_paths == cleaningJob->m_paths &&

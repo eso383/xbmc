@@ -11,7 +11,6 @@
 #include "MusicInfoTag.h"
 #include "filesystem/MusicDatabaseDirectory.h"
 #include "filesystem/MusicDatabaseDirectory/DirectoryNode.h"
-#include "filesystem/MusicDatabaseDirectory/QueryParams.h"
 #include "music/MusicDatabase.h"
 
 using namespace MUSIC_INFO;

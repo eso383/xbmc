@@ -10,7 +10,6 @@
 
 #include "Autorun.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIDialogPictureInfo.h"
 #include "GUIPassword.h"
 #include "GUIWindowSlideShow.h"
@@ -41,7 +40,6 @@
 #include "utils/Variant.h"
 #include "utils/XTimeUtils.h"
 #include "utils/log.h"
-#include "video/VideoFileItemClassify.h"
 #include "view/GUIViewState.h"
 
 #define CONTROL_BTNSORTASC          4
@@ -49,7 +47,6 @@
 
 using namespace XFILE;
 using namespace KODI::MESSAGING;
-using namespace KODI;
 
 using namespace std::chrono_literals;
 
@@ -62,7 +59,7 @@ CGUIWindowPictures::CGUIWindowPictures(void)
 {
   m_thumbLoader.SetObserver(this);
   m_slideShowStarted = false;
-  m_dlgProgress = NULL;
+  m_dlgProgress = nullptr;
 }
 
 void CGUIWindowPictures::OnInitWindow()
@@ -297,7 +294,7 @@ bool CGUIWindowPictures::GetDirectory(const std::string &strDirectory, CFileItem
 
 bool CGUIWindowPictures::OnPlayMedia(int iItem, const std::string &player)
 {
-  if (VIDEO::IsVideo(*m_vecItems->Get(iItem)))
+  if (m_vecItems->Get(iItem)->IsVideo())
     return CGUIMediaWindow::OnPlayMedia(iItem);
 
   return ShowPicture(iItem, false);
@@ -314,7 +311,7 @@ bool CGUIWindowPictures::ShowPicture(int iItem, bool startSlideShow)
     return MEDIA_DETECT::CAutorun::PlayDiscAskResume(m_vecItems->Get(iItem)->GetPath());
 #endif
 
-  if (pItem->IsShareOrDrive())
+  if (pItem->m_bIsShareOrDrive)
     return false;
 
   //! @todo this should be reactive, based on a given event app player should stop the playback
@@ -328,9 +325,9 @@ bool CGUIWindowPictures::ShowPicture(int iItem, bool startSlideShow)
   bool bShowVideos = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_PICTURES_SHOWVIDEOS);
   for (const auto& pItem : *m_vecItems)
   {
-    if (!pItem->IsFolder() &&
+    if (!pItem->m_bIsFolder &&
         !(URIUtils::IsRAR(pItem->GetPath()) || URIUtils::IsZIP(pItem->GetPath())) &&
-        (pItem->IsPicture() || (bShowVideos && VIDEO::IsVideo(*pItem))))
+        (pItem->IsPicture() || (bShowVideos && pItem->IsVideo())))
     {
       slideShow.Add(pItem.get());
     }
@@ -352,8 +349,6 @@ bool CGUIWindowPictures::ShowPicture(int iItem, bool startSlideShow)
   // look into using OnPlay announce!
   m_slideShowStarted = true;
   CServiceBroker::GetGUI()->GetWindowManager().ActivateWindow(WINDOW_SLIDESHOW);
-  if (!startSlideShow)
-    m_viewControl.SetSelectedItem(slideShow.GetCurrentSlide()->GetPath());
 
   return true;
 }
@@ -450,15 +445,13 @@ void CGUIWindowPictures::GetContextButtons(int itemNumber, CContextButtons &butt
     {
       if (item)
       {
-        if (!(item->IsFolder() || item->IsZIP() || item->IsRAR() || item->IsCBZ() ||
-              item->IsCBR() || item->IsScript()))
+        if (!(item->m_bIsFolder || item->IsZIP() || item->IsRAR() || item->IsCBZ() || item->IsCBR() || item->IsScript()))
         {
           if (item->IsPicture())
             buttons.Add(CONTEXT_BUTTON_INFO, 13406); // picture info
-          buttons.Add(CONTEXT_BUTTON_VIEW_SLIDESHOW,
-                      item->IsFolder() ? 13317 : 13422); // View Slideshow
+          buttons.Add(CONTEXT_BUTTON_VIEW_SLIDESHOW, item->m_bIsFolder ? 13317 : 13422);      // View Slideshow
         }
-        if (item->IsFolder())
+        if (item->m_bIsFolder)
           buttons.Add(CONTEXT_BUTTON_RECURSIVE_SLIDESHOW, 13318);     // Recursive Slideshow
 
         if (!m_thumbLoader.IsLoading())
@@ -488,7 +481,7 @@ bool CGUIWindowPictures::OnContextButton(int itemNumber, CONTEXT_BUTTON button)
   switch (button)
   {
   case CONTEXT_BUTTON_VIEW_SLIDESHOW:
-    if (item && item->IsFolder())
+    if (item && item->m_bIsFolder)
       OnSlideShow(item->GetPath());
     else
       ShowPicture(itemNumber, true);
@@ -574,8 +567,7 @@ void CGUIWindowPictures::LoadPlayList(const std::string& strPlayList)
   }
 }
 
-void CGUIWindowPictures::OnItemInfo(int itemNumber)
-{
+void CGUIWindowPictures::OnItemInfo(int itemNumber) const {
   CFileItemPtr item = m_vecItems->Get(itemNumber);
   if (!item)
     return;
@@ -584,8 +576,7 @@ void CGUIWindowPictures::OnItemInfo(int itemNumber)
     CGUIDialogAddonInfo::ShowForItem(item);
     return;
   }
-  if (item->IsFolder() || item->IsZIP() || item->IsRAR() || item->IsCBZ() || item->IsCBR() ||
-      !item->IsPicture())
+  if (item->m_bIsFolder || item->IsZIP() || item->IsRAR() || item->IsCBZ() || item->IsCBR() || !item->IsPicture())
     return;
   CGUIDialogPictureInfo *pictureInfo = CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogPictureInfo>(WINDOW_DIALOG_PICTURE_INFO);
   if (pictureInfo)
@@ -602,13 +593,13 @@ std::string CGUIWindowPictures::GetStartFolder(const std::string &dir)
     return "addons://sources/image/";
 
   SetupShares();
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   m_rootDir.GetSources(shares);
   bool bIsSourceName = false;
   int iIndex = CUtil::GetMatchingSource(dir, shares, bIsSourceName);
   if (iIndex > -1)
   {
-    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].GetLockInfo().IsLocked())
+    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].m_iHasLock == LOCK_STATE_LOCKED)
     {
       CFileItem item(shares[iIndex]);
       if (!g_passwordManager.IsItemUnlocked(&item,"pictures"))

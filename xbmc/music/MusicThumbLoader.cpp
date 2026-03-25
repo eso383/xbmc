@@ -9,10 +9,9 @@
 #include "MusicThumbLoader.h"
 
 #include "FileItem.h"
-#include "imagefiles/ImageFileURL.h"
+#include "TextureDatabase.h"
 #include "music/infoscanner/MusicInfoScanner.h"
 #include "music/tags/MusicInfoTag.h"
-#include "utils/Artwork.h"
 #include "utils/StringUtils.h"
 #include "video/VideoThumbLoader.h"
 
@@ -54,7 +53,7 @@ bool CMusicThumbLoader::LoadItem(CFileItem* pItem)
 
 bool CMusicThumbLoader::LoadItemCached(CFileItem* pItem)
 {
-  if (pItem->IsShareOrDrive())
+  if (pItem->m_bIsShareOrDrive)
     return false;
 
   if (pItem->HasMusicInfoTag() && !pItem->GetProperty("libraryartfilled").asBoolean())
@@ -98,7 +97,7 @@ bool CMusicThumbLoader::LoadItemCached(CFileItem* pItem)
 
 bool CMusicThumbLoader::LoadItemLookup(CFileItem* pItem)
 {
-  if (pItem->IsShareOrDrive())
+  if (pItem->m_bIsShareOrDrive)
     return false;
 
   if (pItem->HasMusicInfoTag() && pItem->GetMusicInfoTag()->GetType() == MediaTypeArtist) // No fallback for artist
@@ -120,7 +119,7 @@ bool CMusicThumbLoader::LoadItemLookup(CFileItem* pItem)
       if (!FillThumb(*pItem, false)) // Check for user thumbs but ignore folder thumbs
       {
         // No user thumb, use embedded art
-        std::string thumb = IMAGE_FILES::URLFromFile(pItem->GetPath(), "music");
+        std::string thumb = CTextureUtils::GetWrappedImageURL(pItem->GetPath(), "music");
         pItem->SetArt("thumb", thumb);
       }
     }
@@ -270,8 +269,8 @@ bool CMusicThumbLoader::FillLibraryArt(CFileItem &item)
   {
     std::string fanartfallback;
     std::string artname;
-    KODI::ART::Artwork artmap;
-    KODI::ART::Artwork discartmap;
+    std::map<std::string, std::string> artmap;
+    std::map<std::string, std::string> discartmap;
     for (auto artitem : art)
     {
       /* Add art to artmap, naming according to media type.

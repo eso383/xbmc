@@ -10,7 +10,6 @@
 
 #include "ContextMenuManager.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "dialogs/GUIDialogContextMenu.h"
 #include "input/actions/Action.h"
@@ -21,17 +20,12 @@
 
 #include <utility>
 
-namespace
-{
-constexpr unsigned int CONTROL_LIST = 11;
-
-} // unnamed namespace
+#define CONTROL_LIST 11
 
 using namespace PVR;
 
 CGUIDialogPVRItemsViewBase::CGUIDialogPVRItemsViewBase(int id, const std::string& xmlFile)
-  : CGUIDialog(id, xmlFile),
-    m_vecItems(std::make_unique<CFileItemList>())
+  : CGUIDialog(id, xmlFile), m_vecItems(new CFileItemList)
 {
 }
 
@@ -47,6 +41,11 @@ void CGUIDialogPVRItemsViewBase::OnWindowUnload()
 {
   CGUIDialog::OnWindowUnload();
   m_viewControl.Reset();
+}
+
+void CGUIDialogPVRItemsViewBase::OnInitWindow()
+{
+  CGUIDialog::OnInitWindow();
 }
 
 void CGUIDialogPVRItemsViewBase::OnDeinitWindow(int nextWindowID)
@@ -86,8 +85,7 @@ CGUIControl* CGUIDialogPVRItemsViewBase::GetFirstFocusableControl(int id)
   return CGUIDialog::GetFirstFocusableControl(id);
 }
 
-void CGUIDialogPVRItemsViewBase::ShowInfo(int itemIdx) const
-{
+void CGUIDialogPVRItemsViewBase::ShowInfo(int itemIdx) const {
   if (itemIdx < 0 || itemIdx >= m_vecItems->Size())
     return;
 
@@ -100,8 +98,9 @@ void CGUIDialogPVRItemsViewBase::ShowInfo(int itemIdx) const
 
 bool CGUIDialogPVRItemsViewBase::ContextMenu(int itemIdx)
 {
-  auto InRange = [](size_t i, std::pair<size_t, size_t> range)
-  { return i >= range.first && i < range.second; };
+  auto InRange = [](size_t i, std::pair<size_t, size_t> range) {
+    return i >= range.first && i < range.second;
+  };
 
   if (itemIdx < 0 || itemIdx >= m_vecItems->Size())
     return false;

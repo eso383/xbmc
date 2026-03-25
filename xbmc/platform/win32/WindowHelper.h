@@ -24,8 +24,9 @@ public:
   void SetHANDLE(HANDLE hProcess);
 
 private:
-  HWND m_hwnd{NULL};
-  HANDLE m_hProcess{NULL};
+  HWND  m_hwnd;
+  HANDLE m_hProcess;
+
 };
 
 extern CWHelper g_windowHelper;

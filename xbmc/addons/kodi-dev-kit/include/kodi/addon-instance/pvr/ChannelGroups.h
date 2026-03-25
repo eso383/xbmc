@@ -34,14 +34,14 @@ namespace addon
 /// @copydetails cpp_kodi_addon_pvr_Defs_ChannelGroup_PVRChannelGroup_Help
 ///
 ///@{
-class PVRChannelGroup : public DynamicCStructHdl<PVRChannelGroup, PVR_CHANNEL_GROUP>
+class PVRChannelGroup : public CStructHdl<PVRChannelGroup, PVR_CHANNEL_GROUP>
 {
   friend class CInstancePVRClient;
 
 public:
   /*! \cond PRIVATE */
-  PVRChannelGroup() = default;
-  PVRChannelGroup(const PVRChannelGroup& group) : DynamicCStructHdl(group) {}
+  PVRChannelGroup() { memset(m_cStructure, 0, sizeof(PVR_CHANNEL_GROUP)); }
+  PVRChannelGroup(const PVRChannelGroup& channel) : CStructHdl(channel) {}
   /*! \endcond */
 
   /// @defgroup cpp_kodi_addon_pvr_Defs_ChannelGroup_PVRChannelGroup_Help Value Help
@@ -60,20 +60,16 @@ public:
 
   /// @brief **required**\n
   /// Name of this channel group.
-  void SetGroupName(const std::string& groupName)
-  {
-    ReallocAndCopyString(&m_cStructure->strGroupName, groupName.c_str());
+  void SetGroupName(const std::string& groupName) const {
+    strncpy(m_cStructure->strGroupName, groupName.c_str(), sizeof(m_cStructure->strGroupName) - 1);
   }
 
   /// @brief To get with @ref SetGroupName changed values.
-  std::string GetGroupName() const
-  {
-    return m_cStructure->strGroupName ? m_cStructure->strGroupName : "";
-  }
+  std::string GetGroupName() const { return m_cStructure->strGroupName; }
 
   /// @brief **required**\n
   /// **true** If this is a radio channel group, **false** otherwise.
-  void SetIsRadio(bool isRadio) { m_cStructure->bIsRadio = isRadio; }
+  void SetIsRadio(bool isRadio) const { m_cStructure->bIsRadio = isRadio; }
 
   /// @brief To get with @ref SetIsRadio changed values.
   bool GetIsRadio() const { return m_cStructure->bIsRadio; }
@@ -81,23 +77,16 @@ public:
   /// @brief **optional**\n
   /// Sort position of the group (<b>`0`</b> indicates that the backend doesn't
   /// support sorting of groups).
-  void SetPosition(unsigned int position) { m_cStructure->iPosition = position; }
+  void SetPosition(unsigned int position) const { m_cStructure->iPosition = position; }
 
   /// @brief To get with @ref SetPosition changed values.
   unsigned int GetPosition() const { return m_cStructure->iPosition; }
 
   ///@}
 
-  static void AllocResources(const PVR_CHANNEL_GROUP* source, PVR_CHANNEL_GROUP* target)
-  {
-    target->strGroupName = AllocAndCopyString(source->strGroupName);
-  }
-
-  static void FreeResources(PVR_CHANNEL_GROUP* target) { FreeString(target->strGroupName); }
-
 private:
-  PVRChannelGroup(const PVR_CHANNEL_GROUP* group) : DynamicCStructHdl(group) {}
-  PVRChannelGroup(PVR_CHANNEL_GROUP* group) : DynamicCStructHdl(group) {}
+  PVRChannelGroup(const PVR_CHANNEL_GROUP* channel) : CStructHdl(channel) {}
+  PVRChannelGroup(PVR_CHANNEL_GROUP* channel) : CStructHdl(channel) {}
 };
 ///@}
 //------------------------------------------------------------------------------
@@ -115,8 +104,7 @@ public:
   /*! \cond PRIVATE */
   PVRChannelGroupsResultSet() = delete;
   PVRChannelGroupsResultSet(const AddonInstance_PVR* instance, PVR_HANDLE handle)
-    : m_instance(instance),
-      m_handle(handle)
+    : m_instance(instance), m_handle(handle)
   {
   }
   /*! \endcond */
@@ -127,8 +115,7 @@ public:
   /// @brief To add and give content from addon to Kodi on related call.
   ///
   /// @param[in] tag The to transferred data.
-  void Add(const kodi::addon::PVRChannelGroup& tag)
-  {
+  void Add(const kodi::addon::PVRChannelGroup& tag) const {
     m_instance->toKodi->TransferChannelGroup(m_instance->toKodi->kodiInstance, m_handle, tag);
   }
 
@@ -155,15 +142,14 @@ private:
 /// @copydetails cpp_kodi_addon_pvr_Defs_ChannelGroup_PVRChannelGroupMember_Help
 ///
 ///@{
-class PVRChannelGroupMember
-  : public DynamicCStructHdl<PVRChannelGroupMember, PVR_CHANNEL_GROUP_MEMBER>
+class PVRChannelGroupMember : public CStructHdl<PVRChannelGroupMember, PVR_CHANNEL_GROUP_MEMBER>
 {
   friend class CInstancePVRClient;
 
 public:
   /*! \cond PRIVATE */
-  PVRChannelGroupMember() = default;
-  PVRChannelGroupMember(const PVRChannelGroupMember& member) : DynamicCStructHdl(member) {}
+  PVRChannelGroupMember() { memset(m_cStructure, 0, sizeof(PVR_CHANNEL_GROUP_MEMBER)); }
+  PVRChannelGroupMember(const PVRChannelGroupMember& channel) : CStructHdl(channel) {}
   /*! \endcond */
 
   /// @defgroup cpp_kodi_addon_pvr_Defs_ChannelGroup_PVRChannelGroupMember_Help Value Help
@@ -184,21 +170,16 @@ public:
 
   /// @brief **required**\n
   /// Name of the channel group to add the channel to.
-  void SetGroupName(const std::string& groupName)
-  {
-    ReallocAndCopyString(&m_cStructure->strGroupName, groupName.c_str());
+  void SetGroupName(const std::string& groupName) const {
+    strncpy(m_cStructure->strGroupName, groupName.c_str(), sizeof(m_cStructure->strGroupName) - 1);
   }
 
   /// @brief To get with @ref SetGroupName changed values.
-  std::string GetGroupName() const
-  {
-    return m_cStructure->strGroupName ? m_cStructure->strGroupName : "";
-  }
+  std::string GetGroupName() const { return m_cStructure->strGroupName; }
 
   /// @brief **required**\n
   /// Unique id of the member.
-  void SetChannelUniqueId(unsigned int channelUniqueId)
-  {
+  void SetChannelUniqueId(unsigned int channelUniqueId) const {
     m_cStructure->iChannelUniqueId = channelUniqueId;
   }
 
@@ -207,8 +188,7 @@ public:
 
   /// @brief **optional**\n
   /// Channel number within the group.
-  void SetChannelNumber(unsigned int channelNumber)
-  {
+  void SetChannelNumber(unsigned int channelNumber) const {
     m_cStructure->iChannelNumber = channelNumber;
   }
 
@@ -217,8 +197,7 @@ public:
 
   /// @brief **optional**\n
   /// Sub channel number within the group (ATSC).
-  void SetSubChannelNumber(unsigned int subChannelNumber)
-  {
+  void SetSubChannelNumber(unsigned int subChannelNumber) const {
     m_cStructure->iSubChannelNumber = subChannelNumber;
   }
 
@@ -227,24 +206,16 @@ public:
 
   /// @brief **optional**\n
   /// The value denoting the order of this channel in the <b>'All channels'</b> group.
-  void SetOrder(bool order) { m_cStructure->iOrder = order; }
+  void SetOrder(bool order) const { m_cStructure->iOrder = order; }
 
   /// @brief To get with @ref SetOrder changed values.
   bool GetOrder() const { return m_cStructure->iOrder; }
 
   ///@}
 
-  static void AllocResources(const PVR_CHANNEL_GROUP_MEMBER* source,
-                             PVR_CHANNEL_GROUP_MEMBER* target)
-  {
-    target->strGroupName = AllocAndCopyString(source->strGroupName);
-  }
-
-  static void FreeResources(PVR_CHANNEL_GROUP_MEMBER* target) { FreeString(target->strGroupName); }
-
 private:
-  PVRChannelGroupMember(const PVR_CHANNEL_GROUP_MEMBER* member) : DynamicCStructHdl(member) {}
-  PVRChannelGroupMember(PVR_CHANNEL_GROUP_MEMBER* member) : DynamicCStructHdl(member) {}
+  PVRChannelGroupMember(const PVR_CHANNEL_GROUP_MEMBER* channel) : CStructHdl(channel) {}
+  PVRChannelGroupMember(PVR_CHANNEL_GROUP_MEMBER* channel) : CStructHdl(channel) {}
 };
 ///@}
 //------------------------------------------------------------------------------
@@ -262,8 +233,7 @@ public:
   /*! \cond PRIVATE */
   PVRChannelGroupMembersResultSet() = delete;
   PVRChannelGroupMembersResultSet(const AddonInstance_PVR* instance, PVR_HANDLE handle)
-    : m_instance(instance),
-      m_handle(handle)
+    : m_instance(instance), m_handle(handle)
   {
   }
   /*! \endcond */
@@ -274,8 +244,7 @@ public:
   /// @brief To add and give content from addon to Kodi on related call.
   ///
   /// @param[in] tag The to transferred data.
-  void Add(const kodi::addon::PVRChannelGroupMember& tag)
-  {
+  void Add(const kodi::addon::PVRChannelGroupMember& tag) const {
     m_instance->toKodi->TransferChannelGroupMember(m_instance->toKodi->kodiInstance, m_handle, tag);
   }
 

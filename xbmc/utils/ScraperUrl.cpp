@@ -113,7 +113,7 @@ void CScraperUrl::GetThumbUrls(std::vector<std::string>& thumbs,
           (url.m_type == CScraperUrl::UrlType::Season && url.m_season == season))
       {
         std::string thumbUrl = GetThumbUrl(url);
-        if (!unique || std::ranges::find(thumbs, thumbUrl) == thumbs.end())
+        if (!unique || std::find(thumbs.begin(), thumbs.end(), thumbUrl) == thumbs.end())
           thumbs.push_back(thumbUrl);
       }
     }
@@ -339,7 +339,7 @@ bool CScraperUrl::Get(const SUrlEntry& scrURL,
 
   strHTML = strHTML1;
 
-  const auto mimeType = http.GetProperty(XFILE::FileProperty::MIME_TYPE);
+  const auto mimeType = http.GetProperty(XFILE::FILE_PROPERTY_MIME_TYPE);
   CMime::EFileType ftype = CMime::GetFileTypeFromMime(mimeType);
   if (ftype == CMime::FileTypeUnknown)
     ftype = CMime::GetFileTypeFromContent(strHTML);
@@ -360,7 +360,7 @@ bool CScraperUrl::Get(const SUrlEntry& scrURL,
                 scrURL.m_url);
   }
 
-  const auto reportedCharset = http.GetProperty(XFILE::FileProperty::CONTENT_CHARSET);
+  const auto reportedCharset = http.GetProperty(XFILE::FILE_PROPERTY_CONTENT_CHARSET);
   if (ftype == CMime::FileTypeHtml)
   {
     std::string realHtmlCharset, converted;

@@ -9,11 +9,9 @@
 #include "GUIPortList.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIPortDefines.h"
 #include "GUIPortWindow.h"
 #include "ServiceBroker.h"
-#include "addons/AddonEvents.h"
 #include "addons/AddonManager.h"
 #include "games/GameServices.h"
 #include "games/addons/GameClient.h"
@@ -25,10 +23,9 @@
 #include "games/ports/types/PortNode.h"
 #include "guilib/GUIMessage.h"
 #include "guilib/GUIWindow.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 #include "view/GUIViewControl.h"
@@ -74,20 +71,7 @@ bool CGUIPortList::Initialize(GameClientPtr gameClient)
   // Initialize GUI
   Refresh();
 
-  CServiceBroker::GetAddonMgr().Events().Subscribe(
-      this,
-      [this](const ADDON::AddonEvent& event)
-      {
-        if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
-            typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
-            typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
-            typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
-        {
-          CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), CONTROL_PORT_LIST);
-          msg.SetStringParam(event.addonId);
-          CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
-        }
-      });
+  CServiceBroker::GetAddonMgr().Events().Subscribe(this, &CGUIPortList::OnEvent);
 
   return true;
 }
@@ -131,7 +115,7 @@ void CGUIPortList::Refresh()
     m_viewControl->SetItems(*m_vecItems);
 
     // Try to restore focus to the previously focused port
-    if (!m_focusedPort.empty() && m_addressToItem.contains(m_focusedPort))
+    if (!m_focusedPort.empty() && m_addressToItem.find(m_focusedPort) != m_addressToItem.end())
     {
       const unsigned int itemIndex = m_addressToItem[m_focusedPort];
       m_viewControl->SetSelectedItem(itemIndex);
@@ -182,6 +166,18 @@ void CGUIPortList::ResetPorts()
   }
 }
 
+void CGUIPortList::OnEvent(const ADDON::AddonEvent& event) {
+  if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
+      typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
+      typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
+      typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
+  {
+    CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), CONTROL_PORT_LIST);
+    msg.SetStringParam(event.addonId);
+    CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
+  }
+}
+
 bool CGUIPortList::AddItems(const CPortNode& port,
                             unsigned int& itemId,
                             const std::string& itemLabel)
@@ -200,7 +196,7 @@ bool CGUIPortList::AddItems(const CPortNode& port,
     const ControllerPtr& controller = controllerNode.GetController();
 
     // Create the list item
-    CFileItemPtr item = std::make_shared<CFileItem>(itemLabel);
+    auto item = std::make_shared<CFileItem>(itemLabel);
     item->SetLabel2(controller->Layout().Label());
     item->SetPath(port.GetAddress());
     item->SetArt("icon", controller->Layout().ImagePath());
@@ -224,9 +220,8 @@ bool CGUIPortList::AddItems(const CPortNode& port,
   else
   {
     // Create the list item
-    CFileItemPtr item = std::make_shared<CFileItem>(itemLabel);
-    item->SetLabel2(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13298)); // "Disconnected"
+    auto item = std::make_shared<CFileItem>(itemLabel);
+    item->SetLabel2(g_localizeStrings.Get(13298)); // "Disconnected"
     item->SetPath(port.GetAddress());
     item->SetArt("icon", "DefaultAddonNone.png");
     m_vecItems->Add(std::move(item));
@@ -280,37 +275,16 @@ void CGUIPortList::OnItemSelect(unsigned int itemIndex)
   }
 }
 
-void CGUIPortList::OnControllerSelected(const CPortNode& port, const ControllerPtr& controller)
-{
+void CGUIPortList::OnControllerSelected(const CPortNode& port, const ControllerPtr& controller) const {
   if (m_gameClient)
   {
     // Translate parameter
     const bool bConnected = static_cast<bool>(controller);
 
     // Update the game client
-    bool bSuccess = false;
-
-    switch (port.GetPortType())
-    {
-      case PORT_TYPE::CONTROLLER:
-        bSuccess = bConnected
-                       ? m_gameClient->Input().ConnectController(port.GetAddress(), controller)
-                       : m_gameClient->Input().DisconnectController(port.GetAddress());
-        break;
-      case PORT_TYPE::KEYBOARD:
-        bSuccess = bConnected ? m_gameClient->Input().OpenKeyboard(controller)
-                              : m_gameClient->Input().CloseKeyboard();
-        break;
-      case PORT_TYPE::MOUSE:
-        bSuccess = bConnected ? m_gameClient->Input().OpenMouse(controller)
-                              : m_gameClient->Input().CloseMouse();
-        break;
-      case PORT_TYPE::UNKNOWN:
-      default:
-        CLog::Log(LOGERROR, R"(Unknown port type "{}" for port ID "{}")",
-                  static_cast<int>(port.GetPortType()), port.GetAddress());
-        break;
-    }
+    const bool bSuccess =
+        bConnected ? m_gameClient->Input().ConnectController(port.GetAddress(), controller)
+                   : m_gameClient->Input().DisconnectController(port.GetAddress());
 
     if (bSuccess)
     {
@@ -322,9 +296,7 @@ void CGUIPortList::OnControllerSelected(const CPortNode& port, const ControllerP
       // "The emulator "%s" had an internal error."
       MESSAGING::HELPERS::ShowOKDialogText(
           CVariant{35114},
-          CVariant{StringUtils::Format(
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35213),
-              m_gameClient->Name())});
+          CVariant{StringUtils::Format(g_localizeStrings.Get(35213), m_gameClient->Name())});
     }
 
     // Send a GUI message to reload the port list
@@ -341,12 +313,12 @@ std::string CGUIPortList::GetLabel(const CPortNode& port)
     case PORT_TYPE::KEYBOARD:
     {
       // "Keyboard"
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35150);
+      return g_localizeStrings.Get(35150);
     }
     case PORT_TYPE::MOUSE:
     {
       // "Mouse"
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35171);
+      return g_localizeStrings.Get(35171);
     }
     case PORT_TYPE::CONTROLLER:
     {
@@ -359,8 +331,7 @@ std::string CGUIPortList::GetLabel(const CPortNode& port)
       else
       {
         // "Port {0:s}"
-        const std::string& portString =
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35112);
+        const std::string& portString = g_localizeStrings.Get(35112);
         return StringUtils::Format(portString, portId);
       }
       break;

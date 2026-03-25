@@ -14,7 +14,6 @@
 #include "Util.h"
 #include "favourites/FavouritesURL.h"
 #include "input/WindowTranslator.h"
-#include "music/MusicFileItemClassify.h"
 #include "profiles/ProfileManager.h"
 #include "settings/SettingsComponent.h"
 #include "utils/ContentUtils.h"
@@ -22,11 +21,8 @@
 #include "utils/URIUtils.h"
 #include "utils/XBMCTinyXML2.h"
 #include "utils/log.h"
-#include "video/VideoFileItemClassify.h"
 
 #include <mutex>
-
-using namespace KODI;
 
 namespace
 {
@@ -34,34 +30,34 @@ bool IsMediasourceOfFavItemUnlocked(const std::shared_ptr<CFileItem>& item)
 {
   if (!item)
   {
-    CLog::LogF(LOGERROR, "No item passed (nullptr).");
+    CLog::Log(LOGERROR, "{}: No item passed (nullptr).", __func__);
     return true;
   }
 
   if (!item->IsFavourite())
   {
-    CLog::LogF(LOGERROR, "Wrong item passed (not a favourite).");
+    CLog::Log(LOGERROR, "{}: Wrong item passed (not a favourite).", __func__);
     return true;
   }
 
   const auto settingsComponent = CServiceBroker::GetSettingsComponent();
   if (!settingsComponent)
   {
-    CLog::LogF(LOGERROR, "No settings component.");
+    CLog::Log(LOGERROR, "{}: returned nullptr.", __func__);
     return true;
   }
 
   const auto profileManager = settingsComponent->GetProfileManager();
   if (!profileManager)
   {
-    CLog::LogF(LOGERROR, "No profile manager.");
+    CLog::Log(LOGERROR, "{}: returned nullptr.", __func__);
     return true;
   }
 
   const CFavouritesURL url(item->GetPath());
   if (!url.IsValid())
   {
-    CLog::LogF(LOGERROR, "Invalid exec string (syntax error).");
+    CLog::Log(LOGERROR, "{}: Invalid exec string (syntax error).", __func__);
     return true;
   }
 
@@ -75,14 +71,14 @@ bool IsMediasourceOfFavItemUnlocked(const std::shared_ptr<CFileItem>& item)
 
   if (action == CFavouritesURL::Action::PLAY_MEDIA)
   {
-    if (VIDEO::IsVideo(itemToCheck))
+    if (itemToCheck.IsVideo())
     {
       if (!profileManager->GetCurrentProfile().videoLocked())
         return g_passwordManager.IsMediaFileUnlocked("video", itemToCheck.GetPath());
 
       return false;
     }
-    else if (MUSIC::IsAudio(itemToCheck))
+    else if (itemToCheck.IsAudio())
     {
       if (!profileManager->GetCurrentProfile().musicLocked())
         return g_passwordManager.IsMediaFileUnlocked("music", itemToCheck.GetPath());
@@ -123,15 +119,15 @@ bool LoadFromFile(const std::string& strPath, CFileItemList& items)
     // <favourite name="Cool Video" thumb="foo.jpg">PlayMedia(c:\videos\cool_video.avi)</favourite>
     // <favourite name="My Album" thumb="bar.tbn">ActivateWindow(MyMusic,c:\music\my album)</favourite>
     // <favourite name="Apple Movie Trailers" thumb="path_to_thumb.png">RunScript(special://xbmc/scripts/apple movie trailers/default.py)</favourite>
-    const char* name = favourite->Attribute("name");
-    const char* thumb = favourite->Attribute("thumb");
+    const char *name = favourite->Attribute("name");
+    const char *thumb = favourite->Attribute("thumb");
     if (name && favourite->FirstChild())
     {
       const std::string favURL(
           CFavouritesURL(CExecString(favourite->FirstChild()->Value())).GetURL());
       if (!items.Contains(favURL))
       {
-        const auto item{std::make_shared<CFileItem>(name)};
+        const auto item(std::make_shared<CFileItem>(name));
         item->SetPath(favURL);
         if (thumb)
           item->SetArt("thumb", thumb);
@@ -151,7 +147,7 @@ CFavouritesService::CFavouritesService(std::string userDataFolder) : m_favourite
 
 void CFavouritesService::ReInit(std::string userDataFolder)
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
 
   m_userDataFolder = std::move(userDataFolder);
   m_favourites.Clear();
@@ -171,31 +167,7 @@ void CFavouritesService::ReInit(std::string userDataFolder)
     CLog::Log(LOGDEBUG, "CFavourites::Load - no userdata favourites found, skipping");
 }
 
-void CFavouritesService::CleanupTargetsCache(const CFileItem& item)
-{
-  // Cleanup cache. Resume info etc. of cached target items might need refresh.
-  std::unique_lock lock(m_criticalSection);
-
-  const std::string& dynPath{item.GetDynPath()};
-  std::erase_if(m_targets,
-                [&dynPath](const auto& entry)
-                {
-                  auto const& [key, value] = entry;
-                  return (value->GetDynPath() == dynPath);
-                });
-}
-
-void CFavouritesService::OnPlaybackStopped(const CFileItem& item)
-{
-  CleanupTargetsCache(item);
-}
-
-void CFavouritesService::OnPlaybackEnded(const CFileItem& item)
-{
-  CleanupTargetsCache(item);
-}
-
-bool CFavouritesService::Persist() const
+bool CFavouritesService::Persist()
 {
   CXBMCTinyXML2 doc;
   auto* element = doc.NewElement("favourites");
@@ -222,7 +194,8 @@ bool CFavouritesService::Persist() const
 bool CFavouritesService::Save(const CFileItemList& items)
 {
   {
-    std::unique_lock lock(m_criticalSection);
+    std::lock_guard lock(m_criticalSection);
+
     m_favourites.Clear();
     m_targets.clear();
     m_favourites.Copy(items);
@@ -240,7 +213,7 @@ void CFavouritesService::OnUpdated()
 bool CFavouritesService::AddOrRemove(const CFileItem& item, int contextWindow)
 {
   {
-    std::unique_lock lock(m_criticalSection);
+    std::lock_guard lock(m_criticalSection);
 
     const std::shared_ptr<CFileItem> match{GetFavourite(item, contextWindow)};
     if (match)
@@ -257,7 +230,7 @@ bool CFavouritesService::AddOrRemove(const CFileItem& item, int contextWindow)
       // create our new favourite item
       const auto favourite{std::make_shared<CFileItem>(item.GetLabel())};
       if (item.GetLabel().empty())
-        favourite->SetLabel(CUtil::GetTitleFromPath(item.GetPath(), item.IsFolder()));
+        favourite->SetLabel(CUtil::GetTitleFromPath(item.GetPath(), item.m_bIsFolder));
       favourite->SetArt("thumb", ContentUtils::GetPreferredArtImage(item));
       const std::string favUrl{CFavouritesURL(item, contextWindow).GetURL()};
       favourite->SetPath(favUrl);
@@ -272,7 +245,7 @@ bool CFavouritesService::AddOrRemove(const CFileItem& item, int contextWindow)
 std::shared_ptr<CFileItem> CFavouritesService::GetFavourite(const CFileItem& item,
                                                             int contextWindow) const
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
 
   const CFavouritesURL favURL{item, contextWindow};
   const bool isVideoDb{URIUtils::IsVideoDb(favURL.GetTarget())};
@@ -318,7 +291,7 @@ std::shared_ptr<CFileItem> CFavouritesService::ResolveFavourite(const CFileItem&
 {
   if (item.IsFavourite())
   {
-    std::unique_lock lock(m_criticalSection);
+    std::lock_guard lock(m_criticalSection);
 
     const auto it = m_targets.find(item.GetPath());
     if (it != m_targets.end())
@@ -334,7 +307,7 @@ std::shared_ptr<CFileItem> CFavouritesService::ResolveFavourite(const CFileItem&
         const std::string window{CWindowTranslator::TranslateWindow(favURL.GetWindowID())};
         targetItem->SetProperty("targetwindow", CVariant{window});
       }
-      m_targets.try_emplace(item.GetPath(), targetItem);
+      m_targets.insert({item.GetPath(), targetItem});
       return targetItem;
     }
   }
@@ -343,13 +316,15 @@ std::shared_ptr<CFileItem> CFavouritesService::ResolveFavourite(const CFileItem&
 
 int CFavouritesService::Size() const
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
+
   return m_favourites.Size();
 }
 
 void CFavouritesService::GetAll(CFileItemList& items) const
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
+  
   items.Clear();
   if (g_passwordManager.IsMasterLockUnlocked(false)) // don't prompt
   {

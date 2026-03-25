@@ -194,9 +194,9 @@ std::vector<JOYSTICK::CDriverPrimitive> CPeripheralAddonTranslator::TranslatePri
     const std::vector<kodi::addon::DriverPrimitive>& primitives)
 {
   std::vector<JOYSTICK::CDriverPrimitive> ret;
-  std::ranges::transform(primitives, std::back_inserter(ret),
-                         [](const kodi::addon::DriverPrimitive& primitive)
-                         { return CPeripheralAddonTranslator::TranslatePrimitive(primitive); });
+  std::transform(primitives.begin(), primitives.end(), std::back_inserter(ret),
+                 [](const kodi::addon::DriverPrimitive& primitive)
+                 { return CPeripheralAddonTranslator::TranslatePrimitive(primitive); });
   return ret;
 }
 
@@ -204,9 +204,9 @@ std::vector<kodi::addon::DriverPrimitive> CPeripheralAddonTranslator::TranslateP
     const std::vector<JOYSTICK::CDriverPrimitive>& primitives)
 {
   std::vector<kodi::addon::DriverPrimitive> ret;
-  std::ranges::transform(primitives, std::back_inserter(ret),
-                         [](const JOYSTICK::CDriverPrimitive& primitive)
-                         { return CPeripheralAddonTranslator::TranslatePrimitive(primitive); });
+  std::transform(primitives.begin(), primitives.end(), std::back_inserter(ret),
+                 [](const JOYSTICK::CDriverPrimitive& primitive)
+                 { return CPeripheralAddonTranslator::TranslatePrimitive(primitive); });
   return ret;
 }
 
@@ -248,7 +248,7 @@ JOYSTICK_DRIVER_HAT_DIRECTION CPeripheralAddonTranslator::TranslateHatDirection(
 
 HAT_STATE CPeripheralAddonTranslator::TranslateHatState(JOYSTICK_STATE_HAT state)
 {
-  HAT_STATE translatedState = HAT_STATE::NONE;
+  auto translatedState = HAT_STATE::NONE;
 
   if (state & JOYSTICK_STATE_HAT_UP)
     translatedState |= HAT_STATE::UP;

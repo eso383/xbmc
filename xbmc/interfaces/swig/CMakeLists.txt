@@ -20,42 +20,18 @@ function(generate_file file)
     set(JAVA_OPEN_OPTS --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.regex=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED  --add-opens java.base/java.net=ALL-UNNAMED)
   endif()
 
-  # Args used for swig execution
-  set(SWIG_ARGS -w401 -c++ -o ${file}.xml -xml -I${CMAKE_SOURCE_DIR}/xbmc ${CMAKE_CURRENT_SOURCE_DIR}/../swig/${file})
-
-  # This generates a file that has the dependencies the preprocessed swig template finds
-  # execute_process needs explicit use of explicit swig executable location. it is not TARGET aware
-  # retrieve location property from TARGET
-  get_target_property(_swig_exe SWIG::SWIG IMPORTED_LOCATION)
-  execute_process(COMMAND ${_swig_exe} -MM -MF ${CMAKE_BINARY_DIR}/build/swig/${file}.dep ${SWIG_ARGS})
-  file(READ ${CMAKE_BINARY_DIR}/build/swig/${file}.dep swig_deps)
-
-  # Match all lines except the first one until " \"
-  string(REGEX MATCHALL "\n  [^ ]+" temp ${swig_deps})
-  set(swig_deps)
-  foreach(t ${temp})
-    string(STRIP "${t}" t)
-    set(swig_deps ${swig_deps} "${t}")
-  endforeach()
-
-  # We set this to allow cmake to detect if changes in the headers/template files are made
-  # and to force a cmake reconfigure to detect new dependencies that may have been added.
-  set_property(DIRECTORY ${CMAKE_SOURCE_DIR} APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${swig_deps})
-
   add_custom_command(OUTPUT ${CPP_FILE}
-                     COMMAND SWIG::SWIG
-                     ARGS ${SWIG_ARGS}
+                     COMMAND ${SWIG_EXECUTABLE}
+                     ARGS -w401 -c++ -o ${file}.xml -xml -I${CMAKE_SOURCE_DIR}/xbmc ${CMAKE_CURRENT_SOURCE_DIR}/../swig/${file}
                      COMMAND ${Java_JAVA_EXECUTABLE}
                      ARGS ${JAVA_OPEN_OPTS} -cp "${classpath}" groovy.ui.GroovyMain ${CMAKE_SOURCE_DIR}/tools/codegenerator/Generator.groovy ${file}.xml ${CMAKE_CURRENT_SOURCE_DIR}/../python/PythonSwig.cpp.template ${file}.cpp > ${devnull}
                      ${CLANG_FORMAT_COMMAND}
-                     DEPENDS SWIG::SWIG ${swig_deps} ${CMAKE_CURRENT_SOURCE_DIR}/../python/PythonSwig.cpp.template
-                     BYPRODUCTS ${CMAKE_BINARY_DIR}/build/swig/${file}.xml)
-
+                     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../swig/${file} ${CMAKE_CURRENT_SOURCE_DIR}/../python/PythonSwig.cpp.template)
   set(SOURCES ${SOURCES} "${CPP_FILE}" PARENT_SCOPE)
 endfunction()
 
-find_package(Java COMPONENTS Runtime REQUIRED ${SEARCH_QUIET})
-find_package(SWIG REQUIRED ${SEARCH_QUIET})
+find_package(Java COMPONENTS Runtime REQUIRED)
+find_package(SWIG REQUIRED)
 
 # Default URL/Versions/Hashes to use unless *_SOURCE_DIR are set for the relevant binary
 set(GROOVY_VER 4.0.26)
@@ -134,21 +110,21 @@ set(GROOVY_DIR ${CMAKE_SOURCE_DIR}/tools/codegenerator/groovy)
 
 foreach(INPUT IN LISTS INPUTS)
   generate_file(${INPUT})
+  list(APPEND GEN_SRCS ${CMAKE_CURRENT_BINARY_DIR}/${INPUT}.cpp)
 endforeach()
 
 add_library(python_binding STATIC ${SOURCES})
 set_target_properties(python_binding PROPERTIES POSITION_INDEPENDENT_CODE TRUE
                                                 FOLDER "Build Utilities")
+set(core_DEPENDS python_binding ${core_DEPENDS} CACHE STRING "" FORCE)
+add_dependencies(python_binding ${GLOBAL_TARGET_DEPS})
+# This propagates target options from dependencies (eg spdlog definitions)
+target_link_libraries(python_binding PRIVATE ${GLOBAL_TARGET_DEPS})
 
 if(CORE_SYSTEM_NAME STREQUAL windowsstore)
   set_target_properties(python_binding PROPERTIES STATIC_LIBRARY_FLAGS "/ignore:4264")
 endif()
-if(CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
   set_target_properties(python_binding PROPERTIES
                         COMPILE_FLAGS -Wno-cast-function-type) # from -Wextra
 endif()
-
-# Add target dependencies to lib
-core_target_link_libraries(python_binding)
-# Link this target lib to core
-target_link_libraries(lib${APP_NAME_LC} PUBLIC python_binding)

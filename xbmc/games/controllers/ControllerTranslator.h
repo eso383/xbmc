@@ -8,11 +8,9 @@
 
 #pragma once
 
-#include "ControllerTypes.h"
 #include "input/joysticks/JoystickTypes.h"
 
 #include <string>
-#include <string_view>
 
 namespace KODI
 {
@@ -33,9 +31,6 @@ public:
 
   static const char* TranslateInputType(JOYSTICK::INPUT_TYPE type);
   static JOYSTICK::INPUT_TYPE TranslateInputType(const std::string& strType);
-
-  static PORT_TYPE TranslatePortType(std::string_view strPortType);
-  static const char* TranslatePortType(PORT_TYPE portType);
 };
 
 } // namespace GAME

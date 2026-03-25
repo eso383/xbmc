@@ -20,6 +20,7 @@
 
 #include "DemuxMVC.h"
 #include "DVDDemuxUtils.h"
+#include "DVDInputStreams/DVDInputStream.h"
 #include "cores/VideoPlayer/Interface/TimingConstants.h"
 #include "cores/FFmpeg.h"
 #include "utils/log.h"
@@ -76,8 +77,8 @@ bool CDemuxMVC::Open(CDVDInputStream* pInput)
   int blockSize = m_pInput->GetBlockSize();
   if (blockSize > 1)
     bufferSize = blockSize;
-  unsigned char* buffer = (unsigned char*)av_malloc(bufferSize);
-  m_ioContext = avio_alloc_context(buffer, bufferSize, 0, this, mvc_file_read, NULL, mvc_file_seek);
+  auto buffer = (unsigned char*)av_malloc(bufferSize);
+  m_ioContext = avio_alloc_context(buffer, bufferSize, 0, this, mvc_file_read, nullptr, mvc_file_seek);
 
   m_pFormatContext = avformat_alloc_context();
   m_pFormatContext->pb = m_ioContext;
@@ -156,7 +157,7 @@ void CDemuxMVC::Flush()
 DemuxPacket* CDemuxMVC::Read()
 {
   int ret;
-  DemuxPacket* newPkt = NULL;
+  DemuxPacket* newPkt = nullptr;
   AVPacket* pkt = av_packet_alloc();
   if (!pkt)
   {
@@ -228,8 +229,7 @@ std::string CDemuxMVC::GetFileName()
   return m_pInput->GetFileName();
 }
 
-AVStream* CDemuxMVC::GetAVStream()
-{
+AVStream* CDemuxMVC::GetAVStream() const {
   return m_pFormatContext ? m_pFormatContext->streams[m_nStreamIndex] : nullptr;
 }
 
@@ -250,9 +250,8 @@ void CDemuxMVC::Dispose()
   m_nStreamIndex = -1;
 }
 
-double CDemuxMVC::ConvertTimestamp(int64_t pts, int den, int num)
-{
-  if (pts == (int64_t)AV_NOPTS_VALUE)
+double CDemuxMVC::ConvertTimestamp(int64_t pts, int den, int num) const {
+  if (pts == AV_NOPTS_VALUE)
     return DVD_NOPTS_VALUE;
 
   // do calculations in floats as they can easily overflow otherwise

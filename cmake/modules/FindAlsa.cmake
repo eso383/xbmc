@@ -5,27 +5,37 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::Alsa   - The Alsa library
+#   ALSA::ALSA   - The Alsa library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+if(NOT TARGET ALSA::ALSA)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_ALSA alsa>=1.0.27 QUIET)
+  endif()
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC alsa)
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  find_path(ALSA_INCLUDE_DIR NAMES alsa/asoundlib.h
+                             HINTS ${PC_ALSA_INCLUDEDIR}
+                             NO_CACHE)
+  find_library(ALSA_LIBRARY NAMES asound
+                            HINTS ${PC_ALSA_LIBDIR}
+                            NO_CACHE)
 
-  SETUP_BUILD_VARS()
+  set(ALSA_VERSION ${PC_ALSA_VERSION})
 
-  SETUP_FIND_SPECS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Alsa
+                                    REQUIRED_VARS ALSA_LIBRARY ALSA_INCLUDE_DIR
+                                    VERSION_VAR ALSA_VERSION)
 
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
+  if(ALSA_FOUND)
     list(APPEND AUDIO_BACKENDS_LIST "alsa")
     set(AUDIO_BACKENDS_LIST ${AUDIO_BACKENDS_LIST} PARENT_SCOPE)
 
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAS_ALSA)
-    ADD_TARGET_COMPILE_DEFINITION()
+    # We explicitly dont include ALSA_INCLUDE_DIR, as 'timer.h' is a dangerous file
+    add_library(ALSA::ALSA UNKNOWN IMPORTED)
+    set_target_properties(ALSA::ALSA PROPERTIES
+                                     IMPORTED_LOCATION "${ALSA_LIBRARY}"
+                                     INTERFACE_COMPILE_DEFINITIONS HAS_ALSA=1)
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP ALSA::ALSA)
   endif()
 endif()

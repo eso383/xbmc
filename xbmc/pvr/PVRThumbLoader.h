@@ -14,6 +14,7 @@
 
 namespace PVR
 {
+
 class CPVRThumbLoader : public CThumbLoader
 {
 public:
@@ -32,9 +33,9 @@ protected:
 
 private:
   bool FillThumb(CFileItem& item);
-  std::string GetChannelGroupThumbURL(const CFileItem& channelGroupItem) const;
+  std::string CreateChannelGroupThumb(const CFileItem& channelGroupItem);
 
   bool m_bInvalidated = false;
 };
 
-} // namespace PVR
+}

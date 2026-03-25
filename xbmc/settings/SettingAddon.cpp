@@ -39,12 +39,13 @@ SettingPtr CSettingAddon::Clone(const std::string &id) const
 
 bool CSettingAddon::Deserialize(const TiXmlNode *node, bool update /* = false */)
 {
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
 
   if (!CSettingString::Deserialize(node, update))
     return false;
 
-  if (m_control && (m_control->GetType() != "button" || m_control->GetFormat() != "addon"))
+  if (m_control != nullptr &&
+     (m_control->GetType() != "button" || m_control->GetFormat() != "addon"))
   {
     CLog::Log(LOGERROR, "CSettingAddon: invalid <control> of \"{}\"", m_id);
     return false;
@@ -52,8 +53,8 @@ bool CSettingAddon::Deserialize(const TiXmlNode *node, bool update /* = false */
 
   bool ok = false;
   std::string strAddonType;
-  const TiXmlNode* constraints = node->FirstChild("constraints");
-  if (constraints)
+  auto constraints = node->FirstChild("constraints");
+  if (constraints != nullptr)
   {
     // get the addon type
     if (XMLUtils::GetString(constraints, "addontype", strAddonType) && !strAddonType.empty())
@@ -78,6 +79,7 @@ void CSettingAddon::copyaddontype(const CSettingAddon &setting)
 {
   CSettingString::Copy(setting);
 
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
+  
   m_addonType = setting.m_addonType;
 }

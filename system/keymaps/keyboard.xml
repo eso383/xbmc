@@ -373,7 +373,7 @@
       <zoom>AspectRatio</zoom>
       <t>ShowSubtitles</t>
       <t mod="ctrl">SubtitleAlign</t>
-      <l>DialogSelectSubtitle</l>
+      <l>NextSubtitle</l>
       <left>StepBack</left>
       <right>StepForward</right>
       <up>ChapterOrBigStepForward</up>
@@ -383,12 +383,12 @@
       <left mod="alt">PlayerControl(tempodown)</left>
       <right mod="alt">PlayerControl(tempoup)</right>
       <a>AudioDelay</a>
-      <a mod="ctrl">DialogSelectAudio</a>
-      <leftquote>DialogSelectAudio</leftquote>
+      <a mod="ctrl">AudioNextLanguage</a>
+      <leftquote>AudioNextLanguage</leftquote>
       <escape>Fullscreen</escape>
       <c>Playlist</c>
       <v>ActivateWindow(Teletext)</v>
-      <v mod="ctrl">DialogSelectVideo</v>
+      <v mod="ctrl">VideoNextStream</v>
       <text>ActivateWindow(Teletext)</text>
       <up mod="ctrl">SubtitleShiftUp</up>
       <down mod="ctrl">SubtitleShiftDown</down>
@@ -586,7 +586,7 @@
       <z>AspectRatio</z>
       <zoom>AspectRatio</zoom>
       <t>ShowSubtitles</t>
-      <l>DialogSelectSubtitle</l>
+      <l>NextSubtitle</l>
       <a>AudioDelay</a>
       <escape>Fullscreen</escape>
       <return>Select</return>
@@ -701,7 +701,7 @@
       <c>ActivateWindow(PVROSDChannels)</c>
       <return mod="longpress">ActivateWindow(PVROSDChannels)</return>
       <enter mod="longpress">ActivateWindow(PVROSDChannels)</enter>
-      <leftquote>DialogSelectAudio</leftquote>
+      <leftquote>AudioNextLanguage</leftquote>
       <pageup>ChannelUp</pageup>
       <pagedown>ChannelDown</pagedown>
       <period mod="longpress">ChannelNumberSeparator</period>

@@ -19,17 +19,18 @@
 #include "utils/log.h"
 
 #include <algorithm>
-#include <string_view>
 
 using namespace MUSIC_INFO;
 
-struct ReleaseTypeInfo
-{
-  ReleaseType type;
+typedef struct ReleaseTypeInfo {
+  CAlbum::ReleaseType type;
   std::string name;
-};
+} ReleaseTypeInfo;
 
-ReleaseTypeInfo releaseTypes[] = {{ReleaseType::Album, "album"}, {ReleaseType::Single, "single"}};
+ReleaseTypeInfo releaseTypes[] = {
+  { CAlbum::Album,  "album" },
+  { CAlbum::Single, "single" }
+};
 
 CAlbum::CAlbum(const CFileItem& item)
 {
@@ -65,7 +66,6 @@ void CAlbum::SetArtistCredits(const std::vector<std::string>& names, const std::
                               const std::vector<std::string>& artistnames, const std::vector<std::string>& artisthints,
                               const std::vector<std::string>& artistmbids)
 {
-  using namespace std::literals;
   std::vector<std::string> albumartistHints = hints;
   //Split the artist sort string to try and get sort names for individual artists
   auto artistSort = StringUtils::Split(strArtistSort, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
@@ -150,9 +150,7 @@ void CAlbum::SetArtistCredits(const std::vector<std::string>& names, const std::
     // Try to get number of artist sort names and musicbrainz ids to match. Split sort names
     // further using multiple possible delimiters, over single separator applied in Tag loader
     if (artistSort.size() != mbids.size())
-    {
-      artistSort = StringUtils::SplitMulti(artistSort, {{";"sv, ":"sv, "|"sv, "#"sv}});
-    }
+      artistSort = StringUtils::SplitMulti(artistSort, { ";", ":", "|", "#" });
 
     for (size_t i = 0; i < mbids.size(); i++)
     {
@@ -194,10 +192,8 @@ void CAlbum::SetArtistCredits(const std::vector<std::string>& names, const std::
       albumArtists = StringUtils::SplitMulti(albumArtists, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicArtistSeparators);
 
     if (artistSort.size() != albumArtists.size())
-    {
       // Split artist sort names further using multiple possible delimiters, over single separator applied in Tag loader
-      artistSort = StringUtils::SplitMulti(artistSort, {{";"sv, ":"sv, "|"sv, "#"sv}});
-    }
+      artistSort = StringUtils::SplitMulti(artistSort, { ";", ":", "|", "#" });
 
     for (size_t i = 0; i < albumArtists.size(); i++)
     {
@@ -226,7 +222,7 @@ void CAlbum::MergeScrapedAlbum(const CAlbum& source, bool override /* = true */)
    appropriate when the music files are tagged with mbids, these are taken as definative, scraped
    mbids can not be depended on in this way.
 
-   When the album is merged in this deep way it is flagged so that the database album update is aware
+   When the album is megerd in this deep way it is flagged so that the database album update is aware
    artist credits and songs need to be updated too.
   */
 
@@ -305,7 +301,7 @@ void CAlbum::MergeScrapedAlbum(const CAlbum& source, bool override /* = true */)
     strArtistSort = source.strArtistSort;
   for (const auto& i : source.art)
   {
-    if (override || !art.contains(i.first))
+    if (override || art.find(i.first) == art.end())
       art[i.first] = i.second;
   }
   if((override && !source.strLabel.empty()) || strLabel.empty())
@@ -346,41 +342,44 @@ std::string CAlbum::GetGenreString() const
   return StringUtils::Join(genre, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
 }
 
-std::vector<std::string> CAlbum::GetAlbumArtist() const
+const std::vector<std::string> CAlbum::GetAlbumArtist() const
 {
   //Get artist names as vector from artist credits
   std::vector<std::string> albumartists;
-  std::ranges::transform(artistCredits, std::back_inserter(albumartists),
-                         [](const auto& artistCredit) { return artistCredit.GetArtist(); });
+  for (const auto& artistCredit : artistCredits)
+  {
+    albumartists.push_back(artistCredit.GetArtist());
+  }
   return albumartists;
 }
 
-std::vector<std::string> CAlbum::GetMusicBrainzAlbumArtistID() const
+const std::vector<std::string> CAlbum::GetMusicBrainzAlbumArtistID() const
 {
   //Get artist MusicBrainz IDs as vector from artist credits
   std::vector<std::string> musicBrainzID;
-  std::ranges::transform(artistCredits, std::back_inserter(musicBrainzID),
-                         [](const auto& artistCredit)
-                         { return artistCredit.GetMusicBrainzArtistID(); });
+  for (const auto& artistCredit : artistCredits)
+  {
+    musicBrainzID.push_back(artistCredit.GetMusicBrainzArtistID());
+  }
   return musicBrainzID;
 }
 
-std::string CAlbum::GetAlbumArtistString() const
+const std::string CAlbum::GetAlbumArtistString() const
 {
   //Artist description may be different from the artists in artistcredits (see ALBUMARTISTS tag processing)
   //but is takes precedence as a string because artistcredits is not always filled during processing
   if (!strArtistDesc.empty())
     return strArtistDesc;
   std::vector<std::string> artistvector;
-  std::ranges::transform(artistCredits, std::back_inserter(artistvector),
-                         [](const auto& i) { return i.GetArtist(); });
+  for (const auto& i : artistCredits)
+    artistvector.emplace_back(i.GetArtist());
   std::string artistString;
   if (!artistvector.empty())
     artistString = StringUtils::Join(artistvector, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
   return artistString;
 }
 
-std::string CAlbum::GetAlbumArtistSort() const
+const std::string CAlbum::GetAlbumArtistSort() const
 {
   //The stored artist sort name string takes precedence but a
   //value could be created from individual sort names held in artistcredits
@@ -396,14 +395,15 @@ std::string CAlbum::GetAlbumArtistSort() const
   return artistString;
 }
 
-std::vector<int> CAlbum::GetArtistIDArray() const
+const std::vector<int> CAlbum::GetArtistIDArray() const
 {
   // Get album artist IDs for json rpc
   std::vector<int> artistids;
-  std::ranges::transform(artistCredits, std::back_inserter(artistids),
-                         [](const auto& artistCredit) { return artistCredit.GetArtistId(); });
+  for (const auto& artistCredit : artistCredits)
+    artistids.push_back(artistCredit.GetArtistId());
   return artistids;
 }
+
 
 std::string CAlbum::GetReleaseType() const
 {
@@ -435,7 +435,7 @@ void CAlbum::SetLastPlayed(const std::string& strLastPlayed)
   lastPlayed.SetFromDBDateTime(strLastPlayed);
 }
 
-std::string CAlbum::ReleaseTypeToString(ReleaseType releaseType)
+std::string CAlbum::ReleaseTypeToString(CAlbum::ReleaseType releaseType)
 {
   for (const ReleaseTypeInfo& releaseTypeInfo : releaseTypes)
   {
@@ -446,7 +446,7 @@ std::string CAlbum::ReleaseTypeToString(ReleaseType releaseType)
   return "album";
 }
 
-ReleaseType CAlbum::ReleaseTypeFromString(const std::string& strReleaseType)
+CAlbum::ReleaseType CAlbum::ReleaseTypeFromString(const std::string& strReleaseType)
 {
   for (const ReleaseTypeInfo& releaseTypeInfo : releaseTypes)
   {
@@ -454,7 +454,7 @@ ReleaseType CAlbum::ReleaseTypeFromString(const std::string& strReleaseType)
       return releaseTypeInfo.type;
   }
 
-  return ReleaseType::Album;
+  return Album;
 }
 
 bool CAlbum::operator<(const CAlbum &a) const
@@ -597,13 +597,12 @@ bool CAlbum::Load(const TiXmlElement *album, bool append, bool prioritise)
   if (XMLUtils::GetString(album, "releasetype", strReleaseType))
     SetReleaseType(strReleaseType);
   else
-    releaseType = ReleaseType::Album;
+    releaseType = Album;
 
   return true;
 }
 
-bool CAlbum::Save(TiXmlNode *node, const std::string &tag, const std::string& strPath)
-{
+bool CAlbum::Save(TiXmlNode *node, const std::string &tag, const std::string& strPath) const {
   if (!node) return false;
 
   // we start with a <tag> tag

@@ -9,15 +9,10 @@
 #include "PictureInfoLoader.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "PictureInfoTag.h"
 #include "ServiceBroker.h"
-#include "network/NetworkFileItemClassify.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "video/VideoFileItemClassify.h"
-
-using namespace KODI;
 
 CPictureInfoLoader::CPictureInfoLoader()
 {
@@ -55,8 +50,7 @@ bool CPictureInfoLoader::LoadItem(CFileItem* pItem)
 
 bool CPictureInfoLoader::LoadItemCached(CFileItem* pItem)
 {
-  if (!pItem->IsPicture() || pItem->IsZIP() || pItem->IsRAR() || pItem->IsCBR() || pItem->IsCBZ() ||
-      NETWORK::IsInternetStream(*pItem) || VIDEO::IsVideo(*pItem))
+  if (!pItem->IsPicture() || pItem->IsZIP() || pItem->IsRAR() || pItem->IsCBR() || pItem->IsCBZ() || pItem->IsInternetStream() || pItem->IsVideo())
     return false;
 
   if (pItem->HasPictureInfoTag())
@@ -64,7 +58,7 @@ bool CPictureInfoLoader::LoadItemCached(CFileItem* pItem)
 
   // Check the cached item
   CFileItemPtr mapItem = (*m_mapFileItems)[pItem->GetPath()];
-  if (mapItem && mapItem->HasPictureInfoTag() && mapItem->GetDateTime() == pItem->GetDateTime())
+  if (mapItem && mapItem->m_dateTime==pItem->m_dateTime && mapItem->HasPictureInfoTag())
   { // Query map if we previously cached the file on HD
     *pItem->GetPictureInfoTag() = *mapItem->GetPictureInfoTag();
     pItem->SetArt("thumb", mapItem->GetArt("thumb"));
@@ -76,11 +70,10 @@ bool CPictureInfoLoader::LoadItemCached(CFileItem* pItem)
 
 bool CPictureInfoLoader::LoadItemLookup(CFileItem* pItem)
 {
-  if (m_pProgressCallback && !pItem->IsFolder())
+  if (m_pProgressCallback && !pItem->m_bIsFolder)
     m_pProgressCallback->SetProgressAdvance();
 
-  if (!pItem->IsPicture() || pItem->IsZIP() || pItem->IsRAR() || pItem->IsCBR() || pItem->IsCBZ() ||
-      NETWORK::IsInternetStream(*pItem) || VIDEO::IsVideo(*pItem))
+  if (!pItem->IsPicture() || pItem->IsZIP() || pItem->IsRAR() || pItem->IsCBR() || pItem->IsCBZ() || pItem->IsInternetStream() || pItem->IsVideo())
     return false;
 
   if (pItem->HasPictureInfoTag())

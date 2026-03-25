@@ -9,11 +9,10 @@
 #include "VideoLibrary.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "PVROperations.h"
 #include "ServiceBroker.h"
+#include "TextureDatabase.h"
 #include "Util.h"
-#include "imagefiles/ImageFileURL.h"
 #include "messaging/ApplicationMessenger.h"
 #include "utils/SortUtils.h"
 #include "utils/StringUtils.h"
@@ -234,7 +233,7 @@ JSONRPC_STATUS CVideoLibrary::GetSeasonDetails(const std::string &method, ITrans
       infos.m_iDbId <= 0 || infos.m_iIdShow <= 0)
     return InvalidParams;
 
-  CFileItemPtr pItem = std::make_shared<CFileItem>(infos);
+  auto pItem = std::make_shared<CFileItem>(infos);
   HandleFileItem("seasonid", false, "seasondetails", pItem, parameterObject, parameterObject["properties"], result, false);
   return OK;
 }
@@ -308,7 +307,7 @@ JSONRPC_STATUS CVideoLibrary::GetEpisodeDetails(const std::string &method, ITran
   if (!videodatabase.GetEpisodeInfo("", infos, id, RequiresAdditionalDetails(MediaTypeEpisode, parameterObject)) || infos.m_iDbId <= 0)
     return InvalidParams;
 
-  CFileItemPtr pItem = std::make_shared<CFileItem>(infos);
+  auto pItem = std::make_shared<CFileItem>(infos);
   // We need to set the correct base path to get the valid fanart
   int tvshowid = infos.m_iIdShow;
   if (tvshowid <= 0)
@@ -432,9 +431,7 @@ JSONRPC_STATUS CVideoLibrary::GetInProgressTVShows(const std::string &method, IT
     return InternalError;
 
   CFileItemList items;
-  if (!videodatabase.GetInProgressTvShowsNav(
-          "videodb://inprogresstvshows/", items,
-          RequiresAdditionalDetails(MediaTypeTvShow, parameterObject)))
+  if (!videodatabase.GetInProgressTvShowsNav("videodb://inprogresstvshows/", items, 0, RequiresAdditionalDetails(MediaTypeTvShow, parameterObject)))
     return InternalError;
 
   return HandleItems("tvshowid", "tvshows", items, parameterObject, result, false);
@@ -444,7 +441,7 @@ JSONRPC_STATUS CVideoLibrary::GetGenres(const std::string &method, ITransportLay
 {
   std::string media = parameterObject["type"].asString();
   StringUtils::ToLower(media);
-  VideoDbContentType idContent = VideoDbContentType::UNKNOWN;
+  auto idContent = VideoDbContentType::UNKNOWN;
 
   std::string strPath = "videodb://";
   /* select which video content to get genres from*/
@@ -485,7 +482,7 @@ JSONRPC_STATUS CVideoLibrary::GetTags(const std::string &method, ITransportLayer
 {
   std::string media = parameterObject["type"].asString();
   StringUtils::ToLower(media);
-  VideoDbContentType idContent = VideoDbContentType::UNKNOWN;
+  auto idContent = VideoDbContentType::UNKNOWN;
 
   std::string strPath = "videodb://";
   /* select which video content to get tags from*/
@@ -553,7 +550,7 @@ JSONRPC_STATUS CVideoLibrary::GetAvailableArtTypes(const std::string& method, IT
   if (!videodatabase.Open())
     return InternalError;
 
-  CVariant availablearttypes = CVariant(CVariant::VariantTypeArray);
+  auto availablearttypes = CVariant(CVariant::VariantTypeArray);
   for (const auto& artType : videodatabase.GetAvailableArtTypesForItem(mediaID, mediaType))
   {
     availablearttypes.append(artType);
@@ -586,14 +583,14 @@ JSONRPC_STATUS CVideoLibrary::GetAvailableArt(const std::string& method, ITransp
   if (!videodatabase.Open())
     return InternalError;
 
-  CVariant availableart = CVariant(CVariant::VariantTypeArray);
+  auto availableart = CVariant(CVariant::VariantTypeArray);
   for (const auto& artentry : videodatabase.GetAvailableArtForItem(mediaID, mediaType, artType))
   {
-    CVariant item = CVariant(CVariant::VariantTypeObject);
-    item["url"] = IMAGE_FILES::URLFromFile(artentry.m_url);
+    auto item = CVariant(CVariant::VariantTypeObject);
+    item["url"] = CTextureUtils::GetWrappedImageURL(artentry.m_url);
     item["arttype"] = artentry.m_aspect;
     if (!artentry.m_preview.empty())
-      item["previewurl"] = IMAGE_FILES::URLFromFile(artentry.m_preview);
+      item["previewurl"] = CTextureUtils::GetWrappedImageURL(artentry.m_preview);
     availableart.append(item);
   }
   result = CVariant(CVariant::VariantTypeObject);
@@ -616,14 +613,14 @@ JSONRPC_STATUS CVideoLibrary::SetMovieDetails(const std::string &method, ITransp
     return InvalidParams;
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
   int playcount = infos.GetPlayCount();
   CDateTime lastPlayed = infos.m_lastPlayed;
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
 
   if (videodatabase.UpdateDetailsForMovie(id, infos, artwork, updatedDetails) <= 0)
@@ -663,11 +660,11 @@ JSONRPC_STATUS CVideoLibrary::SetMovieSetDetails(const std::string &method, ITra
   }
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
 
   if (videodatabase.SetDetailsForMovieSet(infos, artwork, id) <= 0)
@@ -693,14 +690,14 @@ JSONRPC_STATUS CVideoLibrary::SetTVShowDetails(const std::string &method, ITrans
     return InvalidParams;
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
-  KODI::ART::SeasonsArtwork seasonArt;
+  std::map<int, std::map<std::string, std::string> > seasonArt;
   videodatabase.GetTvShowSeasonArt(infos.m_iDbId, seasonArt);
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
 
   // we need to manually remove tags/taglinks for now because they aren't replaced
@@ -734,11 +731,11 @@ JSONRPC_STATUS CVideoLibrary::SetSeasonDetails(const std::string &method, ITrans
   }
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
   if (ParameterNotNull(parameterObject, "title"))
     infos.SetSortTitle(parameterObject["title"].asString());
@@ -777,14 +774,14 @@ JSONRPC_STATUS CVideoLibrary::SetEpisodeDetails(const std::string &method, ITran
   }
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
   int playcount = infos.GetPlayCount();
   CDateTime lastPlayed = infos.m_lastPlayed;
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
 
   if (videodatabase.SetDetailsForEpisode(infos, artwork, tvshowid, id) <= 0)
@@ -824,14 +821,14 @@ JSONRPC_STATUS CVideoLibrary::SetMusicVideoDetails(const std::string &method, IT
   }
 
   // get artwork
-  KODI::ART::Artwork artwork;
+  std::map<std::string, std::string> artwork;
   videodatabase.GetArtForItem(infos.m_iDbId, infos.m_type, artwork);
 
   int playcount = infos.GetPlayCount();
   CDateTime lastPlayed = infos.m_lastPlayed;
 
-  std::set<std::string, std::less<>> removedArtwork;
-  std::set<std::string, std::less<>> updatedDetails;
+  std::set<std::string> removedArtwork;
+  std::set<std::string> updatedDetails;
   UpdateVideoTag(parameterObject, infos, artwork, removedArtwork, updatedDetails);
 
   // we need to manually remove tags/taglinks for now because they aren't replaced
@@ -914,7 +911,7 @@ JSONRPC_STATUS CVideoLibrary::RefreshEpisode(const std::string &method, ITranspo
   if (!videodatabase.GetEpisodeInfo("", infos, id) || infos.m_iDbId <= 0)
     return InvalidParams;
 
-  CFileItemPtr item = std::make_shared<CFileItem>(infos);
+  auto item = std::make_shared<CFileItem>(infos);
   // We need to set the correct base path to get the valid fanart
   int tvshowid = infos.m_iIdShow;
   if (tvshowid <= 0)
@@ -1164,10 +1161,7 @@ JSONRPC_STATUS CVideoLibrary::RemoveVideo(const CVariant &parameterObject)
     return InternalError;
 
   if (parameterObject.isMember("movieid"))
-  {
-    if (!videodatabase.DeleteMovie((int)parameterObject["movieid"].asInteger()))
-      return InternalError;
-  }
+    videodatabase.DeleteMovie((int)parameterObject["movieid"].asInteger());
   else if (parameterObject.isMember("tvshowid"))
     videodatabase.DeleteTvShow((int)parameterObject["tvshowid"].asInteger());
   else if (parameterObject.isMember("episodeid"))
@@ -1201,10 +1195,7 @@ void CVideoLibrary::UpdateResumePoint(const CVariant &parameterObject, CVideoInf
   }
 }
 
-void CVideoLibrary::UpdateVideoTagField(const CVariant& parameterObject,
-                                        const std::string& fieldName,
-                                        std::vector<std::string>& fieldValue,
-                                        std::set<std::string, std::less<>>& updatedDetails)
+void CVideoLibrary::UpdateVideoTagField(const CVariant& parameterObject, const std::string& fieldName, std::vector<std::string>& fieldValue, std::set<std::string>& updatedDetails)
 {
   if (ParameterNotNull(parameterObject, fieldName))
   {
@@ -1213,11 +1204,7 @@ void CVideoLibrary::UpdateVideoTagField(const CVariant& parameterObject,
   }
 }
 
-void CVideoLibrary::UpdateVideoTag(const CVariant& parameterObject,
-                                   CVideoInfoTag& details,
-                                   KODI::ART::Artwork& artwork,
-                                   std::set<std::string, std::less<>>& removedArtwork,
-                                   std::set<std::string, std::less<>>& updatedDetails)
+void CVideoLibrary::UpdateVideoTag(const CVariant &parameterObject, CVideoInfoTag& details, std::map<std::string, std::string> &artwork, std::set<std::string> &removedArtwork, std::set<std::string> &updatedDetails)
 {
   if (ParameterNotNull(parameterObject, "title"))
     details.SetTitle(parameterObject["title"].asString());
@@ -1390,7 +1377,7 @@ void CVideoLibrary::UpdateVideoTag(const CVariant& parameterObject,
     {
       if (artIt->second.isString() && !artIt->second.asString().empty())
       {
-        artwork[artIt->first] = IMAGE_FILES::ToCacheKey(artIt->second.asString());
+        artwork[artIt->first] = CTextureUtils::UnwrapImageURL(artIt->second.asString());
         updatedDetails.insert("art.altered");
       }
       else if (artIt->second.isNull())

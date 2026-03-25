@@ -9,9 +9,7 @@
 #include "MusicInfoTagLoaderFactory.h"
 
 #include "FileItem.h"
-#ifdef HAS_OPTICAL_DRIVE
 #include "MusicInfoTagLoaderCDDA.h"
-#endif // HAS_OPTICAL_DRIVE
 #include "MusicInfoTagLoaderDatabase.h"
 #include "MusicInfoTagLoaderFFmpeg.h"
 #include "MusicInfoTagLoaderShn.h"
@@ -20,12 +18,9 @@
 #include "addons/AudioDecoder.h"
 #include "addons/ExtsMimeSupportList.h"
 #include "addons/addoninfo/AddonType.h"
-#include "music/MusicFileItemClassify.h"
-#include "network/NetworkFileItemClassify.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
-using namespace KODI;
 using namespace KODI::ADDONS;
 using namespace MUSIC_INFO;
 
@@ -36,10 +31,10 @@ CMusicInfoTagLoaderFactory::~CMusicInfoTagLoaderFactory() = default;
 IMusicInfoTagLoader* CMusicInfoTagLoaderFactory::CreateLoader(const CFileItem& item)
 {
   // dont try to read the tags for streams & shoutcast
-  if (NETWORK::IsInternetStream(item))
-    return NULL;
+  if (item.IsInternetStream())
+    return nullptr;
 
-  if (MUSIC::IsMusicDb(item))
+  if (item.IsMusicDb())
     return new CMusicInfoTagLoaderDatabase();
 
   std::string strExtension = URIUtils::GetExtension(item.GetPath());
@@ -47,7 +42,7 @@ IMusicInfoTagLoader* CMusicInfoTagLoaderFactory::CreateLoader(const CFileItem& i
   StringUtils::TrimLeft(strExtension, ".");
 
   if (strExtension.empty())
-    return NULL;
+    return nullptr;
 
   const auto addonInfos = CServiceBroker::GetExtsMimeSupportList().GetExtensionSupportedAddonInfos(
       "." + strExtension, CExtsMimeSupportList::FilterSelect::hasTags);
@@ -55,7 +50,7 @@ IMusicInfoTagLoader* CMusicInfoTagLoaderFactory::CreateLoader(const CFileItem& i
   {
     if (addonInfo.first == ADDON::AddonType::AUDIODECODER)
     {
-      std::unique_ptr<CAudioDecoder> result = std::make_unique<CAudioDecoder>(addonInfo.second);
+      auto result = std::make_unique<CAudioDecoder>(addonInfo.second);
       if (!result->CreateDecoder() && result->SupportsFile(item.GetPath()))
         continue;
 
@@ -72,24 +67,24 @@ IMusicInfoTagLoader* CMusicInfoTagLoaderFactory::CreateLoader(const CFileItem& i
       strExtension == "wav" || strExtension == "mod" || strExtension == "s3m" ||
       strExtension == "it" || strExtension == "xm" || strExtension == "wv")
   {
-    CTagLoaderTagLib *pTagLoader = new CTagLoaderTagLib();
+    auto pTagLoader = new CTagLoaderTagLib();
     return pTagLoader;
   }
 #ifdef HAS_OPTICAL_DRIVE
   else if (strExtension == "cdda")
   {
-    CMusicInfoTagLoaderCDDA *pTagLoader = new CMusicInfoTagLoaderCDDA();
+    auto pTagLoader = new CMusicInfoTagLoaderCDDA();
     return pTagLoader;
   }
 #endif
   else if (strExtension == "shn")
   {
-    CMusicInfoTagLoaderSHN *pTagLoader = new CMusicInfoTagLoaderSHN();
+    auto pTagLoader = new CMusicInfoTagLoaderSHN();
     return pTagLoader;
   }
   else if (strExtension == "mka" || strExtension == "dsf" ||
            strExtension == "dff")
     return new CMusicInfoTagLoaderFFmpeg();
 
-  return NULL;
+  return nullptr;
 }

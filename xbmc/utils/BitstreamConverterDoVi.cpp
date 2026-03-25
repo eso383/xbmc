@@ -15,6 +15,10 @@
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
+#include "ServiceBroker.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -193,16 +197,19 @@ inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
     if (!loggedParsedMetadata)
     {
       loggedParsedMetadata = true;
-      logM(LOGINFO, "Parsed DoVi metadata (first frame): meta='{}' has_l254={} l2_count={} l8_count={}",
-                    metaVersion, hasLevel254, level2Count, level8Count);
+      logM(LOGINFO, "CBitstreamConverterDoVi",
+           "Parsed DoVi metadata (first frame): meta='{}' has_l254={} l2_count={} l8_count={}",
+           metaVersion, hasLevel254, level2Count, level8Count);
     }
 
     doviStreamMetadata.meta_version = metaVersion;
     dataCacheCore.SetVideoDoViStreamMetadata(doviStreamMetadata);
+    aml_dv_send_md_levels();
 
     DOVIStreamInfo doviStreamInfo;
     const DoviRpuDataHeader* header = dovi_rpu_get_header(opaque);
     doviElType = DOVIELType::TYPE_NONE;
+    aml_dv_send_profile(header->guessed_profile);
 
     if (header && ((header->guessed_profile == 4) || (header->guessed_profile == 7)) && header->el_type)
     {
@@ -220,6 +227,7 @@ inline void PopulateDoviRpuInfo(DoviRpuOpaque* opaque,
     doviStreamInfo.has_header = (header != nullptr);
 
     dataCacheCore.SetVideoDoViStreamInfo(doviStreamInfo);
+    aml_dv_send_el_type();
     dovi_rpu_free_header(header);
   }
 
@@ -411,7 +419,8 @@ DoviRpuOpaque* AppendCMv40ToRpuNalu(uint8_t* nalBuf,
       {
         if (trim != trimBits)
         {
-          logM(LOGINFO, "CMv4 alignment: last_byte=0x{:02X} padding={}",
+          logM(LOGINFO, "CBitstreamConverterDoVi",
+                        "CMv4 alignment: last_byte=0x{:02X} padding={}",
                         rbsp[payloadSize - 1], trimBits);
           trim = trimBits;
         }
@@ -492,9 +501,18 @@ inline void AppendCMv40(DOVICMv40Mode cmv40Mode,
 {
   if (!header || !vdrDmData) return;
 
+  DOVIStreamMetadata dovi_stream_metadata;
+  dovi_stream_metadata = CServiceBroker::GetDataCacheCore().GetVideoDoViStreamMetadata();
+  int source_max_nits = max_pq_to_nits(static_cast<int>(dovi_stream_metadata.source_max_pq));
+  int max_lum_nits_value(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_VSVDB_MAX_LUM));
+  bool is_displayML_higher_sourceMDL = (max_lum_nits_value >= (source_max_nits - 150));
+  int dv_type(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_COREELEC_AMLOGIC_DV_TYPE));
+
   const bool hasLevel254 = (vdrDmData->dm_data.level254 != nullptr);
-  if (!(((cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) && !hasLevel254) ||
-        IsCMv29NoL2(header, vdrDmData))) return;
+  if (!((((cmv40Mode == DOVICMv40Mode::CMV40_ALWAYS) && !hasLevel254) ||
+         ((cmv40Mode == DOVICMv40Mode::CMV40_AUTO) && (IsCMv29NoL2(header, vdrDmData) || (!hasLevel254 && is_displayML_higher_sourceMDL))) ||
+         ((cmv40Mode == DOVICMv40Mode::CMV40_NO_L2) && IsCMv29NoL2(header, vdrDmData))) &&
+        (dv_type == 0))) return;
 
   opaque = AppendCMv40ToRpuNalu(nalBuf, nalSize, nalu, trim);
   if (opaque)
@@ -611,7 +629,7 @@ void CBitstreamConverter::ProcessDoViRpu(
     {
       dovi_rpu_free(appendOpaque);
       if (m_first_frame)
-        logM(LOGINFO, "CMv4.0 extension appended to RPU");
+        logM(LOGINFO, "CBitstreamConverterDoVi", "CMv4.0 extension appended to RPU");
     }
 
     // Update cache with the newly calculated modified NAL out for the next frame

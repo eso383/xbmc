@@ -19,7 +19,6 @@
 #include "input/mouse/MouseStat.h"
 #include "utils/MathUtils.h"
 #include "utils/StringUtils.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 
@@ -73,7 +72,7 @@ CGUISliderControl::CGUISliderControl(int parentID,
   m_orientation = orientation;
   m_iInfoCode = 0;
   m_dragging = false;
-  m_action = NULL;
+  m_action = nullptr;
 }
 
 CGUISliderControl::CGUISliderControl(const CGUISliderControl& control)
@@ -170,8 +169,7 @@ bool CGUISliderControl::ProcessSelector(CGUITexture* background,
                                         CGUITexture* nib,
                                         unsigned int currentTime,
                                         float fScale,
-                                        RangeSelector selector)
-{
+                                        RangeSelector selector) const {
   bool dirty = false;
   // we render the nib centered at the appropriate percentage, except where the nib
   // would overflow the background image
@@ -185,7 +183,7 @@ bool CGUISliderControl::ProcessSelector(CGUITexture* background,
     dirty |= nib->SetWidth(nib->GetTextureWidth() * fScale);
     dirty |= nib->SetHeight(nib->GetWidth() * 2);
   }
-  CAspectRatio ratio(CAspectRatio::KEEP);
+  CAspectRatio ratio(CAspectRatio::AR_KEEP);
   ratio.align = ASPECT_ALIGN_LEFT | ASPECT_ALIGNY_CENTER;
   dirty |= nib->SetAspectRatio(ratio);
   dirty |= nib->Process(currentTime);
@@ -391,8 +389,7 @@ void CGUISliderControl::Move(int iNumSteps)
   SendClick();
 }
 
-void CGUISliderControl::SendClick()
-{
+void CGUISliderControl::SendClick() const {
   float percent = 100*GetProportion();
   SEND_CLICK_MESSAGE(GetID(), GetParentID(), MathUtils::round_int(static_cast<double>(percent)));
   if (m_action && (!m_dragging || m_action->fireOnDrag))
@@ -830,5 +827,5 @@ void CGUISliderControl::SetAction(const std::string &action)
       return;
     }
   }
-  m_action = NULL;
+  m_action = nullptr;
 }

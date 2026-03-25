@@ -14,6 +14,6 @@ class CGUIWindowSettings :
       public CGUIWindow
 {
 public:
-  CGUIWindowSettings();
-  ~CGUIWindowSettings() override;
+  CGUIWindowSettings(void);
+  ~CGUIWindowSettings(void) override;
 };

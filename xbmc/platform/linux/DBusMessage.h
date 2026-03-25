@@ -56,13 +56,13 @@ public:
   void AppendArgument(const char **arrayString, unsigned int length);
 
   template<typename TFirst>
-  void AppendArguments(const TFirst& first)
+  void AppendArguments(const TFirst first)
   {
     AppendArgument(first);
     // Recursion end
   }
   template<typename TFirst, typename... TArgs>
-  void AppendArguments(const TFirst& first, const TArgs&... args)
+  void AppendArguments(const TFirst first, const TArgs... args)
   {
     AppendArgument(first);
     AppendArguments(args...);
@@ -112,11 +112,11 @@ public:
   DBusMessage *Send(DBusConnection *con, CDBusError& error);
 private:
   void AppendWithType(int type, const void* value);
-  bool SendAsync(DBusBusType type);
+  bool SendAsync(DBusBusType type) const;
 
   void PrepareArgument();
 
-  bool InitializeReplyIter(DBusMessageIter* iter);
+  bool InitializeReplyIter(DBusMessageIter* iter) const;
   bool CheckTypeAndGetValue(DBusMessageIter* iter, int expectType, void* dest);
   template<typename TFirst>
   bool GetReplyArgumentsWithIter(DBusMessageIter* iter, TFirst* first)
@@ -132,7 +132,7 @@ private:
       return false;
     }
     // Ignore return value, if we try to read past the end of the message this
-    // will be caught by the type check (past-end type is DBUS_TYPE_INVALID)
+    // will be catched by the type check (past-end type is DBUS_TYPE_INVALID)
     dbus_message_iter_next(iter);
     return GetReplyArgumentsWithIter(iter, args...);
   }

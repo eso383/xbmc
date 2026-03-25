@@ -14,8 +14,7 @@
 #include "VideoTagLoaderPlugin.h"
 #include "video/tags/VideoTagExtractionHelper.h"
 
-namespace KODI::VIDEO
-{
+using namespace VIDEO;
 
 IVideoInfoTagLoader* CVideoInfoTagLoaderFactory::CreateLoader(const CFileItem& item,
                                                               const ADDON::ScraperPtr& info,
@@ -25,20 +24,20 @@ IVideoInfoTagLoader* CVideoInfoTagLoaderFactory::CreateLoader(const CFileItem& i
   if (item.IsPlugin() && info && info->ID() == "metadata.local")
   {
     // Direct loading from plugin source with metadata.local scraper
-    CVideoTagLoaderPlugin* plugin = new CVideoTagLoaderPlugin(item, forceRefresh);
+    auto plugin = new CVideoTagLoaderPlugin(item, forceRefresh);
     if (plugin->HasInfo())
       return plugin;
     delete plugin;
   }
 
-  CVideoTagLoaderNFO* nfo = new CVideoTagLoaderNFO(item, info, lookInFolder);
+  auto nfo = new CVideoTagLoaderNFO(item, info, lookInFolder);
   if (nfo->HasInfo())
     return nfo;
   delete nfo;
 
   if (TAGS::CVideoTagExtractionHelper::IsExtractionSupportedFor(item))
   {
-    CVideoTagLoaderFFmpeg* ff = new CVideoTagLoaderFFmpeg(item, info, lookInFolder);
+    auto ff = new CVideoTagLoaderFFmpeg(item, info, lookInFolder);
     if (ff->HasInfo())
       return ff;
     delete ff;
@@ -46,5 +45,3 @@ IVideoInfoTagLoader* CVideoInfoTagLoaderFactory::CreateLoader(const CFileItem& i
 
   return nullptr;
 }
-
-} // namespace KODI::VIDEO

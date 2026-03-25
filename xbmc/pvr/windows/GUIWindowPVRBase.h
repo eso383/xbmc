@@ -16,108 +16,124 @@
 #include <memory>
 #include <string>
 
+#define CONTROL_BTNVIEWASICONS            2
+#define CONTROL_BTNSORTBY                 3
+#define CONTROL_BTNSORTASC                4
+#define CONTROL_BTNGROUPITEMS             5
+#define CONTROL_BTNSHOWHIDDEN             6
+#define CONTROL_BTNSHOWDELETED            7
+#define CONTROL_BTNHIDEDISABLEDTIMERS     8
+#define CONTROL_BTNSHOWMODE               10
+#define CONTROL_LSTCHANNELGROUPS          11
+
+#define CONTROL_BTNCHANNELGROUPS          28
+#define CONTROL_BTNFILTERCHANNELS         31
+
+#define CONTROL_LABEL_HEADER1             29
+#define CONTROL_LABEL_HEADER2             30
+
 class CGUIDialogProgressBarHandle;
 
 namespace PVR
 {
-enum class PVREvent;
+  enum class PVREvent;
 
-enum EPGSelectAction
-{
-  EPG_SELECT_ACTION_CONTEXT_MENU = 0,
-  EPG_SELECT_ACTION_SWITCH = 1,
-  EPG_SELECT_ACTION_INFO = 2,
-  EPG_SELECT_ACTION_RECORD = 3,
-  EPG_SELECT_ACTION_PLAY_RECORDING = 4,
-  EPG_SELECT_ACTION_SMART_SELECT = 5
-};
+  enum EPGSelectAction
+  {
+    EPG_SELECT_ACTION_CONTEXT_MENU = 0,
+    EPG_SELECT_ACTION_SWITCH = 1,
+    EPG_SELECT_ACTION_INFO = 2,
+    EPG_SELECT_ACTION_RECORD = 3,
+    EPG_SELECT_ACTION_PLAY_RECORDING = 4,
+    EPG_SELECT_ACTION_SMART_SELECT = 5
+  };
 
-class CPVRChannelGroup;
-class CGUIPVRChannelGroupsSelector;
+  class CPVRChannelGroup;
+  class CGUIPVRChannelGroupsSelector;
 
-class CGUIWindowPVRBase : public CGUIMediaWindow
-{
-public:
-  ~CGUIWindowPVRBase() override;
+  class CGUIWindowPVRBase : public CGUIMediaWindow
+  {
+  public:
+    ~CGUIWindowPVRBase() override;
 
-  void OnInitWindow() override;
-  void OnDeinitWindow(int nextWindowID) override;
-  bool OnMessage(CGUIMessage& message) override;
-  bool Update(const std::string& strDirectory, bool updateFilterPath = true) override;
-  void UpdateButtons() override;
-  bool OnAction(const CAction& action) override;
-  void SetInvalid() override;
-  bool CanBeActivated() const override;
+    void OnInitWindow() override;
+    void OnDeinitWindow(int nextWindowID) override;
+    bool OnMessage(CGUIMessage& message) override;
+    bool Update(const std::string& strDirectory, bool updateFilterPath = true) override;
+    void UpdateButtons() override;
+    bool OnAction(const CAction& action) override;
+    void SetInvalid() override;
+    bool CanBeActivated() const override;
 
-  bool UseFileDirectories() override { return false; }
+    bool UseFileDirectories() override { return false; }
 
-  /*!
-   * @brief CEventStream callback for PVR events.
-   * @param event The event.
-   */
-  virtual void NotifyEvent(const PVREvent& event);
+    /*!
+     * @brief CEventStream callback for PVR events.
+     * @param event The event.
+     */
+    void Notify(const PVREvent& event);
+    virtual void NotifyEvent(const PVREvent& event);
 
-  bool ActivatePreviousChannelGroup();
-  bool ActivateNextChannelGroup();
-  bool OpenChannelGroupSelectionDialog();
+    /*!
+     * @brief Refresh window content.
+     * @return true, if refresh succeeded, false otherwise.
+     */
+    bool DoRefresh() { return Refresh(true); }
 
-protected:
-  CGUIWindowPVRBase(bool bRadio, int id, const std::string& xmlFile);
+    bool ActivatePreviousChannelGroup();
+    bool ActivateNextChannelGroup();
+    bool OpenChannelGroupSelectionDialog();
 
-  virtual std::string GetDirectoryPath() = 0;
+  protected:
+    CGUIWindowPVRBase(bool bRadio, int id, const std::string& xmlFile);
 
-  virtual void ClearData();
+    virtual std::string GetDirectoryPath() = 0;
 
-  /*!
-   * @brief Init this window's channel group with the currently active (the "playing") channel group.
-   * @return true if group could be set, false otherwise.
-   */
-  bool InitChannelGroup();
+    virtual void ClearData();
 
-  /*!
-   * @brief Get the channel group for this window.
-   * @return the group or null, if no group set.
-   */
-  std::shared_ptr<CPVRChannelGroup> GetChannelGroup();
+    /*!
+     * @brief Init this window's channel group with the currently active (the "playing") channel group.
+     * @return true if group could be set, false otherwise.
+     */
+    bool InitChannelGroup();
 
-  /*!
-   * @brief Set a new channel group, start listening to this group, optionally update window content.
-   * @param group The new group.
-   * @param bUpdate if true, window content will be updated.
-   */
-  void SetChannelGroup(const std::shared_ptr<CPVRChannelGroup>& group, bool bUpdate = true);
+    /*!
+     * @brief Get the channel group for this window.
+     * @return the group or null, if no group set.
+     */
+   std::shared_ptr<CPVRChannelGroup> GetChannelGroup();
 
-  void SetChannelGroupPath(const std::string& path);
+    /*!
+     * @brief Set a new channel group, start listening to this group, optionally update window content.
+     * @param group The new group.
+     * @param bUpdate if true, window content will be updated.
+     */
+    void SetChannelGroup(std::shared_ptr<CPVRChannelGroup> &&group, bool bUpdate = true);
 
-  virtual void UpdateSelectedItemPath();
+    virtual void UpdateSelectedItemPath();
 
-  bool IsRadio() const { return m_bRadio; }
+    CCriticalSection m_critSection;
+    std::string m_channelGroupPath;
+    bool m_bRadio;
+    std::atomic_bool m_bUpdating = {false};
 
-  bool IsUpdating() const { return m_bUpdating; }
+  private:
+    /*!
+     * @brief Show or update the progress dialog.
+     * @param strText The current status.
+     * @param iProgress The current progress in %.
+     */
+    void ShowProgressDialog(const std::string& strText, int iProgress);
 
-  CCriticalSection m_critSection;
+    /*!
+     * @brief Hide the progress dialog if it's visible.
+     */
+    void HideProgressDialog();
 
-private:
-  /*!
-   * @brief Show or update the progress dialog.
-   * @param strText The current status.
-   * @param iProgress The current progress in %.
-   */
-  void ShowProgressDialog(const std::string& strText, int iProgress);
-
-  /*!
-   * @brief Hide the progress dialog if it's visible.
-   */
-  void HideProgressDialog();
-
-  bool m_bRadio{false};
-  std::atomic_bool m_bUpdating{false};
-
-  std::unique_ptr<CGUIPVRChannelGroupsSelector> m_channelGroupsSelector;
-  std::shared_ptr<CPVRChannelGroup> m_channelGroup;
-  XbmcThreads::EndTime<> m_refreshTimeout;
-  CGUIDialogProgressBarHandle* m_progressHandle =
-      nullptr; /*!< progress dialog that is displayed while the pvr manager is loading */
-  std::string m_channelGroupPath;
-};
-} // namespace PVR
+    std::unique_ptr<CGUIPVRChannelGroupsSelector> m_channelGroupsSelector;
+    std::shared_ptr<CPVRChannelGroup> m_channelGroup;
+    XbmcThreads::EndTime<> m_refreshTimeout;
+    CGUIDialogProgressBarHandle* m_progressHandle =
+        nullptr; /*!< progress dialog that is displayed while the pvr manager is loading */
+  };
+}

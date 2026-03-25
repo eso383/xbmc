@@ -1,12 +1,12 @@
 package @APP_PACKAGE@;
 
-import @APP_PACKAGE@.util.Storage;
-
 import static android.content.pm.PackageManager.FEATURE_LEANBACK;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.lang.System;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
@@ -42,6 +43,7 @@ import java.util.zip.ZipFile;
 
 public class Splash extends Activity
 {
+
   private static final int Uninitialized = 0;
   private static final int InError = 1;
   private static final int Checking = 2;
@@ -56,7 +58,6 @@ public class Splash extends Activity
   private static final int CheckingPermissionsInfo = 11;
   private static final int CheckExternalStorage = 12;
   private static final int RecordAudioPermission = 13;
-  private static final int RecordAudioInfo = 14;
   private static final int StartingXBMC = 99;
 
   private static final String TAG = "@APP_NAME@";
@@ -74,8 +75,10 @@ public class Splash extends Activity
 
   private String sPackagePath = "";
   private String sXbmcHome = "";
+  private String sXbmcdata = "";
   private File fPackagePath = null;
   private File fXbmcHome = null;
+  private String sXbmcTemp = "";
 
   private BroadcastReceiver mExternalStorageReceiver = null;
   private boolean mExternalStorageChecked = false;
@@ -84,13 +87,15 @@ public class Splash extends Activity
 
   private class StateMachine extends Handler
   {
-    private final Splash mSplash;
+
+    private Splash mSplash = null;
 
     StateMachine(Splash a)
     {
       super(Looper.myLooper());
       this.mSplash = a;
     }
+
 
     @Override
     public void handleMessage(Message msg)
@@ -99,16 +104,27 @@ public class Splash extends Activity
       switch (mSplash.mState)
       {
         case InError:
-          showErrorDialog(mSplash, getString(R.string.error_title), mErrorMsg);
+          showErrorDialog(mSplash, "Error", mErrorMsg);
           break;
         case CheckingPermissionsInfo:
-          mSplash.mTextView.setText(getString(R.string.asking_permissions));
-          showInfoDialog(getString(R.string.notice_dialog, "@APP_NAME@"), CheckingPermissions);
-          break;
-        case RecordAudioInfo:
-          showInfoDialog(getString(R.string.record_audio_dialog, "@APP_NAME@"), RecordAudioPermission);
+          AlertDialog dialog = new AlertDialog.Builder(mSplash).create();
+          dialog.setCancelable(false);
+          dialog.setTitle("Info");
+          dialog.setMessage("@APP_NAME@ requires access to your device media and files to function. Please allow this via the following dialogue box or @APP_NAME@ will exit.");
+          dialog.setButton(DialogInterface.BUTTON_NEUTRAL, "continue", new DialogInterface.OnClickListener()
+          {
+            @Override
+            public void onClick(DialogInterface dialog, int which)
+            {
+              mStateMachine.sendEmptyMessage(RecordAudioPermission);
+            }
+          });
+          dialog.show();
           break;
         case RecordAudioPermission:
+          mSplash.mTextView.setText("Asking for permissions...");
+          mSplash.mProgress.setVisibility(View.INVISIBLE);
+
           requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
                   RECORDAUDIO_RESULT_CODE);
           break;
@@ -138,7 +154,7 @@ public class Splash extends Activity
             sendEmptyMessage(CheckExternalStorage);
           else
           {
-            mErrorMsg = getString(R.string.permission_denied);
+            mErrorMsg = "Permission denied!! Exiting...";
             sendEmptyMessage(InError);
             break;
           }
@@ -146,7 +162,7 @@ public class Splash extends Activity
         case Checking:
           break;
         case Clearing:
-          mSplash.mTextView.setText(getString(R.string.clearing_cache));
+          mSplash.mTextView.setText("Clearing cache...");
           mSplash.mProgress.setVisibility(View.INVISIBLE);
           break;
         case Caching:
@@ -172,11 +188,11 @@ public class Splash extends Activity
           }
           break;
         case WaitingStorageChecked:
-          mSplash.mTextView.setText(getString(R.string.waiting_external));
+          mSplash.mTextView.setText("Waiting for external storage...");
           mSplash.mProgress.setVisibility(View.INVISIBLE);
           break;
         case StorageChecked:
-          mSplash.mTextView.setText(getString(R.string.external_ok));
+          mSplash.mTextView.setText("External storage OK...");
           mExternalStorageChecked = true;
           mSplash.stopWatchingExternalStorage();
           if (mSplash.mCachingDone)
@@ -204,7 +220,7 @@ public class Splash extends Activity
 
           break;
         case StartingXBMC:
-          mSplash.mTextView.setText(getString(R.string.starting, "@APP_NAME@"));
+          mSplash.mTextView.setText("Starting @APP_NAME@...");
           mSplash.mProgress.setVisibility(View.INVISIBLE);
           mSplash.startXBMC();
           break;
@@ -214,14 +230,14 @@ public class Splash extends Activity
     }
   }
 
-  private final StateMachine mStateMachine = new StateMachine(this);
+  private StateMachine mStateMachine = new StateMachine(this);
 
   private class FillCache
   {
-    private final Splash mSplash;
+    private Splash mSplash = null;
     private int mProgressStatus = 0;
-    private final ExecutorService executor;
-    private final Handler handler;
+    private ExecutorService executor;
+    private Handler handler;
 
     public FillCache(Splash splash)
     {
@@ -245,12 +261,9 @@ public class Splash extends Activity
 
     void DeleteRecursive(File fileOrDirectory)
     {
-      if (fileOrDirectory.isDirectory()) {
-        File[] files = fileOrDirectory.listFiles();
-        if (files != null)
-          for (File child : files)
-            DeleteRecursive(child);
-      }
+      if (fileOrDirectory.isDirectory())
+        for (File child : fileOrDirectory.listFiles())
+          DeleteRecursive(child);
 
       fileOrDirectory.delete();
     }
@@ -290,7 +303,7 @@ public class Splash extends Activity
           // Update the progress bar
           publishProgress(++mProgressStatus);
 
-          ZipEntry e = entries.nextElement();
+          ZipEntry e = (ZipEntry) entries.nextElement();
           String sName = e.getName();
 
           if (!sName.startsWith("assets/"))
@@ -311,9 +324,7 @@ public class Splash extends Activity
             fFullPath.mkdirs();
             continue;
           }
-          File parent = fFullPath.getParentFile();
-          if (parent != null && !parent.exists())
-            parent.mkdirs();
+          fFullPath.getParentFile().mkdirs();
 
           try
           {
@@ -327,7 +338,7 @@ public class Splash extends Activity
           }
           catch (IOException e1)
           {
-            Log.e(TAG, "Exception: " + e1.getMessage());
+            e1.printStackTrace();
           }
         }
 
@@ -338,14 +349,14 @@ public class Splash extends Activity
       }
       catch (FileNotFoundException e1)
       {
-        Log.e(TAG, "Exception: " + e1.getMessage());
-        mErrorMsg = getString(R.string.no_find_apk);
+        e1.printStackTrace();
+        mErrorMsg = "Cannot find package.";
         return -1;
       }
       catch (IOException e)
       {
-        Log.e(TAG, "Exception: " + e.getMessage());
-        mErrorMsg = getString(R.string.no_read_apk);
+        e.printStackTrace();
+        mErrorMsg = "Cannot read package.";
         File obb = new File(sPackagePath);
         obb.delete();
         return -1;
@@ -362,7 +373,7 @@ public class Splash extends Activity
       switch (mState)
       {
         case Caching:
-          mSplash.mTextView.setText(getString(R.string.first_run));
+          mSplash.mTextView.setText("Preparing for first run. Please wait...");
           mSplash.mProgress.setVisibility(View.VISIBLE);
           mSplash.mProgress.setProgress(value);
           break;
@@ -391,11 +402,20 @@ public class Splash extends Activity
     AlertDialog.Builder builder = new AlertDialog.Builder(act);
     builder.setTitle(title);
     builder.setIcon(android.R.drawable.ic_dialog_alert);
-    builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
-    builder.setPositiveButton(getString(R.string.exit_button), (dialog, arg1) -> {
-      dialog.dismiss();
-      act.finish();
-    });
+    if (Build.VERSION.SDK_INT >= 24) {
+      builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+    } else {
+      builder.setMessage(Html.fromHtml(message));
+    }
+    builder.setPositiveButton("Exit",
+            new DialogInterface.OnClickListener()
+            {
+              public void onClick(DialogInterface dialog, int arg1)
+              {
+                dialog.dismiss();
+                act.finish();
+              }
+            });
     builder.setCancelable(false);
     myAlertDialog = builder.create();
     myAlertDialog.show();
@@ -403,23 +423,6 @@ public class Splash extends Activity
     // Make links actually clickable
     ((TextView) myAlertDialog.findViewById(android.R.id.message))
             .setMovementMethod(LinkMovementMethod.getInstance());
-  }
-
-  /**
-   * Displays an info dialog with a specified message and a button to continue.
-   *
-   * @param message The message to be displayed in the dialog.
-   * @param state   The next state to be sent to the state machine.
-   */
-  private void showInfoDialog(final String message, int state)
-  {
-    AlertDialog dialog = new AlertDialog.Builder(this).create();
-    dialog.setCancelable(false);
-    dialog.setTitle(getString(R.string.info_title));
-    dialog.setMessage(message);
-    dialog.setButton(DialogInterface.BUTTON_NEUTRAL, getString(R.string.continue_button),
-            (dialog1, which) -> mStateMachine.sendEmptyMessage(state));
-    dialog.show();
   }
 
   private void SetupEnvironment()
@@ -457,7 +460,7 @@ public class Splash extends Activity
     File fLibCache = new File(fCacheDir.getAbsolutePath() + "/lib");
     fLibCache.mkdirs();
 
-    final String sXbmcdata = XBMCProperties.getStringProperty("xbmc.data", "");
+    sXbmcdata = XBMCProperties.getStringProperty("xbmc.data", "");
     if (!sXbmcdata.isEmpty())
     {
       File fXbmcData = new File(sXbmcdata);
@@ -478,11 +481,12 @@ public class Splash extends Activity
 
       if (!fXbmcData.exists())
       {
+        sXbmcdata = "";
         System.setProperty("xbmc.data", "");
       }
     }
 
-    final String sXbmcTemp = XBMCProperties.getStringProperty("xbmc.temp", "");
+    sXbmcTemp = XBMCProperties.getStringProperty("xbmc.temp", "");
     if (!sXbmcTemp.isEmpty())
     {
       File fXbmcTemp = new File(sXbmcTemp);
@@ -503,6 +507,7 @@ public class Splash extends Activity
 
       if (!fXbmcTemp.exists())
       {
+        sXbmcTemp = "";
         System.setProperty("xbmc.temp", "");
       }
     }
@@ -521,18 +526,21 @@ public class Splash extends Activity
         retVal = true;
       }
     }
-    else
+    else if (Build.VERSION.SDK_INT > 22)
     {
       int permissionCheck;
       permissionCheck = checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE);
       if (permissionCheck == PERMISSION_GRANTED)
         retVal = true;
     }
+    else
+      retVal=  true;
+
     return retVal;
   }
 
   @Override
-  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+  public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults)
   {
     switch (requestCode)
     {
@@ -544,12 +552,12 @@ public class Splash extends Activity
         {
           mPermissionOK = true;
         }
-        mStateMachine.sendEmptyMessage(RecordAudioInfo);
+        mStateMachine.sendEmptyMessage(CheckingPermissionsDone);
         break;
       }
       case RECORDAUDIO_RESULT_CODE:
       {
-        mStateMachine.sendEmptyMessage(CheckingPermissionsDone);
+        mStateMachine.sendEmptyMessage(CheckingPermissions);
       }
     }
   }
@@ -564,16 +572,14 @@ public class Splash extends Activity
       {
         mPermissionOK = true;
       }
-      mStateMachine.sendEmptyMessage(RecordAudioInfo);
+      mStateMachine.sendEmptyMessage(CheckingPermissionsDone);
     }
   }
 
   void updateExternalStorageState()
   {
     String state = Environment.getExternalStorageState();
-    Log.d(TAG,
-          "External storage = " + Storage.getPrimaryStorageVolumePath(getApplicationContext()) +
-              "; state = " + state);
+    Log.d(TAG, "External storage = " + Environment.getExternalStorageDirectory().getAbsolutePath() + "; state = " + state);
     if (Environment.MEDIA_MOUNTED.equals(state))
     {
       mStateMachine.sendEmptyMessage(StorageChecked);
@@ -627,19 +633,25 @@ public class Splash extends Activity
     super.onCreate(savedInstanceState);
 
     // Be sure properties are initialized for native
-    XBMCProperties.initialize(getApplicationContext());
+    XBMCProperties.initializeProperties();
 
-    if (Main.isActivityRunning()) {
-      Log.d(TAG, "@APP_NAME@ already running; just activate it");
-      startXBMC();
-      return;
-    }
+    // Check if @APP_NAME@ is not already running
+    ActivityManager activityManager = (ActivityManager) getBaseContext()
+            .getSystemService(Context.ACTIVITY_SERVICE);
+    List<RunningTaskInfo> tasks = activityManager
+            .getRunningTasks(Integer.MAX_VALUE);
+    for (RunningTaskInfo task : tasks)
+      if (task.topActivity.toString().equalsIgnoreCase(
+              "ComponentInfo{@APP_PACKAGE@/@APP_PACKAGE@.Main}"))
+      {
+        // @APP_NAME@ already running; just activate it
+        startXBMC();
+        return;
+      }
 
     mStateMachine.sendEmptyMessage(Checking);
 
-    Log.d(TAG,
-          "External storage = " + Storage.getPrimaryStorageVolumePath(getApplicationContext()) +
-              "; state = " + Environment.getExternalStorageState());
+    Log.d(TAG, "External storage = " + Environment.getExternalStorageDirectory().getAbsolutePath() + "; state = " + Environment.getExternalStorageState());
     if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
       mExternalStorageChecked = true;
 
@@ -671,9 +683,8 @@ public class Splash extends Activity
     }
 
     setContentView(R.layout.activity_splash);
-    mProgress = findViewById(R.id.progressBar1);
-    mProgress.setVisibility(View.INVISIBLE);
-    mTextView = findViewById(R.id.textView1);
+    mProgress = (ProgressBar) findViewById(R.id.progressBar1);
+    mTextView = (TextView) findViewById(R.id.textView1);
 
     if (mState == InError || mState == CheckingPermissionsInfo)
     {

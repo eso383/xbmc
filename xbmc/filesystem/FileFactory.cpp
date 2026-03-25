@@ -26,9 +26,7 @@
 #include "platform/posix/filesystem/SMBFile.h"
 #endif
 #endif
-#ifdef HAS_OPTICAL_DRIVE
 #include "CDDAFile.h"
-#endif // HAS_OPTICAL_DRIVE
 #if defined(HAS_ISO9660PP)
 #include "ISO9660File.h"
 #endif
@@ -86,7 +84,7 @@ IFile* CFileFactory::CreateLoader(const std::string& strFileName)
 IFile* CFileFactory::CreateLoader(const CURL& url)
 {
   if (!CWakeOnAccess::GetInstance().WakeUpHost(url))
-    return NULL;
+    return nullptr;
 
   if (!url.GetProtocol().empty() && CServiceBroker::IsAddonInterfaceUp())
   {
@@ -94,7 +92,7 @@ IFile* CFileFactory::CreateLoader(const CURL& url)
     {
       auto prots = StringUtils::Split(vfsAddon->GetProtocols(), "|");
 
-      if (vfsAddon->HasFiles() && std::ranges::find(prots, url.GetProtocol()) != prots.end())
+      if (vfsAddon->HasFiles() && std::find(prots.begin(), prots.end(), url.GetProtocol()) != prots.end())
         return new CVFSEntryIFileWrapper(vfsAddon);
     }
   }
@@ -178,5 +176,5 @@ IFile* CFileFactory::CreateLoader(const CURL& url)
 
   CLog::Log(LOGWARNING, "{} - unsupported protocol({}) in {}", __FUNCTION__, url.GetProtocol(),
             url.GetRedacted());
-  return NULL;
+  return nullptr;
 }

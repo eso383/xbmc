@@ -40,13 +40,13 @@
 #include "settings/lib/Setting.h"
 #include "utils/ExecString.h"
 #include "utils/Geometry.h"
-#include "utils/Map.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
 #include <algorithm>
 #include <math.h>
 #include <mutex>
+#include <unordered_map>
 
 using EVENTSERVER::CEventServer;
 
@@ -56,11 +56,10 @@ const std::string CInputManager::SETTING_INPUT_ENABLE_CONTROLLER = "input.enable
 
 namespace
 {
-constexpr auto keyComposeactionEventMap = make_map<uint8_t, int>({
+const std::unordered_map<uint8_t, int> keyComposeactionEventMap = {
     {XBMC_KEYCOMPOSING_COMPOSING, ACTION_KEYBOARD_COMPOSING_KEY},
     {XBMC_KEYCOMPOSING_CANCELLED, ACTION_KEYBOARD_COMPOSING_KEY_CANCELLED},
-    {XBMC_KEYCOMPOSING_FINISHED, ACTION_KEYBOARD_COMPOSING_KEY_FINISHED},
-});
+    {XBMC_KEYCOMPOSING_FINISHED, ACTION_KEYBOARD_COMPOSING_KEY_FINISHED}};
 }
 
 CInputManager::CInputManager()
@@ -77,8 +76,11 @@ CInputManager::CInputManager()
 
   RegisterKeyboardDriverHandler(m_keyboardEasterEgg.get());
 
-  CServiceBroker::GetSettingsComponent()->GetSettings()->RegisterCallback(
-      this, {CSettings::SETTING_INPUT_ENABLEMOUSE, SETTING_INPUT_ENABLE_CONTROLLER});
+  // Register settings
+  std::set<std::string> settingSet;
+  settingSet.insert(CSettings::SETTING_INPUT_ENABLEMOUSE);
+  settingSet.insert(SETTING_INPUT_ENABLE_CONTROLLER);
+  CServiceBroker::GetSettingsComponent()->GetSettings()->RegisterCallback(this, settingSet);
 }
 
 CInputManager::~CInputManager()
@@ -210,7 +212,7 @@ bool CInputManager::ProcessEventServer(int windowId, float frameTime)
 
   if (wKeyID)
   {
-    if (!strMapName.empty())
+    if (strMapName.length() > 0)
     {
       // joysticks are not supported via eventserver
       if (isJoystick)
@@ -306,7 +308,8 @@ void CInputManager::ProcessQueuedActions()
 {
   std::vector<CAction> queuedActions;
   {
-    std::unique_lock lock(m_actionMutex);
+    std::lock_guard lock(m_actionMutex);
+
     queuedActions.swap(m_queuedActions);
   }
 
@@ -316,7 +319,7 @@ void CInputManager::ProcessQueuedActions()
 
 void CInputManager::QueueAction(const CAction& action)
 {
-  std::unique_lock lock(m_actionMutex);
+  std::lock_guard lock(m_actionMutex);
 
   // Avoid dispatching multiple analog actions per frame with the same ID
   if (action.IsAnalog())
@@ -362,7 +365,7 @@ bool CInputManager::OnEvent(XBMC_Event& newEvent)
     case XBMC_KEYCOMPOSING_CANCELLED:
     case XBMC_KEYCOMPOSING_FINISHED:
     {
-      const CAction action = CAction(keyComposeactionEventMap.find(newEvent.type)->second,
+      const auto action = CAction(keyComposeactionEventMap.find(newEvent.type)->second,
                                      static_cast<wchar_t>(newEvent.key.keysym.unicode));
       ExecuteInputAction(action);
       break;
@@ -702,7 +705,7 @@ bool CInputManager::AlwaysProcess(const CAction& action)
     const CExecString exec(action.GetName());
     if (exec.IsValid())
     {
-      const std::string& builtInFunction = exec.GetFunction();
+      const std::string builtInFunction = exec.GetFunction();
 
       // should this button be handled normally or just cancel the screensaver?
       if (builtInFunction == "powerdown" || builtInFunction == "reboot" ||
@@ -772,13 +775,11 @@ bool CInputManager::IsMouseActive()
   return m_Mouse.IsActive();
 }
 
-MOUSE_STATE CInputManager::GetMouseState()
-{
+MOUSE_STATE CInputManager::GetMouseState() const {
   return m_Mouse.GetState();
 }
 
-MousePosition CInputManager::GetMousePosition()
-{
+MousePosition CInputManager::GetMousePosition() const {
   return m_Mouse.GetPosition();
 }
 
@@ -907,8 +908,7 @@ const KEYMAP::IKeymapEnvironment* CInputManager::KeymapEnvironment() const
   return m_keymapEnvironment.get();
 }
 
-CAction CInputManager::GetAction(int window, const CKey& key, bool fallback /* = true */)
-{
+CAction CInputManager::GetAction(int window, const CKey& key, bool fallback /* = true */) const {
   return m_buttonTranslator->GetAction(window, key, fallback);
 }
 
@@ -916,15 +916,13 @@ bool CInputManager::TranslateCustomControllerString(int windowId,
                                                     const std::string& controllerName,
                                                     int buttonId,
                                                     int& action,
-                                                    std::string& strAction)
-{
+                                                    std::string& strAction) const {
   return m_customControllerTranslator->TranslateCustomControllerString(windowId, controllerName,
                                                                        buttonId, action, strAction);
 }
 
 bool CInputManager::TranslateTouchAction(
-    int windowId, int touchAction, int touchPointers, int& action, std::string& actionString)
-{
+    int windowId, int touchAction, int touchPointers, int& action, std::string& actionString) const {
   return m_touchTranslator->TranslateTouchAction(windowId, touchAction, touchPointers, action,
                                                  actionString);
 }
@@ -936,7 +934,8 @@ std::vector<std::shared_ptr<const KEYMAP::IWindowKeymap>> CInputManager::GetJoys
 
 void CInputManager::RegisterKeyboardDriverHandler(KEYBOARD::IKeyboardDriverHandler* handler)
 {
-  if (std::ranges::find(m_keyboardHandlers, handler) == m_keyboardHandlers.end())
+  if (std::find(m_keyboardHandlers.begin(), m_keyboardHandlers.end(), handler) ==
+      m_keyboardHandlers.end())
     m_keyboardHandlers.insert(m_keyboardHandlers.begin(), handler);
 }
 
@@ -949,7 +948,7 @@ void CInputManager::UnregisterKeyboardDriverHandler(KEYBOARD::IKeyboardDriverHan
 
 void CInputManager::RegisterMouseDriverHandler(MOUSE::IMouseDriverHandler* handler)
 {
-  if (std::ranges::find(m_mouseHandlers, handler) == m_mouseHandlers.end())
+  if (std::find(m_mouseHandlers.begin(), m_mouseHandlers.end(), handler) == m_mouseHandlers.end())
     m_mouseHandlers.insert(m_mouseHandlers.begin(), handler);
 }
 

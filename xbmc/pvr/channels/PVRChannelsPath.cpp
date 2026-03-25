@@ -21,6 +21,7 @@ using namespace PVR;
 const std::string CPVRChannelsPath::PATH_TV_CHANNELS = "pvr://channels/tv/";
 const std::string CPVRChannelsPath::PATH_RADIO_CHANNELS = "pvr://channels/radio/";
 
+
 CPVRChannelsPath::CPVRChannelsPath(const std::string& strPath)
 {
   std::string strVarPath = TrimSlashes(strPath);
@@ -65,7 +66,7 @@ CPVRChannelsPath::CPVRChannelsPath(const std::string& strPath)
         {
           m_kind = Kind::GROUP; // pvr://channels/(tv|radio)/<all-channels-wildcard>@-1
           m_groupName = segment;
-          m_groupClientID = PVR_CLIENT_INVALID_UID; // local
+          m_groupClientID = -1; // local
           break;
         }
 
@@ -74,11 +75,11 @@ CPVRChannelsPath::CPVRChannelsPath(const std::string& strPath)
         {
           m_groupName = CURL::Decode(tokens[0]);
 
-          const std::string& groupClientID = tokens[1];
+          std::string groupClientID = tokens[1];
           if (groupClientID.find_first_not_of("-0123456789") == std::string::npos)
           {
             m_groupClientID = std::atoi(groupClientID.c_str());
-            if (m_groupClientID >= PVR_CLIENT_INVALID_UID)
+            if (m_groupClientID >= -1)
             {
               m_kind = Kind::GROUP; // pvr://channels/(tv|radio)/<groupname>@<clientid>
               break;
@@ -112,9 +113,8 @@ CPVRChannelsPath::CPVRChannelsPath(const std::string& strPath)
           tokens = StringUtils::Split(tokens[1], ".");
           if (tokens.size() == 2 && tokens[1] == "pvr")
           {
-            const std::string& channelUID = tokens[0];
-            if (!channelUID.empty() &&
-                channelUID.find_first_not_of("0123456789") == std::string::npos)
+            std::string channelUID = tokens[0];
+            if (!channelUID.empty() && channelUID.find_first_not_of("0123456789") == std::string::npos)
               m_iChannelUID = std::atoi(channelUID.c_str());
           }
         }
@@ -154,8 +154,7 @@ CPVRChannelsPath::CPVRChannelsPath(bool bRadio,
                                    bool bHidden,
                                    const std::string& strGroupName,
                                    int iGroupClientID)
-  : m_bRadio(bRadio),
-    m_groupName(bHidden ? ".hidden" : strGroupName)
+  : m_bRadio(bRadio), m_groupName(bHidden ? ".hidden" : strGroupName)
 {
   if (m_groupName.empty())
   {
@@ -172,8 +171,7 @@ CPVRChannelsPath::CPVRChannelsPath(bool bRadio,
 }
 
 CPVRChannelsPath::CPVRChannelsPath(bool bRadio, const std::string& strGroupName, int iGroupClientID)
-  : m_bRadio(bRadio),
-    m_groupName(strGroupName)
+  : m_bRadio(bRadio), m_groupName(strGroupName)
 {
   if (m_groupName.empty())
   {
@@ -190,15 +188,14 @@ CPVRChannelsPath::CPVRChannelsPath(bool bRadio, const std::string& strGroupName,
 }
 
 CPVRChannelsPath::CPVRChannelsPath(bool bRadio,
-                                   std::string_view strGroupName,
+                                   const std::string& strGroupName,
                                    int iGroupClientID,
-                                   std::string_view strAddonID,
+                                   const std::string& strAddonID,
                                    ADDON::AddonInstanceId instanceID,
                                    int iChannelUID)
   : m_bRadio(bRadio)
 {
-  if (!strGroupName.empty() && iGroupClientID >= PVR_CLIENT_INVALID_UID && !strAddonID.empty() &&
-      iChannelUID >= 0)
+  if (!strGroupName.empty() && iGroupClientID >= -1 && !strAddonID.empty() && iChannelUID >= 0)
   {
     m_kind = Kind::CHANNEL;
     m_groupName = strGroupName;

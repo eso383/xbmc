@@ -9,13 +9,13 @@
 #include "GUIWindowPVRSearch.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "dialogs/GUIDialogBusy.h"
 #include "dialogs/GUIDialogYesNo.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIMessage.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "messaging/helpers/DialogOKHelper.h"
@@ -25,14 +25,11 @@
 #include "pvr/epg/Epg.h"
 #include "pvr/epg/EpgContainer.h"
 #include "pvr/epg/EpgInfoTag.h"
-#include "pvr/epg/EpgSearch.h"
 #include "pvr/epg/EpgSearchFilter.h"
 #include "pvr/epg/EpgSearchPath.h"
 #include "pvr/guilib/PVRGUIActionsEPG.h"
 #include "pvr/guilib/PVRGUIActionsTimers.h"
 #include "pvr/recordings/PVRRecording.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "threads/IRunnable.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -47,17 +44,12 @@ using namespace KODI::MESSAGING;
 
 namespace
 {
-// Numeric values are part of the Skinning API. Do not change.
-constexpr unsigned int CONTROL_LABEL_HEADER1 = 29;
-constexpr unsigned int CONTROL_LABEL_HEADER2 = 30;
-
 class AsyncSearchAction : private IRunnable
 {
 public:
   AsyncSearchAction() = delete;
   AsyncSearchAction(CFileItemList* items, CPVREpgSearchFilter* filter)
-    : m_items(items),
-      m_filter(filter)
+    : m_items(items), m_filter(filter)
   {
   }
   bool Execute();
@@ -78,10 +70,27 @@ bool AsyncSearchAction::Execute()
 
 void AsyncSearchAction::Run()
 {
-  CPVREpgSearch search(*m_filter);
-  search.Execute();
-  const auto& tags{search.GetResults()};
-  for (const auto& tag : tags)
+  std::vector<std::shared_ptr<CPVREpgInfoTag>> results =
+      CServiceBroker::GetPVRManager().EpgContainer().GetTags(m_filter->GetEpgSearchData());
+  m_filter->SetEpgSearchDataFiltered();
+
+  // Tags can still contain false positives, for search criteria that cannot be handled via
+  // database. So, run extended search filters on what we got from the database.
+  for (auto it = results.begin(); it != results.end();)
+  {
+    it = results.erase(std::remove_if(results.begin(), results.end(),
+                                      [this](const std::shared_ptr<CPVREpgInfoTag>& entry) {
+                                        return !m_filter->FilterEntry(entry);
+                                      }),
+                       results.end());
+  }
+
+  if (m_filter->ShouldRemoveDuplicates())
+    m_filter->RemoveDuplicates(results);
+
+  m_filter->SetLastExecutedDateTime(CDateTime::GetUTCDateTime());
+
+  for (const auto& tag : results)
   {
     m_items->Add(std::make_shared<CFileItem>(tag));
   }
@@ -93,7 +102,9 @@ CGUIWindowPVRSearchBase::CGUIWindowPVRSearchBase(bool bRadio, int id, const std:
 {
 }
 
-CGUIWindowPVRSearchBase::~CGUIWindowPVRSearchBase() = default;
+CGUIWindowPVRSearchBase::~CGUIWindowPVRSearchBase()
+{
+}
 
 void CGUIWindowPVRSearchBase::GetContextButtons(int itemNumber, CContextButtons& buttons)
 {
@@ -112,8 +123,10 @@ bool CGUIWindowPVRSearchBase::OnContextButton(int itemNumber, CONTEXT_BUTTON but
 {
   if (itemNumber < 0 || itemNumber >= m_vecItems->Size())
     return false;
+  CFileItemPtr pItem = m_vecItems->Get(itemNumber);
 
-  return OnContextButtonClear(button) || CGUIMediaWindow::OnContextButton(itemNumber, button);
+  return OnContextButtonClear(pItem.get(), button) ||
+         CGUIMediaWindow::OnContextButton(itemNumber, button);
 }
 
 void CGUIWindowPVRSearchBase::SetItemToSearch(const CFileItem& item)
@@ -124,12 +137,12 @@ void CGUIWindowPVRSearchBase::SetItemToSearch(const CFileItem& item)
   }
   else if (item.IsUsablePVRRecording())
   {
-    SetSearchFilter(std::make_shared<CPVREpgSearchFilter>(IsRadio()));
+    SetSearchFilter(std::make_shared<CPVREpgSearchFilter>(m_bRadio));
     m_searchfilter->SetSearchPhrase(item.GetPVRRecordingInfoTag()->m_strTitle);
   }
   else
   {
-    SetSearchFilter(std::make_shared<CPVREpgSearchFilter>(IsRadio()));
+    SetSearchFilter(std::make_shared<CPVREpgSearchFilter>(m_bRadio));
 
     const std::shared_ptr<const CPVREpgInfoTag> epgTag(CPVRItem(item).GetEpgInfoTag());
     if (epgTag && !CServiceBroker::GetPVRManager().IsParentalLocked(epgTag))
@@ -149,20 +162,19 @@ void CGUIWindowPVRSearchBase::OnPrepareFileItems(CFileItemList& items)
   if (items.IsEmpty())
   {
     auto item = std::make_shared<CFileItem>(CPVREpgSearchPath::PATH_SEARCH_DIALOG, false);
-    item->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
+    item->SetLabel(g_localizeStrings.Get(
         m_searchfilter == nullptr ? 19335 : 19336)); // "New search..." / "Edit search..."
     item->SetLabelPreformatted(true);
-    item->SetSpecialSort(SortSpecial::TOP);
+    item->SetSpecialSort(SortSpecialOnTop);
     item->SetArt("icon", "DefaultPVRSearch.png");
     items.Add(item);
 
-    item = std::make_shared<CFileItem>(IsRadio() ? CPVREpgSearchPath::PATH_RADIO_SAVEDSEARCHES
-                                                 : CPVREpgSearchPath::PATH_TV_SAVEDSEARCHES,
+    item = std::make_shared<CFileItem>(m_bRadio ? CPVREpgSearchPath::PATH_RADIO_SAVEDSEARCHES
+                                                : CPVREpgSearchPath::PATH_TV_SAVEDSEARCHES,
                                        true);
-    item->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-        19337)); // "Saved searches"
+    item->SetLabel(g_localizeStrings.Get(19337)); // "Saved searches"
     item->SetLabelPreformatted(true);
-    item->SetSpecialSort(SortSpecial::TOP);
+    item->SetSpecialSort(SortSpecialOnTop);
     item->SetArt("icon", "DefaultFolder.png");
     items.Add(item);
   }
@@ -267,8 +279,6 @@ bool CGUIWindowPVRSearchBase::OnMessage(CGUIMessage& message)
           case ACTION_RECORD:
             CServiceBroker::GetPVRManager().Get<PVR::GUI::Timers>().ToggleTimer(*pItem);
             return true;
-          default:
-            break;
         }
       }
     }
@@ -355,8 +365,7 @@ void CGUIWindowPVRSearchBase::UpdateButtons()
   if (path.IsValid() && path.IsSavedSearchesRoot())
   {
     bSavedSearchesRoot = true;
-    header =
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19337); // "Saved searches"
+    header = g_localizeStrings.Get(19337); // "Saved searches"
   }
 
   if (header.empty() && m_searchfilter)
@@ -371,18 +380,14 @@ void CGUIWindowPVRSearchBase::UpdateButtons()
   SET_CONTROL_LABEL(CONTROL_LABEL_HEADER1, header);
 
   if (!bSavedSearchesRoot && m_searchfilter && m_searchfilter->IsChanged())
-    SET_CONTROL_LABEL(
-        CONTROL_LABEL_HEADER2,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19342)); // "[not saved]"
+    SET_CONTROL_LABEL(CONTROL_LABEL_HEADER2, g_localizeStrings.Get(19342)); // "[not saved]"
   else if (!bSavedSearchesRoot && m_searchfilter)
-    SET_CONTROL_LABEL(
-        CONTROL_LABEL_HEADER2,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19343)); // "[saved]"
+    SET_CONTROL_LABEL(CONTROL_LABEL_HEADER2, g_localizeStrings.Get(19343)); // "[saved]"
   else
     SET_CONTROL_LABEL(CONTROL_LABEL_HEADER2, "");
 }
 
-bool CGUIWindowPVRSearchBase::OnContextButtonClear(CONTEXT_BUTTON button)
+bool CGUIWindowPVRSearchBase::OnContextButtonClear(CFileItem* item, CONTEXT_BUTTON button)
 {
   bool bReturn = false;
 
@@ -420,7 +425,7 @@ CGUIDialogPVRGuideSearch::Result CGUIWindowPVRSearchBase::OpenDialogSearch(
 
   const std::shared_ptr<CPVREpgSearchFilter> tmpSearchFilter =
       searchFilter != nullptr ? std::make_shared<CPVREpgSearchFilter>(*searchFilter)
-                              : std::make_shared<CPVREpgSearchFilter>(IsRadio());
+                              : std::make_shared<CPVREpgSearchFilter>(m_bRadio);
 
   dlgSearch->SetFilterData(tmpSearchFilter);
 
@@ -465,7 +470,7 @@ void CGUIWindowPVRSearchBase::ExecuteSearch()
   }
 
   // Save if not a transient search
-  if (m_searchfilter->GetDatabaseId() != PVR_EPG_SEARCH_INVALID_DATABASE_ID)
+  if (m_searchfilter->GetDatabaseId() != -1)
     CServiceBroker::GetPVRManager().EpgContainer().UpdateSavedSearchLastExecuted(*m_searchfilter);
 }
 
@@ -492,7 +497,7 @@ void CGUIWindowPVRSearchBase::SetSearchFilter(
       {
         title = m_searchfilter->GetSearchTerm();
         if (title.empty())
-          title = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(137); // "Search"
+          title = g_localizeStrings.Get(137); // "Search"
         else
           StringUtils::Trim(title, "\"");
 
@@ -504,7 +509,7 @@ void CGUIWindowPVRSearchBase::SetSearchFilter(
   m_searchfilter = searchFilter;
 }
 
-std::string CGUIWindowPVRTVSearch::GetRootPath()
+std::string CGUIWindowPVRTVSearch::GetRootPath() const
 {
   return CPVREpgSearchPath::PATH_TV_SEARCH;
 }
@@ -521,7 +526,7 @@ std::string CGUIWindowPVRTVSearch::GetDirectoryPath()
              : CPVREpgSearchPath::PATH_TV_SEARCH;
 }
 
-std::string CGUIWindowPVRRadioSearch::GetRootPath()
+std::string CGUIWindowPVRRadioSearch::GetRootPath() const
 {
   return CPVREpgSearchPath::PATH_RADIO_SEARCH;
 }

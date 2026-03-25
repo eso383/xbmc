@@ -15,12 +15,13 @@
 
 #include <gtest/gtest.h>
 
-using namespace KODI;
+using namespace PLAYLIST;
+
 
 TEST(TestPlayListXSPF, Load)
 {
   std::string filename = XBMC_REF_FILE_PATH("/xbmc/playlists/test/test.xspf");
-  PLAYLIST::CPlayListXSPF playlist;
+  CPlayListXSPF playlist;
   std::vector<std::string> pathparts;
   std::vector<std::string>::reverse_iterator it;
 

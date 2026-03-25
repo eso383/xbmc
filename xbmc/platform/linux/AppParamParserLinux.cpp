@@ -24,31 +24,31 @@ std::array<std::string, 1> availableLogTargets = {"console"};
 std::vector<std::string> availableAudioBackends = CCompileInfo::GetAvailableAudioBackends();
 std::vector<std::string> availableGlInterfaces = CCompileInfo::GetAvailableGlInterfaces();
 
-constexpr const char* windowingText =
+constexpr auto windowingText =
     R"""(
 Selected window system not available: {}
     Available window systems: {}
 )""";
 
-constexpr const char* loggingText =
+constexpr auto loggingText =
     R"""(
 Selected logging target not available: {}
-    Available log targets: {}
+    Available log targest: {}
 )""";
 
-constexpr const char* audioBackendsText =
+constexpr auto audioBackendsText =
     R"""(
 Selected audio backend not available: {}
     Available audio backends: {}
 )""";
 
-constexpr const char* glInterfaceText =
+constexpr auto glInterfaceText =
     R"""(
 Selected GL interface not available: {}
     Available GL interfaces: {}
 )""";
 
-constexpr const char* helpText =
+constexpr auto helpText =
     R"""(
 Linux Specific Arguments:
   --windowing=<system>  Select which windowing method to use.
@@ -75,7 +75,8 @@ void CAppParamParserLinux::ParseArg(const std::string& arg)
 
   if (arg.substr(0, 12) == "--windowing=")
   {
-    if (std::ranges::find(availableWindowSystems, arg.substr(12)) != availableWindowSystems.end())
+    if (std::find(availableWindowSystems.begin(), availableWindowSystems.end(), arg.substr(12)) !=
+        availableWindowSystems.end())
       GetAppParams()->SetWindowing(arg.substr(12));
     else
     {
@@ -86,7 +87,8 @@ void CAppParamParserLinux::ParseArg(const std::string& arg)
   }
   else if (arg.substr(0, 10) == "--logging=")
   {
-    if (std::ranges::find(availableLogTargets, arg.substr(10)) != availableLogTargets.end())
+    if (std::find(availableLogTargets.begin(), availableLogTargets.end(), arg.substr(10)) !=
+        availableLogTargets.end())
     {
       GetAppParams()->SetLogTarget(arg.substr(10));
     }
@@ -117,7 +119,8 @@ void CAppParamParserLinux::ParseArg(const std::string& arg)
   else if (arg.find("--gl-interface=") != std::string::npos)
   {
     const auto argValue = arg.substr(15);
-    const auto it = std::ranges::find(availableGlInterfaces, argValue);
+    const auto it =
+        std::find(availableGlInterfaces.cbegin(), availableGlInterfaces.cend(), argValue);
     if (it != availableGlInterfaces.cend())
     {
       GetAppParams()->SetGlInterface(argValue);

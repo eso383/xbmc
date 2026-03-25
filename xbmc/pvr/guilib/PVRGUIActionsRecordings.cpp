@@ -9,7 +9,6 @@
 #include "PVRGUIActionsRecordings.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "Util.h"
 #include "dialogs/GUIDialogBusy.h"
@@ -18,10 +17,7 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/WindowIDs.h"
-#include "jobs/JobManager.h"
-#include "messaging/helpers/DialogHelper.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "pvr/PVREventLogJob.h"
 #include "pvr/PVRItem.h"
 #include "pvr/PVRManager.h"
 #include "pvr/addons/PVRClient.h"
@@ -29,13 +25,8 @@
 #include "pvr/dialogs/GUIDialogPVRRecordingInfo.h"
 #include "pvr/dialogs/GUIDialogPVRRecordingSettings.h"
 #include "pvr/recordings/PVRRecording.h"
-#include "pvr/recordings/PVRRecordings.h"
-#include "pvr/settings/PVRSettings.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "threads/IRunnable.h"
-#include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
 
@@ -48,14 +39,6 @@ using namespace KODI::MESSAGING;
 
 namespace
 {
-enum PVRRECORD_DELETE_AFTER_WATCH
-{
-  // Values must match those defined in settings.xml -> pvrrecord.deleteafterwatch
-  NO = 0,
-  ASK = 1,
-  YES = 2,
-};
-
 class AsyncRecordingAction : private IRunnable
 {
 public:
@@ -120,7 +103,7 @@ private:
   bool DoRun(const std::shared_ptr<CFileItem>& item) override
   {
     CFileItemList items;
-    if (item->IsFolder())
+    if (item->m_bIsFolder)
     {
       CUtil::GetRecursiveListing(item->GetPath(), items, "", XFILE::DIR_FLAG_NO_FILE_INFO);
     }
@@ -129,14 +112,11 @@ private:
       items.Add(item);
     }
 
-    const auto recordings{CServiceBroker::GetPVRManager().Recordings()};
     return std::accumulate(
-        items.cbegin(), items.cend(), true,
-        [this, &recordings](bool success, const auto& itemToDelete)
-        {
+        items.cbegin(), items.cend(), true, [this](bool success, const auto& itemToDelete) {
           return (itemToDelete->IsPVRRecording() &&
                   (!m_bWatchedOnly || itemToDelete->GetPVRRecordingInfoTag()->GetPlayCount() > 0) &&
-                  !recordings->DeleteRecording(itemToDelete->GetPVRRecordingInfoTag()))
+                  !itemToDelete->GetPVRRecordingInfoTag()->Delete())
                      ? false
                      : success;
         });
@@ -201,14 +181,6 @@ private:
 
 } // unnamed namespace
 
-CPVRGUIActionsRecordings::CPVRGUIActionsRecordings()
-  : m_settings(std::make_unique<CPVRSettings>(
-        SettingsContainer({CSettings::SETTING_PVRRECORD_DELETEAFTERWATCH})))
-{
-}
-
-CPVRGUIActionsRecordings::~CPVRGUIActionsRecordings() = default;
-
 bool CPVRGUIActionsRecordings::ShowRecordingInfo(const CFileItem& item) const
 {
   if (!item.IsPVRRecording())
@@ -240,7 +212,7 @@ bool CPVRGUIActionsRecordings::EditRecording(const CFileItem& item) const
     return false;
   }
 
-  const auto origRecording{std::make_shared<CPVRRecording>()};
+  auto origRecording = std::make_shared<CPVRRecording>();
   origRecording->Update(*recording,
                         *CServiceBroker::GetPVRManager().GetClient(recording->ClientID()));
 
@@ -275,16 +247,7 @@ bool CPVRGUIActionsRecordings::CanEditRecording(const CFileItem& item) const
 
 bool CPVRGUIActionsRecordings::DeleteRecording(const CFileItem& item) const
 {
-  if (!item.IsFolder() && !item.HasPVRRecordingInfoTag())
-  {
-    const std::shared_ptr<CPVRRecording> recording{CPVRItem(item).GetRecording()};
-    if (recording)
-      return DeleteRecording(CFileItem{recording});
-    else
-      return false;
-  }
-
-  if ((!item.IsPVRRecording() && !item.IsFolder()) || item.IsParentFolder())
+  if ((!item.IsPVRRecording() && !item.m_bIsFolder) || item.IsParentFolder())
     return false;
 
   if (!ConfirmDeleteRecording(item))
@@ -292,7 +255,10 @@ bool CPVRGUIActionsRecordings::DeleteRecording(const CFileItem& item) const
 
   if (!AsyncDeleteRecording().Execute(item))
   {
-    HELPERS::ShowOKDialogText(CVariant{257}, CVariant{19111}); // "Error", "PVR backend error."
+    HELPERS::ShowOKDialogText(
+        CVariant{257},
+        CVariant{
+            19111}); // "Error", "PVR backend error. Check the log for more information about this message."
     return false;
   }
 
@@ -303,17 +269,18 @@ bool CPVRGUIActionsRecordings::ConfirmDeleteRecording(const CFileItem& item) con
 {
   return CGUIDialogYesNo::ShowAndGetInput(
       CVariant{122}, // "Confirm delete"
-      item.IsFolder() ? CVariant{19113} // "Delete all recordings in this folder?"
-      : item.GetPVRRecordingInfoTag()->IsDeleted()
-          ? CVariant{19294}
-          // "Remove this deleted recording from trash? This operation cannot be reverted."
-          : CVariant{19112}, // "Delete this recording?"
+      item.m_bIsFolder
+          ? CVariant{19113} // "Delete all recordings in this folder?"
+          : item.GetPVRRecordingInfoTag()->IsDeleted()
+                ? CVariant{19294}
+                // "Remove this deleted recording from trash? This operation cannot be reverted."
+                : CVariant{19112}, // "Delete this recording?"
       CVariant{""}, CVariant{item.GetLabel()});
 }
 
 bool CPVRGUIActionsRecordings::DeleteWatchedRecordings(const CFileItem& item) const
 {
-  if (!item.IsFolder() || item.IsParentFolder())
+  if (!item.m_bIsFolder || item.IsParentFolder())
     return false;
 
   if (!ConfirmDeleteWatchedRecordings(item))
@@ -321,7 +288,10 @@ bool CPVRGUIActionsRecordings::DeleteWatchedRecordings(const CFileItem& item) co
 
   if (!AsyncDeleteRecording(true).Execute(item))
   {
-    HELPERS::ShowOKDialogText(CVariant{257}, CVariant{19111}); // "Error", "PVR backend error."
+    HELPERS::ShowOKDialogText(
+        CVariant{257},
+        CVariant{
+            19111}); // "Error", "PVR backend error. Check the log for more information about this message."
     return false;
   }
 
@@ -362,7 +332,10 @@ bool CPVRGUIActionsRecordings::UndeleteRecording(const CFileItem& item) const
 
   if (!AsyncUndeleteRecording().Execute(item))
   {
-    HELPERS::ShowOKDialogText(CVariant{257}, CVariant{19111}); // "Error", "PVR backend error."
+    HELPERS::ShowOKDialogText(
+        CVariant{257},
+        CVariant{
+            19111}); // "Error", "PVR backend error. Check the log for more information about this message."
     return false;
   }
 
@@ -385,59 +358,4 @@ bool CPVRGUIActionsRecordings::ShowRecordingSettings(
   pDlgInfo->Open();
 
   return pDlgInfo->IsConfirmed();
-}
-
-bool CPVRGUIActionsRecordings::ProcessDeleteAfterWatch(const CFileItem& item) const
-{
-  bool deleteRecording{false};
-
-  const int action{m_settings->GetIntValue(CSettings::SETTING_PVRRECORD_DELETEAFTERWATCH)};
-  switch (action)
-  {
-    case PVRRECORD_DELETE_AFTER_WATCH::NO:
-      deleteRecording = false;
-      break;
-
-    case PVRRECORD_DELETE_AFTER_WATCH::ASK:
-      deleteRecording = (HELPERS::ShowYesNoDialogLines(
-                             CVariant{860}, // "Delete after watching"
-                             CVariant{865}, // "Do you want to delete this recording?"
-                             CVariant{""}, CVariant{item.GetPVRRecordingInfoTag()->GetTitle()}) ==
-                         HELPERS::DialogResponse::CHOICE_YES);
-      break;
-
-    case PVRRECORD_DELETE_AFTER_WATCH::YES:
-      deleteRecording = true;
-      break;
-
-    default:
-      CLog::LogF(LOGERROR, "Unhandled delete after watch action! Defaulting to 'no delete'.");
-      deleteRecording = false;
-      break;
-  }
-
-  if (deleteRecording)
-  {
-    if (AsyncDeleteRecording().Execute(item))
-    {
-      auto* job{new CPVREventLogJob};
-      job->AddEvent(
-          true, // display a toast, and log event
-          EventLevel::Information, // info, no error
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-              860), // "Delete after watching"
-          StringUtils::Format(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                  866), // Recording deleted: <title>
-                              item.GetPVRRecordingInfoTag()->GetTitle()),
-          item.GetPVRRecordingInfoTag()->IconPath());
-      CServiceBroker::GetJobManager()->AddJob(job, nullptr);
-    }
-    else
-    {
-      HELPERS::ShowOKDialogText(CVariant{257}, // "Error"
-                                CVariant{19111}); // "PVR backend error."
-      return false;
-    }
-  }
-  return true;
 }

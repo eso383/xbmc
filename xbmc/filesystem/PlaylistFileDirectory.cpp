@@ -9,13 +9,12 @@
 #include "PlaylistFileDirectory.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "filesystem/File.h"
 #include "playlists/PlayList.h"
 #include "playlists/PlayListFactory.h"
 
-using namespace KODI;
+using namespace PLAYLIST;
 
 namespace XFILE
 {
@@ -32,12 +31,12 @@ namespace XFILE
       if (!pPlayList->Load(url.Get()))
         return false; //hmmm unable to load playlist?
 
-      PLAYLIST::CPlayList playlist = *pPlayList;
+      CPlayList playlist = *pPlayList;
       // convert playlist items to songs
       for (int i = 0; i < playlist.size(); ++i)
       {
         CFileItemPtr item = playlist[i];
-        item->SetProgramCount(i); //! @todo remove this hack for playlist order
+        item->m_iprogramCount = i;  // hack for playlist order
         items.Add(item);
       }
     }
@@ -62,4 +61,5 @@ namespace XFILE
   {
     return XFILE::CFile::Delete(url);
   }
-  } // namespace XFILE
+}
+

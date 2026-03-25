@@ -55,8 +55,6 @@ public:
   void FlushRenderer();
   void SetRenderViewMode(int mode, float zoom, float par, float shift, bool stretch);
   float GetRenderAspectRatio() const;
-  bool GetRects(CRect& source, CRect& dest, CRect& view) const;
-  unsigned int GetOrientation() const;
   void TriggerUpdateResolution();
   void TriggerUpdateResolutionHdr(StreamHdrType hdrType);
   bool IsRenderingVideo() const;
@@ -84,7 +82,7 @@ public:
   bool CanPause() const;
   bool CanSeek() const;
   int GetAudioDelay() const;
-  void GetAudioCapabilities(std::vector<IPlayerAudioCaps>& caps) const;
+  void GetAudioCapabilities(std::vector<int>& audioCaps) const;
   int GetAudioStream();
   int GetAudioStreamCount() const;
   void GetAudioStreamInfo(int index, AudioStreamInfo& info) const;
@@ -96,10 +94,10 @@ public:
   int64_t GetChapterPos(int chapterIdx = -1) const;
   float GetPercentage() const;
   std::string GetPlayerState();
-  KODI::PLAYLIST::Id GetPreferredPlaylist() const;
+  PLAYLIST::Id GetPreferredPlaylist() const;
   int GetSubtitleDelay() const;
   int GetSubtitle();
-  void GetSubtitleCapabilities(std::vector<IPlayerSubtitleCaps>& caps) const;
+  void GetSubtitleCapabilities(std::vector<int>& subCaps) const;
   int GetSubtitleCount() const;
   void GetSubtitleStreamInfo(int index, SubtitleStreamInfo& info) const;
   bool GetSubtitleVisible() const;
@@ -137,7 +135,6 @@ public:
   bool IsPlayingVideo() const;
   bool IsPlayingGame() const;
   bool IsPlayingRDS() const;
-  bool IsLiveStream() const;
   void LoadPage(int p, int sp, unsigned char* buffer);
   bool OnAction(const CAction &action);
   void OnNothingToQueueNotify();
@@ -146,7 +143,7 @@ public:
   void Seek(bool bPlus = true, bool bLargeStep = false, bool bChapterOverride = false);
   int SeekChapter(int iChapter);
   void SeekPercentage(float fPercent = 0);
-  bool SeekScene(Direction seekDirection);
+  bool SeekScene(bool bPlus = true);
   void SeekTime(int64_t iTime = 0);
   void SeekTimeRelative(int64_t iTime = 0);
   void SetAudioStream(int iStream);

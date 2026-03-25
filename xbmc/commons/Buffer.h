@@ -73,7 +73,7 @@ namespace XbmcCommons
    * printf("buffer contents: %d, \"%s\", %ll\n", buffer.getInt(),
    *         buffer.getCharPointerDirect(), buffer.getLongLong());
    *
-   * This would also produce erroneous results as the gets will be evaluated
+   * This would also produce erroneous results as they get's will be evaluated
    *   from right to left in the parameter list of printf.
    */
   class Buffer
@@ -119,7 +119,7 @@ namespace XbmcCommons
      * other Buffer instances. It will be freed upon destruction of
      * the last Buffer that references it.
      */
-    inline explicit Buffer(size_t bufferSize) : buffer(bufferSize ? new unsigned char[bufferSize] : NULL), mcapacity(bufferSize)
+    inline explicit Buffer(size_t bufferSize) : buffer(bufferSize ? new unsigned char[bufferSize] : nullptr), mcapacity(bufferSize)
     {
       clear();
       bufferRef.reset(buffer, std::default_delete<unsigned char[]>());
@@ -152,7 +152,7 @@ namespace XbmcCommons
 
     inline Buffer& allocate(size_t bufferSize)
     {
-      buffer = bufferSize ? new unsigned char[bufferSize] : NULL;
+      buffer = bufferSize ? new unsigned char[bufferSize] : nullptr;
       bufferRef.reset(buffer, std::default_delete<unsigned char[]>());
       mcapacity = bufferSize;
       clear();
@@ -246,7 +246,8 @@ namespace XbmcCommons
       mposition += length;
       return ret;
     }
-    inline char* getCharPointerDirect() { char* ret = (char*)(buffer + mposition); size_t len = strlen(ret) + 1; check(len); mposition += len; return ret; }
+    inline char* getCharPointerDirect() {
+ auto ret = (char*)(buffer + mposition); size_t len = strlen(ret) + 1; check(len); mposition += len; return ret; }
 
   };
 

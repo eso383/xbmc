@@ -18,32 +18,32 @@ namespace XFILE
   {
     class CQueryParams;
 
-    enum class NodeType
+    typedef enum _NODE_TYPE
     {
-      NONE = 0,
-      ROOT,
-      OVERVIEW,
-      TOP100,
-      ROLE,
-      SOURCE,
-      GENRE,
-      ARTIST,
-      ALBUM,
-      ALBUM_RECENTLY_ADDED,
-      ALBUM_RECENTLY_ADDED_SONGS,
-      ALBUM_RECENTLY_PLAYED,
-      ALBUM_RECENTLY_PLAYED_SONGS,
-      ALBUM_TOP100,
-      ALBUM_TOP100_SONGS,
-      SONG,
-      SONG_TOP100,
-      YEAR,
-      SINGLES,
-      DISC,
-    };
+      NODE_TYPE_NONE=0,
+      NODE_TYPE_ROOT,
+      NODE_TYPE_OVERVIEW,
+      NODE_TYPE_TOP100,
+      NODE_TYPE_ROLE,
+      NODE_TYPE_SOURCE,
+      NODE_TYPE_GENRE,
+      NODE_TYPE_ARTIST,
+      NODE_TYPE_ALBUM,
+      NODE_TYPE_ALBUM_RECENTLY_ADDED,
+      NODE_TYPE_ALBUM_RECENTLY_ADDED_SONGS,
+      NODE_TYPE_ALBUM_RECENTLY_PLAYED,
+      NODE_TYPE_ALBUM_RECENTLY_PLAYED_SONGS,
+      NODE_TYPE_ALBUM_TOP100,
+      NODE_TYPE_ALBUM_TOP100_SONGS,
+      NODE_TYPE_SONG,
+      NODE_TYPE_SONG_TOP100,
+      NODE_TYPE_YEAR,
+      NODE_TYPE_SINGLES,
+      NODE_TYPE_DISC,
+    } NODE_TYPE;
 
     typedef struct {
-      NodeType node;
+      NODE_TYPE   node;
       std::string id;
       int         label;
     } Node;
@@ -53,16 +53,13 @@ namespace XFILE
     public:
       static CDirectoryNode* ParseURL(const std::string& strPath);
       static void GetDatabaseInfo(const std::string& strPath, CQueryParams& params);
-      static bool GetNodeInfo(const std::string& strPath,
-                              NodeType& type,
-                              NodeType& childtype,
-                              CQueryParams& params);
+      static bool GetNodeInfo(const std::string& strPath, NODE_TYPE& type, NODE_TYPE& childtype, CQueryParams& params);
       virtual ~CDirectoryNode();
 
-      NodeType GetType() const;
+      NODE_TYPE GetType() const;
 
       bool GetChilds(CFileItemList& items);
-      virtual NodeType GetChildType() const;
+      virtual NODE_TYPE GetChildType() const;
       virtual std::string GetLocalizedName() const;
 
       CDirectoryNode* GetParent() const;
@@ -71,10 +68,8 @@ namespace XFILE
       std::string BuildPath() const;
 
     protected:
-      CDirectoryNode(NodeType Type, const std::string& strName, CDirectoryNode* pParent);
-      static CDirectoryNode* CreateNode(NodeType Type,
-                                        const std::string& strName,
-                                        CDirectoryNode* pParent);
+      CDirectoryNode(NODE_TYPE Type, const std::string& strName, CDirectoryNode* pParent);
+      static CDirectoryNode* CreateNode(NODE_TYPE Type, const std::string& strName, CDirectoryNode* pParent);
 
       void AddOptions(const std::string &options);
       void CollectQueryParams(CQueryParams& params) const;
@@ -86,7 +81,7 @@ namespace XFILE
       virtual bool GetContent(CFileItemList& items) const;
 
     private:
-      NodeType m_Type;
+      NODE_TYPE m_Type;
       std::string m_strName;
       CDirectoryNode* m_pParent;
       CUrlOptions m_options;

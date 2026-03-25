@@ -9,6 +9,7 @@
 #pragma once
 
 #include "IActivePortList.h"
+#include "addons/AddonEvents.h"
 #include "games/GameTypes.h"
 #include "games/controllers/ControllerTypes.h"
 #include "games/ports/types/PortNode.h"
@@ -44,14 +45,17 @@ public:
   void Notify(const Observable& obs, const ObservableMessage msg) override;
 
 private:
+  // Add-on API
+  void OnEvent(const ADDON::AddonEvent& event);
+
   // GUI helpers
   void InitializeGUI();
   void DeinitializeGUI();
-  void AddInputDisabled();
+  void AddInputDisabled() const;
   void AddItems(const PortVec& ports);
-  void AddItem(const ControllerPtr& controller, const std::string& controllerAddress);
-  void AddPadding();
-  void CleanupItems();
+  void AddItem(const ControllerPtr& controller, const std::string& controllerAddress) const;
+  void AddPadding() const;
+  void CleanupItems() const;
 
   // Construction parameters
   CGUIWindow& m_guiWindow;

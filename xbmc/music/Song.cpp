@@ -76,7 +76,6 @@ CSong::CSong(CFileItem& item)
   iBitRate = tag.GetBitRate();
   iChannels = tag.GetNoOfChannels();
   songVideoURL = tag.GetSongVideoURL();
-  m_chapters = tag.GetChapterMarks();
 }
 
 CSong::CSong()
@@ -90,9 +89,7 @@ void CSong::SetArtistCredits(const std::vector<std::string>& names, const std::v
   artistCredits.clear();
   std::vector<std::string> artistHints = hints;
   //Split the artist sort string to try and get sort names for individual artists
-  std::vector<std::string> artistSort = StringUtils::Split(
-      strArtistSort,
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
+  std::vector<std::string> artistSort = StringUtils::Split(strArtistSort, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
 
   // Vector of possible separators in the order least likely to be part of artist name
   static const std::vector<std::string> separators{
@@ -118,7 +115,8 @@ void CSong::SetArtistCredits(const std::vector<std::string>& names, const std::v
         musicbrainz id so ignore them but raise warning.
       */
       // Do hints exist yet mismatch
-      if (!artistHints.empty() && artistHints.size() != mbids.size())
+      if (artistHints.size() > 0 &&
+        artistHints.size() != mbids.size())
       {
         if (names.size() == mbids.size())
           // Artist name count matches, use that as hints
@@ -285,12 +283,10 @@ void CSong::Clear()
   iSampleRate = 0;
   iChannels =  0;
   songVideoURL.clear();
-  m_chapters.clear();
 
   replayGain = ReplayGain();
 }
-
-std::vector<std::string> CSong::GetArtist() const
+const std::vector<std::string> CSong::GetArtist() const
 {
   //Get artist names as vector from artist credits
   std::vector<std::string> songartists;
@@ -306,7 +302,7 @@ std::vector<std::string> CSong::GetArtist() const
   return songartists;
 }
 
-std::string CSong::GetArtistSort() const
+const std::string CSong::GetArtistSort() const
 {
   //The stored artist sort name string takes precedence but a
   //value could be created from individual sort names held in artistcredits
@@ -322,7 +318,7 @@ std::string CSong::GetArtistSort() const
   return artistString;
 }
 
-std::vector<std::string> CSong::GetMusicBrainzArtistID() const
+const std::vector<std::string> CSong::GetMusicBrainzArtistID() const
 {
   //Get artist MusicBrainz IDs as vector from artist credits
   std::vector<std::string> musicBrainzID;
@@ -333,7 +329,7 @@ std::vector<std::string> CSong::GetMusicBrainzArtistID() const
   return musicBrainzID;
 }
 
-std::string CSong::GetArtistString() const
+const std::string CSong::GetArtistString() const
 {
   //Artist description may be different from the artists in artistcredits (see ARTISTS tag processing)
   //but is takes precedence as a string because artistcredits is not always filled during processing
@@ -348,7 +344,7 @@ std::string CSong::GetArtistString() const
   return artistString;
 }
 
-std::vector<int> CSong::GetArtistIDArray() const
+const std::vector<int> CSong::GetArtistIDArray() const
 {
   // Get song artist IDs for json rpc
   std::vector<int> artistids;
@@ -373,4 +369,9 @@ bool CSong::ArtMatches(const CSong &right) const
 {
   return (right.strThumb == strThumb &&
           embeddedArt.Matches(right.embeddedArt));
+}
+
+const std::string CSong::GetDiscSubtitle() const
+{
+  return strDiscSubtitle;
 }

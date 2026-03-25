@@ -41,12 +41,10 @@ public:
   }
   OVERSCAN& operator=(const OVERSCAN&) = default;
 
-  bool operator==(const OVERSCAN& other)
-  {
+  bool operator==(const OVERSCAN& other) const {
     return left == other.left && right == other.right && top == other.top && bottom == other.bottom;
   }
-  bool operator!=(const OVERSCAN& other)
-  {
+  bool operator!=(const OVERSCAN& other) const {
     return left != other.left || right != other.right || top != other.top || bottom != other.bottom;
   }
 };
@@ -113,6 +111,8 @@ struct RESOLUTION_INFO
 public:
   RESOLUTION_INFO(int width = 1280, int height = 720, float aspect = 0, const std::string &mode = "");
   float DisplayRatio() const;
+  RESOLUTION_INFO(const RESOLUTION_INFO& res);
+  RESOLUTION_INFO& operator=(const RESOLUTION_INFO&) = default;
 };
 
 class CResolutionUtils

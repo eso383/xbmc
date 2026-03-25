@@ -9,62 +9,50 @@
 #include "DatabaseQuery.h"
 
 #include "Database.h"
-#include "ServiceBroker.h"
 #include "XBDateTime.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/XBMCTinyXML.h"
 
-#include <algorithm>
-#include <array>
-#include <memory>
-#include <string>
-#include <vector>
-
-using enum CDatabaseQueryRule::SearchOperator;
-using enum CDatabaseQueryRule::FieldType;
-
-namespace
+typedef struct
 {
-struct OperatorField
+  char string[15];
+  CDatabaseQueryRule::SEARCH_OPERATOR op;
+  int localizedString;
+} operatorField;
+
+static const operatorField operators[] = {
+    {"contains", CDatabaseQueryRule::OPERATOR_CONTAINS, 21400},
+    {"doesnotcontain", CDatabaseQueryRule::OPERATOR_DOES_NOT_CONTAIN, 21401},
+    {"is", CDatabaseQueryRule::OPERATOR_EQUALS, 21402},
+    {"isnot", CDatabaseQueryRule::OPERATOR_DOES_NOT_EQUAL, 21403},
+    {"startswith", CDatabaseQueryRule::OPERATOR_STARTS_WITH, 21404},
+    {"endswith", CDatabaseQueryRule::OPERATOR_ENDS_WITH, 21405},
+    {"greaterthan", CDatabaseQueryRule::OPERATOR_GREATER_THAN, 21406},
+    {"lessthan", CDatabaseQueryRule::OPERATOR_LESS_THAN, 21407},
+    {"after", CDatabaseQueryRule::OPERATOR_AFTER, 21408},
+    {"before", CDatabaseQueryRule::OPERATOR_BEFORE, 21409},
+    {"inthelast", CDatabaseQueryRule::OPERATOR_IN_THE_LAST, 21410},
+    {"notinthelast", CDatabaseQueryRule::OPERATOR_NOT_IN_THE_LAST, 21411},
+    {"true", CDatabaseQueryRule::OPERATOR_TRUE, 20122},
+    {"false", CDatabaseQueryRule::OPERATOR_FALSE, 20424},
+    {"between", CDatabaseQueryRule::OPERATOR_BETWEEN, 21456}};
+
+CDatabaseQueryRule::CDatabaseQueryRule()
 {
-  std::string name;
-  CDatabaseQueryRule::SearchOperator op{OPERATOR_START};
-  int localizedName{0};
-};
-
-// clang-format off
-const std::array<OperatorField, 15> operators = {{
-  {"contains",        OPERATOR_CONTAINS,          21400},
-  {"doesnotcontain",  OPERATOR_DOES_NOT_CONTAIN,  21401},
-  {"is",              OPERATOR_EQUALS,            21402},
-  {"isnot",           OPERATOR_DOES_NOT_EQUAL,    21403},
-  {"startswith",      OPERATOR_STARTS_WITH,       21404},
-  {"endswith",        OPERATOR_ENDS_WITH,         21405},
-  {"greaterthan",     OPERATOR_GREATER_THAN,      21406},
-  {"lessthan",        OPERATOR_LESS_THAN,         21407},
-  {"after",           OPERATOR_AFTER,             21408},
-  {"before",          OPERATOR_BEFORE,            21409},
-  {"inthelast",       OPERATOR_IN_THE_LAST,       21410},
-  {"notinthelast",    OPERATOR_NOT_IN_THE_LAST,   21411},
-  {"true",            OPERATOR_TRUE,              20122},
-  {"false",           OPERATOR_FALSE,             20424},
-  {"between",         OPERATOR_BETWEEN,           21398},
-}};
-// clang-format on
-
-} // unnamed namespace
+  m_field = 0;
+  m_operator = OPERATOR_CONTAINS;
+}
 
 bool CDatabaseQueryRule::Load(const TiXmlNode* node, const std::string& encoding /* = "UTF-8" */)
 {
-  if (!node)
+  if (node == nullptr)
     return false;
 
   const TiXmlElement* element = node->ToElement();
-  if (!element)
+  if (element == nullptr)
     return false;
 
   // format is:
@@ -73,7 +61,7 @@ bool CDatabaseQueryRule::Load(const TiXmlNode* node, const std::string& encoding
   // <value> tags containing a string
   const char* field = element->Attribute("field");
   const char* oper = element->Attribute("operator");
-  if (!field || !oper)
+  if (field == nullptr || oper == nullptr)
     return false;
 
   m_field = TranslateField(field);
@@ -83,7 +71,7 @@ bool CDatabaseQueryRule::Load(const TiXmlNode* node, const std::string& encoding
     return true;
 
   const TiXmlNode* parameter = element->FirstChild();
-  if (!parameter)
+  if (parameter == nullptr)
     return false;
 
   if (parameter->Type() == TiXmlNode::TINYXML_TEXT)
@@ -92,7 +80,7 @@ bool CDatabaseQueryRule::Load(const TiXmlNode* node, const std::string& encoding
     if (encoding.empty()) // utf8
       utf8Parameter = parameter->ValueStr();
     else
-      CCharsetConverter::ToUtf8(encoding, parameter->ValueStr(), utf8Parameter);
+      g_charsetConverter.ToUtf8(encoding, parameter->ValueStr(), utf8Parameter);
 
     if (!utf8Parameter.empty())
       m_parameter.push_back(utf8Parameter);
@@ -100,16 +88,16 @@ bool CDatabaseQueryRule::Load(const TiXmlNode* node, const std::string& encoding
   else if (parameter->Type() == TiXmlNode::TINYXML_ELEMENT)
   {
     const TiXmlNode* valueNode = element->FirstChild("value");
-    while (valueNode)
+    while (valueNode != nullptr)
     {
       const TiXmlNode* value = valueNode->FirstChild();
-      if (value && value->Type() == TiXmlNode::TINYXML_TEXT)
+      if (value != nullptr && value->Type() == TiXmlNode::TINYXML_TEXT)
       {
         std::string utf8Parameter;
         if (encoding.empty()) // utf8
           utf8Parameter = value->ValueStr();
         else
-          CCharsetConverter::ToUtf8(encoding, value->ValueStr(), utf8Parameter);
+          g_charsetConverter.ToUtf8(encoding, value->ValueStr(), utf8Parameter);
 
         if (!utf8Parameter.empty())
           m_parameter.push_back(utf8Parameter);
@@ -160,7 +148,7 @@ bool CDatabaseQueryRule::Load(const CVariant& obj)
 
 bool CDatabaseQueryRule::Save(TiXmlNode* parent) const
 {
-  if (!parent ||
+  if (parent == nullptr ||
       (m_parameter.empty() && m_operator != OPERATOR_TRUE && m_operator != OPERATOR_FALSE))
     return false;
 
@@ -194,34 +182,34 @@ bool CDatabaseQueryRule::Save(CVariant& obj) const
   return true;
 }
 
-CDatabaseQueryRule::SearchOperator CDatabaseQueryRule::TranslateOperator(const char* oper)
+CDatabaseQueryRule::SEARCH_OPERATOR CDatabaseQueryRule::TranslateOperator(const char* oper)
 {
-  for (const auto& o : operators)
-    if (StringUtils::EqualsNoCase(oper, o.name))
+  for (const operatorField& o : operators)
+    if (StringUtils::EqualsNoCase(oper, o.string))
       return o.op;
   return OPERATOR_CONTAINS;
 }
 
-std::string CDatabaseQueryRule::TranslateOperator(SearchOperator oper)
+std::string CDatabaseQueryRule::TranslateOperator(SEARCH_OPERATOR oper)
 {
-  for (const auto& o : operators)
+  for (const operatorField& o : operators)
     if (oper == o.op)
-      return o.name;
+      return o.string;
   return "contains";
 }
 
-std::string CDatabaseQueryRule::GetLocalizedOperator(SearchOperator oper)
+std::string CDatabaseQueryRule::GetLocalizedOperator(SEARCH_OPERATOR oper)
 {
-  for (const auto& o : operators)
+  for (const operatorField& o : operators)
     if (oper == o.op)
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(o.localizedName);
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16018);
+      return g_localizeStrings.Get(o.localizedString);
+  return g_localizeStrings.Get(16018);
 }
 
 void CDatabaseQueryRule::GetAvailableOperators(std::vector<std::string>& operatorList)
 {
-  for (const auto& o : operators)
-    operatorList.emplace_back(o.name);
+  for (const operatorField& o : operators)
+    operatorList.emplace_back(o.string);
 }
 
 std::string CDatabaseQueryRule::GetParameter() const
@@ -282,7 +270,7 @@ std::string CDatabaseQueryRule::FormatParameter(const std::string& operatorStrin
   return parameter;
 }
 
-std::string CDatabaseQueryRule::GetOperatorString(SearchOperator op) const
+std::string CDatabaseQueryRule::GetOperatorString(SEARCH_OPERATOR op) const
 {
   std::string operatorString;
   if (GetFieldType(m_field) != TEXTIN_FIELD)
@@ -352,7 +340,7 @@ std::string CDatabaseQueryRule::GetOperatorString(SearchOperator op) const
 std::string CDatabaseQueryRule::GetWhereClause(const CDatabase& db,
                                                const std::string& strType) const
 {
-  const SearchOperator op = GetOperator(strType);
+  SEARCH_OPERATOR op = GetOperator(strType);
 
   std::string operatorString = GetOperatorString(op);
   std::string negate;
@@ -387,7 +375,7 @@ std::string CDatabaseQueryRule::GetWhereClause(const CDatabase& db,
     if (m_parameter.size() != 2)
       return "";
 
-    const CDatabaseQueryRule::FieldType fieldType = GetFieldType(m_field);
+    FIELD_TYPE fieldType = GetFieldType(m_field);
     if (fieldType == REAL_FIELD)
       return db.PrepareSQL("%s BETWEEN %s AND %s", GetField(m_field, strType).c_str(),
                            m_parameter[0].c_str(), m_parameter[1].c_str());
@@ -406,7 +394,8 @@ std::string CDatabaseQueryRule::GetWhereClause(const CDatabase& db,
 
   // now the query parameter
   std::string wholeQuery;
-  for (auto it = m_parameter.begin(); it != m_parameter.end(); ++it)
+  for (auto it = m_parameter.begin(); it != m_parameter.end();
+       ++it)
   {
     std::string query = '(' + FormatWhereClause(negate, operatorString, *it, db, strType) + ')';
 
@@ -458,7 +447,7 @@ void CDatabaseQueryRuleCombination::clear()
 {
   m_combinations.clear();
   m_rules.clear();
-  m_type = CDatabaseQueryRuleCombination::Type::COMBINATION_AND;
+  m_type = CombinationAnd;
 }
 
 std::string CDatabaseQueryRuleCombination::GetWhereClause(const CDatabase& db,
@@ -467,10 +456,11 @@ std::string CDatabaseQueryRuleCombination::GetWhereClause(const CDatabase& db,
   std::string rule;
 
   // translate the combinations into SQL
-  for (auto it = m_combinations.begin(); it != m_combinations.end(); ++it)
+  for (auto it = m_combinations.begin();
+       it != m_combinations.end(); ++it)
   {
     if (it != m_combinations.begin())
-      rule += m_type == CDatabaseQueryRuleCombination::Type::COMBINATION_AND ? " AND " : " OR ";
+      rule += m_type == CombinationAnd ? " AND " : " OR ";
     rule += "(" + (*it)->GetWhereClause(db, strType) + ")";
   }
 
@@ -478,12 +468,12 @@ std::string CDatabaseQueryRuleCombination::GetWhereClause(const CDatabase& db,
   for (const auto& it : m_rules)
   {
     if (!rule.empty())
-      rule += m_type == CDatabaseQueryRuleCombination::Type::COMBINATION_AND ? " AND " : " OR ";
+      rule += m_type == CombinationAnd ? " AND " : " OR ";
     rule += "(";
     std::string currentRule = it->GetWhereClause(db, strType);
     // if we don't get a rule, we add '1' or '0' so the query is still valid and doesn't fail
     if (currentRule.empty())
-      currentRule = m_type == CDatabaseQueryRuleCombination::Type::COMBINATION_AND ? "'1'" : "'0'";
+      currentRule = m_type == CombinationAnd ? "'1'" : "'0'";
     rule += currentRule;
     rule += ")";
   }
@@ -502,12 +492,12 @@ bool CDatabaseQueryRuleCombination::Load(const CVariant& obj,
   {
     if (obj.isMember("and") && obj["and"].isArray())
     {
-      m_type = CDatabaseQueryRuleCombination::Type::COMBINATION_AND;
+      m_type = CombinationAnd;
       child = obj["and"];
     }
     else if (obj.isMember("or") && obj["or"].isArray())
     {
-      m_type = CDatabaseQueryRuleCombination::Type::COMBINATION_OR;
+      m_type = CombinationOr;
       child = obj["or"];
     }
     else
@@ -577,30 +567,5 @@ bool CDatabaseQueryRuleCombination::Save(CVariant& obj) const
 
 std::string CDatabaseQueryRuleCombination::TranslateCombinationType() const
 {
-  return m_type == CDatabaseQueryRuleCombination::Type::COMBINATION_AND ? "and" : "or";
-}
-
-void CDatabaseQueryRuleCombination::AddRule(const std::shared_ptr<CDatabaseQueryRule>& rule)
-{
-  m_rules.emplace_back(rule);
-}
-
-void CDatabaseQueryRuleCombination::RemoveRule(const std::shared_ptr<CDatabaseQueryRule>& rule)
-{
-  const auto it = std::ranges::find(m_rules, rule);
-  if (it != m_rules.cend())
-    m_rules.erase(it);
-}
-
-void CDatabaseQueryRuleCombination::RemoveRule(int index)
-{
-  if (index < 0 || index >= static_cast<int>(m_rules.size()))
-    return;
-
-  m_rules.erase(m_rules.begin() + index);
-}
-
-void CDatabaseQueryRuleCombination::Reserve(size_t amount)
-{
-  m_rules.reserve(amount);
+  return m_type == CombinationAnd ? "and" : "or";
 }

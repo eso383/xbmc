@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "jobs/Job.h"
+#include "utils/Job.h"
 
 #include <map>
 #include <string>
@@ -74,15 +74,15 @@ public:
   // release the singleton; (save to call multiple times)
   static void   ReleaseInstance();
   // returns false if ReleaseInstance() was called before
-  static bool   IsInstantiated() { return  smp_instance != 0; }
+  static bool   IsInstantiated() { return  smp_instance != nullptr; }
   // win32: process results from the bonjour daemon
   virtual void  ProcessResults() {}
   // returns if the service is started and services are announced
-  bool IsStarted() { return m_started; }
+  bool IsStarted() const { return m_started; }
 
 protected:
   //methods to implement for concrete implementations
-  //publishes this service
+  //publishs this service
   virtual bool doPublishService(const std::string& fcr_identifier,
                                 const std::string& fcr_type,
                                 const std::string& fcr_name,

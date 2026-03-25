@@ -22,15 +22,16 @@ const std::string& CBinaryAddonBase::ID() const
   return m_addonInfo->ID();
 }
 
-std::shared_ptr<CAddonDll> CBinaryAddonBase::GetAddon(IAddonInstanceHandler* handler)
+AddonDllPtr CBinaryAddonBase::GetAddon(IAddonInstanceHandler* handler)
 {
   if (handler == nullptr)
   {
-    CLog::LogF(LOGERROR, "No instance handler given for addon-on '{}'", ID());
+    CLog::Log(LOGERROR, "CBinaryAddonBase::{}: for Id '{}' called with empty instance handler",
+              __FUNCTION__, ID());
     return nullptr;
   }
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   // If no 'm_activeAddon' is defined create it new.
   if (m_activeAddon == nullptr)
@@ -46,11 +47,12 @@ void CBinaryAddonBase::ReleaseAddon(IAddonInstanceHandler* handler)
 {
   if (handler == nullptr)
   {
-    CLog::LogF(LOGERROR, "No instance handler given for addon-on '{}'", ID());
+    CLog::Log(LOGERROR, "CBinaryAddonBase::{}: for Id '{}' called with empty instance handler",
+              __FUNCTION__, ID());
     return;
   }
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   auto presentHandler = m_activeAddonHandlers.find(handler);
   if (presentHandler == m_activeAddonHandlers.end())
@@ -67,39 +69,37 @@ void CBinaryAddonBase::ReleaseAddon(IAddonInstanceHandler* handler)
 
 size_t CBinaryAddonBase::UsedInstanceCount() const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return m_activeAddonHandlers.size();
 }
 
-std::shared_ptr<CAddonDll> CBinaryAddonBase::GetActiveAddon()
+AddonDllPtr CBinaryAddonBase::GetActiveAddon()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   return m_activeAddon;
 }
 
-void CBinaryAddonBase::OnPreInstall() const
-{
+void CBinaryAddonBase::OnPreInstall() const {
   const std::unordered_set<IAddonInstanceHandler*> activeAddonHandlers = m_activeAddonHandlers;
   for (const auto& instance : activeAddonHandlers)
     instance->OnPreInstall();
 }
 
-void CBinaryAddonBase::OnPostInstall(bool update, bool modal) const
-{
+void CBinaryAddonBase::OnPostInstall(bool update, bool modal) const {
   const std::unordered_set<IAddonInstanceHandler*> activeAddonHandlers = m_activeAddonHandlers;
   for (const auto& instance : activeAddonHandlers)
     instance->OnPostInstall(update, modal);
 }
 
-void CBinaryAddonBase::OnPreUnInstall() const
-{
+void CBinaryAddonBase::OnPreUnInstall() const {
   const std::unordered_set<IAddonInstanceHandler*> activeAddonHandlers = m_activeAddonHandlers;
   for (const auto& instance : activeAddonHandlers)
     instance->OnPreUnInstall();
 }
 
-void CBinaryAddonBase::OnPostUnInstall() const
-{
+void CBinaryAddonBase::OnPostUnInstall() const {
   const std::unordered_set<IAddonInstanceHandler*> activeAddonHandlers = m_activeAddonHandlers;
   for (const auto& instance : activeAddonHandlers)
     instance->OnPostUnInstall();

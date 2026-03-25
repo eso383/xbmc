@@ -17,8 +17,7 @@ using namespace MOUSE;
 
 CMouseInputHandling::CMouseInputHandling(IMouseInputHandler* handler,
                                          JOYSTICK::IButtonMap* buttonMap)
-  : m_handler(handler),
-    m_buttonMap(buttonMap)
+  : m_handler(handler), m_buttonMap(buttonMap)
 {
 }
 
@@ -34,13 +33,13 @@ bool CMouseInputHandling::OnPosition(int x, int y)
     return true;
   }
 
-  int differenceX = x - m_x;
-  int differenceY = y - m_y;
+  int dx = x - m_x;
+  int dy = y - m_y;
 
   bool bHandled = false;
 
   // Get direction of motion
-  POINTER_DIRECTION dir = GetPointerDirection(differenceX, differenceY);
+  POINTER_DIRECTION dir = GetPointerDirection(dx, dy);
 
   CDriverPrimitive source(dir);
   if (source.IsValid())
@@ -49,9 +48,6 @@ bool CMouseInputHandling::OnPosition(int x, int y)
     PointerName pointerName;
     if (m_buttonMap->GetFeature(source, pointerName))
     {
-      // Handle absolute position
-      bHandled |= m_handler->OnPosition(pointerName, x, y);
-
       // Get orthogonal direction of motion
       POINTER_DIRECTION dirCCW = GetOrthogonalDirectionCCW(dir);
 
@@ -65,18 +61,15 @@ bool CMouseInputHandling::OnPosition(int x, int y)
       if (target.IsValid())
       {
         // Invert y to right-handed cartesian system
-        differenceY *= -1;
+        dy *= -1;
 
         // Perform rotation
         int rotation[2][2] = {{1, 0}, {0, 1}};
 
         GetRotation(dir, target.PointerDirection(), rotation);
 
-        int rotatedX = rotation[0][0] * differenceX + rotation[0][1] * differenceY;
-        int rotatedY = rotation[1][0] * differenceX + rotation[1][1] * differenceY;
-
-        differenceX = rotatedX;
-        differenceY = rotatedY;
+        dx = rotation[0][0] * dx + rotation[0][1] * dy;
+        dy = rotation[1][0] * dx + rotation[1][1] * dy;
 
         if (targetCCW.IsValid())
         {
@@ -85,18 +78,15 @@ bool CMouseInputHandling::OnPosition(int x, int y)
 
           GetReflectionCCW(target.PointerDirection(), targetCCW.PointerDirection(), reflection);
 
-          int reflectedX = reflection[0][0] * differenceX + reflection[0][1] * differenceY;
-          int reflectedY = reflection[1][0] * differenceX + reflection[1][1] * differenceY;
-
-          differenceX = reflectedX;
-          differenceY = reflectedY;
+          dx = reflection[0][0] * dx + reflection[0][1] * dy;
+          dy = reflection[1][0] * dx + reflection[1][1] * dy;
         }
 
         // Invert y back to left-handed coordinate system
-        differenceY *= -1;
+        dy *= -1;
       }
 
-      bHandled |= m_handler->OnMotion(pointerName, differenceX, differenceY);
+      bHandled = m_handler->OnMotion(pointerName, dx, dy);
     }
   }
   else

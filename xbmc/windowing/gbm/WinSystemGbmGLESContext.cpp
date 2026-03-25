@@ -10,7 +10,7 @@
 
 #include "OptionalsReg.h"
 #include "cores/RetroPlayer/process/gbm/RPProcessInfoGbm.h"
-#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererDMAOpenGLES.h"
+#include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererDMA.h"
 #include "cores/RetroPlayer/rendering/VideoRenderers/RPRendererOpenGLES.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecDRMPRIME.h"
@@ -38,9 +38,8 @@ using namespace KODI::WINDOWING::GBM;
 using namespace std::chrono_literals;
 
 CWinSystemGbmGLESContext::CWinSystemGbmGLESContext()
-  : CWinSystemGbmEGLContext(EGL_PLATFORM_GBM_MESA, "EGL_MESA_platform_gbm")
-{
-}
+: CWinSystemGbmEGLContext(EGL_PLATFORM_GBM_MESA, "EGL_MESA_platform_gbm")
+{}
 
 void CWinSystemGbmGLESContext::Register()
 {
@@ -58,7 +57,7 @@ bool CWinSystemGbmGLESContext::InitWindowSystem()
   CDVDFactoryCodec::ClearHWAccels();
   CLinuxRendererGLES::Register();
   RETRO::CRPProcessInfoGbm::Register();
-  RETRO::CRPProcessInfoGbm::RegisterRendererFactory(new RETRO::CRendererFactoryDMAOpenGLES);
+  RETRO::CRPProcessInfoGbm::RegisterRendererFactory(new RETRO::CRendererFactoryDMA);
   RETRO::CRPProcessInfoGbm::RegisterRendererFactory(new RETRO::CRendererFactoryOpenGLES);
 
   if (!CWinSystemGbmEGLContext::InitWindowSystemEGL(EGL_OPENGL_ES2_BIT, EGL_OPENGL_ES_API))
@@ -98,11 +97,10 @@ bool CWinSystemGbmGLESContext::InitWindowSystem()
   return true;
 }
 
-bool CWinSystemGbmGLESContext::SetFullScreen(bool fullScreen,
-                                             RESOLUTION_INFO& res,
-                                             bool blankOtherDisplays)
+bool CWinSystemGbmGLESContext::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res, bool blankOtherDisplays)
 {
-  if (res.iWidth != m_nWidth || res.iHeight != m_nHeight)
+  if (res.iWidth != m_nWidth ||
+      res.iHeight != m_nHeight)
   {
     CLog::Log(LOGDEBUG, "CWinSystemGbmGLESContext::{} - resolution changed, creating a new window",
               __FUNCTION__);
@@ -128,48 +126,23 @@ void CWinSystemGbmGLESContext::PresentRender(bool rendered, bool videoLayer)
 
   if (rendered || videoLayer)
   {
-    bool async = !videoLayer && m_eglFence;
     if (rendered)
     {
-#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-      if (async)
-      {
-        int fd = m_DRM->TakeOutFenceFd();
-        if (fd != -1)
-        {
-          m_eglFence->CreateKMSFence(fd);
-          m_eglFence->WaitSyncGPU();
-        }
-
-        m_eglFence->CreateGPUFence();
-      }
-#endif
-
       if (!m_eglContext.TrySwapBuffers())
       {
         CEGLUtils::Log(LOGERROR, "eglSwapBuffers failed");
         throw std::runtime_error("eglSwapBuffers failed");
       }
-
-#if defined(EGL_ANDROID_native_fence_sync) && defined(EGL_KHR_fence_sync)
-      if (async)
-      {
-        int fd = m_eglFence->FlushFence();
-        m_DRM->SetInFenceFd(fd);
-
-        m_eglFence->WaitSyncCPU();
-      }
-#endif
     }
-
-    CWinSystemGbm::FlipPage(rendered, videoLayer, async);
+    CWinSystemGbm::FlipPage(rendered, videoLayer);
 
     if (m_dispReset && m_dispResetTimer.IsTimePast())
     {
       CLog::Log(LOGDEBUG, "CWinSystemGbmGLESContext::{} - Sending display reset to all clients",
                 __FUNCTION__);
       m_dispReset = false;
-      std::unique_lock lock(m_resourceSection);
+
+      std::lock_guard lock(m_resourceSection);
 
       for (auto resource : m_resources)
         resource->OnResetDisplay();

@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
 #include "threads/CriticalSection.h"
 #include "utils/ContentUtils.h"
 
@@ -51,14 +50,6 @@ public:
   void ReInit();
 
   /*!
-   * @brief Inform that playback of an item is going to happen.
-   * Add any info to the item that is needed for playback, e.g. add dyn path and properties
-   * @param item The item that shall be played.
-   * @return True on success, false otherwise.
-   */
-  bool OnPreparePlayback(CFileItem& item) const;
-
-  /*!
    * @brief Inform that playback of an item just started.
    * @param item The item that started to play.
    */
@@ -83,7 +74,9 @@ public:
    * @param item containing a channel, a recording or an epg tag.
    * @param mode playback mode.
    */
-  void StartPlayback(std::unique_ptr<CFileItem>& item, ContentUtils::PlayMode mode) const;
+  void StartPlayback(
+      CFileItem* item,
+      ContentUtils::PlayMode mode = ContentUtils::PlayMode::CHECK_AUTO_PLAY_NEXT_ITEM) const;
 
   /*!
    * @brief Check if a TV channel, radio channel or recording is playing.
@@ -188,7 +181,7 @@ public:
 
   /*!
    * @brief Get the ID of the playing client, if there is one.
-   * @return The ID or PVR_CLIENT_INVALID_UID if no client is playing.
+   * @return The ID or -1 if no client is playing.
    */
   int GetPlayingClientID() const;
 
@@ -283,7 +276,7 @@ private:
    * @param time The last watched time to set
    */
   void UpdateLastWatched(const std::shared_ptr<CPVRChannelGroupMember>& channel,
-                         const CDateTime& time) const;
+                         const CDateTime& time);
 
   mutable CCriticalSection m_critSection;
 
@@ -296,7 +289,7 @@ private:
   std::shared_ptr<CPVRChannelGroupMember> m_previousToLastPlayedChannelRadio;
   std::string m_strPlayingClientName;
   int m_playingGroupId = -1;
-  int m_playingClientId = PVR_CLIENT_INVALID_UID;
+  int m_playingClientId = -1;
   int m_playingChannelUniqueId = -1;
   std::string m_strPlayingRecordingUniqueId;
   int m_playingEpgTagChannelUniqueId = -1;

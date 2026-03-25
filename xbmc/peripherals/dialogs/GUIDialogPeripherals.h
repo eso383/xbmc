@@ -9,7 +9,6 @@
 #pragma once
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "dialogs/GUIDialogSelect.h"
 #include "threads/CriticalSection.h"
 #include "utils/Observer.h"
@@ -45,7 +44,7 @@ private:
   // implementation of CGUIWindow via CGUIDialogSelect
   void OnInitWindow() override;
 
-  void UpdatePeripheralsAsync();
+  void UpdatePeripheralsAsync() const;
   void UpdatePeripheralsSync();
 
   CPeripherals* m_manager = nullptr;

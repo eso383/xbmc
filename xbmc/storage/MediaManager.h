@@ -9,11 +9,11 @@
 #pragma once
 
 #include "IStorageProvider.h"
-#include "MediaSource.h" // for std::vector<CMediaSource>
-#include "jobs/IJobCallback.h"
+#include "MediaSource.h" // for VECSOURCES
 #include "storage/discs/IDiscDriveHandler.h"
 #include "threads/CriticalSection.h"
 #include "utils/DiscsUtils.h"
+#include "utils/Job.h"
 
 #include <map>
 #include <memory>
@@ -34,24 +34,17 @@ public:
 class CMediaManager : public IStorageEventsCallback, public IJobCallback
 {
 public:
-  enum class HasBlurayPlaylist : uint8_t
-  {
-    YES,
-    NO,
-    UNKNOWN
-  };
-
   CMediaManager();
 
   void Initialize();
   void Stop();
 
-  void LoadSources();
+  bool LoadSources();
   bool SaveSources();
 
-  void GetLocalDrives(std::vector<CMediaSource>& localDrives, bool includeQ = true);
-  void GetRemovableDrives(std::vector<CMediaSource>& removableDrives);
-  void GetNetworkLocations(std::vector<CMediaSource>& locations, bool autolocations = true);
+  void GetLocalDrives(VECSOURCES &localDrives, bool includeQ = true);
+  void GetRemovableDrives(VECSOURCES &removableDrives);
+  void GetNetworkLocations(VECSOURCES &locations, bool autolocations = true) const;
 
   bool AddNetworkLocation(const std::string &path);
   bool HasLocation(const std::string& path) const;
@@ -62,7 +55,7 @@ public:
   void RemoveAutoSource(const CMediaSource &share);
   bool IsDiscInDrive(const std::string& devicePath="");
   bool IsAudio(const std::string& devicePath="");
-  bool HasOpticalDrive();
+  bool HasOpticalDrive() const;
   std::string TranslateDevicePath(const std::string& devicePath, bool bReturnAsDevice=false);
   DriveState GetDriveStatus(const std::string& devicePath = "");
 #ifdef HAS_OPTICAL_DRIVE
@@ -70,14 +63,6 @@ public:
   bool RemoveCdInfo(const std::string& devicePath="");
   std::string GetDiskLabel(const std::string& devicePath="");
   std::string GetDiskUniqueId(const std::string& devicePath="");
-  bool HasMediaBlurayPlaylist(const std::string& devicePath = "");
-
-  /*! \brief Reset flag for removable bluray playlist status
-   * This is needed as HasMediaBlurayPlaylist() is called every screen refresh when
-   * the disc node is highlighted.
-   * It needs to be reset whenever a disc is ejected or played (as a playlist may have been selected).
-  */
-  void ResetBlurayPlaylistStatus();
 
   /*! \brief Gets the platform disc drive handler
   * @todo this likely doesn't belong here but in some discsupport component owned by media manager
@@ -120,8 +105,6 @@ public:
 
   bool playStubFile(const CFileItem& item);
 
-  UTILS::DISCS::DiscInfo GetDiscInfo(const std::string& mediaPath);
-
 protected:
   std::vector<CNetworkLocation> m_locations;
 
@@ -158,9 +141,7 @@ private:
   std::shared_ptr<IDiscDriveHandler> m_platformDiscDriveHander;
 #endif
 
+  UTILS::DISCS::DiscInfo GetDiscInfo(const std::string& mediaPath);
   void RemoveDiscInfo(const std::string& devicePath);
   std::map<std::string, UTILS::DISCS::DiscInfo> m_mapDiscInfo;
-#ifdef HAVE_LIBBLURAY
-  HasBlurayPlaylist m_hasBlurayPlaylist{HasBlurayPlaylist::UNKNOWN};
-#endif
 };

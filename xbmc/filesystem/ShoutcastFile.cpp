@@ -43,8 +43,8 @@ CShoutcastFile::CShoutcastFile() :
 {
   m_discarded = 0;
   m_currint = 0;
-  m_buffer = NULL;
-  m_cacheReader = NULL;
+  m_buffer = nullptr;
+  m_cacheReader = nullptr;
   m_metaint = 0;
 }
 
@@ -63,8 +63,7 @@ int64_t CShoutcastFile::GetLength()
   return 0;
 }
 
-std::string CShoutcastFile::DecodeToUTF8(const std::string& str)
-{
+std::string CShoutcastFile::DecodeToUTF8(const std::string& str) const {
   std::string ret = str;
 
   if (m_fileCharset.empty())
@@ -95,7 +94,7 @@ bool CShoutcastFile::Open(const CURL& url)
   bool result = m_file.Open(url2);
   if (result)
   {
-    m_fileCharset = m_file.GetProperty(FileProperty::CONTENT_CHARSET);
+    m_fileCharset = m_file.GetProperty(XFILE::FILE_PROPERTY_CONTENT_CHARSET);
 
     icyTitle = m_file.GetHttpHeader().GetValue("icy-name");
     if (icyTitle.empty())
@@ -119,7 +118,7 @@ bool CShoutcastFile::Open(const CURL& url)
 
   if (result)
   {
-    std::unique_lock lock(m_tagSection);
+    std::lock_guard lock(m_tagSection);
 
     m_masterTag = std::make_shared<CMusicInfoTag>();
     m_masterTag->SetStationName(icyTitle);
@@ -168,12 +167,13 @@ void CShoutcastFile::Close()
 {
   StopThread();
   delete[] m_buffer;
-  m_buffer = NULL;
+  m_buffer = nullptr;
   m_file.Close();
   m_title.clear();
 
   {
-    std::unique_lock lock(m_tagSection);
+    std::lock_guard lock(m_tagSection);
+
     while (!m_tags.empty())
       m_tags.pop();
     m_masterTag.reset();
@@ -214,15 +214,10 @@ bool CShoutcastFile::ExtractTagInfo(const char* buf)
         if (StringUtils::StartsWithNoCase(streamUrlData, "http://") ||
             StringUtils::StartsWithNoCase(streamUrlData, "https://"))
         {
-          const CURL dataURL(streamUrlData);
-          // Check if StreamUrl is a direct image URL (e.g., Radio Paradise)
-          if (dataURL.IsPicture())
-          {
-            coverURL = streamUrlData;
-          }
           // Bauer Media Radio listenapi null event to erase current data
-          else if (!StringUtils::EndsWithNoCase(streamUrlData, "eventdata/-1"))
+          if (!StringUtils::EndsWithNoCase(streamUrlData, "eventdata/-1"))
           {
+            const CURL dataURL(streamUrlData);
             XFILE::CCurlFile http;
             std::string extData;
 
@@ -302,9 +297,9 @@ bool CShoutcastFile::ExtractTagInfo(const char* buf)
       if (!CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_bShoutcastArt)
         coverURL.clear();
 
-      std::unique_lock lock(m_tagSection);
+      std::lock_guard lock(m_tagSection);
 
-      const std::shared_ptr<CMusicInfoTag> tag = std::make_shared<CMusicInfoTag>(*m_masterTag);
+      const auto tag = std::make_shared<CMusicInfoTag>(*m_masterTag);
       tag->SetArtist(artistInfo);
       tag->SetTitle(title);
       tag->SetStationArt(coverURL);
@@ -328,11 +323,12 @@ void CShoutcastFile::ReadTruncated(char* buf2, int size)
   }
 }
 
-int CShoutcastFile::IoControl(IOControl control, void* payload)
+int CShoutcastFile::IoControl(EIoControl control, void* payload)
 {
-  if (control == IOControl::SET_CACHE && m_cacheReader == nullptr)
+  if (control == IOCTRL_SET_CACHE && m_cacheReader == nullptr)
   {
-    std::unique_lock lock(m_tagSection);
+    std::lock_guard lock(m_tagSection);
+
     m_cacheReader = static_cast<CFileCache*>(payload);
     Create();
   }
@@ -346,7 +342,8 @@ void CShoutcastFile::Process()
   {
     if (m_tagChange.Wait(500ms))
     {
-      std::unique_lock lock(m_tagSection);
+      std::lock_guard lock(m_tagSection);
+      
       while (!m_bStop && !m_tags.empty())
       {
         const TagInfo& front = m_tags.front();
@@ -357,7 +354,7 @@ void CShoutcastFile::Process()
         }
         else
         {
-          CFileItem* item = new CFileItem(*front.second); // will be deleted by msg receiver
+          auto item = new CFileItem(*front.second); // will be deleted by msg receiver
           m_tags.pop();
           CServiceBroker::GetAppMessenger()->PostMsg(TMSG_UPDATE_CURRENT_ITEM, 1, -1,
                                                      static_cast<void*>(item));

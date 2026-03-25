@@ -10,7 +10,6 @@
 
 #include "FileItem.h"
 #include "ThumbLoader.h"
-#include "utils/Artwork.h"
 
 #include <map>
 #include <vector>
@@ -19,7 +18,8 @@ class CStreamDetails;
 class CVideoDatabase;
 class EmbeddedArt;
 
-using ArtCache = std::map<std::pair<MediaType, int>, KODI::ART::Artwork>;
+using ArtMap = std::map<std::string, std::string>;
+using ArtCache = std::map<std::pair<MediaType, int>, ArtMap>;
 
 class CVideoThumbLoader : public CThumbLoader
 {
@@ -81,10 +81,7 @@ protected:
    \param item The CFileItem to process
    \return void
    */
-  void DetectAndAddMissingItemData(CFileItem &item);
+  void DetectAndAddMissingItemData(CFileItem &item) const;
 
-  const KODI::ART::Artwork& GetArtFromCache(const std::string& mediaType, const int id);
-
-private:
-  int SetDetailsForItem(CVideoInfoTag& details, const KODI::ART::Artwork& artwork);
+  const ArtMap& GetArtFromCache(const std::string &mediaType, const int id);
 };

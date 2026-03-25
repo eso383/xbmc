@@ -29,7 +29,6 @@
     defined(__arm__) || \
     defined(__loongarch__) || \
     defined(_M_ARM) || \
-    defined(_M_ARM64) || \
     defined(__mips__) || \
     defined(__or1k__) || \
     defined(__powerpc__) || \
@@ -151,14 +150,6 @@ namespace MathUtils
 #endif
     return i;
 #endif
-  }
-
-  /*! \brief Round to nearest integer.
-   \sa truncate_int, test
-  */
-  inline int round_int(float x)
-  {
-    return round_int(static_cast<double>(x));
   }
 
   /*! \brief Truncate to nearest integer.

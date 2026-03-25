@@ -58,13 +58,6 @@ public:
   bool SupportsWriteFileOperations() const;
 
   /*!
-   * @brief Resolves a given item to a playable item
-   * @param item The item being manipulated (which the path points to a vfs protocol implementation)
-   * @return True if the item was resolved, false if it failed to resolve
-  */
-  static bool Resolve(CFileItem& item);
-
-  /*!
    * @brief Check if any TV recordings are existing.
    * @return True if TV recordings exists, false otherwise.
    */
@@ -105,13 +98,6 @@ public:
   bool GetChannelsDirectory(CFileItemList& results) const;
 
   /*!
-   * @brief Get the list of providers.
-   * @param results The file list to store the results in.
-   * @return True on success, false otherwise..
-   */
-  bool GetProvidersDirectory(CFileItemList& results) const;
-
-  /*!
    * @brief Get info for a recording folder.
    * @param item The folder.
    * @return True on success, false otherwise..
@@ -122,7 +108,6 @@ private:
   bool GetTimersDirectory(CFileItemList& results) const;
   bool GetRecordingsDirectory(CFileItemList& results) const;
   bool GetSavedSearchesDirectory(bool bRadio, CFileItemList& results) const;
-  bool GetSavedSearchResults(bool isRadio, int id, CFileItemList& results) const;
 
   const CURL m_url;
 };

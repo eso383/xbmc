@@ -12,7 +12,6 @@
 #include "AEPackIEC61937.h"
 
 #include <list>
-#include <memory>
 #include <stdint.h>
 #include <vector>
 

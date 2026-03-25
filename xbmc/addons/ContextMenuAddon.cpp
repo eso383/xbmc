@@ -10,10 +10,8 @@
 
 #include "ContextMenuItem.h"
 #include "ContextMenuManager.h"
-#include "ServiceBroker.h"
 #include "addons/addoninfo/AddonType.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
@@ -44,18 +42,16 @@ CContextMenuAddon::CContextMenuAddon(const AddonInfoPtr& addonInfo)
       std::string parent = elem->GetValue("parent").asString() == "kodi.core.manage"
           ? CContextMenuManager::MANAGE.m_groupId : CContextMenuManager::MAIN.m_groupId;
 
-      std::string label = elem->GetValue("label").asString();
+      auto label = elem->GetValue("label").asString();
       if (StringUtils::IsNaturalNumber(label))
-        label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-            ID(), atoi(label.c_str()));
+        label = g_localizeStrings.GetAddonString(ID(), atoi(label.c_str()));
 
-      m_items.emplace_back(CContextMenuItem::CItem{
-          .label = std::move(label),
-          .parent = std::move(parent),
-          .library =
-              URIUtils::AddFileToFolder(Path(), Type(AddonType::CONTEXTMENU_ITEM)->LibName()),
-          .condition = std::move(visCondition),
-          .addonId = ID()});
+      CContextMenuItem menuItem = CContextMenuItem::CreateItem(
+          label, parent,
+          URIUtils::AddFileToFolder(Path(), Type(AddonType::CONTEXTMENU_ITEM)->LibName()),
+          visCondition, ID());
+
+      m_items.push_back(menuItem);
     }
   }
 }
@@ -67,54 +63,46 @@ void CContextMenuAddon::ParseMenu(
     const std::string& parent,
     int& anonGroupCount)
 {
-  std::string menuId = elem->GetValue("@id").asString();
-  std::string menuLabel = elem->GetValue("label").asString();
+  auto menuId = elem->GetValue("@id").asString();
+  auto menuLabel = elem->GetValue("label").asString();
   if (StringUtils::IsNaturalNumber(menuLabel))
-    menuLabel = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-        ID(), std::stoi(menuLabel));
+    menuLabel = g_localizeStrings.GetAddonString(ID(), std::stoi(menuLabel));
 
   if (menuId.empty())
   {
     //anonymous group. create a new unique internal id.
-    anonGroupCount++;
     std::stringstream ss;
-    ss << ID() << anonGroupCount;
+    ss << ID() << ++anonGroupCount;
     menuId = ss.str();
   }
 
-  m_items.emplace_back(CContextMenuItem::CGroup{
-      .label = std::move(menuLabel), .parent = parent, .groupId = menuId, .addonId = ID()});
+  m_items.push_back(CContextMenuItem::CreateGroup(menuLabel, parent, menuId, ID()));
 
-  for (const auto& [_, addonExtensions] : elem->GetElements("menu"))
-    ParseMenu(&addonExtensions, menuId, anonGroupCount);
+  for (const auto& subMenu : elem->GetElements("menu"))
+    ParseMenu(&subMenu.second, menuId, anonGroupCount);
 
-  for (const auto& [_, addonExtensions] : elem->GetElements("item"))
+  for (const auto& element : elem->GetElements("item"))
   {
-    std::string visCondition = addonExtensions.GetValue("visible").asString();
-    std::string library = addonExtensions.GetValue("@library").asString();
-    std::string label = addonExtensions.GetValue("label").asString();
+    std::string visCondition = element.second.GetValue("visible").asString();
+    std::string library = element.second.GetValue("@library").asString();
+    std::string label = element.second.GetValue("label").asString();
     if (StringUtils::IsNaturalNumber(label))
-      label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().GetAddonString(
-          ID(), std::atoi(label.c_str()));
+      label = g_localizeStrings.GetAddonString(ID(), atoi(label.c_str()));
 
     std::vector<std::string> args;
-    args.emplace_back(ID());
-
-    const std::string arg = addonExtensions.GetValue("@args").asString();
+    args.push_back(ID());
+ 
+    std::string arg = element.second.GetValue("@args").asString();
     if (!arg.empty())
-      args.emplace_back(arg);
+      args.push_back(arg);
 
     if (!label.empty() && !library.empty() && !visCondition.empty())
     {
-      m_items.emplace_back(
-          CContextMenuItem::CItem{.label = std::move(label),
-                                  .parent = menuId,
-                                  .library = URIUtils::AddFileToFolder(Path(), library),
-                                  .condition = std::move(visCondition),
-                                  .addonId = ID(),
-                                  .args = std::move(args)});
+      auto menu = CContextMenuItem::CreateItem(label, menuId,
+          URIUtils::AddFileToFolder(Path(), library), visCondition, ID(), args);
+      m_items.push_back(menu);
     }
   }
 }
 
-} // namespace ADDON
+}

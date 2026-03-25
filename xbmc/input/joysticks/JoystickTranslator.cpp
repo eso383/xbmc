@@ -8,10 +8,8 @@
 
 #include "JoystickTranslator.h"
 
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/joysticks/DriverPrimitive.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 
 using namespace KODI;
@@ -164,12 +162,10 @@ std::string CJoystickTranslator::GetPrimitiveName(const CDriverPrimitive& primit
   switch (primitive.Type())
   {
     case PRIMITIVE_TYPE::BUTTON:
-      primitiveTemplate =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35015); // "Button %d"
+      primitiveTemplate = g_localizeStrings.Get(35015); // "Button %d"
       break;
     case PRIMITIVE_TYPE::SEMIAXIS:
-      primitiveTemplate =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35016); // "Axis %d"
+      primitiveTemplate = g_localizeStrings.Get(35016); // "Axis %d"
       break;
     default:
       break;

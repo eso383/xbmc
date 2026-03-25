@@ -17,7 +17,6 @@
 #include "guilib/GUITexture.h"
 #include "utils/ColorUtils.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 CGUIWindowScreensaverDim::CGUIWindowScreensaverDim(void)
   : CGUIDialog(WINDOW_SCREENSAVER_DIM, "", DialogModalityType::MODELESS)
@@ -75,8 +74,7 @@ void CGUIWindowScreensaverDim::Render()
   else if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
     CServiceBroker::GetWinSystem()->GetGfxContext().SetRenderOrder(RENDER_ORDER_ALL_BACK_TO_FRONT);
   // draw a translucent black quad - fading is handled by the window animation
-  KODI::UTILS::COLOR::Color color =
-      (static_cast<KODI::UTILS::COLOR::Color>(m_dimLevel * 2.55f) & 0xff) << 24;
+  UTILS::COLOR::Color color = (static_cast<UTILS::COLOR::Color>(m_dimLevel * 2.55f) & 0xff) << 24;
   color = CServiceBroker::GetWinSystem()->GetGfxContext().MergeAlpha(color);
   CRect rect(0, 0, (float)CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth(), (float)CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight());
   CGUITexture::DrawQuad(rect, color);

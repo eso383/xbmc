@@ -7,7 +7,6 @@
  */
 #include "UPnPServer.h"
 
-#include "FileItemList.h"
 #include "GUIUserMessages.h"
 #include "ServiceBroker.h"
 #include "TextureDatabase.h"
@@ -16,26 +15,18 @@
 #include "Util.h"
 #include "filesystem/Directory.h"
 #include "filesystem/MusicDatabaseDirectory.h"
-#include "filesystem/MusicDatabaseDirectory/DirectoryNode.h"
-#include "filesystem/MusicDatabaseDirectory/QueryParams.h"
 #include "filesystem/SpecialProtocol.h"
 #include "filesystem/VideoDatabaseDirectory.h"
-#include "filesystem/VideoDatabaseDirectory/DirectoryNode.h"
-#include "filesystem/VideoDatabaseDirectory/QueryParams.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
-#include "imagefiles/ImageFileURL.h"
 #include "interfaces/AnnouncementManager.h"
 #include "music/Artist.h"
 #include "music/MusicDatabase.h"
-#include "music/MusicFileItemClassify.h"
 #include "music/MusicLibraryQueue.h"
 #include "music/MusicThumbLoader.h"
 #include "music/tags/MusicInfoTag.h"
-#include "playlists/PlayListFileItemClassify.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/Digest.h"
@@ -47,7 +38,6 @@
 #include "utils/Variant.h"
 #include "utils/log.h"
 #include "video/VideoDatabase.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoLibraryQueue.h"
 #include "video/VideoThumbLoader.h"
 #include "view/GUIViewState.h"
@@ -59,8 +49,6 @@
 NPT_SET_LOCAL_LOGGER("xbmc.upnp.server")
 
 using namespace ANNOUNCEMENT;
-using namespace KODI;
-using namespace KODI::VIDEO;
 using namespace XFILE;
 using KODI::UTILITY::CDigest;
 
@@ -117,7 +105,7 @@ NPT_Result CUPnPServer::ProcessGetSCPD(PLT_Service* service,
 NPT_Result CUPnPServer::SetupServices()
 {
   PLT_MediaConnect::SetupServices();
-  PLT_Service* service = NULL;
+  PLT_Service* service = nullptr;
   NPT_Result result = FindServiceById("urn:upnp-org:serviceId:ContentDirectory", service);
   if (service)
   {
@@ -135,8 +123,7 @@ NPT_Result CUPnPServer::SetupServices()
   OnScanCompleted(VideoLibrary);
 
   // now safe to start passing on new notifications
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::VideoLibrary |
-                                                                   ANNOUNCEMENT::AudioLibrary);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 
   return result;
 }
@@ -167,7 +154,7 @@ void CUPnPServer::OnScanCompleted(int type)
 +---------------------------------------------------------------------*/
 void CUPnPServer::UpdateContainer(const std::string& id)
 {
-  std::map<std::string, std::pair<bool, unsigned long>>::iterator itr = m_UpdateIDs.find(id);
+  auto itr = m_UpdateIDs.find(id);
   unsigned long count = 0;
   if (itr != m_UpdateIDs.end())
     count = ++itr->second.second;
@@ -180,7 +167,7 @@ void CUPnPServer::UpdateContainer(const std::string& id)
 +---------------------------------------------------------------------*/
 void CUPnPServer::PropagateUpdates()
 {
-  PLT_Service* service = NULL;
+  PLT_Service* service = nullptr;
   NPT_String current_ids;
   std::string buffer;
   std::map<std::string, std::pair<bool, unsigned long>>::iterator itr;
@@ -281,7 +268,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
                                     NPT_Reference<CThumbLoader>& thumb_loader,
                                     const char* parent_id /* = NULL */)
 {
-  PLT_MediaObject* object = NULL;
+  PLT_MediaObject* object = nullptr;
   NPT_String path = item->GetPath().c_str();
 
   //HACK: temporary disabling count as it thrashes HDD
@@ -292,7 +279,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
   if (path.StartsWith("virtualpath://upnproot"))
   {
     path.TrimRight("/");
-    item->SetFolder(true);
+    item->m_bIsFolder = true;
     if (path.StartsWith("virtualpath://"))
     {
       object = new PLT_MediaContainer;
@@ -328,18 +315,18 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
       {
         item->SetLabel("Music Library");
         item->SetLabelPreformatted(true);
-        item->SetFolder(true);
+        item->m_bIsFolder = true;
       }
       else
       {
         if (!item->HasMusicInfoTag())
         {
           MUSICDATABASEDIRECTORY::CQueryParams params;
-          XFILE::MUSICDATABASEDIRECTORY::CDirectoryNode::GetDatabaseInfo((const char*)path, params);
+          MUSICDATABASEDIRECTORY::CDirectoryNode::GetDatabaseInfo((const char*)path, params);
 
           CMusicDatabase db;
           if (!db.Open())
-            return NULL;
+            return nullptr;
 
           if (params.GetSongId() >= 0)
           {
@@ -349,24 +336,24 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
           }
           else if (params.GetAlbumId() >= 0)
           {
-            item->SetFolder(true);
+            item->m_bIsFolder = true;
             CAlbum album;
             if (db.GetAlbum(params.GetAlbumId(), album, false))
               item->GetMusicInfoTag()->SetAlbum(album);
           }
           else if (params.GetArtistId() >= 0)
           {
-            item->SetFolder(true);
+            item->m_bIsFolder = true;
             CArtist artist;
             if (db.GetArtist(params.GetArtistId(), artist, false))
               item->GetMusicInfoTag()->SetArtist(artist);
           }
         }
 
-        // all items apart from songs (artists, albums, etc) are folders
+        // all items appart from songs (artists, albums, etc) are folders
         if (!item->HasMusicInfoTag() || item->GetMusicInfoTag()->GetType() != MediaTypeSong)
         {
-          item->SetFolder(true);
+          item->m_bIsFolder = true;
         }
 
         if (item->GetLabel().empty())
@@ -387,7 +374,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
       {
         item->SetLabel("Video Library");
         item->SetLabelPreformatted(true);
-        item->SetFolder(true);
+        item->m_bIsFolder = true;
       }
       else
       {
@@ -398,12 +385,12 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
 
           CVideoDatabase db;
           if (!db.Open())
-            return NULL;
+            return nullptr;
 
           if (params.GetMovieId() >= 0)
             db.GetMovieInfo(static_cast<const char*>(path), *item->GetVideoInfoTag(),
-                            params.GetMovieId(), params.GetVideoVersionId(),
-                            params.GetVideoAssetId());
+                            params.GetMovieId(),
+                            params.GetVideoVersionId()); //! @todo add support for asset id
           else if (params.GetMVideoId() >= 0)
             db.GetMusicVideoInfo((const char*)path, *item->GetVideoInfoTag(), params.GetMVideoId());
           else if (params.GetEpisodeId() >= 0)
@@ -426,7 +413,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
         {
           // for tvshows and seasons, iEpisode and playCount are
           // invalid
-          item->SetFolder(true);
+          item->m_bIsFolder = true;
           item->GetVideoInfoTag()->m_iEpisode = (int)item->GetProperty("totalepisodes").asInteger();
           item->GetVideoInfoTag()->SetPlayCount(
               static_cast<int>(item->GetProperty("watchedepisodes").asInteger()));
@@ -434,7 +421,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
         // if this is an item in the library without a playable path it most be a folder
         else if (item->GetVideoInfoTag()->m_strFileNameAndPath.empty())
         {
-          item->SetFolder(true);
+          item->m_bIsFolder = true;
         }
 
         // try to grab title from tag
@@ -457,19 +444,19 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
       }
     }
     // all playlist types are folders
-    else if (PLAYLIST::IsPlayList(*item) || PLAYLIST::IsSmartPlayList(*item))
+    else if (item->IsPlayList() || item->IsSmartPlayList())
     {
-      item->SetFolder(true);
+      item->m_bIsFolder = true;
     }
     // audio and not a playlist -> song, so it's not a folder
-    else if (MUSIC::IsAudio(*item))
+    else if (item->IsAudio())
     {
-      item->SetFolder(true);
+      item->m_bIsFolder = false;
     }
     // any other type of item -> delegate to CDirectory
     else
     {
-      item->SetFolder(CDirectory::Exists(item->GetPath()));
+      item->m_bIsFolder = CDirectory::Exists(item->GetPath());
     }
 
     // not a virtual path directory, new system
@@ -487,11 +474,11 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
   {
     // remap Root virtualpath://upnproot/ to id "0"
     const NPT_String encodedRootObjectId = EncodeObjectId("virtualpath://upnproot/");
-    if (StringUtils::EqualsNoCase(object->m_ObjectID.GetChars(), encodedRootObjectId.GetChars()))
+    if (StringUtils::EqualsNoCase(object->m_ObjectID, encodedRootObjectId))
       object->m_ObjectID = EncodeObjectId("0");
 
     // remap Parent Root virtualpath://upnproot/ to id "0"
-    if (StringUtils::EqualsNoCase(object->m_ParentID.GetChars(), encodedRootObjectId.GetChars()))
+    if (StringUtils::EqualsNoCase(object->m_ParentID, encodedRootObjectId))
       object->m_ParentID = EncodeObjectId("0");
   }
 
@@ -499,7 +486,7 @@ PLT_MediaObject* CUPnPServer::Build(const std::shared_ptr<CFileItem>& item,
 
 failure:
   delete object;
-  return NULL;
+  return nullptr;
 }
 
 /*----------------------------------------------------------------------
@@ -727,11 +714,11 @@ NPT_Result CUPnPServer::OnBrowseMetadata(PLT_ActionReference& action,
         parent = "sources://video/"; // this can only match video sources
     }
 
-    if (IsVideoDb(*item))
+    if (item->IsVideoDb())
     {
       thumb_loader = NPT_Reference<CThumbLoader>(new CVideoThumbLoader());
     }
-    else if (MUSIC::IsMusicDb(*item))
+    else if (item->IsMusicDb())
     {
       thumb_loader = NPT_Reference<CThumbLoader>(new CMusicThumbLoader());
     }
@@ -739,7 +726,7 @@ NPT_Result CUPnPServer::OnBrowseMetadata(PLT_ActionReference& action,
     {
       thumb_loader->OnLoaderStart();
     }
-    object = Build(item, true, context, thumb_loader, parent.empty() ? NULL : parent.c_str());
+    object = Build(item, true, context, thumb_loader, parent.empty() ? nullptr : parent.c_str());
   }
 
   if (object.IsNull())
@@ -793,7 +780,7 @@ NPT_Result CUPnPServer::OnBrowseDirectChildren(PLT_ActionReference& action,
     return NPT_FAILURE;
   }
 
-  items.SetPath(static_cast<const char*>(parent_id));
+  items.SetPath(std::string(parent_id));
 
   // guard against loading while saving to the same cache file
   // as CArchive currently performs no locking itself
@@ -824,7 +811,7 @@ NPT_Result CUPnPServer::OnBrowseDirectChildren(PLT_ActionReference& action,
       item->SetLabelPreformatted(true);
       items.Add(item);
 
-      items.Sort(SortBy::LABEL, SortOrder::ASCENDING);
+      items.Sort(SortByLabel, SortOrderAscending);
     }
     else
     {
@@ -855,7 +842,7 @@ NPT_Result CUPnPServer::OnBrowseDirectChildren(PLT_ActionReference& action,
   if (items.GetPath() == "musicdb://")
   {
     CFileItemPtr playlists(new CFileItem("special://musicplaylists/", true));
-    playlists->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(136));
+    playlists->SetLabel(g_localizeStrings.Get(136));
     items.Add(playlists);
 
     CVideoDatabase database;
@@ -863,7 +850,7 @@ NPT_Result CUPnPServer::OnBrowseDirectChildren(PLT_ActionReference& action,
     if (database.HasContent(VideoDbContentType::MUSICVIDEOS))
     {
       CFileItemPtr mvideos(new CFileItem("library://video/musicvideos/", true));
-      mvideos->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20389));
+      mvideos->SetLabel(g_localizeStrings.Get(20389));
       items.Add(mvideos);
     }
   }
@@ -874,7 +861,7 @@ NPT_Result CUPnPServer::OnBrowseDirectChildren(PLT_ActionReference& action,
   NPT_String action_name = action->GetActionDesc().GetName();
   return BuildResponse(action, items, filter, starting_index, requested_count, sort_criteria,
                        context,
-                       (action_name.Compare("Search", true) == 0) ? NULL : parent_id.GetChars());
+                       (action_name.Compare("Search", true) == 0) ? nullptr : parent_id.GetChars());
 }
 
 /*----------------------------------------------------------------------
@@ -1013,7 +1000,7 @@ NPT_Result CUPnPServer::OnSearchContainer(PLT_ActionReference& action,
       "Received Search request for encoded object '{}' (plain value: '{}') with search '{}'",
       object_id, id.GetChars(), search_criteria);
 
-  NPT_String searchClass = NPT_String(search_criteria);
+  auto searchClass = NPT_String(search_criteria);
   if (id.StartsWith("musicdb://"))
   {
     // we browse for all tracks given a genre, artist or album
@@ -1191,7 +1178,7 @@ NPT_Result CUPnPServer::OnSearchContainer(PLT_ActionReference& action,
 
     items.SetPath("videodb://tvshows/titles/");
     return BuildResponse(action, items, filter, starting_index, requested_count, sort_criteria,
-                         context, NULL);
+                         context, nullptr);
   }
   else if (searchClass.Find("object.container.album.videoAlbum.videoBroadcastSeason") >= 0)
   {
@@ -1212,7 +1199,7 @@ NPT_Result CUPnPServer::OnSearchContainer(PLT_ActionReference& action,
 
     items.SetPath("videodb://tvshows/titles/-1/");
     return BuildResponse(action, items, filter, starting_index, requested_count, sort_criteria,
-                         context, NULL);
+                         context, nullptr);
   }
   else if (searchClass.Find("object.item.videoItem") >= 0)
   {
@@ -1283,13 +1270,13 @@ NPT_Result CUPnPServer::OnSearchContainer(PLT_ActionReference& action,
       allItems.SetPath("videodb://movies/titles/");
 
     return BuildResponse(action, allItems, filter, starting_index, requested_count, sort_criteria,
-                         context, NULL);
+                         context, nullptr);
   }
   else if (searchClass.Find("object.item.imageItem") >= 0)
   {
     CFileItemList items;
     return BuildResponse(action, items, filter, starting_index, requested_count, sort_criteria,
-                         context, NULL);
+                         context, nullptr);
   }
 
   return NPT_FAILURE;
@@ -1312,22 +1299,22 @@ NPT_Result CUPnPServer::OnUpdateObject(PLT_ActionReference& action,
 
   NPT_String playCount, position, lastPlayed;
   int err;
-  const char* msg = NULL;
+  const char* msg = nullptr;
   bool updatelisting(false);
 
   // we pause eventing as multiple announces may happen in this operation
-  PLT_Service* service = NULL;
+  PLT_Service* service = nullptr;
   NPT_CHECK_LABEL(FindServiceById("urn:upnp-org:serviceId:ContentDirectory", service), error);
   NPT_CHECK_LABEL(service->PauseEventing(), error);
 
-  if (IsVideoDb(updated))
+  if (updated.IsVideoDb())
   {
     CVideoDatabase db;
     NPT_CHECK_LABEL(!db.Open(), error);
 
     // must first determine type of file from object id
     VIDEODATABASEDIRECTORY::CQueryParams params;
-    VIDEODATABASEDIRECTORY::CDirectoryNode::GetDatabaseInfo(path, params);
+    VIDEODATABASEDIRECTORY::CDirectoryNode::GetDatabaseInfo(path.c_str(), params);
 
     int id = -1;
     VideoDbContentType content_type;
@@ -1408,7 +1395,7 @@ NPT_Result CUPnPServer::OnUpdateObject(PLT_ActionReference& action,
       CVideoThumbLoader().FillLibraryArt(updated);
     }
   }
-  else if (MUSIC::IsMusicDb(updated))
+  else if (updated.IsMusicDb())
   {
     //! @todo implement this
   }
@@ -1422,9 +1409,9 @@ NPT_Result CUPnPServer::OnUpdateObject(PLT_ActionReference& action,
   if (updatelisting)
   {
     updated.SetPath(path);
-    if (IsVideoDb(updated))
+    if (updated.IsVideoDb())
       CUtil::DeleteVideoDatabaseDirectoryCache();
-    else if (MUSIC::IsMusicDb(updated))
+    else if (updated.IsMusicDb())
       CUtil::DeleteMusicDatabaseDirectoryCache();
 
     CFileItemPtr msgItem(new CFileItem(updated));
@@ -1514,7 +1501,7 @@ NPT_Result CUPnPServer::ServeFile(const NPT_HttpRequest& request,
 
   if (URIUtils::IsURL(static_cast<const char*>(file_path)))
   {
-    CURL url(IMAGE_FILES::ToCacheKey(static_cast<const char*>(file_path)));
+    CURL url(CTextureUtils::UnwrapImageURL(static_cast<const char*>(file_path)));
     std::string disp = "inline; filename=\"" + URIUtils::GetFileName(url) + "\"";
     response.GetHeaders().SetHeader("Content-Disposition", disp.c_str());
   }
@@ -1539,7 +1526,7 @@ NPT_Result CUPnPServer::ServeFile(const NPT_HttpRequest& request,
 void CUPnPServer::DefaultSortItems(CFileItemList& items)
 {
   CGUIViewState* viewState =
-      CGUIViewState::GetViewState(IsVideoDb(items) ? WINDOW_VIDEO_NAV : -1, items);
+      CGUIViewState::GetViewState(items.IsVideoDb() ? WINDOW_VIDEO_NAV : -1, items);
   if (viewState)
   {
     SortDescription sorting = viewState->GetSortMethod();

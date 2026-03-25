@@ -8,17 +8,16 @@
 
 #pragma once
 
-#include "cores/RetroPlayer/process/egl/RPProcessInfoEGL.h"
+#include "cores/RetroPlayer/process/RPProcessInfo.h"
 
 namespace KODI
 {
 namespace RETRO
 {
-class CRPProcessInfoWayland : public CRPProcessInfoEGL
+class CRPProcessInfoWayland : public CRPProcessInfo
 {
 public:
   CRPProcessInfoWayland();
-  ~CRPProcessInfoWayland() override = default;
 
   static std::unique_ptr<CRPProcessInfo> Create();
   static void Register();

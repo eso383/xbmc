@@ -9,6 +9,8 @@
 #include "MusicAlbumInfo.h"
 
 #include "addons/Scraper.h"
+#include "settings/AdvancedSettings.h"
+#include "utils/StringUtils.h"
 
 using namespace MUSIC_GRABBER;
 

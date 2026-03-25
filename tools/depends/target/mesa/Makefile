@@ -47,13 +47,13 @@ CONFIGURE = $(NATIVEPREFIX)/bin/python3 $(NATIVEPREFIX)/bin/meson \
 	-Dbuild-tests=false \
 	-Dselinux=false \
 	-Dosmesa=false \
-	-Ddri3=disabled \
+	-Ddri3=false \
 	-Dglx=disabled \
 	-Dglvnd=false \
 	-Dllvm=false \
-	-Dgallium-vdpau=disabled \
-	-Dgallium-va=disabled \
-	-Dgallium-xa=disabled \
+	-Dgallium-vdpau=false \
+	-Dgallium-va=false \
+	-Dgallium-xa=false \
 	-Dgles1=disabled \
 	-Dgles2=enabled \
 	$(MESA_EXTRA)

@@ -9,11 +9,9 @@
 #include "TextureOperations.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "TextureCache.h"
 #include "TextureDatabase.h"
-#include "imagefiles/ImageFileURL.h"
 #include "utils/Variant.h"
 
 #include <algorithm>
@@ -51,7 +49,7 @@ JSONRPC_STATUS CTextureOperations::GetTextures(const std::string &method, ITrans
   }
 
   // fetch textures from the database
-  CVariant items = CVariant(CVariant::VariantTypeArray);
+  auto items = CVariant(CVariant::VariantTypeArray);
   if (!db.GetTextures(items, dbFilter))
     return InternalError;
 
@@ -73,13 +71,13 @@ JSONRPC_STATUS CTextureOperations::GetTextures(const std::string &method, ITrans
       for (const auto& i : fields)
         item->erase(i);
     }
-    if (!fields.contains("url"))
+    if (fields.find("url") == fields.end())
     {
       // wrap cached url to something retrieval from Files.GetFiles()
       for (CVariant::iterator_array item = items.begin_array(); item != items.end_array(); ++item)
       {
         CVariant &cachedUrl = (*item)["url"];
-        cachedUrl = IMAGE_FILES::URLFromFile(cachedUrl.asString());
+        cachedUrl = CTextureUtils::GetWrappedImageURL(cachedUrl.asString());
       }
     }
   }

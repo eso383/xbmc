@@ -149,18 +149,6 @@
           <default>true</default>
           <control type="toggle" />
         </setting>
-        <setting id="videoplayer.usevaapiavc" type="boolean" parent="videoplayer.usevaapi" label="13470" help="13471">
-          <requirement>HAVE_LIBVA</requirement>
-          <visible>false</visible>
-          <dependencies>
-            <dependency type="enable">
-              <condition setting="videoplayer.usevaapi" operator="is">true</condition>
-            </dependency>
-          </dependencies>
-          <level>3</level>
-          <default>true</default>
-          <control type="toggle" />
-        </setting>
         <setting id="videoplayer.prefervaapirender" type="boolean" parent="videoplayer.usevaapi" label="13457" help="36433">
           <requirement>HAVE_LIBVA</requirement>
           <visible>false</visible>
@@ -213,6 +201,12 @@
       <group id="1">
         <setting id="videoscreen.fakefullscreen">
           <visible>false</visible>
+        </setting>
+        <setting id="videoscreen.hwscalingfilter" type="boolean" label="39151" help="39152">
+          <visible>false</visible>
+          <level>3</level>
+          <default>true</default>
+          <control type="toggle" />
         </setting>
         <setting id="videoscreen.limitguisize" type="integer" label="37021" help="36548">
           <visible>false</visible>

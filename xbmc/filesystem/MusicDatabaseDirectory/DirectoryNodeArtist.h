@@ -19,7 +19,7 @@ namespace XFILE
     public:
       CDirectoryNodeArtist(const std::string& strName, CDirectoryNode* pParent);
     protected:
-      NodeType GetChildType() const override;
+      NODE_TYPE GetChildType() const override;
       bool GetContent(CFileItemList& items) const override;
       std::string GetLocalizedName() const override;
     };

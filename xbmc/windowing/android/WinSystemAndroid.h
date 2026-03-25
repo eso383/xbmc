@@ -73,7 +73,7 @@ protected:
   int m_displayWidth;
   int m_displayHeight;
 
-  RenderStereoMode m_stereo_mode;
+  RENDER_STEREO_MODE m_stereo_mode;
 
   CTimer *m_dispResetTimer;
 
@@ -83,6 +83,5 @@ protected:
 
 private:
   bool m_HdmiModeTriggered = false;
-  bool m_dispModesUpdatePending = false;
   void UpdateResolutions(bool bUpdateDesktopRes);
 };

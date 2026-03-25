@@ -8,13 +8,11 @@
 
 #include "GUIWindowSplash.h"
 
-#include "ServiceBroker.h"
 #include "Util.h"
 #include "guilib/GUIImage.h"
-#include "guilib/WindowIDs.h"
+#include "guilib/GUIWindowManager.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
-#include "windowing/WinSystem.h"
 
 #include <memory>
 
@@ -35,7 +33,7 @@ void CGUIWindowSplash::OnInitWindow()
       static_cast<float>(CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth()),
       static_cast<float>(CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight()),
       CTextureInfo(CUtil::GetSplashPath()));
-  m_image->SetAspectRatio(CAspectRatio::SCALE);
+  m_image->SetAspectRatio(CAspectRatio::AR_SCALE);
 }
 
 void CGUIWindowSplash::Render()

@@ -62,7 +62,9 @@ void CWinSystemX11GLContext::PresentRenderImpl(bool rendered)
   if (m_delayDispReset && m_dispResetTimer.IsTimePast())
   {
     m_delayDispReset = false;
-    std::unique_lock lock(m_resourceSection);
+
+    std::lock_guard lock(m_resourceSection);
+
     // tell any shared resources
     for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
       (*i)->OnResetDisplay();
@@ -154,7 +156,8 @@ bool CWinSystemX11GLContext::SetWindow(int width, int height, bool fullscreen, c
 
     if (!m_delayDispReset)
     {
-      std::unique_lock lock(m_resourceSection);
+      std::lock_guard lock(m_resourceSection);
+
       // tell any shared resources
       for (std::vector<IDispResource *>::iterator i = m_resources.begin(); i != m_resources.end(); ++i)
         (*i)->OnResetDisplay();
@@ -293,7 +296,7 @@ bool CWinSystemX11GLContext::RefreshGLContext(bool force)
   const char* vend = (const char*) glGetString(GL_VENDOR);
   if (vend)
     gpuvendor = vend;
-  std::ranges::transform(gpuvendor, gpuvendor.begin(), ::tolower);
+  std::transform(gpuvendor.begin(), gpuvendor.end(), gpuvendor.begin(), ::tolower);
   bool isNvidia = (gpuvendor.compare(0, 6, "nvidia") == 0);
   bool isIntel = (gpuvendor.compare(0, 5, "intel") == 0);
 

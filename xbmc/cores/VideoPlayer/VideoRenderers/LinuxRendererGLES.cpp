@@ -17,7 +17,6 @@
 #include "application/Application.h"
 #include "cores/IPlayer.h"
 #include "guilib/Texture.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/MatrixGL.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "settings/AdvancedSettings.h"
@@ -25,6 +24,7 @@
 #include "settings/MediaSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/AMLUtils.h"
 #include "utils/GLUtils.h"
 #include "utils/MathUtils.h"
 #include "utils/log.h"
@@ -45,7 +45,7 @@ CLinuxRendererGLES::CLinuxRendererGLES()
   m_renderSystem = dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
 
 #if defined (GL_UNPACK_ROW_LENGTH_EXT)
-  if (CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_unpack_subimage))
+  if (m_renderSystem->IsExtSupported("GL_EXT_unpack_subimage"))
   {
     m_pixelStoreKey = GL_UNPACK_ROW_LENGTH_EXT;
   }
@@ -404,6 +404,9 @@ bool CLinuxRendererGLES::Configure(const VideoPicture &picture, float fps, unsig
               m_passthroughHDR ? "on" : "off");
   }
 
+  // Configure GUI/OSD for HDR PQ when display is in HDR PQ mode
+  aml_set_transfer_pq(picture.hdrType, picture.colorBits);
+
   return true;
 }
 
@@ -417,8 +420,7 @@ bool CLinuxRendererGLES::ConfigChanged(const VideoPicture &picture)
   return false;
 }
 
-int CLinuxRendererGLES::NextYV12Texture()
-{
+int CLinuxRendererGLES::NextYV12Texture() const {
   return (m_iYV12RenderBuffer + 1) % m_NumYV12Buffers;
 }
 
@@ -714,7 +716,7 @@ void CLinuxRendererGLES::DrawBlackBars()
 
   glDisable(GL_BLEND);
 
-  CRenderSystemGLES* renderSystem =
+  auto renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
   if (!renderSystem)
     return;
@@ -732,7 +734,7 @@ void CLinuxRendererGLES::DrawBlackBars()
   glBindBuffer(GL_ARRAY_BUFFER, vertexVBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(Svertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-  glVertexAttribPointer(posLoc, 2, GL_FLOAT, GL_FALSE, sizeof(Svertex), 0);
+  glVertexAttribPointer(posLoc, 2, GL_FLOAT, GL_FALSE, sizeof(Svertex), nullptr);
   glEnableVertexAttribArray(posLoc);
 
   glDrawArrays(GL_TRIANGLES, 0, vertices.size());
@@ -895,8 +897,6 @@ void CLinuxRendererGLES::UpdateVideoFilter()
     return;
   }
   case VS_SCALINGMETHOD_LINEAR:
-  case VS_SCALINGMETHOD_LANCZOS3_FAST:
-  case VS_SCALINGMETHOD_SPLINE36_FAST:
   {
     CLog::Log(LOGINFO, "GLES: Selecting single pass rendering");
     SetTextureFilter(GL_LINEAR);
@@ -904,6 +904,8 @@ void CLinuxRendererGLES::UpdateVideoFilter()
     return;
   }
   case VS_SCALINGMETHOD_LANCZOS2:
+  case VS_SCALINGMETHOD_SPLINE36_FAST:
+  case VS_SCALINGMETHOD_LANCZOS3_FAST:
   case VS_SCALINGMETHOD_SPLINE36:
   case VS_SCALINGMETHOD_LANCZOS3:
   case VS_SCALINGMETHOD_CUBIC_B_SPLINE:
@@ -988,19 +990,9 @@ void CLinuxRendererGLES::LoadShaders(int field)
 
           EShaderFormat shaderFormat = GetShaderFormat();
           m_toneMapMethod = m_videoSettings.m_ToneMapMethod;
-          if (m_scalingMethod == VS_SCALINGMETHOD_LANCZOS3_FAST ||
-              m_scalingMethod == VS_SCALINGMETHOD_SPLINE36_FAST)
-          {
-            m_pYUVProgShader = new YUV2RGBFilterShader(
-                shaderFormat, m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709,
-                m_srcPrimaries, m_toneMap, m_toneMapMethod, m_scalingMethod);
-          }
-          else
-          {
-            m_pYUVProgShader = new YUV2RGBProgressiveShader(
-                shaderFormat, m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709,
-                m_srcPrimaries, m_toneMap, m_toneMapMethod);
-          }
+          m_pYUVProgShader = new YUV2RGBProgressiveShader(
+              shaderFormat, m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709,
+              m_srcPrimaries, m_toneMap, m_toneMapMethod);
           m_pYUVProgShader->SetConvertFullColorRange(m_fullRange);
           m_pYUVBobShader = new YUV2RGBBobShader(
               shaderFormat, m_passthroughHDR ? m_srcPrimaries : AVColorPrimaries::AVCOL_PRI_BT709,
@@ -1052,7 +1044,8 @@ void CLinuxRendererGLES::ReleaseShaders()
 void CLinuxRendererGLES::UnInit()
 {
   CLog::Log(LOGDEBUG, "LinuxRendererGLES: Cleaning up GLES resources");
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
 
   glFinish();
 
@@ -1617,7 +1610,7 @@ bool CLinuxRendererGLES::RenderCapture(int index, CRenderCapture* capture)
 
   // OpenGLES returns in RGBA order but CRenderCapture needs BGRA order
   // XOR Swap RGBA -> BGRA
-  unsigned char* pixels = static_cast<unsigned char*>(capture->GetRenderBuffer());
+  auto pixels = static_cast<unsigned char*>(capture->GetRenderBuffer());
   for (unsigned int i = 0; i < capture->GetWidth() * capture->GetHeight(); i++, pixels += 4)
   {
     std::swap(pixels[0], pixels[2]);
@@ -2065,18 +2058,6 @@ bool CLinuxRendererGLES::Supports(ESCALINGMETHOD method) const
       method == VS_SCALINGMETHOD_SPLINE36 ||
       method == VS_SCALINGMETHOD_LANCZOS3)
   {
-    if (method == VS_SCALINGMETHOD_SPLINE36_FAST || method == VS_SCALINGMETHOD_LANCZOS3_FAST)
-    {
-#if defined(GL_ES_VERSION_3_0)
-      // we need GLES 3.0 headers for GL_RGBA16f, but GLES 3.1 for the shader
-      uint32_t major, minor;
-      m_renderSystem->GetRenderVersion(major, minor);
-      if (major < 3 || minor == 0)
-        return false;
-#else
-      return false;
-#endif
-    }
     // if scaling is below level, avoid hq scaling
     float scaleX = fabs((static_cast<float>(m_sourceWidth) - m_destRect.Width()) / m_sourceWidth) * 100;
     float scaleY = fabs((static_cast<float>(m_sourceHeight) - m_destRect.Height()) / m_sourceHeight) * 100;

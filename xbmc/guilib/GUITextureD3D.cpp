@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -39,7 +39,7 @@ CGUITextureD3D* CGUITextureD3D::Clone() const
   return new CGUITextureD3D(*this);
 }
 
-void CGUITextureD3D::Begin(KODI::UTILS::COLOR::Color color)
+void CGUITextureD3D::Begin(UTILS::COLOR::Color color)
 {
   CTexture* texture = m_texture.m_textures[m_currentFrame].get();
   texture->LoadToGPU();
@@ -121,12 +121,7 @@ void CGUITextureD3D::Draw(float *x, float *y, float *z, const CRect &texture, co
   CDXTexture* tex = static_cast<CDXTexture*>(m_texture.m_textures[m_currentFrame].get());
   CGUIShaderDX* pGUIShader = DX::Windowing()->GetGUIShader();
 
-  pGUIShader->Begin(m_diffuse.size() > 0 ? (m_scalingMethod == TEXTURE_SCALING::NEAREST
-                                                ? SHADER_METHOD_RENDER_MULTI_TEXTURE_BLEND_NEAREST
-                                                : SHADER_METHOD_RENDER_MULTI_TEXTURE_BLEND)
-                                         : (m_scalingMethod == TEXTURE_SCALING::NEAREST
-                                                ? SHADER_METHOD_RENDER_TEXTURE_BLEND_NEAREST
-                                                : SHADER_METHOD_RENDER_TEXTURE_BLEND));
+  pGUIShader->Begin(m_diffuse.size() ? SHADER_METHOD_RENDER_MULTI_TEXTURE_BLEND : SHADER_METHOD_RENDER_TEXTURE_BLEND);
 
   if (m_diffuse.size())
   {
@@ -139,12 +134,11 @@ void CGUITextureD3D::Draw(float *x, float *y, float *z, const CRect &texture, co
     ID3D11ShaderResourceView* resource = tex->GetShaderResource();
     pGUIShader->SetShaderViews(1, &resource);
   }
-  pGUIShader->SetDepth(m_depth);
   pGUIShader->DrawQuad(verts[0], verts[1], verts[2], verts[3]);
 }
 
 void CGUITextureD3D::DrawQuad(const CRect& rect,
-                              KODI::UTILS::COLOR::Color color,
+                              UTILS::COLOR::Color color,
                               CTexture* texture,
                               const CRect* texCoords,
                               const float depth,
@@ -157,10 +151,8 @@ void CGUITextureD3D::DrawQuad(const CRect& rect,
   {
     texture->LoadToGPU();
     numViews = 1;
-    views = ((CDXTexture*)texture)->GetShaderResource();
+    views = ((CDXTexture *)texture)->GetShaderResource();
   }
 
-  CD3DTexture::DrawQuad(rect, color, numViews, &views, texCoords,
-                        texture ? SHADER_METHOD_RENDER_TEXTURE_BLEND : SHADER_METHOD_RENDER_DEFAULT,
-                        depth);
+  CD3DTexture::DrawQuad(rect, color, numViews, &views, texCoords, texture ? SHADER_METHOD_RENDER_TEXTURE_BLEND : SHADER_METHOD_RENDER_DEFAULT);
 }

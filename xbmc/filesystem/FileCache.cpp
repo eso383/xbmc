@@ -86,8 +86,7 @@ CFileCache::~CFileCache()
   Close();
 }
 
-IFile *CFileCache::GetFileImp()
-{
+IFile *CFileCache::GetFileImp() const {
   return m_source.GetImplementation();
 }
 
@@ -95,14 +94,14 @@ bool CFileCache::Open(const CURL& url)
 {
   Close();
 
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
 
   m_sourcePath = url.GetRedacted();
 
   CLog::Log(LOGDEBUG, "CFileCache::{} - <{}> opening", __FUNCTION__, m_sourcePath);
 
   // Opening the source file.
-  // The READ_NO_CACHE and READ_NO_BUFFER flags are required to avoid create other instances of
+  // The READ_NO_CACHE and READ_NO_BUFFER flags are required to avoid create other intances of
   // FileCache or StreamBuffer since CFile::Open is called again in loop
   if (!m_source.Open(url.Get(), READ_NO_CACHE | READ_TRUNCATED | READ_NO_BUFFER))
   {
@@ -118,13 +117,13 @@ bool CFileCache::Open(const CURL& url)
   const unsigned int cacheMemSize =
       settings->GetInt(CSettings::SETTING_FILECACHE_MEMORYSIZE) * 1024 * 1024;
 
-  m_source.IoControl(IOControl::SET_CACHE, this);
+  m_source.IoControl(IOCTRL_SET_CACHE, this);
 
   bool retry = false;
-  m_source.IoControl(IOControl::SET_RETRY, &retry); // We already handle retrying ourselves
+  m_source.IoControl(IOCTRL_SET_RETRY, &retry); // We already handle retrying ourselves
 
   // check if source can seek
-  m_seekPossible = m_source.IoControl(IOControl::SEEK_POSSIBLE, NULL);
+  m_seekPossible = m_source.IoControl(IOCTRL_SEEK_POSSIBLE, nullptr);
 
   // Determine the best chunk size we can use
   m_chunkSize = CFile::DetermineChunkSize(m_source.GetChunkSize(),
@@ -266,7 +265,7 @@ void CFileCache::Process()
         {
           CLog::Log(LOGERROR, "CFileCache::{} - <{}> error {} seeking. Seek returned {}",
                     __FUNCTION__, m_sourcePath, GetLastError(), m_nSeekResult);
-          m_seekPossible = m_source.IoControl(IOControl::SEEK_POSSIBLE, NULL);
+          m_seekPossible = m_source.IoControl(IOCTRL_SEEK_POSSIBLE, nullptr);
           sourceSeekFailed = true;
         }
       }
@@ -468,7 +467,7 @@ int CFileCache::Stat(const CURL& url, struct __stat64* buffer)
 
 ssize_t CFileCache::Read(void* lpBuf, size_t uiBufSize)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
   if (!m_pCache)
   {
     CLog::Log(LOGERROR, "CFileCache::{} - <{}> sanity failed. no cache strategy!", __FUNCTION__,
@@ -515,7 +514,7 @@ retry:
 
 int64_t CFileCache::Seek(int64_t iFilePosition, int iWhence)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
 
   if (!m_pCache)
   {
@@ -579,7 +578,7 @@ void CFileCache::Close()
 {
   StopThread();
 
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
   if (m_pCache)
     m_pCache->Close();
 
@@ -612,11 +611,11 @@ const std::string CFileCache::GetProperty(XFILE::FileProperty type, const std::s
   return m_source.GetImplementation()->GetProperty(type, name);
 }
 
-int CFileCache::IoControl(IOControl request, void* param)
+int CFileCache::IoControl(EIoControl request, void* param)
 {
-  if (request == IOControl::CACHE_STATUS)
+  if (request == IOCTRL_CACHE_STATUS)
   {
-    SCacheStatus* status = (SCacheStatus*)param;
+    auto status = (SCacheStatus*)param;
     status->maxforward = m_maxForward;
     status->forward = m_pCache->WaitForData(0, 0ms);
     status->maxrate = m_writeRate;
@@ -626,7 +625,7 @@ int CFileCache::IoControl(IOControl request, void* param)
     return 0;
   }
 
-  if (request == IOControl::CACHE_SETRATE)
+  if (request == IOCTRL_CACHE_SETRATE)
   {
     m_writeRate = *static_cast<uint32_t*>(param);
 
@@ -644,7 +643,7 @@ int CFileCache::IoControl(IOControl request, void* param)
     return 0;
   }
 
-  if (request == IOControl::SEEK_POSSIBLE)
+  if (request == IOCTRL_SEEK_POSSIBLE)
     return m_seekPossible;
 
   return -1;

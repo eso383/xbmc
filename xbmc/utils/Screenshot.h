@@ -9,7 +9,6 @@
 #pragma once
 
 #include "IScreenshotSurface.h"
-#include "jobs/Job.h"
 
 #include <functional>
 #include <memory>
@@ -26,15 +25,4 @@ public:
 
 private:
   static std::vector<std::function<std::unique_ptr<IScreenshotSurface>()>> m_screenShotSurfaces;
-};
-
-class CCaptureVideo : public CJob
-{
-public:
-  CCaptureVideo(std::unique_ptr<IScreenshotSurface> &surface, const std::string filename, bool sync);
-  bool DoWork();
-private:
-  std::unique_ptr<IScreenshotSurface> m_surface;
-  const std::string m_filename;
-  bool m_sync;
 };

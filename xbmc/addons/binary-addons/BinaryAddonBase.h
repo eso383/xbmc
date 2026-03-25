@@ -23,6 +23,7 @@ namespace ADDON
   using AddonInfoPtr = std::shared_ptr<CAddonInfo>;
 
   class CAddonDll;
+  typedef std::shared_ptr<CAddonDll> AddonDllPtr;
 
   class CBinaryAddonBase : public std::enable_shared_from_this<CBinaryAddonBase>
   {
@@ -31,11 +32,11 @@ namespace ADDON
 
     const std::string& ID() const;
 
-    std::shared_ptr<CAddonDll> GetAddon(IAddonInstanceHandler* handler);
+    AddonDllPtr GetAddon(IAddonInstanceHandler* handler);
     void ReleaseAddon(IAddonInstanceHandler* handler);
     size_t UsedInstanceCount() const;
 
-    std::shared_ptr<CAddonDll> GetActiveAddon();
+    AddonDllPtr GetActiveAddon();
 
     void OnPreInstall() const;
     void OnPostInstall(bool update, bool modal) const;
@@ -46,7 +47,7 @@ namespace ADDON
     AddonInfoPtr m_addonInfo;
 
     mutable CCriticalSection m_critSection;
-    std::shared_ptr<CAddonDll> m_activeAddon;
+    AddonDllPtr m_activeAddon;
     std::unordered_set<IAddonInstanceHandler*> m_activeAddonHandlers;
   };
 

@@ -9,7 +9,6 @@
 #include "GUIDialogPVRChannelGuide.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "pvr/PVRManager.h"
 #include "pvr/PVRPlaybackState.h"

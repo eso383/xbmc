@@ -22,7 +22,7 @@ class CFileItemList;
 
 class CVariant;
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 class CPlayList;
 
@@ -90,37 +90,37 @@ public:
   int GetNextItemIdx(int offset) const;
 
   /*! \brief Set the active playlist
-   \param id Id of playlist
+   \param id Values can be PLAYLIST::TYPE_NONE, PLAYLIST::TYPE_MUSIC or PLAYLIST::TYPE_VIDEO
    \sa GetCurrentPlaylist
    */
-  void SetCurrentPlaylist(Id playlistId);
+  void SetCurrentPlaylist(PLAYLIST::Id playlistId);
 
   /*! \brief Get the currently active playlist
-   \return Id of playlist
+   \return PLAYLIST::TYPE_NONE, PLAYLIST::TYPE_MUSIC or PLAYLIST::TYPE_VIDEO
    \sa SetCurrentPlaylist, GetPlaylist
    */
-  Id GetCurrentPlaylist() const;
+  PLAYLIST::Id GetCurrentPlaylist() const;
 
   /*! \brief Get a particular playlist object
-   \param id Id of playlist
+   \param id Values can be PLAYLIST::TYPE_MUSIC or PLAYLIST::TYPE_VIDEO
    \return A reference to the CPlayList object.
    \sa GetCurrentPlaylist
    */
-  CPlayList& GetPlaylist(Id playlistId);
-  const CPlayList& GetPlaylist(Id playlistId) const;
+  CPlayList& GetPlaylist(PLAYLIST::Id playlistId);
+  const CPlayList& GetPlaylist(PLAYLIST::Id playlistId) const;
 
   /*! \brief Removes any item from all playlists located on a removable share
    \return Number of items removed from PLAYLIST::TYPE_MUSIC and PLAYLIST::TYPE_VIDEO
    */
-  int RemoveDVDItems();
+  int RemoveDVDItems() const;
 
   /*! \brief Resets the current song and unplayable counts.
    Does not alter the active playlist.
   */
   void Reset();
 
-  void ClearPlaylist(Id playlistId);
-  void Clear();
+  void ClearPlaylist(PLAYLIST::Id playlistId);
+  void Clear() const;
 
   /*! \brief Set shuffle state of a playlist.
    If the shuffle state changes, the playlist is shuffled or unshuffled.
@@ -130,7 +130,7 @@ public:
    \param notify notify the user with a Toast notification (defaults to false)
    \sa IsShuffled
    */
-  void SetShuffle(Id playlistId, bool shuffle, bool notify = false);
+  void SetShuffle(PLAYLIST::Id playlistId, bool shuffle, bool notify = false);
 
   /*! \brief Return whether a playlist is shuffled.
    If partymode is enabled, this always returns false.
@@ -138,7 +138,7 @@ public:
    \return true if the given playlist is shuffled and party mode isn't enabled, false otherwise.
    \sa SetShuffle
    */
-  bool IsShuffled(Id playlistId) const;
+  bool IsShuffled(PLAYLIST::Id playlistId) const;
 
   /*! \brief Return whether or not something has been played yet from the current playlist.
    \return true if something has been played, false otherwise.
@@ -152,39 +152,38 @@ public:
    \param notify notify the user with a Toast notification
    \sa GetRepeat
    */
-  void SetRepeat(Id playlistId, RepeatState state, bool notify = false);
-  RepeatState GetRepeat(Id playlistId) const;
+  void SetRepeat(PLAYLIST::Id playlistId, PLAYLIST::RepeatState state, bool notify = false);
+  PLAYLIST::RepeatState GetRepeat(PLAYLIST::Id playlistId) const;
 
   // add items via the playlist player
-  void Add(Id playlistId, const CPlayList& playlist);
-  void Add(Id playlistId, const CFileItemPtr& pItem);
-  void Add(Id playlistId, const CFileItemList& items);
-  void Insert(Id playlistId, const CPlayList& playlist, int iIndex);
-  void Insert(Id playlistId, const CFileItemPtr& pItem, int iIndex);
-  void Insert(Id playlistId, const CFileItemList& items, int iIndex);
-  void Remove(Id playlistId, int iPosition);
-  void Swap(Id playlistId, int indexItem1, int indexItem2);
+  void Add(PLAYLIST::Id playlistId, const CPlayList& playlist);
+  void Add(PLAYLIST::Id playlistId, const CFileItemPtr& pItem);
+  void Add(PLAYLIST::Id playlistId, const CFileItemList& items);
+  void Insert(PLAYLIST::Id playlistId, const CPlayList& playlist, int iIndex);
+  void Insert(PLAYLIST::Id playlistId, const CFileItemPtr& pItem, int iIndex);
+  void Insert(PLAYLIST::Id playlistId, const CFileItemList& items, int iIndex);
+  void Remove(PLAYLIST::Id playlistId, int iPosition);
+  void Swap(PLAYLIST::Id playlistId, int indexItem1, int indexItem2);
 
   bool IsSingleItemNonRepeatPlaylist() const;
 
   bool OnAction(const CAction &action);
-
 protected:
   /*! \brief Returns true if the given is set to repeat all
    \param playlist Playlist to be query
    \return true if the given playlist is set to repeat all, false otherwise.
    */
-  bool Repeated(Id playlistId) const;
+  bool Repeated(PLAYLIST::Id playlistId) const;
 
   /*! \brief Returns true if the given is set to repeat one
    \param playlist Playlist to be query
    \return true if the given playlist is set to repeat one, false otherwise.
    */
-  bool RepeatedOne(Id playlistId) const;
+  bool RepeatedOne(PLAYLIST::Id playlistId) const;
 
-  void ReShuffle(Id playlistId, int iPosition);
+  void ReShuffle(PLAYLIST::Id playlistId, int iPosition);
 
-  void AnnouncePropertyChanged(Id playlistId,
+  void AnnouncePropertyChanged(PLAYLIST::Id playlistId,
                                const std::string& strProperty,
                                const CVariant& value);
 
@@ -193,15 +192,15 @@ protected:
   int m_iFailedSongs;
   std::chrono::time_point<std::chrono::steady_clock> m_failedSongsStart;
   int m_iCurrentSong;
-  Id m_iCurrentPlayList{Id::TYPE_NONE};
+  PLAYLIST::Id m_iCurrentPlayList{PLAYLIST::TYPE_NONE};
   CPlayList* m_PlaylistMusic;
   CPlayList* m_PlaylistVideo;
   CPlayList* m_PlaylistEmpty;
-  std::map<Id, RepeatState> m_repeatState{
-      {Id::TYPE_MUSIC, RepeatState::NONE},
-      {Id::TYPE_VIDEO, RepeatState::NONE},
-      {Id::TYPE_PICTURE, RepeatState::NONE},
+  std::map<PLAYLIST::Id, PLAYLIST::RepeatState> m_repeatState{
+      {PLAYLIST::TYPE_MUSIC, PLAYLIST::RepeatState::NONE},
+      {PLAYLIST::TYPE_VIDEO, PLAYLIST::RepeatState::NONE},
+      {PLAYLIST::TYPE_PICTURE, PLAYLIST::RepeatState::NONE},
   };
 };
 
-} // namespace KODI::PLAYLIST
+}

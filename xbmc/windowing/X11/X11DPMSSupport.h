@@ -6,7 +6,7 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include "powermanagement/DPMSSupport.h"
+#include "xbmc/powermanagement/DPMSSupport.h"
 
 class CX11DPMSSupport : public CDPMSSupport
 {

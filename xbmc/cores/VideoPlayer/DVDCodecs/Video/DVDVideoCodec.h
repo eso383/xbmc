@@ -9,9 +9,11 @@
 #pragma once
 
 #include "DVDResource.h"
+#include "ServiceBroker.h"
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "cores/VideoPlayer/Interface/DemuxPacket.h"
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
+#include "cores/DataCacheCore.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -36,7 +38,7 @@ class CSetting;
 struct VideoPicture
 {
 public:
-  VideoPicture() = default;
+  VideoPicture();
   ~VideoPicture();
   VideoPicture& CopyRef(const VideoPicture &pic);
   VideoPicture& SetParams(const VideoPicture &pic);
@@ -68,8 +70,6 @@ public:
   int pict_type;
 
   StreamHdrType hdrType;
-  StreamHdrType hdrTypeAlt;
-  std::string strDVELType;
 
   bool hasDisplayMetadata = false;
   AVMasteringDisplayMetadata displayMetadata;
@@ -84,8 +84,8 @@ public:
   unsigned int iDisplayHeight;          //< height of the picture without black bars
 
 private:
-  VideoPicture(VideoPicture const&) = default;
-  VideoPicture& operator=(VideoPicture const&) = default;
+  VideoPicture(VideoPicture const&);
+  VideoPicture& operator=(VideoPicture const&);
 
   bool CompareDisplayMetadata(const VideoPicture& pic) const;
 };
@@ -131,7 +131,9 @@ public:
     VC_EOF              //< EOF
   };
 
-  explicit CDVDVideoCodec(CProcessInfo &processInfo) : m_processInfo(processInfo) {}
+  explicit CDVDVideoCodec(CProcessInfo &processInfo) : m_processInfo(processInfo), 
+                                                       m_dataCacheCore(CServiceBroker::GetDataCacheCore()) {
+  }
   virtual ~CDVDVideoCodec() = default;
 
   /**
@@ -253,6 +255,7 @@ public:
   virtual bool SupportsExtention() { return false; }
 protected:
   CProcessInfo &m_processInfo;
+  CDataCacheCore &m_dataCacheCore;
 };
 
 // callback interface for ffmpeg hw accelerators

@@ -17,8 +17,7 @@ using namespace MOUSE;
 
 CDefaultMouseHandling::CDefaultMouseHandling(PERIPHERALS::CPeripheral* peripheral,
                                              IMouseInputHandler* handler)
-  : m_peripheral(peripheral),
-    m_inputHandler(handler)
+  : m_peripheral(peripheral), m_inputHandler(handler)
 {
 }
 

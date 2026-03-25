@@ -18,7 +18,7 @@ CTextSearch::CTextSearch(const std::string &strSearchTerms, bool bCaseSensitive 
 
 bool CTextSearch::IsValid(void) const
 {
-  return !m_AND.empty() || !m_OR.empty() || !m_NOT.empty();
+  return m_AND.size() > 0 || m_OR.size() > 0 || m_NOT.size() > 0;
 }
 
 bool CTextSearch::Search(const std::string &strHaystack) const
@@ -96,7 +96,7 @@ void CTextSearch::ExtractSearchTerms(const std::string &strSearchTerm, TextSearc
   bool bNextOR(defaultSearchMode == SEARCH_DEFAULT_OR);
   bool bNextNOT(defaultSearchMode == SEARCH_DEFAULT_NOT);
 
-  while (!strParsedSearchTerm.empty())
+  while (strParsedSearchTerm.length() > 0)
   {
     StringUtils::TrimLeft(strParsedSearchTerm);
 
@@ -122,7 +122,7 @@ void CTextSearch::ExtractSearchTerms(const std::string &strSearchTerm, TextSearc
     {
       std::string strTerm;
       GetAndCutNextTerm(strParsedSearchTerm, strTerm);
-      if (!strTerm.empty())
+      if (strTerm.length() > 0)
       {
         if (bNextAND)
           m_AND.push_back(strTerm);

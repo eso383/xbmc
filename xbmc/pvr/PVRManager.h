@@ -10,9 +10,9 @@
 
 #include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/pvr/pvr_general.h"
 #include "interfaces/IAnnouncer.h"
-#include "powermanagement/PowerState.h"
 #include "pvr/PVRComponentRegistration.h"
 #include "pvr/guilib/PVRGUIActionListener.h"
+#include "pvr/settings/PVRSettings.h"
 #include "threads/CriticalSection.h"
 #include "threads/Event.h"
 #include "threads/Thread.h"
@@ -40,7 +40,6 @@ class CPVRManagerJobQueue;
 class CPVRPlaybackState;
 class CPVRRecording;
 class CPVRRecordings;
-class CPVRSettings;
 class CPVRTimers;
 class CPVREpgContainer;
 class CPVREpgInfoTag;
@@ -48,9 +47,11 @@ class CPVREpgInfoTag;
 enum class PVREvent
 {
   // PVR Manager states
+  ManagerError = 0,
   ManagerStopped,
   ManagerStarting,
   ManagerStopping,
+  ManagerInterrupted,
   ManagerStarted,
 
   // Channel events
@@ -92,7 +93,7 @@ enum class PVREvent
   SystemWake,
 };
 
-class CPVRManager : private CThread, public ANNOUNCEMENT::IAnnouncer, public CPowerState
+class CPVRManager : private CThread, public ANNOUNCEMENT::IAnnouncer
 {
 public:
   /*!
@@ -174,7 +175,7 @@ public:
    * @brief Get access to the epg container.
    * @return The epg container.
    */
-  CPVREpgContainer& EpgContainer();
+  CPVREpgContainer& EpgContainer() const;
 
   /*!
    * @brief Init PVRManager.
@@ -204,12 +205,12 @@ public:
   /*!
    * @brief Propagate event on system sleep
    */
-  void OnSleep() override;
+  void OnSleep();
 
   /*!
    * @brief Propagate event on system wake
    */
-  void OnWake() override;
+  void OnWake();
 
   /*!
    * @brief Get the TV database.
@@ -245,46 +246,46 @@ public:
    * @brief Let the background thread update the recordings list.
    * @param clientId The id of the PVR client to update.
    */
-  void TriggerRecordingsUpdate(int clientId);
-  void TriggerRecordingsUpdate();
+  void TriggerRecordingsUpdate(int clientId) const;
+  void TriggerRecordingsUpdate() const;
 
   /*!
    * @brief Let the background thread update the size for any in progress recordings.
    */
-  void TriggerRecordingsSizeInProgressUpdate();
+  void TriggerRecordingsSizeInProgressUpdate() const;
 
   /*!
    * @brief Let the background thread update the timer list.
    * @param clientId The id of the PVR client to update.
    */
-  void TriggerTimersUpdate(int clientId);
-  void TriggerTimersUpdate();
+  void TriggerTimersUpdate(int clientId) const;
+  void TriggerTimersUpdate() const;
 
   /*!
    * @brief Let the background thread update the channel list.
    * @param clientId The id of the PVR client to update.
    */
-  void TriggerChannelsUpdate(int clientId);
-  void TriggerChannelsUpdate();
+  void TriggerChannelsUpdate(int clientId) const;
+  void TriggerChannelsUpdate() const;
 
   /*!
    * @brief Let the background thread update the provider list.
    * @param clientId The id of the PVR client to update.
    */
-  void TriggerProvidersUpdate(int clientId);
-  void TriggerProvidersUpdate();
+  void TriggerProvidersUpdate(int clientId) const;
+  void TriggerProvidersUpdate() const;
 
   /*!
    * @brief Let the background thread update the channel groups list.
    * @param clientId The id of the PVR client to update.
    */
-  void TriggerChannelGroupsUpdate(int clientId);
-  void TriggerChannelGroupsUpdate();
+  void TriggerChannelGroupsUpdate(int clientId) const;
+  void TriggerChannelGroupsUpdate() const;
 
   /*!
    * @brief Let the background thread search for all missing channel icons.
    */
-  void TriggerSearchMissingChannelIcons();
+  void TriggerSearchMissingChannelIcons() const;
 
   /*!
    * @brief Let the background thread erase stale texture db entries and image files.
@@ -295,12 +296,12 @@ public:
    * @brief Let the background thread search for missing channel icons for channels contained in the given group.
    * @param group The channel group.
    */
-  void TriggerSearchMissingChannelIcons(const std::shared_ptr<CPVRChannelGroup>& group);
+  void TriggerSearchMissingChannelIcons(const std::shared_ptr<CPVRChannelGroup>& group) const;
 
   /*!
    * @brief Check whether names are still correct after the language settings changed.
    */
-  void LocalizationChanged();
+  void LocalizationChanged() const;
 
   /*!
    * @brief Check if parental lock is overridden at the given moment.
@@ -319,12 +320,12 @@ public:
   /*!
    * @brief Restart the parental timer.
    */
-  void RestartParentalTimer();
+  void RestartParentalTimer() const;
 
   /*!
    * @brief Signal a connection change of a client
    */
-  void ConnectionStateChange(const CPVRClient* client,
+  void ConnectionStateChange(CPVRClient* client,
                              const std::string& connectString,
                              PVR_CONNECTION_STATE state,
                              const std::string& message) const;
@@ -354,9 +355,11 @@ private:
 
   enum class ManagerState
   {
+    STATE_ERROR = 0,
     STATE_STOPPED,
     STATE_STARTING,
     STATE_STOPPING,
+    STATE_INTERRUPTED,
     STATE_STARTED
   };
 
@@ -395,12 +398,13 @@ private:
    * @param progressHandler The progress handler to use for showing the different stages.
    * @return True if at least one client is known and successfully loaded, false otherwise.
    */
-  bool UpdateComponents(ManagerState stateToCheck, CPVRGUIProgressHandler* progressHandler);
+  bool UpdateComponents(ManagerState stateToCheck,
+                        const std::unique_ptr<CPVRGUIProgressHandler>& progressHandler);
 
   /*!
    * @brief Unload all PVR data (recordings, timers, channelgroups).
    */
-  void UnloadComponents();
+  void UnloadComponents() const;
 
   /*!
    * @brief Check whether the given client id belongs to a known client.
@@ -457,10 +461,6 @@ private:
 
   const std::shared_ptr<CPVRPlaybackState> m_playbackState;
   CPVRGUIActionListener m_actionListener;
-  std::unique_ptr<CPVRSettings> m_settings;
-
-  CEvent m_sleepConfirmedEvent{false,
-                               false}; // Event to sync with worker thread on power state transition
-  CEvent m_wakeEvent{true, false}; // event to wake worker thread on power state transition
+  CPVRSettings m_settings;
 };
 } // namespace PVR

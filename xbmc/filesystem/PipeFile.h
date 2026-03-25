@@ -47,7 +47,7 @@ public:
 
   bool Delete(const CURL& url) override;
   bool Rename(const CURL& url, const CURL& urlnew) override;
-  int IoControl(IOControl request, void* param) override;
+  int IoControl(EIoControl request, void* param) override;
 
   std::string GetName() const;
 
@@ -57,12 +57,12 @@ public:
   void AddListener(IPipeListener *l);
   void RemoveListener(IPipeListener *l);
 
-  void SetEof();
-  bool IsEof();
-  bool IsEmpty();
-  bool IsClosed();
+  void SetEof() const;
+  bool IsEof() const;
+  bool IsEmpty() const;
+  bool IsClosed() const;
 
-  void SetOpenThreshold(int threshold);
+  void SetOpenThreshold(int threshold) const;
 
 protected:
   int64_t m_pos = 0;

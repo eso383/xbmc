@@ -30,7 +30,7 @@ public:
   bool Reset() override;
   void Flush() override;
   DemuxPacket* Read() override;
-  bool SeekTime(double time, bool backwards, double* startpts = NULL) override;
+  bool SeekTime(double time, bool backwards, double* startpts = nullptr) override;
   CDemuxStream* GetStream(int index) const override { return m_Streams[index]; }
   std::vector<CDemuxStream*> GetStreams() const override;
   int GetNrOfStreams() const override { return m_Streams.size(); }
@@ -72,8 +72,7 @@ private:
 
   struct sorter
   {
-    bool operator()(const STimestamp &p1, const STimestamp &p2)
-    {
+    bool operator()(const STimestamp &p1, const STimestamp &p2) const {
       return p1.pts < p2.pts || (p1.pts == p2.pts && p1.id < p2.id);
     }
   };

@@ -9,14 +9,12 @@
 #pragma once
 
 #include "SettingConditions.h"
-#include "settings/SettingsContainer.h"
 #include "utils/BooleanLogic.h"
 #include "utils/logtypes.h"
 
 #include <list>
 #include <set>
 #include <string>
-#include <string_view>
 
 enum class SettingDependencyType {
   Unknown = 0,
@@ -38,8 +36,6 @@ enum class SettingDependencyTarget {
   Setting,
   Property
 };
-
-class TiXmlNode;
 
 class CSettingDependencyCondition : public CSettingConditionItem
 {
@@ -63,9 +59,9 @@ public:
 
 private:
   CSettingDependencyCondition(CSettingsManager* settingsManager,
-                              std::string_view strProperty,
-                              std::string_view setting,
-                              std::string_view value,
+                              const std::string& strProperty,
+                              const std::string& setting,
+                              const std::string& value,
                               SettingDependencyTarget target = SettingDependencyTarget::Unknown,
                               SettingDependencyOperator op = SettingDependencyOperator::Equals,
                               bool negated = false);
@@ -99,7 +95,7 @@ public:
 
   bool Deserialize(const TiXmlNode *node) override;
 
-  const SettingsContainer& GetSettings() const { return m_settings; }
+  const std::set<std::string>& GetSettings() const { return m_settings; }
 
   CSettingDependencyConditionCombination* Add(const CSettingDependencyConditionPtr& condition);
   CSettingDependencyConditionCombination* Add(
@@ -109,7 +105,7 @@ private:
   CBooleanLogicOperation* newOperation() override { return new CSettingDependencyConditionCombination(m_settingsManager); }
   CBooleanLogicValue* newValue() override { return new CSettingDependencyCondition(m_settingsManager); }
 
-  SettingsContainer m_settings;
+  std::set<std::string> m_settings;
 };
 
 class CSettingDependency : public CSettingCondition
@@ -122,7 +118,7 @@ public:
   bool Deserialize(const TiXmlNode *node) override;
 
   SettingDependencyType GetType() const { return m_type; }
-  SettingsContainer GetSettings() const;
+  std::set<std::string> GetSettings() const;
 
   CSettingDependencyConditionCombinationPtr And();
   CSettingDependencyConditionCombinationPtr Or();
@@ -136,4 +132,4 @@ private:
 };
 
 using SettingDependencies = std::list<CSettingDependency>;
-using SettingDependencyMap = std::map<std::string, SettingDependencies, std::less<>>;
+using SettingDependencyMap = std::map<std::string, SettingDependencies>;

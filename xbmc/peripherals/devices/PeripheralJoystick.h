@@ -17,6 +17,7 @@
 
 #include <future>
 #include <memory>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -58,7 +59,6 @@ public:
   bool InitialiseFeature(const PeripheralFeature feature) override;
   void OnUserNotification() override;
   bool TestFeature(PeripheralFeature feature) override;
-  void ResetDefaultSettings() override;
   void RegisterJoystickDriverHandler(KODI::JOYSTICK::IDriverHandler* handler,
                                      bool bPromiscuous) override;
   void UnregisterJoystickDriverHandler(KODI::JOYSTICK::IDriverHandler* handler) override;
@@ -117,7 +117,11 @@ protected:
   void InitializeDeadzoneFiltering(KODI::JOYSTICK::IButtonMap& buttonMap);
   void InitializeControllerProfile(KODI::JOYSTICK::IButtonMap& buttonMap);
 
-  void PowerOff();
+  void PowerOff() const;
+
+  // Helper functions
+  KODI::GAME::ControllerPtr InstallAsync(const std::string& controllerId) const;
+  static bool InstallSync(const std::string& controllerId);
 
   struct DriverHandler
   {
@@ -134,6 +138,8 @@ protected:
   unsigned int m_motorCount = 0;
   bool m_supportsPowerOff = false;
   CDateTime m_lastActive;
+  std::queue<std::string> m_controllersToInstall;
+  std::vector<std::future<void>> m_installTasks;
 
   // Input clients
   std::unique_ptr<KODI::KEYMAP::CKeymapHandling> m_appInput;
@@ -145,5 +151,6 @@ protected:
 
   // Synchronization parameters
   CCriticalSection m_handlerMutex;
+  CCriticalSection m_controllerInstallMutex;
 };
 } // namespace PERIPHERALS

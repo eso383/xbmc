@@ -79,9 +79,5 @@ vec4 process()
 
   rgb.a = m_alpha;
 
-#if defined(KODI_GAMMA_LINEARIZATION_FAST)
-  rgb.rgb *= rgb.rgb;
-#endif
-
   return rgb;
 }

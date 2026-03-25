@@ -8,7 +8,7 @@
 
 #include "PVRCachedImage.h"
 
-#include "imagefiles/ImageFileURL.h"
+#include "TextureDatabase.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
@@ -19,8 +19,7 @@ CPVRCachedImage::CPVRCachedImage(const std::string& owner) : m_owner(owner)
 }
 
 CPVRCachedImage::CPVRCachedImage(const std::string& clientImage, const std::string& owner)
-  : m_clientImage(clientImage),
-    m_owner(owner)
+  : m_clientImage(clientImage), m_owner(owner)
 {
   UpdateLocalImage();
 }
@@ -29,6 +28,11 @@ bool CPVRCachedImage::operator==(const CPVRCachedImage& right) const
 {
   return (this == &right) || (m_clientImage == right.m_clientImage &&
                               m_localImage == right.m_localImage && m_owner == right.m_owner);
+}
+
+bool CPVRCachedImage::operator!=(const CPVRCachedImage& right) const
+{
+  return !(*this == right);
 }
 
 void CPVRCachedImage::SetClientImage(const std::string& image)
@@ -49,7 +53,7 @@ void CPVRCachedImage::SetClientImage(const std::string& image)
   UpdateLocalImage();
 }
 
-void CPVRCachedImage::SetOwner(std::string_view owner)
+void CPVRCachedImage::SetOwner(const std::string& owner)
 {
   if (m_owner != owner)
   {
@@ -63,5 +67,5 @@ void CPVRCachedImage::UpdateLocalImage()
   if (m_clientImage.empty())
     m_localImage.clear();
   else
-    m_localImage = IMAGE_FILES::URLFromFile(m_clientImage, m_owner);
+    m_localImage = CTextureUtils::GetWrappedImageURL(m_clientImage, m_owner);
 }

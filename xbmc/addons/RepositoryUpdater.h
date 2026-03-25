@@ -8,12 +8,11 @@
 
 #pragma once
 
-#include "jobs/IJobCallback.h"
-#include "powermanagement/PowerState.h"
 #include "settings/lib/ISettingCallback.h"
 #include "threads/CriticalSection.h"
 #include "threads/Timer.h"
 #include "utils/EventStream.h"
+#include "utils/Job.h"
 
 #include <memory>
 #include <vector>
@@ -30,10 +29,9 @@ using RepositoryPtr = std::shared_ptr<CRepository>;
 
 class CRepositoryUpdateJob;
 
-class CRepositoryUpdater : private ITimerCallback,
-                           private IJobCallback,
-                           public ISettingCallback,
-                           public CPowerState
+struct AddonEvent;
+
+class CRepositoryUpdater : private ITimerCallback, private IJobCallback, public ISettingCallback
 {
 public:
   explicit CRepositoryUpdater(CAddonMgr& addonMgr);
@@ -93,11 +91,13 @@ private:
 
   void OnTimeout() override;
 
+  void OnEvent(const ADDON::AddonEvent& event);
+
   CDateTime ClosestNextCheck() const;
 
   CCriticalSection m_criticalSection;
   CTimer m_timer;
-  CEvent m_doneEvent{true};
+  CEvent m_doneEvent;
   std::vector<CRepositoryUpdateJob*> m_jobs;
   CAddonMgr& m_addonMgr;
 

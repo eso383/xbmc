@@ -10,7 +10,6 @@
 
 #include "IClient.h"
 #include "ITransportLayer.h"
-#include "utils/Artwork.h"
 
 #include <map>
 #include <memory>
@@ -161,6 +160,7 @@ namespace JSONRPC
   public:
     static void NotifyItemUpdated();
     static void NotifyItemUpdated(const std::shared_ptr<CFileItem>& item);
-    static void NotifyItemUpdated(const CVideoInfoTag& info, const KODI::ART::Artwork& artwork);
+    static void NotifyItemUpdated(const CVideoInfoTag& info,
+                                  const std::map<std::string, std::string>& artwork);
   };
 }

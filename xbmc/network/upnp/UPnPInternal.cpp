@@ -15,14 +15,9 @@
 #include "URL.h"
 #include "Util.h"
 #include "filesystem/MusicDatabaseDirectory.h"
-#include "filesystem/MusicDatabaseDirectory/DirectoryNode.h"
 #include "filesystem/StackDirectory.h"
 #include "filesystem/VideoDatabaseDirectory.h"
-#include "filesystem/VideoDatabaseDirectory/DirectoryNode.h"
-#include "imagefiles/ImageFileURL.h"
-#include "music/MusicFileItemClassify.h"
 #include "music/tags/MusicInfoTag.h"
-#include "playlists/PlayListFileItemClassify.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -30,11 +25,9 @@
 #include "utils/Base64.h"
 #include "utils/ContentUtils.h"
 #include "utils/LangCodeExpander.h"
-#include "utils/Set.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoInfoTag.h"
 
 #include <algorithm>
@@ -45,7 +38,6 @@
 
 #include <Platinum/Source/Platinum/Platinum.h>
 
-using namespace KODI;
 using namespace MUSIC_INFO;
 using namespace XFILE;
 
@@ -79,20 +71,12 @@ namespace UPNP
 //
 // main purpose of this array is to share supported real subtitle formats when kodi act as a UPNP
 // server or UPNP/DLNA media render
-constexpr auto SupportedSubFormats = make_set<std::string_view>({
-    "txt",
-    "srt",
-    "ssa",
-    "ass",
-    "sub",
-    "smi",
-    "vtt",
+constexpr std::array<std::string_view, 9> SupportedSubFormats = {
+    "txt", "srt", "ssa", "ass", "sub", "smi", "vtt",
     // "sup" subtitle is not a real TEXT,
     // and there is no real STD subtitle RFC of DLNA,
     // so we only match the extension of the "fake" content type
-    "sup",
-    "idx",
-});
+    "sup", "idx"};
 
 // Map defining extensions for mimetypes not available in Platinum mimetype map
 // or that the application wants to override. These definitions take precedence
@@ -105,7 +89,7 @@ constexpr NPT_HttpFileRequestHandler_DefaultFileTypeMapEntry kodiPlatinumMimeTyp
 +---------------------------------------------------------------------*/
 EClientQuirks GetClientQuirks(const PLT_HttpRequestContext* context)
 {
-  if (context == NULL)
+  if (context == nullptr)
     return ECLIENTQUIRKS_NONE;
 
   unsigned int quirks = 0;
@@ -136,7 +120,7 @@ EClientQuirks GetClientQuirks(const PLT_HttpRequestContext* context)
 +---------------------------------------------------------------------*/
 EMediaControllerQuirks GetMediaControllerQuirks(const PLT_DeviceData* device)
 {
-  if (device == NULL)
+  if (device == nullptr)
     return EMEDIACONTROLLERQUIRKS_NONE;
 
   unsigned int quirks = 0;
@@ -219,13 +203,13 @@ NPT_String GetMimeType(const CFileItem& item, const PLT_HttpRequestContext* cont
   /* fallback to generic mime type if not found */
   if (mime.IsEmpty())
   {
-    if (VIDEO::IsVideo(item) || VIDEO::IsVideoDb(item))
+    if (item.IsVideo() || item.IsVideoDb())
       mime = "video/" + ext;
-    else if (MUSIC::IsAudio(item) || MUSIC::IsMusicDb(item))
+    else if (item.IsAudio() || item.IsMusicDb())
       mime = "audio/" + ext;
     else if (item.IsPicture())
       mime = "image/" + ext;
-    else if (VIDEO::IsSubtitle(item))
+    else if (item.IsSubtitle())
       mime = "text/" + ext;
   }
 
@@ -303,7 +287,7 @@ NPT_Result PopulateObjectFromTag(CMusicInfoTag& tag,
   if (!tag.GetURL().empty() && file_path)
     *file_path = tag.GetURL().c_str();
 
-  const std::vector<std::string>& genres = tag.GetGenre();
+  std::vector<std::string> genres = tag.GetGenre();
   for (unsigned int index = 0; index < genres.size(); index++)
     object.m_Affiliation.genres.Add(genres.at(index).c_str());
   object.m_Title = tag.GetTitle().c_str();
@@ -446,7 +430,7 @@ NPT_Result PopulateObjectFromTag(CVideoInfoTag& tag,
   for (unsigned int index = 0; index < tag.m_genre.size(); index++)
     object.m_Affiliation.genres.Add(tag.m_genre.at(index).c_str());
 
-  for (auto it = tag.m_cast.begin(); it != tag.m_cast.end(); ++it)
+  for (CVideoInfoTag::iCast it = tag.m_cast.begin(); it != tag.m_cast.end(); ++it)
   {
     object.m_People.actors.Add(it->strName.c_str(), it->strRole.c_str());
   }
@@ -493,7 +477,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
   static Logger logger = CServiceBroker::GetLogging().GetLogger("UPNP::BuildObject");
 
   PLT_MediaItemResource resource;
-  PLT_MediaObject* object = NULL;
+  PLT_MediaObject* object = nullptr;
   std::string thumb;
 
   logger->debug("Building didl for plain object '{}' (encoded value: '{}')", item.GetPath(),
@@ -528,13 +512,13 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     rooturi = NPT_HttpUrl("localhost", upnp_server->GetPort(), "/");
   }
 
-  if (!item.IsFolder())
+  if (!item.m_bIsFolder)
   {
     object = new PLT_MediaItem();
     object->m_ObjectID = EncodeObjectId(item.GetPath());
 
     /* Setup object type */
-    if (MUSIC::IsMusicDb(item) || MUSIC::IsAudio(item))
+    if (item.IsMusicDb() || item.IsAudio())
     {
       object->m_ObjectClass.type = "object.item.audioItem.musicTrack";
 
@@ -544,7 +528,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
         PopulateObjectFromTag(*tag, *object, &file_path, &resource, quirks, upnp_service);
       }
     }
-    else if (VIDEO::IsVideoDb(item) || VIDEO::IsVideo(item))
+    else if (item.IsVideoDb() || item.IsVideo())
     {
       object->m_ObjectClass.type = "object.item.videoItem";
 
@@ -571,16 +555,14 @@ PLT_MediaObject* BuildObject(CFileItem& item,
       resource.m_Duration = -1;
 
     // Set the resource file size
-    resource.m_Size = item.GetSize();
+    resource.m_Size = item.m_dwSize;
     if (resource.m_Size == 0)
       resource.m_Size = (NPT_LargeSize)-1;
 
     // set date
-    if (object->m_Date.IsEmpty())
+    if (object->m_Date.IsEmpty() && item.m_dateTime.IsValid())
     {
-      const CDateTime& dateTime{item.GetDateTime()};
-      if (dateTime.IsValid())
-        object->m_Date = dateTime.GetAsW3CDate().c_str();
+      object->m_Date = item.m_dateTime.GetAsW3CDate().c_str();
     }
 
     if (upnp_server)
@@ -623,7 +605,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
   }
   else
   {
-    PLT_MediaContainer* container = new PLT_MediaContainer;
+    auto container = new PLT_MediaContainer;
     object = container;
 
     /* Assign a title and id for this container */
@@ -632,12 +614,13 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     container->m_ChildrenCount = -1;
 
     /* this might be overkill, but hey */
-    if (MUSIC::IsMusicDb(item))
+    if (item.IsMusicDb())
     {
-      const auto node = CMusicDatabaseDirectory::GetDirectoryType(item.GetPath());
+      MUSICDATABASEDIRECTORY::NODE_TYPE node =
+          CMusicDatabaseDirectory::GetDirectoryType(item.GetPath());
       switch (node)
       {
-        case MUSICDATABASEDIRECTORY::NodeType::ARTIST:
+        case MUSICDATABASEDIRECTORY::NODE_TYPE_ARTIST:
         {
           container->m_ObjectClass.type += ".person.musicArtist";
           CMusicInfoTag* tag = item.GetMusicInfoTag();
@@ -658,8 +641,8 @@ PLT_MediaObject* BuildObject(CFileItem& item,
 #endif
         }
         break;
-        case MUSICDATABASEDIRECTORY::NodeType::ALBUM:
-        case MUSICDATABASEDIRECTORY::NodeType::ALBUM_RECENTLY_ADDED:
+        case MUSICDATABASEDIRECTORY::NODE_TYPE_ALBUM:
+        case MUSICDATABASEDIRECTORY::NODE_TYPE_ALBUM_RECENTLY_ADDED:
         {
           container->m_ObjectClass.type += ".album.musicAlbum";
           // for Sonos to be happy
@@ -682,23 +665,24 @@ PLT_MediaObject* BuildObject(CFileItem& item,
 #endif
         }
         break;
-        case MUSICDATABASEDIRECTORY::NodeType::GENRE:
+        case MUSICDATABASEDIRECTORY::NODE_TYPE_GENRE:
           container->m_ObjectClass.type += ".genre.musicGenre";
           break;
         default:
           break;
       }
     }
-    else if (VIDEO::IsVideoDb(item))
+    else if (item.IsVideoDb())
     {
-      const auto node = CVideoDatabaseDirectory::GetDirectoryType(item.GetPath());
+      VIDEODATABASEDIRECTORY::NODE_TYPE node =
+          CVideoDatabaseDirectory::GetDirectoryType(item.GetPath());
       CVideoInfoTag& tag = *item.GetVideoInfoTag();
       switch (node)
       {
-        case VIDEODATABASEDIRECTORY::NodeType::GENRE:
+        case VIDEODATABASEDIRECTORY::NODE_TYPE_GENRE:
           container->m_ObjectClass.type += ".genre.movieGenre";
           break;
-        case VIDEODATABASEDIRECTORY::NodeType::ACTOR:
+        case VIDEODATABASEDIRECTORY::NODE_TYPE_ACTOR:
           container->m_ObjectClass.type += ".person.videoArtist";
           container->m_Creator =
               StringUtils::Join(tag.m_artist,
@@ -706,19 +690,19 @@ PLT_MediaObject* BuildObject(CFileItem& item,
                   .c_str();
           container->m_Title = tag.m_strTitle.c_str();
           break;
-        case VIDEODATABASEDIRECTORY::NodeType::SEASONS:
+        case VIDEODATABASEDIRECTORY::NODE_TYPE_SEASONS:
           container->m_ObjectClass.type += ".album.videoAlbum.videoBroadcastSeason";
           if (item.HasVideoInfoTag())
           {
-            CVideoInfoTag* tag = (CVideoInfoTag*)item.GetVideoInfoTag();
+            auto tag = (CVideoInfoTag*)item.GetVideoInfoTag();
             PopulateObjectFromTag(*tag, *container, &file_path, &resource, quirks);
           }
           break;
-        case VIDEODATABASEDIRECTORY::NodeType::TITLE_TVSHOWS:
+        case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_TVSHOWS:
           container->m_ObjectClass.type += ".album.videoAlbum.videoBroadcastShow";
           if (item.HasVideoInfoTag())
           {
-            CVideoInfoTag* tag = (CVideoInfoTag*)item.GetVideoInfoTag();
+            auto tag = (CVideoInfoTag*)item.GetVideoInfoTag();
             PopulateObjectFromTag(*tag, *container, &file_path, &resource, quirks);
           }
           break;
@@ -727,7 +711,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
           break;
       }
     }
-    else if (PLAYLIST::IsPlayList(item) || PLAYLIST::IsSmartPlayList(item))
+    else if (item.IsPlayList() || item.IsSmartPlayList())
     {
       container->m_ObjectClass.type += ".playlistContainer";
     }
@@ -741,7 +725,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     if (with_count && upnp_server)
     {
       const NPT_String decodedObjectId = DecodeObjectId(object->m_ObjectID.GetChars());
-      if (StringUtils::StartsWithNoCase(decodedObjectId.GetChars(), "virtualpath://"))
+      if (StringUtils::StartsWithNoCase(decodedObjectId, "virtualpath://"))
       {
         NPT_LargeSize count = 0;
         NPT_CHECK_LABEL(NPT_File::GetSize(file_path, count), failure);
@@ -761,7 +745,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     if (!item.GetLabel().empty())
     {
       std::string title = item.GetLabel();
-      if (PLAYLIST::IsPlayList(item) || !item.IsFolder())
+      if (item.IsPlayList() || !item.m_bIsFolder)
         URIUtils::RemoveExtension(title);
       object->m_Title = title.c_str();
     }
@@ -810,9 +794,8 @@ PLT_MediaObject* BuildObject(CFileItem& item,
         art.dlna_profile = "JPEG_TN";
       }
 
-      std::string wrappedUrl = IMAGE_FILES::URLFromFile(thumb);
       art.uri = upnp_server->BuildSafeResourceUri(rooturi, (*ips.GetFirstItem()).ToString(),
-                                                  wrappedUrl.c_str());
+                                                  CTextureUtils::GetWrappedImageURL(thumb).c_str());
 
       object->m_ExtraInfo.album_arts.Add(art);
     }
@@ -821,7 +804,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     {
       if (!itArtwork.first.empty() && !itArtwork.second.empty())
       {
-        std::string wrappedUrl = IMAGE_FILES::URLFromFile(itArtwork.second);
+        std::string wrappedUrl = CTextureUtils::GetWrappedImageURL(itArtwork.second);
         object->m_XbmcInfo.artwork.Add(
             itArtwork.first.c_str(),
             upnp_server->BuildSafeResourceUri(rooturi, (*ips.GetFirstItem()).ToString(),
@@ -835,7 +818,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
   // look for and add external subtitle if we are processing a video file and
   // we are being called by a UPnP player or renderer or the user has chosen
   // to look for external subtitles
-  if (upnp_server != nullptr && VIDEO::IsVideo(item) &&
+  if (upnp_server != nullptr && item.IsVideo() &&
       (upnp_service == UPnPPlayer || upnp_service == UPnPRenderer ||
        settings->GetBool(CSettings::SETTING_SERVICES_UPNPLOOKFOREXTERNALSUBTITLES)))
   {
@@ -849,12 +832,15 @@ PLT_MediaObject* BuildObject(CFileItem& item,
     {
       ext = URIUtils::GetExtension(filenames[i]).c_str();
       ext = ext.substr(1);
-      std::ranges::transform(ext, ext.begin(), ::tolower);
+      std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
       /* Hardcoded check for extension is not the best way, but it can't be allowed to pass all
                subtitle extension (ex. rar or zip). There are the most popular extensions support by UPnP devices.*/
-      if (SupportedSubFormats.contains(ext))
+      for (std::string_view type : SupportedSubFormats)
       {
-        subtitles.push_back(filenames[i]);
+        if (type == ext)
+        {
+          subtitles.push_back(filenames[i]);
+        }
       }
     }
 
@@ -906,7 +892,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
       upnp_server->AddSafeResourceUri(object, rooturi, ips, NPT_String(subtitlePath.c_str()),
                                       protocolInfo);
       // add subtitle resource with smi/caption protocol info (some devices)
-      PLT_ProtocolInfo protInfo = PLT_ProtocolInfo(protocolInfo);
+      auto protInfo = PLT_ProtocolInfo(protocolInfo);
       protocolInfo =
           protInfo.GetProtocol() + ":" + protInfo.GetMask() + ":smi/caption:" + protInfo.GetExtra();
       upnp_server->AddSafeResourceUri(object, rooturi, ips, NPT_String(subtitlePath.c_str()),
@@ -914,7 +900,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
 
       ext = URIUtils::GetExtension(subtitlePath).c_str();
       ext = ext.substr(1);
-      std::ranges::transform(ext, ext.begin(), ::tolower);
+      std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
       NPT_String subtitle_uri = object->m_Resources[object->m_Resources.GetItemCount() - 1].m_Uri;
 
@@ -943,7 +929,7 @@ PLT_MediaObject* BuildObject(CFileItem& item,
 
 failure:
   delete object;
-  return NULL;
+  return nullptr;
 }
 
 /*----------------------------------------------------------------------
@@ -1141,7 +1127,7 @@ int PopulateTagFromObject(CVideoInfoTag& tag,
       int width, height;
       if (sscanf(resource->m_Resolution, "%dx%d", &width, &height) == 2)
       {
-        CStreamDetailVideo* detail = new CStreamDetailVideo;
+        auto detail = new CStreamDetailVideo;
         detail->m_iWidth = width;
         detail->m_iHeight = height;
         detail->m_iDuration = tag.GetDuration();
@@ -1150,7 +1136,7 @@ int PopulateTagFromObject(CVideoInfoTag& tag,
     }
     if (resource->m_NbAudioChannels > 0)
     {
-      CStreamDetailAudio* detail = new CStreamDetailAudio;
+      auto detail = new CStreamDetailAudio;
       detail->m_iChannels = resource->m_NbAudioChannels;
       tag.m_streamDetails.AddStream(detail);
     }
@@ -1165,18 +1151,18 @@ std::shared_ptr<CFileItem> BuildObject(PLT_MediaObject* entry,
 
   CFileItemPtr pItem(new CFileItem((const char*)entry->m_Title));
   pItem->SetLabelPreformatted(true);
-  pItem->SetTitle(static_cast<const char*>(entry->m_Title));
-  pItem->SetFolder(entry->IsContainer());
+  pItem->m_strTitle = (const char*)entry->m_Title;
+  pItem->m_bIsFolder = entry->IsContainer();
 
   // if it's a container, format a string as upnp://uuid/object_id
-  if (pItem->IsFolder())
+  if (pItem->m_bIsFolder)
   {
 
     // look for metadata
     if (ObjectClass.StartsWith("object.container.album.videoalbum"))
     {
       pItem->SetLabelPreformatted(false);
-      UPNP::PopulateTagFromObject(*pItem->GetVideoInfoTag(), *entry, NULL, upnp_service);
+      UPNP::PopulateTagFromObject(*pItem->GetVideoInfoTag(), *entry, nullptr, upnp_service);
     }
     else if (ObjectClass.StartsWith("object.container.album.photoalbum"))
     {
@@ -1185,14 +1171,14 @@ std::shared_ptr<CFileItem> BuildObject(PLT_MediaObject* entry,
     else if (ObjectClass.StartsWith("object.container.album"))
     {
       pItem->SetLabelPreformatted(false);
-      UPNP::PopulateTagFromObject(*pItem->GetMusicInfoTag(), *entry, NULL, upnp_service);
+      UPNP::PopulateTagFromObject(*pItem->GetMusicInfoTag(), *entry, nullptr, upnp_service);
     }
   }
   else
   {
     bool audio = false, image = false, video = false;
     // set a general content type
-    const char* content = NULL;
+    const char* content = nullptr;
     if (ObjectClass.StartsWith("object.item.videoitem"))
     {
       pItem->SetMimeType("video/octet-stream");
@@ -1213,7 +1199,7 @@ std::shared_ptr<CFileItem> BuildObject(PLT_MediaObject* entry,
     }
 
     // attempt to find a valid resource (may be multiple)
-    PLT_MediaItemResource resource, *res = NULL;
+    PLT_MediaItemResource resource, *res = nullptr;
     if (NPT_SUCCEEDED(
             NPT_ContainerFind(entry->m_Resources, CResourceFinder("http-get", content), resource)))
     {
@@ -1221,7 +1207,7 @@ std::shared_ptr<CFileItem> BuildObject(PLT_MediaObject* entry,
       // set metadata
       if (resource.m_Size != (NPT_LargeSize)-1)
       {
-        pItem->SetSize(resource.m_Size);
+        pItem->m_dwSize = resource.m_Size;
       }
       res = &resource;
     }
@@ -1249,7 +1235,7 @@ std::shared_ptr<CFileItem> BuildObject(PLT_MediaObject* entry,
     KODI::TIME::SystemTime time = {};
     sscanf(entry->m_Description.date, "%hu-%hu-%huT%hu:%hu:%hu", &time.year, &time.month, &time.day,
            &time.hour, &time.minute, &time.second);
-    pItem->SetDateTime(time);
+    pItem->m_dateTime = time;
   }
 
   // if there is a thumbnail available set it here
@@ -1370,9 +1356,9 @@ bool GetResource(const PLT_MediaObject* entry, CFileItem& item)
     }
 
     // if this is an image fill the thumb of the item
-    if (StringUtils::StartsWithNoCase(resource.m_ProtocolInfo.GetContentType().GetChars(), "image"))
+    if (StringUtils::StartsWithNoCase(resource.m_ProtocolInfo.GetContentType(), "image"))
     {
-      item.SetArt("thumb", std::string_view(resource.m_Uri));
+      item.SetArt("thumb", std::string(resource.m_Uri));
     }
   }
   else
@@ -1388,14 +1374,17 @@ bool GetResource(const PLT_MediaObject* entry, CFileItem& item)
     const PLT_MediaItemResource& res = entry->m_Resources[r];
     const PLT_ProtocolInfo& info = res.m_ProtocolInfo;
 
-    const std::string type = info.GetContentType().Split("/").GetLastItem()->GetChars();
-    if (SupportedSubFormats.contains(type))
+    for (std::string_view type : SupportedSubFormats)
     {
-      ++subIdx;
-      logger->info("adding subtitle: #{}, type '{}', URI '{}'", subIdx, type, res.m_Uri.GetChars());
+      if (type == info.GetContentType().Split("/").GetLastItem()->GetChars())
+      {
+        ++subIdx;
+        logger->info("adding subtitle: #{}, type '{}', URI '{}'", subIdx, type,
+                     res.m_Uri.GetChars());
 
-      std::string prop = StringUtils::Format("subtitle:{}", subIdx);
-      item.SetProperty(prop, (const char*)res.m_Uri);
+        std::string prop = StringUtils::Format("subtitle:{}", subIdx);
+        item.SetProperty(prop, (const char*)res.m_Uri);
+      }
     }
   }
   return true;
@@ -1404,7 +1393,7 @@ bool GetResource(const PLT_MediaObject* entry, CFileItem& item)
 std::shared_ptr<CFileItem> GetFileItem(const NPT_String& uri, const NPT_String& meta)
 {
   PLT_MediaObjectListReference list;
-  PLT_MediaObject* object = NULL;
+  PLT_MediaObject* object = nullptr;
   CFileItemPtr item;
 
   if (NPT_SUCCEEDED(PLT_Didl::FromDidl(meta, list)))

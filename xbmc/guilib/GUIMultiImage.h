@@ -14,9 +14,8 @@
 */
 
 #include "GUIImage.h"
-#include "jobs/IJobCallback.h"
-#include "jobs/Job.h"
 #include "threads/CriticalSection.h"
+#include "utils/Job.h"
 #include "utils/Stopwatch.h"
 
 #include <vector>
@@ -35,8 +34,8 @@ public:
 
   void Process(unsigned int currentTime, CDirtyRegionList &dirtyregions) override;
   void Render() override;
-  void UpdateVisibility(const CGUIListItem *item = NULL) override;
-  void UpdateInfo(const CGUIListItem *item = NULL) override;
+  void UpdateVisibility(const CGUIListItem *item = nullptr) override;
+  void UpdateInfo(const CGUIListItem *item = nullptr) override;
   bool OnAction(const CAction &action) override;
   bool OnMessage(CGUIMessage &message) override;
   void AllocResources() override;

@@ -89,7 +89,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
 {
   RESOLUTION_INFO current_resolution;
   current_resolution.iWidth = current_resolution.iHeight = 0;
-  const RenderStereoMode stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+  RENDER_STEREO_MODE stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
 
   // check for frac_rate_policy change
   int fractional_rate = (res.fRefreshRate == floor(res.fRefreshRate)) ? 0 : 1;
@@ -100,12 +100,12 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     cur_fractional_rate = amhdmitx0_frac_rate_policy.Get<int>().value();
   }
 
-  // If changing in or out of Dolby Vision and it is on then make sure we do a mode switch
+  // If changing in or out of Dolby Vision and it is on then make sure we do a mode swtich - TODO: combine with DV InfoFrame?
   StreamHdrType hdrType = CServiceBroker::GetWinSystem()->GetGfxContext().GetHDRType();
   bool force_mode_switch_by_dv =
-      ((hdrType != m_hdrType) &&
-       ((hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) || (m_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)) &&
-       (aml_dv_mode() != DV_MODE::OFF));
+         ((hdrType != m_hdrType) &&
+          ((hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION) || (m_hdrType == StreamHdrType::HDR_TYPE_DOLBYVISION)) &&
+       (aml_dv_mode() != DV_MODE_OFF));
 
   // get current used resolution
   if (!aml_get_native_resolution(current_resolution))
@@ -114,6 +114,8 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     return false;
   }
 
+  const std::string new_hdrStr = CStreamDetails::HdrTypeToString(hdrType);
+  const std::string old_hdrStr = CStreamDetails::HdrTypeToString(m_hdrType);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
     "m_bWindowCreated: {}, "
     "frac rate {:d}({:d}), "
@@ -121,7 +123,7 @@ bool CWinSystemAmlogicGLESContext::CreateNewWindow(const std::string& name,
     __FUNCTION__,
     m_bWindowCreated,
     fractional_rate, cur_fractional_rate,
-    CStreamDetails::DynamicRangeToString(hdrType), CStreamDetails::DynamicRangeToString(m_hdrType), force_mode_switch_by_dv);
+    new_hdrStr.empty() ? "none" : new_hdrStr, old_hdrStr.empty() ? "none" : old_hdrStr, force_mode_switch_by_dv);
   CLog::Log(LOGDEBUG, "CWinSystemAmlogicGLESContext::{}: "
     "cur: iWidth: {:04d}, iHeight: {:04d}, iScreenWidth: {:04d}, iScreenHeight: {:04d}, fRefreshRate: {:02.2f}, dwFlags: {:02x}",
     __FUNCTION__,
@@ -265,10 +267,10 @@ std::unique_ptr<CVideoSync> CWinSystemAmlogicGLESContext::GetVideoSync(CVideoRef
   return pVSync;
 }
 
-bool CWinSystemAmlogicGLESContext::SupportsStereo(const RenderStereoMode mode) const
+bool CWinSystemAmlogicGLESContext::SupportsStereo(RENDER_STEREO_MODE mode) const
 {
   if (aml_display_support_3d() &&
-      mode == RenderStereoMode::HARDWAREBASED) {
+      mode == RENDER_STEREO_MODE_HARDWAREBASED) {
     // yes, we support hardware based MVC decoding
     return true;
   }

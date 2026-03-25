@@ -16,7 +16,6 @@
 #include "windowing/GraphicContext.h"
 #include "windowing/WinSystem.h"
 
-#include <cassert>
 #include <mutex>
 
 #ifndef _USE_MATH_DEFINES
@@ -36,11 +35,10 @@
 
 static float zoomamount[10] = { 1.0f, 1.2f, 1.5f, 2.0f, 2.8f, 4.0f, 6.0f, 9.0f, 13.5f, 20.0f };
 
-using KODI::UTILS::COLOR::Color;
-
 CSlideShowPic::CSlideShowPic() : m_pImage(nullptr)
 {
   m_bIsLoaded = false;
+  m_bIsFinished = false;
   m_bDrawNextImage = false;
   m_bTransitionImmediately = false;
 
@@ -55,9 +53,11 @@ CSlideShowPic::~CSlideShowPic()
 
 void CSlideShowPic::Close()
 {
-  std::unique_lock lock(m_textureAccess);
+  std::lock_guard lock(m_textureAccess);
+
   m_pImage.reset();
   m_bIsLoaded = false;
+  m_bIsFinished = false;
   m_bDrawNextImage = false;
   m_bTransitionImmediately = false;
   m_bIsDirty = true;
@@ -66,7 +66,8 @@ void CSlideShowPic::Close()
 
 void CSlideShowPic::Reset(DISPLAY_EFFECT dispEffect, TRANSITION_EFFECT transEffect)
 {
-  std::unique_lock lock(m_textureAccess);
+  std::lock_guard lock(m_textureAccess);
+
   if (m_pImage)
     SetTexture_Internal(m_iSlideNumber, std::move(m_pImage), dispEffect, transEffect);
   else
@@ -82,27 +83,13 @@ bool CSlideShowPic::DisplayEffectNeedChange(DISPLAY_EFFECT newDispEffect) const
   return true;
 }
 
-bool CSlideShowPic::IsFinished() const
-{
-  return IsLoaded() && m_iCounter >= m_transitionEnd.start + m_transitionEnd.length;
-}
-
-bool CSlideShowPic::IsAnimating() const
-{
-  return !IsFinished() &&
-         (m_displayEffect != EFFECT_NO_TIMEOUT || // Special snowflake, doesn't work without this
-          m_iCounter < m_transitionStart.length || // Inside start transition
-          m_iCounter >= m_transitionEnd.start || // Inside end transition
-          (m_iCounter >= m_transitionTemp.start &&
-           m_iCounter < m_transitionTemp.start + m_transitionTemp.length)); // Inside display effect
-}
-
 void CSlideShowPic::SetTexture(int iSlideNumber,
                                std::unique_ptr<CTexture> pTexture,
                                DISPLAY_EFFECT dispEffect,
                                TRANSITION_EFFECT transEffect)
 {
-  std::unique_lock lock(m_textureAccess);
+  std::lock_guard lock(m_textureAccess);
+
   Close();
   SetTexture_Internal(iSlideNumber, std::move(pTexture), dispEffect, transEffect);
 }
@@ -112,7 +99,8 @@ void CSlideShowPic::SetTexture_Internal(int iSlideNumber,
                                         DISPLAY_EFFECT dispEffect,
                                         TRANSITION_EFFECT transEffect)
 {
-  std::unique_lock lock(m_textureAccess);
+  std::lock_guard lock(m_textureAccess);
+  
   m_bPause = false;
   m_bNoEffect = false;
   m_bTransitionImmediately = false;
@@ -223,6 +211,7 @@ void CSlideShowPic::SetTexture_Internal(int iSlideNumber,
 
   m_transitionEnd.start = m_transitionStart.length + iFrames;
 
+  m_bIsFinished = false;
   m_bDrawNextImage = false;
   m_bIsLoaded = true;
 }
@@ -234,8 +223,7 @@ void CSlideShowPic::SetOriginalSize(int iOriginalWidth, int iOriginalHeight, boo
   m_bFullSize = bFullSize;
 }
 
-int CSlideShowPic::GetOriginalWidth()
-{
+int CSlideShowPic::GetOriginalWidth() const {
   int iAngle = (int)(m_fAngle / 90.0f + 0.4f);
   if (iAngle % 2)
     return m_iOriginalHeight;
@@ -243,8 +231,7 @@ int CSlideShowPic::GetOriginalWidth()
     return m_iOriginalWidth;
 }
 
-int CSlideShowPic::GetOriginalHeight()
-{
+int CSlideShowPic::GetOriginalHeight() const {
   int iAngle = (int)(m_fAngle / 90.0f + 0.4f);
   if (iAngle % 2)
     return m_iOriginalWidth;
@@ -254,7 +241,8 @@ int CSlideShowPic::GetOriginalHeight()
 
 void CSlideShowPic::UpdateTexture(std::unique_ptr<CTexture> pTexture)
 {
-  std::unique_lock lock(m_textureAccess);
+  std::lock_guard lock(m_textureAccess);
+
   m_pImage = std::move(pTexture);
   m_fWidth = static_cast<float>(m_pImage->GetWidth());
   m_fHeight = static_cast<float>(m_pImage->GetHeight());
@@ -271,8 +259,7 @@ static CRect GetRectangle(const float x[4], const float y[4])
   return rect;
 }
 
-void CSlideShowPic::UpdateVertices(float cur_x[4], float cur_y[4], const float new_x[4], const float new_y[4], CDirtyRegionList &dirtyregions)
-{
+void CSlideShowPic::UpdateVertices(float cur_x[4], float cur_y[4], const float new_x[4], const float new_y[4], CDirtyRegionList &dirtyregions) const {
   const size_t count = sizeof(float)*4;
   if(memcmp(cur_x, new_x, count)
   || memcmp(cur_y, new_y, count)
@@ -287,11 +274,25 @@ void CSlideShowPic::UpdateVertices(float cur_x[4], float cur_y[4], const float n
 
 void CSlideShowPic::Process(unsigned int currentTime, CDirtyRegionList &dirtyregions)
 {
-  if (!m_pImage || !m_bIsLoaded || IsFinished())
-    return;
-
-  UpdateAlpha();
-
+  if (!m_pImage || !m_bIsLoaded || m_bIsFinished) return ;
+  UTILS::COLOR::Color alpha = m_alpha;
+  if (m_iCounter <= m_transitionStart.length)
+  { // do start transition
+    if (m_transitionStart.type == CROSSFADE)
+    { // fade in at 1x speed
+      alpha = (UTILS::COLOR::Color)((float)m_iCounter / (float)m_transitionStart.length * 255.0f);
+    }
+    else if (m_transitionStart.type == FADEIN_FADEOUT)
+    { // fade in at 2x speed, then keep solid
+      alpha =
+          (UTILS::COLOR::Color)((float)m_iCounter / (float)m_transitionStart.length * 255.0f * 2);
+      if (alpha > 255) alpha = 255;
+    }
+    else // m_transitionEffect == TRANSITION_NONE
+    {
+      alpha = 0xFF; // opaque
+    }
+  }
   bool bPaused = m_bPause | (m_fZoomAmount != 1.0f);
   // check if we're doing a temporary effect (such as rotate + zoom)
   if (m_transitionTemp.type != TRANSITION_NONE)
@@ -379,8 +380,32 @@ void CSlideShowPic::Process(unsigned int currentTime, CDirtyRegionList &dirtyreg
     m_transitionEnd.start++;
   }
   if (m_iCounter >= m_transitionEnd.start)
+  { // do end transition
+//    CLog::Log(LOGDEBUG,"Transitioning");
     m_bDrawNextImage = true;
-  if (IsAnimating())
+    if (m_transitionEnd.type == CROSSFADE)
+    { // fade out at 1x speed
+      alpha = 255 - (UTILS::COLOR::Color)((float)(m_iCounter - m_transitionEnd.start) /
+                                          (float)m_transitionEnd.length * 255.0f);
+    }
+    else if (m_transitionEnd.type == FADEIN_FADEOUT)
+    { // keep solid, then fade out at 2x speed
+      alpha = (UTILS::COLOR::Color)(
+          (float)(m_transitionEnd.length - m_iCounter + m_transitionEnd.start) /
+          (float)m_transitionEnd.length * 255.0f * 2);
+      if (alpha > 255) alpha = 255;
+    }
+    else // m_transitionEffect == TRANSITION_NONE
+    {
+      alpha = 0xFF; // opaque
+    }
+  }
+  if (alpha != m_alpha)
+  {
+    m_alpha = alpha;
+    m_bIsDirty = true;
+  }
+  if (m_displayEffect != EFFECT_NO_TIMEOUT || m_iCounter < m_transitionStart.length || m_iCounter >= m_transitionEnd.start || (m_iCounter >= m_transitionTemp.start && m_iCounter < m_transitionTemp.start + m_transitionTemp.length))
   {
     /* this really annoying.  there's non-stop logging when viewing a pic outside of the slideshow
     if (m_displayEffect == EFFECT_NO_TIMEOUT)
@@ -388,6 +413,8 @@ void CSlideShowPic::Process(unsigned int currentTime, CDirtyRegionList &dirtyreg
     */
     m_iCounter++;
   }
+  if (m_iCounter > m_transitionEnd.start + m_transitionEnd.length)
+    m_bIsFinished = true;
 
   RESOLUTION_INFO info = CServiceBroker::GetWinSystem()->GetGfxContext().GetResInfo();
 
@@ -692,63 +719,6 @@ void CSlideShowPic::Zoom(float fZoom, bool immediate /* = false */)
   m_bNoEffect = true;
 }
 
-void CSlideShowPic::UpdateAlpha()
-{
-  assert(m_iCounter >= 0);
-
-  Color alpha = m_alpha;
-
-  if (m_iCounter < m_transitionStart.length)
-  { // do start transition
-    switch (m_transitionStart.type)
-    {
-      case CROSSFADE:
-        // fade in at 1x speed
-        alpha = static_cast<Color>(static_cast<float>(m_iCounter + 1) /
-                                   static_cast<float>(m_transitionStart.length) * 255.0f);
-        break;
-      case FADEIN_FADEOUT:
-        // fade in at 2x speed, then keep solid
-        alpha =
-            std::min(static_cast<Color>(static_cast<float>(m_iCounter + 1) /
-                                        static_cast<float>(m_transitionStart.length) * 255.0f * 2),
-                     Color{255});
-        break;
-      default:
-        alpha = 255; // opaque
-    }
-  }
-
-  if (m_iCounter >= m_transitionEnd.start)
-  { // do end transition
-    switch (m_transitionEnd.type)
-    {
-      case CROSSFADE:
-        // fade in at 1x speed
-        alpha =
-            255 - static_cast<Color>(static_cast<float>(m_iCounter - m_transitionEnd.start + 1) /
-                                     static_cast<float>(m_transitionEnd.length) * 255.0f);
-        break;
-      case FADEIN_FADEOUT:
-        // fade in at 2x speed, then keep solid
-        alpha =
-            std::min(static_cast<Color>(static_cast<float>(m_transitionEnd.length - m_iCounter +
-                                                           m_transitionEnd.start + 1) /
-                                        static_cast<float>(m_transitionEnd.length) * 255.0f * 2),
-                     Color{255});
-        break;
-      default:
-        alpha = 255; // opaque
-    }
-  }
-
-  if (alpha != m_alpha)
-  {
-    m_alpha = alpha;
-    m_bIsDirty = true;
-  }
-}
-
 void CSlideShowPic::Move(float fDeltaX, float fDeltaY)
 {
   m_fZoomLeft += fDeltaX;
@@ -762,14 +732,14 @@ void CSlideShowPic::Render()
   if (CServiceBroker::GetWinSystem()->GetGfxContext().GetRenderOrder() ==
       RENDER_ORDER_FRONT_TO_BACK)
     return;
-  std::unique_lock lock(m_textureAccess);
+  std::unique_lock<CCriticalSection> lock(m_textureAccess);
 
   Render(m_ax, m_ay, m_pImage.get(), (m_alpha << 24) | 0xFFFFFF);
 
   // now render the image in the top right corner if we're zooming
   if (m_fZoomAmount == 1.0f || m_bIsComic) return ;
 
-  Render(m_bx, m_by, NULL, PICTURE_VIEW_BOX_BACKGROUND);
+  Render(m_bx, m_by, nullptr, PICTURE_VIEW_BOX_BACKGROUND);
   Render(m_sx, m_sy, m_pImage.get(), 0xFFFFFFFF);
-  Render(m_ox, m_oy, NULL, PICTURE_VIEW_BOX_COLOR);
+  Render(m_ox, m_oy, nullptr, PICTURE_VIEW_BOX_COLOR);
 }

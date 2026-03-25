@@ -8,9 +8,6 @@
 
 #pragma once
 
-#include <chrono>
-#include <string_view>
-
 namespace EDL
 {
 
@@ -24,27 +21,10 @@ enum class Action
   COMM_BREAK = 3
 };
 
-constexpr std::string_view ActionToString(Action action) noexcept
-{
-  switch (action)
-  {
-    case Action::CUT:
-      return "CUT";
-    case Action::MUTE:
-      return "MUTE";
-    case Action::SCENE:
-      return "SCENE";
-    case Action::COMM_BREAK:
-      return "COMM_BREAK";
-    default:
-      return "UNKNOWN";
-  }
-}
-
 struct Edit
 {
-  std::chrono::milliseconds start{0};
-  std::chrono::milliseconds end{0};
+  int start = 0; // ms
+  int end = 0; // ms
   Action action = Action::CUT;
 };
 

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
-
 #include <string>
 
 namespace PVR
@@ -30,9 +28,7 @@ public:
 
   bool IsValid() const { return m_bValid; }
 
-  const std::string& AsString() const& { return m_path; }
-  std::string AsString() && { return std::move(m_path); }
-
+  const std::string& GetPath() const { return m_path; }
   bool IsTimersRoot() const { return m_bRoot; }
   bool IsTimerRule() const { return !IsTimersRoot(); }
   bool IsRadio() const { return m_bRadio; }
@@ -48,7 +44,7 @@ private:
   bool m_bRoot = false;
   bool m_bRadio = false;
   bool m_bTimerRules = false;
-  int m_iClientId = PVR_CLIENT_INVALID_UID;
+  int m_iClientId = -1;
   int m_iParentId = 0;
 };
 } // namespace PVR

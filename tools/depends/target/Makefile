@@ -7,7 +7,10 @@ endif
 # Keep in alphabetical order
 DEPENDS = \
   bzip2 \
+  curl \
+  dav1d \
   expat \
+  ffmpeg \
   fontconfig \
   freetype2 \
   freetype2-noharfbuzz \
@@ -18,16 +21,23 @@ DEPENDS = \
   gnutls \
   gtest \
   harfbuzz \
+  libass \
+  libbluray \
   libffi \
   libgcrypt \
   libgpg-error \
   libjpeg-turbo \
+  liblzo2 \
+  libmicrohttpd \
   libplist \
   libpng \
   libshairplay \
   libusb \
   libxml2 \
+  libxslt \
+  mariadb \
   nettle \
+  nghttp2 \
   openssl \
   python3 \
   pythonmodule-pil \
@@ -35,6 +45,7 @@ DEPENDS = \
   pythonmodule-setuptools \
   sqlite3 \
   tinyxml \
+  udfread \
   xz
 
 ifeq ($(ENABLE_GPLV3),yes)
@@ -44,7 +55,7 @@ else
 endif
 
 ifeq ($(OS),darwin_embedded)
-  EXCLUDED_DEPENDS = libusb gtest libcdio libcdio-gplv3
+  EXCLUDED_DEPENDS = libusb gtest
   ifeq ($(TARGET_PLATFORM),appletvos)
     EXCLUDED_DEPENDS += libshairplay libplist
   endif
@@ -53,14 +64,11 @@ endif
 
 ifeq ($(OS),osx)
   EXCLUDED_DEPENDS = libusb
-  DEPENDS += smctemp libaacs libbdplus apache-ant
-  LIBAACS = libaacs
-  LIBDPLUS = libbdplus
-  APACHEANT = apache-ant
+  DEPENDS += smctemp
 endif
 
 ifeq ($(OS),android)
-  EXCLUDED_DEPENDS = libusb gtest libcdio libcdio-gplv3
+  EXCLUDED_DEPENDS = libusb gtest
   DEPENDS += dummy-libxbmc libdovi libuuid
   PYMODULE_DEPS = dummy-libxbmc
   LIBUUID = libuuid
@@ -81,10 +89,6 @@ endif
 ALSA_LIB=
 ifeq ($(OS),linux)
   DEPENDS += dbus libuuid alsa-lib libdrm libxkbcommon libinput libudev libevdev mtdev pipewire
-
-  # CI purposes only. Use linux/webos targets to test tools/depends makefile builds
-  DEPENDS += dav1d ffmpeg
-
   ALSA_LIB = alsa-lib
   LIBUUID = libuuid
 
@@ -125,8 +129,8 @@ ifeq ($(OS),linux)
   endif
 
   ifeq ($(TARGET_PLATFORM),webos)
-    DEPENDS += libdovi wayland waylandpp wayland-protocols webos-wayland-extensions webos-userland
-    EXCLUDED_DEPENDS += dbus mtdev libevdev libinput linux-system-x11-libs pipewire mesa
+    DEPENDS += wayland waylandpp wayland-protocols webos-wayland-extensions webos-userland
+    EXCLUDED_DEPENDS += dbus linux-system-x11-libs pipewire mesa
   endif
 
   ifneq (,$(findstring gbm,$(TARGET_PLATFORM)))
@@ -153,21 +157,17 @@ $(DOWNLOAD_TARGETS):
 
 download: $(DOWNLOAD_TARGETS)
 
-cec: p8-platform
 crossguid: $(LIBUUID)
-curl: brotli openssl nghttp2 $(ZLIB)
+curl: openssl nghttp2 $(ZLIB)
 dbus: expat
-exiv2: $(ICONV) $(ZLIB) expat
 ffmpeg: $(ICONV) $(ZLIB) bzip2 gnutls dav1d $(LIBVA)
 fontconfig: freetype2 expat $(ICONV) $(LIBUUID)
 freetype2: bzip2 harfbuzz $(ZLIB)
 gettext: $(ICONV)
 gnutls: nettle $(ZLIB)
 harfbuzz: freetype2-noharfbuzz $(ICONV)
-libaacs: libgcrypt libgpg-error
-libass: fontconfig fribidi harfbuzz freetype2 $(ICONV)
-libbdplus: libaacs libgcrypt libgpg-error
-libbluray: fontconfig freetype2 $(ICONV) udfread libxml2 $(LIBAACS) $(LIBDPLUS) $(APACHEANT)
+libass: fontconfig fribidi harfbuzz libpng freetype2 expat $(ICONV)
+libbluray: fontconfig freetype2 $(ICONV) udfread libxml2
 libcdio-gplv3: $(ICONV)
 libcdio: $(ICONV)
 libdisplay-info: hwdata
@@ -179,7 +179,7 @@ libplist: $(ZLIB)
 libpng: $(ZLIB)
 libva: libdrm $(LIBVA_DEPS)
 libxml2: $(ZLIB)
-libxslt: libxml2
+libxslt: libgcrypt libxml2
 libzip: bzip2 gnutls $(ZLIB)
 mariadb: openssl $(ICONV) $(ZLIB)
 mesa: libdrm $(MESA_DEPS) $(ZLIB)
@@ -190,7 +190,7 @@ pythonmodule-pil: bzip2 $(PYMODULE_DEPS) $(ZLIB) libjpeg-turbo libpng freetype2 
 pythonmodule-pycryptodome: $(PYMODULE_DEPS) python3 pythonmodule-setuptools
 pythonmodule-setuptools: $(PYMODULE_DEPS) python3
 samba-gplv3: gnutls $(ZLIB)
-taglib: utf8-cpp $(ZLIB)
+taglib: $(ZLIB)
 wayland: expat libffi
 waylandpp: wayland $(WAYLANDPP_DEPS)
 xz: gettext

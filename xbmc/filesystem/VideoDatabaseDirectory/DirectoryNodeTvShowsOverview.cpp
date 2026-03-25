@@ -9,44 +9,44 @@
 #include "DirectoryNodeTvShowsOverview.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "video/VideoDbUrl.h"
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
 Node TvShowChildren[] = {
-    {NodeType::GENRE, "genres", 135},     {NodeType::TITLE_TVSHOWS, "titles", 10024},
-    {NodeType::YEAR, "years", 652},       {NodeType::ACTOR, "actors", 344},
-    {NodeType::STUDIO, "studios", 20388}, {NodeType::TAGS, "tags", 20459}};
+                          { NODE_TYPE_GENRE,         "genres",   135 },
+                          { NODE_TYPE_TITLE_TVSHOWS, "titles",   10024 },
+                          { NODE_TYPE_YEAR,          "years",    652 },
+                          { NODE_TYPE_ACTOR,         "actors",   344 },
+                          { NODE_TYPE_STUDIO,        "studios",  20388 },
+                          { NODE_TYPE_TAGS,          "tags",     20459 }
+                        };
 
-CDirectoryNodeTvShowsOverview::CDirectoryNodeTvShowsOverview(const std::string& strName,
-                                                             CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::TVSHOWS_OVERVIEW, strName, pParent)
+CDirectoryNodeTvShowsOverview::CDirectoryNodeTvShowsOverview(const std::string& strName, CDirectoryNode* pParent)
+  : CDirectoryNode(NODE_TYPE_TVSHOWS_OVERVIEW, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeTvShowsOverview::GetChildType() const
+NODE_TYPE CDirectoryNodeTvShowsOverview::GetChildType() const
 {
   if (GetName()=="0")
-    return NodeType::EPISODES;
+    return NODE_TYPE_EPISODES;
 
   for (const Node& node : TvShowChildren)
     if (GetName() == node.id)
       return node.node;
 
-  return NodeType::NONE;
+  return NODE_TYPE_NONE;
 }
 
 std::string CDirectoryNodeTvShowsOverview::GetLocalizedName() const
 {
   for (const Node& node : TvShowChildren)
     if (GetName() == node.id)
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(node.label);
+      return g_localizeStrings.Get(node.label);
   return "";
 }
 
@@ -58,15 +58,14 @@ bool CDirectoryNodeTvShowsOverview::GetContent(CFileItemList& items) const
 
   for (const Node& node : TvShowChildren)
   {
-    CFileItemPtr pItem(new CFileItem(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(node.label)));
+    CFileItemPtr pItem(new CFileItem(g_localizeStrings.Get(node.label)));
 
     CVideoDbUrl itemUrl = videoUrl;
     std::string strDir = StringUtils::Format("{}/", node.id);
     itemUrl.AppendPath(strDir);
     pItem->SetPath(itemUrl.ToString());
 
-    pItem->SetFolder(true);
+    pItem->m_bIsFolder = true;
     pItem->SetCanQueue(false);
     items.Add(pItem);
   }

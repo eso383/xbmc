@@ -19,7 +19,7 @@
 #include "utils/EmbeddedArt.h"
 #include "utils/ISerializable.h"
 
-#include <chrono>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -39,14 +39,6 @@ public:
 };
 
 class CFileItem;
-
-// Struct to store chapter information from mp3 files (could be used for m4b or mka files too)
-struct ChapterDetails
-{
-  std::string name;
-  std::chrono::milliseconds startTimeMs{0}; // All chapter timings are in milliseconds
-  std::chrono::milliseconds endTimeMs{0};
-};
 
 /*!
  \ingroup music
@@ -73,57 +65,57 @@ public:
   /*! \brief Get artist names from the vector of artistcredits objects
   \return artist names as a vector of strings
   */
-  std::vector<std::string> GetArtist() const;
+  const std::vector<std::string> GetArtist() const;
 
   /*! \brief Get artist sort name string
   \return artist sort name as a single string
   */
-  std::string GetArtistSort() const;
+  const std::string GetArtistSort() const;
 
   /*! \brief Get artist MusicBrainz IDs from the vector of artistcredits objects
   \return artist MusicBrainz IDs as a vector of strings
   */
-  std::vector<std::string> GetMusicBrainzArtistID() const;
+  const std::vector<std::string> GetMusicBrainzArtistID() const;
 
   /*! \brief Get artist names from the artist description string (if it exists)
   or concatenated from the vector of artistcredits objects
   \return artist names as a single string
   */
-  std::string GetArtistString() const;
+  const std::string GetArtistString() const;
 
   /*! \brief Get song artist IDs (for json rpc) from the vector of artistcredits objects
   \return album artist IDs as a vector of integers
   */
-  std::vector<int> GetArtistIDArray() const;
+  const std::vector<int> GetArtistIDArray() const;
 
   /*! \brief Get album artist names associated with song from tag data
    Note for initial album processing only, normalised album artist data belongs to album
    and is stored in album artist credits
   \return album artist names as a vector of strings
   */
-  const std::vector<std::string>& GetAlbumArtist() const { return m_albumArtist; }
+  const std::vector<std::string> GetAlbumArtist() const { return m_albumArtist; }
 
   /*! \brief Get album artist sort name string
   \return album artist sort name as a single string
   */
-  const std::string& GetAlbumArtistSort() const { return m_strAlbumArtistSort; }
+  const std::string GetAlbumArtistSort() const { return m_strAlbumArtistSort; }
 
   /*! \brief Get disc subtitle string where one exists
   \return disc subtitle as a single string
   */
-  const std::string& GetDiscSubtitle() const { return strDiscSubtitle; }
+  const std::string GetDiscSubtitle() const;
 
   /*! \brief Get composer sort name string
   \return composer sort name as a single string
   */
-  const std::string& GetComposerSort() const { return m_strComposerSort; }
+  const std::string GetComposerSort() const { return m_strComposerSort; }
 
   /*! \brief Get the full list of artist names and the role each played for those
     that contributed to the recording. Given in music file tags other than ARTIST
     or ALBUMARTIST, e.g. COMPOSER or CONDUCTOR etc.
   \return a vector of all contributing artist names and their roles
   */
-  const std::vector<CMusicRole>& GetContributors() const { return m_musicRoles; }
+  const VECMUSICROLES& GetContributors() const { return m_musicRoles; }
   //void AddArtistRole(const int &role, const std::string &artist);
   void AppendArtistRole(const CMusicRole& musicRole);
 
@@ -171,7 +163,7 @@ public:
   std::string strTitle;
   std::string strArtistSort;
   std::string strArtistDesc;
-  std::vector<CArtistCredit> artistCredits;
+  VECARTISTCREDITS artistCredits;
   std::string strAlbum;
   std::vector<std::string> genre;
   std::string strThumb;
@@ -203,13 +195,31 @@ public:
   std::string strRecordLabel; // Record label from tag for album processing by CMusicInfoScanner::FileItemsToAlbums
   std::string strAlbumType; // (Musicbrainz release type) album type from tag for album processing by CMusicInfoScanner::FileItemsToAlbums
   std::string songVideoURL; // url to song video
-  std::vector<ChapterDetails> m_chapters; // map of chapter names and start and end times
 
   ReplayGain replayGain;
-
 private:
   std::vector<std::string> m_albumArtist; // Album artist from tag for album processing, no desc or MBID
   std::string m_strAlbumArtistSort; // Albumartist sort string from tag for album processing by CMusicInfoScanner::FileItemsToAlbums
   std::string m_strComposerSort;
-  std::vector<CMusicRole> m_musicRoles;
+  VECMUSICROLES m_musicRoles;
 };
+
+/*!
+ \ingroup music
+ \brief A vector of CSong objects, used for CMusicDatabase
+ \sa CMusicDatabase
+ */
+typedef std::vector<CSong> VECSONGS;
+
+/*!
+ \ingroup music
+ \brief A map of a vector of CSong objects key by filename, used for CMusicDatabase
+ */
+typedef std::map<std::string, VECSONGS> MAPSONGS;
+
+/*!
+ \ingroup music
+ \brief A vector of std::string objects, used for CMusicDatabase
+ \sa CMusicDatabase
+ */
+typedef std::vector<CGenre> VECGENRES;

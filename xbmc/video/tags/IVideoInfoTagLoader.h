@@ -18,7 +18,7 @@ class CFileItem;
 class CVideoInfoTag;
 class EmbeddedArt;
 
-namespace KODI::VIDEO
+namespace VIDEO
 {
 
 //! \brief Base class for video tag loaders.
@@ -42,9 +42,9 @@ public:
   //! \brief tag Tag to load info into
   //! \brief prioritise True to prioritise data over existing data in tag
   //! \returns True if tag was read, false otherwise
-  virtual CInfoScanner::InfoType Load(CVideoInfoTag& tag,
-                                      bool prioritise,
-                                      std::vector<EmbeddedArt>* art = nullptr) = 0;
+  virtual CInfoScanner::INFO_TYPE Load(CVideoInfoTag& tag,
+                                       bool prioritise,
+                                       std::vector<EmbeddedArt>* art = nullptr) = 0;
 
   //! \brief Returns url associated with obtained URL (NFO_URL et al).
   const CScraperUrl& ScraperUrl() const { return m_url; }

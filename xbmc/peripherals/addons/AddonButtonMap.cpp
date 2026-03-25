@@ -27,10 +27,7 @@ CAddonButtonMap::CAddonButtonMap(CPeripheral* device,
                                  const std::weak_ptr<CPeripheralAddon>& addon,
                                  const std::string& strControllerId,
                                  CPeripherals& manager)
-  : m_device(device),
-    m_addon(addon),
-    m_strControllerId(strControllerId),
-    m_manager(manager)
+  : m_device(device), m_addon(addon), m_strControllerId(strControllerId), m_manager(manager)
 {
   auto peripheralAddon = m_addon.lock();
   assert(peripheralAddon != nullptr);
@@ -46,7 +43,7 @@ CAddonButtonMap::~CAddonButtonMap(void)
 
 std::string CAddonButtonMap::Location(void) const
 {
-  return m_device->FileLocation();
+  return m_device->Location();
 }
 
 bool CAddonButtonMap::Load(void)
@@ -99,7 +96,8 @@ bool CAddonButtonMap::Load(void)
     CLog::Log(LOGDEBUG, "Failed to load button map for \"{}\"", m_device->Location());
 
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+
     m_controllerAppearance = std::move(controllerAppearance);
     m_features = std::move(features);
     m_driverMap = std::move(driverMap);
@@ -117,14 +115,14 @@ void CAddonButtonMap::Reset(void)
 
 bool CAddonButtonMap::IsEmpty(void) const
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   return m_driverMap.empty();
 }
 
 std::string CAddonButtonMap::GetAppearance() const
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   return m_controllerAppearance;
 }
@@ -139,7 +137,7 @@ bool CAddonButtonMap::SetAppearance(const std::string& controllerId) const
 
 bool CAddonButtonMap::GetFeature(const CDriverPrimitive& primitive, FeatureName& feature)
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   DriverMap::const_iterator it = m_driverMap.find(primitive);
   if (it != m_driverMap.end())
@@ -153,9 +151,9 @@ bool CAddonButtonMap::GetFeature(const CDriverPrimitive& primitive, FeatureName&
 
 FEATURE_TYPE CAddonButtonMap::GetFeatureType(const FeatureName& feature)
 {
-  FEATURE_TYPE type = FEATURE_TYPE::UNKNOWN;
+  auto type = FEATURE_TYPE::UNKNOWN;
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -168,7 +166,7 @@ bool CAddonButtonMap::GetScalar(const FeatureName& feature, CDriverPrimitive& pr
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -206,7 +204,7 @@ bool CAddonButtonMap::GetAnalogStick(const FeatureName& feature,
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -237,7 +235,8 @@ void CAddonButtonMap::AddAnalogStick(const FeatureName& feature,
   kodi::addon::JoystickFeature analogStick(feature, JOYSTICK_FEATURE_TYPE_ANALOG_STICK);
 
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+
     auto it = m_features.find(feature);
     if (it != m_features.end())
       analogStick = it->second;
@@ -263,7 +262,7 @@ bool CAddonButtonMap::GetRelativePointer(const FeatureName& feature,
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -294,7 +293,8 @@ void CAddonButtonMap::AddRelativePointer(const FeatureName& feature,
   kodi::addon::JoystickFeature relPointer(feature, JOYSTICK_FEATURE_TYPE_RELPOINTER);
 
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+
     auto it = m_features.find(feature);
     if (it != m_features.end())
       relPointer = it->second;
@@ -321,7 +321,7 @@ bool CAddonButtonMap::GetAccelerometer(const FeatureName& feature,
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -369,7 +369,7 @@ bool CAddonButtonMap::GetWheel(const KODI::JOYSTICK::FeatureName& feature,
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -400,7 +400,8 @@ void CAddonButtonMap::AddWheel(const KODI::JOYSTICK::FeatureName& feature,
   kodi::addon::JoystickFeature joystickFeature(feature, JOYSTICK_FEATURE_TYPE_WHEEL);
 
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+
     auto it = m_features.find(feature);
     if (it != m_features.end())
       joystickFeature = it->second;
@@ -426,7 +427,7 @@ bool CAddonButtonMap::GetThrottle(const KODI::JOYSTICK::FeatureName& feature,
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -457,7 +458,8 @@ void CAddonButtonMap::AddThrottle(const KODI::JOYSTICK::FeatureName& feature,
   kodi::addon::JoystickFeature joystickFeature(feature, JOYSTICK_FEATURE_TYPE_THROTTLE);
 
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+    
     auto it = m_features.find(feature);
     if (it != m_features.end())
       joystickFeature = it->second;
@@ -481,7 +483,7 @@ bool CAddonButtonMap::GetKey(const FeatureName& feature, CDriverPrimitive& primi
 {
   bool retVal(false);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   FeatureMap::const_iterator it = m_features.find(feature);
   if (it != m_features.end())
@@ -519,12 +521,13 @@ void CAddonButtonMap::SetIgnoredPrimitives(
 
 bool CAddonButtonMap::IsIgnored(const JOYSTICK::CDriverPrimitive& primitive)
 {
-  return std::ranges::find(m_ignoredPrimitives, primitive) != m_ignoredPrimitives.end();
+  return std::find(m_ignoredPrimitives.begin(), m_ignoredPrimitives.end(), primitive) !=
+         m_ignoredPrimitives.end();
 }
 
 bool CAddonButtonMap::GetAxisProperties(unsigned int axisIndex, int& center, unsigned int& range)
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   for (const auto& it : m_driverMap)
   {
@@ -606,7 +609,7 @@ CAddonButtonMap::DriverMap CAddonButtonMap::CreateLookupTable(const FeatureMap& 
           driverMap[translatedPrimitive] = it.first;
 
           // Map opposite semiaxis
-          CDriverPrimitive oppositePrimitive = CDriverPrimitive(
+          auto oppositePrimitive = CDriverPrimitive(
               translatedPrimitive.Index(), 0, translatedPrimitive.SemiAxisDirection() * -1, 1);
           driverMap[oppositePrimitive] = it.first;
         }

@@ -9,6 +9,7 @@
 #include "PVRChannelGroupMember.h"
 
 #include "ServiceBroker.h"
+#include "pvr/PVRDatabase.h"
 #include "pvr/PVRManager.h"
 #include "pvr/addons/PVRClient.h"
 #include "pvr/channels/PVRChannel.h"
@@ -63,16 +64,16 @@ void CPVRChannelGroupMember::SetChannel(const std::shared_ptr<CPVRChannel>& chan
 
 void CPVRChannelGroupMember::ToSortable(SortItem& sortable, Field field) const
 {
-  if (field == Field::CHANNEL_NUMBER)
+  if (field == FieldChannelNumber)
   {
-    sortable[Field::CHANNEL_NUMBER] = m_channelNumber.SortableChannelNumber();
+    sortable[FieldChannelNumber] = m_channelNumber.SortableChannelNumber();
   }
-  else if (field == Field::CLIENT_CHANNEL_ORDER)
+  else if (field == FieldClientChannelOrder)
   {
     if (m_iOrder)
-      sortable[Field::CLIENT_CHANNEL_ORDER] = m_iOrder;
+      sortable[FieldClientChannelOrder] = m_iOrder;
     else
-      sortable[Field::CLIENT_CHANNEL_ORDER] = m_clientChannelNumber.SortableChannelNumber();
+      sortable[FieldClientChannelOrder] = m_clientChannelNumber.SortableChannelNumber();
   }
 }
 
@@ -87,18 +88,11 @@ void CPVRChannelGroupMember::SetGroupID(int iGroupID)
 
 void CPVRChannelGroupMember::SetGroupName(const std::string& groupName)
 {
-  if (m_groupName != groupName)
-  {
-    m_groupName = groupName;
-    // Note: do not set m_bNeedsSave here as group name is not stored in database
-  }
-
   const std::shared_ptr<const CPVRClient> client =
       CServiceBroker::GetPVRManager().GetClient(m_iChannelClientID);
   if (client)
     m_path = CPVRChannelsPath(m_bIsRadio, groupName, m_iGroupClientID, client->ID(),
-                              client->InstanceId(), m_iChannelUID)
-                 .AsString();
+                              client->InstanceId(), m_iChannelUID);
   else
     CLog::LogF(LOGERROR, "Unable to obtain instance for client id: {}", m_iChannelClientID);
 }
@@ -137,4 +131,12 @@ void CPVRChannelGroupMember::SetOrder(int iOrder)
     m_iOrder = iOrder;
     m_bNeedsSave = true;
   }
+}
+
+bool CPVRChannelGroupMember::QueueDelete() const {
+  const std::shared_ptr<CPVRDatabase> database = CServiceBroker::GetPVRManager().GetTVDatabase();
+  if (!database)
+    return false;
+
+  return database->QueueDeleteQuery(*this);
 }

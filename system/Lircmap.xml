@@ -635,8 +635,6 @@
 		<blue>KEY_BLUE</blue>
 		<recordedtv>KEY_PVR</recordedtv>
 		<liveradio>KEY_RADIO</liveradio>
-		<favorites>KEY_FAVORITES</favorites>
-		<last>KEY_LAST</last>
 	</remote>
 
 	<remote device="devinput-32">
@@ -697,8 +695,6 @@
 		<blue>KEY_BLUE</blue>
 		<recordedtv>KEY_PVR</recordedtv>
 		<liveradio>KEY_RADIO</liveradio>
-		<favorites>KEY_FAVORITES</favorites>
-		<last>KEY_LAST</last>
 	</remote>
 
 	<remote device="devinput-64">
@@ -759,7 +755,5 @@
 		<blue>KEY_BLUE</blue>
 		<recordedtv>KEY_PVR</recordedtv>
 		<liveradio>KEY_RADIO</liveradio>
-		<favorites>KEY_FAVORITES</favorites>
-		<last>KEY_LAST</last>
 	</remote>
 </lircmap>

@@ -9,7 +9,6 @@
 #include "DialogGameSaves.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "addons/Addon.h"
 #include "addons/AddonManager.h"
@@ -25,10 +24,9 @@
 #include "guilib/GUIKeyboardFactory.h"
 #include "guilib/GUIMessage.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
 #include "input/actions/ActionIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/FileUtils.h"
 #include "utils/Variant.h"
 #include "view/GUIViewControl.h"
@@ -226,7 +224,6 @@ void CDialogGameSaves::OnInitWindow()
       if (!gameClientId.empty())
       {
         std::string emulatorName;
-        std::string emulatorVersion;
         std::string emulatorIcon;
 
         using namespace ADDON;
@@ -241,7 +238,6 @@ void CDialogGameSaves::OnInitWindow()
             m_currentGameClient = gameClient->ID();
 
             emulatorName = gameClient->GetEmulatorName();
-            emulatorVersion = item->GetProperty(SAVESTATE_GAME_CLIENT_VERSION).asString();
             emulatorIcon = gameClient->Icon();
           }
         }
@@ -250,12 +246,6 @@ void CDialogGameSaves::OnInitWindow()
         {
           CGUIMessage message(GUI_MSG_LABEL_SET, GetID(), CONTROL_SAVES_EMULATOR_NAME);
           message.SetLabel(emulatorName);
-          OnMessage(message);
-        }
-        if (!emulatorVersion.empty())
-        {
-          CGUIMessage message(GUI_MSG_LABEL_SET, GetID(), CONTROL_SAVES_EMULATOR_VERSION);
-          message.SetLabel(emulatorVersion);
           OnMessage(message);
         }
         if (!emulatorIcon.empty())
@@ -334,7 +324,7 @@ bool CDialogGameSaves::Open(const std::string& gamePath)
   if (items.IsEmpty())
     return false;
 
-  items.Sort(SortBy::DATE, SortOrder::DESCENDING);
+  items.Sort(SortByDate, SortOrderDescending);
 
   SetItems(items);
 
@@ -343,16 +333,14 @@ bool CDialogGameSaves::Open(const std::string& gamePath)
   return true;
 }
 
-std::string CDialogGameSaves::GetSelectedItemPath()
-{
+std::string CDialogGameSaves::GetSelectedItemPath() const {
   if (m_selectedItem)
     return m_selectedItem->GetPath();
 
   return "";
 }
 
-void CDialogGameSaves::SetItems(const CFileItemList& itemList)
-{
+void CDialogGameSaves::SetItems(const CFileItemList& itemList) const {
   m_vecList->Clear();
 
   // Need to make internal copy of list to be sure dialog is owner of it
@@ -371,18 +359,15 @@ void CDialogGameSaves::OnFocus(const CFileItem& item)
 {
   const std::string caption = item.GetProperty(SAVESTATE_CAPTION).asString();
   const std::string gameClientId = item.GetProperty(SAVESTATE_GAME_CLIENT).asString();
-  const std::string gameClientVersion = item.GetProperty(SAVESTATE_GAME_CLIENT_VERSION).asString();
 
   HandleCaption(caption);
   HandleGameClient(gameClientId);
-  HandleGameClientVersion(gameClientVersion);
 }
 
 void CDialogGameSaves::OnFocusLost()
 {
   HandleCaption("");
   HandleGameClient("");
-  HandleGameClientVersion("");
 }
 
 void CDialogGameSaves::OnContextMenu(CFileItem& item)
@@ -400,8 +385,7 @@ void CDialogGameSaves::OnContextMenu(CFileItem& item)
     OnDelete(item);
 }
 
-void CDialogGameSaves::OnRename(CFileItem& item)
-{
+void CDialogGameSaves::OnRename(CFileItem& item) const {
   const std::string& savestatePath = item.GetPath();
 
   // Get savestate properties
@@ -412,9 +396,7 @@ void CDialogGameSaves::OnRename(CFileItem& item)
   std::string label(savestate->Label());
 
   // "Enter new filename"
-  if (CGUIKeyboardFactory::ShowAndGetInput(
-          label, CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16013)},
-          true) &&
+  if (CGUIKeyboardFactory::ShowAndGetInput(label, CVariant{g_localizeStrings.Get(16013)}, true) &&
       label != savestate->Label())
   {
     std::unique_ptr<RETRO::ISavestate> newSavestate = db.RenameSavestate(savestatePath, label);
@@ -434,8 +416,7 @@ void CDialogGameSaves::OnRename(CFileItem& item)
   }
 }
 
-void CDialogGameSaves::OnDelete(const CFileItem& item)
-{
+void CDialogGameSaves::OnDelete(CFileItem& item) const {
   // "Confirm delete"
   // "Would you like to delete the selected file(s)?[CR]Warning - this action can't be undone!"
   if (CGUIDialogYesNo::ShowAndGetInput(CVariant{122}, CVariant{125}))
@@ -512,19 +493,4 @@ void CDialogGameSaves::HandleGameClient(const std::string& gameClientId)
     message.SetLabel(iconPath);
     CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(message, GetID());
   }
-}
-
-void CDialogGameSaves::HandleGameClientVersion(const std::string& gameClientVersion)
-{
-  if (gameClientVersion == m_currentGameClientVersion)
-    return;
-
-  m_currentGameClientVersion = gameClientVersion;
-  if (m_currentGameClientVersion.empty())
-    return;
-
-  // Update the GUI elements
-  CGUIMessage message(GUI_MSG_LABEL_SET, GetID(), CONTROL_SAVES_EMULATOR_VERSION);
-  message.SetLabel(gameClientVersion);
-  CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(message, GetID());
 }

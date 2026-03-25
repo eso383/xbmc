@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -11,7 +11,6 @@
 #include "ServiceManager.h"
 #include "application/Application.h"
 #include "profiles/ProfileManager.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/SettingsComponent.h"
 #include "utils/log.h"
 #include "windowing/WinSystem.h"
@@ -20,7 +19,6 @@
 #include <utility>
 
 using namespace KODI;
-using namespace KODI::UTILS::I18N;
 
 CServiceBroker::CServiceBroker()
 {
@@ -315,21 +313,6 @@ void CServiceBroker::UnregisterGUI()
   g_serviceBroker.m_pGUI = nullptr;
 }
 
-CResourcesComponent& CServiceBroker::GetResourcesComponent()
-{
-  return *g_serviceBroker.m_pResourcesComponent;
-}
-
-void CServiceBroker::RegisterResourcesComponent(std::unique_ptr<CResourcesComponent> resources)
-{
-  g_serviceBroker.m_pResourcesComponent = std::move(resources);
-}
-
-void CServiceBroker::UnregisterResourcesComponent()
-{
-  g_serviceBroker.m_pResourcesComponent.reset();
-}
-
 // audio
 IAE* CServiceBroker::GetActiveAE()
 {
@@ -459,39 +442,4 @@ void CServiceBroker::UnregisterSpeechRecognition()
 std::shared_ptr<speech::ISpeechRecognition> CServiceBroker::GetSpeechRecognition()
 {
   return g_serviceBroker.m_speechRecognition;
-}
-
-void CServiceBroker::RegisterDNSNameCache(std::shared_ptr<CDNSNameCache> cache)
-{
-  g_serviceBroker.m_dnsNameCache = std::move(cache);
-}
-
-void CServiceBroker::UnregisterDNSNameCache()
-{
-  g_serviceBroker.m_dnsNameCache.reset();
-}
-
-std::shared_ptr<CDNSNameCache> CServiceBroker::GetDNSNameCache()
-{
-  return g_serviceBroker.m_dnsNameCache;
-}
-
-void CServiceBroker::RegisterBlurayDiscCache(const std::shared_ptr<XFILE::CBlurayDiscCache>& cache)
-{
-  g_serviceBroker.m_blurayDiscCache = cache;
-}
-
-void CServiceBroker::UnregisterBlurayDiscCache()
-{
-  g_serviceBroker.m_blurayDiscCache.reset();
-}
-
-std::shared_ptr<XFILE::CBlurayDiscCache> CServiceBroker::GetBlurayDiscCache()
-{
-  return g_serviceBroker.m_blurayDiscCache;
-}
-
-CSubTagRegistryManager& CServiceBroker::GetSubTagRegistry()
-{
-  return g_application.m_ServiceManager->GetSubTagRegistryManager();
 }

@@ -72,7 +72,7 @@ bool IHTTPRequestHandler::HasResponseHeader(const std::string &field) const
   if (field.empty())
     return false;
 
-  return m_response.headers.contains(field);
+  return m_response.headers.find(field) != m_response.headers.end();
 }
 
 bool IHTTPRequestHandler::AddResponseHeader(const std::string &field, const std::string &value, bool allowMultiple /* = false */)
@@ -92,7 +92,7 @@ void IHTTPRequestHandler::AddPostField(const std::string &key, const std::string
   if (key.empty())
     return;
 
-  std::map<std::string, std::string>::iterator field = m_postFields.find(key);
+  auto field = m_postFields.find(key);
   if (field == m_postFields.end())
     m_postFields[key] = value;
   else
@@ -109,7 +109,7 @@ bool IHTTPRequestHandler::AddPostData(const char *data, size_t size)
 
 bool IHTTPRequestHandler::GetRequestedRanges(uint64_t totalLength)
 {
-  if (!m_ranged || m_request.webserver == NULL || m_request.connection == NULL)
+  if (!m_ranged || m_request.webserver == nullptr || m_request.connection == nullptr)
     return false;
 
   m_request.ranges.Clear();
@@ -119,9 +119,8 @@ bool IHTTPRequestHandler::GetRequestedRanges(uint64_t totalLength)
   return HTTPRequestHandlerUtils::GetRequestedRanges(m_request.connection, totalLength, m_request.ranges);
 }
 
-bool IHTTPRequestHandler::GetHostnameAndPort(std::string& hostname, uint16_t &port)
-{
-  if (m_request.webserver == NULL || m_request.connection == NULL)
+bool IHTTPRequestHandler::GetHostnameAndPort(std::string& hostname, uint16_t &port) const {
+  if (m_request.webserver == nullptr || m_request.connection == nullptr)
     return false;
 
   std::string hostnameAndPort = HTTPRequestHandlerUtils::GetRequestHeaderValue(m_request.connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_HOST);
@@ -139,7 +138,7 @@ bool IHTTPRequestHandler::GetHostnameAndPort(std::string& hostname, uint16_t &po
     if (!StringUtils::IsNaturalNumber(strPort))
       return false;
 
-    unsigned long portL = strtoul(strPort.c_str(), NULL, 0);
+    unsigned long portL = strtoul(strPort.c_str(), nullptr, 0);
     if (portL > std::numeric_limits<uint16_t>::max())
       return false;
 

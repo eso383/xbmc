@@ -19,7 +19,11 @@
 #include "utils/EndianSwap.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
+
+extern "C"
+{
+#include <libavutil/dict.h>
+}
 
 extern "C"
 {
@@ -28,7 +32,7 @@ extern "C"
 
 CDVDOverlayCodecFFmpeg::CDVDOverlayCodecFFmpeg() : CDVDOverlayCodec("FFmpeg Subtitle Decoder")
 {
-  m_pCodecContext = NULL;
+  m_pCodecContext = nullptr;
   m_SubtitleIndex = -1;
   m_width         = 0;
   m_height        = 0;
@@ -78,7 +82,7 @@ bool CDVDOverlayCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
 
     // start parsing of extra data - create a copy to be safe and make it zero-terminating to avoid access violations!
     unsigned int parse_extrasize = hints.extradata.GetSize();
-    char* parse_extra = new char[parse_extrasize + 1];
+    auto parse_extra = new char[parse_extrasize + 1];
     memcpy(parse_extra, hints.extradata.GetData(), parse_extrasize);
     parse_extra[parse_extrasize] = '\0';
 
@@ -107,9 +111,9 @@ bool CDVDOverlayCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &optio
       */
       // if tried all possibilities, then read newline char and move to next line
       ptr = strchr(ptr, '\n');
-      if (ptr != NULL) ptr++;
+      if (ptr != nullptr) ptr++;
     }
-    while (ptr != NULL && ptr <= parse_extra + parse_extrasize);
+    while (ptr != nullptr && ptr <= parse_extra + parse_extrasize);
 
     delete[] parse_extra;
   }
@@ -249,11 +253,11 @@ std::shared_ptr<CDVDOverlay> CDVDOverlayCodecFFmpeg::GetOverlay()
     if(m_SubtitleIndex >= (int)m_Subtitle.num_rects)
       return nullptr;
 
-    if(m_Subtitle.rects[m_SubtitleIndex] == NULL)
+    if(m_Subtitle.rects[m_SubtitleIndex] == nullptr)
       return nullptr;
 
     AVSubtitleRect rect = *m_Subtitle.rects[m_SubtitleIndex];
-    if (rect.data[0] == NULL)
+    if (rect.data[0] == nullptr)
       return nullptr;
 
     m_height = m_pCodecContext->height;
@@ -272,10 +276,9 @@ std::shared_ptr<CDVDOverlay> CDVDOverlayCodecFFmpeg::GetOverlay()
       }
     }
 
-    RenderStereoMode render_stereo_mode =
-        CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
-    if (render_stereo_mode != RenderStereoMode::OFF &&
-        render_stereo_mode != RenderStereoMode::HARDWAREBASED)
+    RENDER_STEREO_MODE render_stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+    if (render_stereo_mode != RENDER_STEREO_MODE_OFF &&
+        render_stereo_mode != RENDER_STEREO_MODE_HARDWAREBASED)
     {
       if (rect.h > m_height / 2)
       {

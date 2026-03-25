@@ -9,13 +9,10 @@
 #include "MusicDbUrl.h"
 
 #include "filesystem/MusicDatabaseDirectory.h"
-#include "filesystem/MusicDatabaseDirectory/DirectoryNode.h"
-#include "filesystem/MusicDatabaseDirectory/QueryParams.h"
 #include "playlists/SmartPlayList.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 
-using namespace KODI;
 using namespace XFILE;
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
@@ -34,35 +31,35 @@ bool CMusicDbUrl::parse()
   std::string path = m_url.Get();
 
   // Parse path for directory node types and query params
-  NodeType dirType;
-  NodeType childType;
+  NODE_TYPE dirType;
+  NODE_TYPE childType;
   CQueryParams queryParams;
   if (!CMusicDatabaseDirectory::GetDirectoryNodeInfo(path, dirType, childType, queryParams))
     return false;
 
   switch (dirType)
   {
-    case NodeType::ARTIST:
+    case NODE_TYPE_ARTIST:
       m_type = "artists";
       break;
 
-    case NodeType::ALBUM:
-    case NodeType::ALBUM_RECENTLY_ADDED:
-    case NodeType::ALBUM_RECENTLY_PLAYED:
-    case NodeType::ALBUM_TOP100:
+    case NODE_TYPE_ALBUM:
+    case NODE_TYPE_ALBUM_RECENTLY_ADDED:
+    case NODE_TYPE_ALBUM_RECENTLY_PLAYED:
+    case NODE_TYPE_ALBUM_TOP100:
       m_type = "albums";
       break;
 
-    case NodeType::DISC:
+    case NODE_TYPE_DISC:
       m_type = "discs";
       break;
 
-    case NodeType::ALBUM_RECENTLY_ADDED_SONGS:
-    case NodeType::ALBUM_RECENTLY_PLAYED_SONGS:
-    case NodeType::ALBUM_TOP100_SONGS:
-    case NodeType::SONG:
-    case NodeType::SONG_TOP100:
-    case NodeType::SINGLES:
+    case NODE_TYPE_ALBUM_RECENTLY_ADDED_SONGS:
+    case NODE_TYPE_ALBUM_RECENTLY_PLAYED_SONGS:
+    case NODE_TYPE_ALBUM_TOP100_SONGS:
+    case NODE_TYPE_SONG:
+    case NODE_TYPE_SONG_TOP100:
+    case NODE_TYPE_SINGLES:
       m_type = "songs";
       break;
 
@@ -72,52 +69,52 @@ bool CMusicDbUrl::parse()
 
   switch (childType)
   {
-    case NodeType::ARTIST:
+    case NODE_TYPE_ARTIST:
       m_type = "artists";
       break;
 
-    case NodeType::ALBUM:
-    case NodeType::ALBUM_RECENTLY_ADDED:
-    case NodeType::ALBUM_RECENTLY_PLAYED:
-    case NodeType::ALBUM_TOP100:
+    case NODE_TYPE_ALBUM:
+    case NODE_TYPE_ALBUM_RECENTLY_ADDED:
+    case NODE_TYPE_ALBUM_RECENTLY_PLAYED:
+    case NODE_TYPE_ALBUM_TOP100:
       m_type = "albums";
       break;
 
-    case NodeType::DISC:
+    case NODE_TYPE_DISC:
       m_type = "discs";
       break;
 
-    case NodeType::SONG:
-    case NodeType::ALBUM_RECENTLY_ADDED_SONGS:
-    case NodeType::ALBUM_RECENTLY_PLAYED_SONGS:
-    case NodeType::ALBUM_TOP100_SONGS:
-    case NodeType::SONG_TOP100:
-    case NodeType::SINGLES:
+    case NODE_TYPE_SONG:
+    case NODE_TYPE_ALBUM_RECENTLY_ADDED_SONGS:
+    case NODE_TYPE_ALBUM_RECENTLY_PLAYED_SONGS:
+    case NODE_TYPE_ALBUM_TOP100_SONGS:
+    case NODE_TYPE_SONG_TOP100:
+    case NODE_TYPE_SINGLES:
       m_type = "songs";
       break;
 
-    case NodeType::GENRE:
+    case NODE_TYPE_GENRE:
       m_type = "genres";
       break;
 
-    case NodeType::SOURCE:
+    case NODE_TYPE_SOURCE:
       m_type = "sources";
       break;
 
-    case NodeType::ROLE:
+    case NODE_TYPE_ROLE:
       m_type = "roles";
       break;
 
-    case NodeType::YEAR:
+    case NODE_TYPE_YEAR:
       m_type = "years";
       break;
 
-    case NodeType::TOP100:
+    case NODE_TYPE_TOP100:
       m_type = "top100";
       break;
 
-    case NodeType::ROOT:
-    case NodeType::OVERVIEW:
+    case NODE_TYPE_ROOT:
+    case NODE_TYPE_OVERVIEW:
     default:
       return false;
   }
@@ -129,7 +126,7 @@ bool CMusicDbUrl::parse()
   AddOptions(m_url.GetOptions());
 
   // add options based on the node type
-  if (dirType == NodeType::SINGLES || childType == NodeType::SINGLES)
+  if (dirType == NODE_TYPE_SINGLES || childType == NODE_TYPE_SINGLES)
     AddOption("singles", true);
 
   // add options based on the QueryParams
@@ -164,7 +161,7 @@ bool CMusicDbUrl::validateOption(const std::string &key, const CVariant &value)
   if (!value.isString())
     return false;
 
-  PLAYLIST::CSmartPlaylist xspFilter;
+  CSmartPlaylist xspFilter;
   if (!xspFilter.LoadFromJson(value.asString()))
     return false;
 

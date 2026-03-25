@@ -43,7 +43,7 @@
 #endif
 
 using namespace ADDON;
-using namespace KODI;
+using namespace KODI::MESSAGING;
 using KODI::MESSAGING::HELPERS::DialogResponse;
 
 /*! \brief Install an addon.
@@ -75,8 +75,7 @@ static int EnableAddon(const std::vector<std::string>& params)
   if (!CServiceBroker::GetAddonMgr().GetAddon(addonid, addon, OnlyEnabled::CHOICE_NO))
     return -1;
 
-  auto response = MESSAGING::HELPERS::ShowYesNoDialogLines(
-      CVariant{24076}, CVariant{24135}, CVariant{addon->Name()}, CVariant{24136});
+  auto response = HELPERS::ShowYesNoDialogLines(CVariant{24076}, CVariant{24135}, CVariant{addon->Name()}, CVariant{24136});
   if (response == DialogResponse::CHOICE_YES)
     CServiceBroker::GetAddonMgr().EnableAddon(addonid);
 
@@ -89,10 +88,10 @@ static int EnableAddon(const std::vector<std::string>& params)
  */
 static int RunPlugin(const std::vector<std::string>& params)
 {
-  if (!params.empty())
+  if (params.size())
   {
     CFileItem item(params[0]);
-    if (!item.IsFolder())
+    if (!item.m_bIsFolder)
     {
       item.SetPath(params[0]);
       XFILE::CPluginDirectory::RunScriptWithParams(item.GetPath(), false);
@@ -115,7 +114,7 @@ static int RunPlugin(const std::vector<std::string>& params)
  */
 static int RunAddon(const std::vector<std::string>& params)
 {
-  if (!params.empty())
+  if (params.size())
   {
     const std::string& addonid = params[0];
 
@@ -142,19 +141,19 @@ static int RunAddon(const std::vector<std::string>& params)
       }
 
       std::string cmd;
-      if (plugin->Provides(CPluginSource::Content::VIDEO))
+      if (plugin->Provides(CPluginSource::VIDEO))
         cmd = StringUtils::Format("ActivateWindow(Videos,plugin://{}{},return)", addonid,
                                   urlParameters);
-      else if (plugin->Provides(CPluginSource::Content::AUDIO))
+      else if (plugin->Provides(CPluginSource::AUDIO))
         cmd = StringUtils::Format("ActivateWindow(Music,plugin://{}{},return)", addonid,
                                   urlParameters);
-      else if (plugin->Provides(CPluginSource::Content::EXECUTABLE))
+      else if (plugin->Provides(CPluginSource::EXECUTABLE))
         cmd = StringUtils::Format("ActivateWindow(Programs,plugin://{}{},return)", addonid,
                                   urlParameters);
-      else if (plugin->Provides(CPluginSource::Content::IMAGE))
+      else if (plugin->Provides(CPluginSource::IMAGE))
         cmd = StringUtils::Format("ActivateWindow(Pictures,plugin://{}{},return)", addonid,
                                   urlParameters);
-      else if (plugin->Provides(CPluginSource::Content::GAME))
+      else if (plugin->Provides(CPluginSource::GAME))
         cmd = StringUtils::Format("ActivateWindow(Games,plugin://{}{},return)", addonid,
                                   urlParameters);
       else
@@ -190,7 +189,7 @@ static int RunAddon(const std::vector<std::string>& params)
       else
         item = CFileItem(addon);
 
-      if (!g_application.PlayMedia(item, "", PLAYLIST::Id::TYPE_NONE))
+      if (!g_application.PlayMedia(item, "", PLAYLIST::TYPE_NONE))
       {
         CLog::Log(LOGERROR, "RunAddon could not start {}", addonid);
         return false;

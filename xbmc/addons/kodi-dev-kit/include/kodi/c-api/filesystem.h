@@ -15,8 +15,7 @@
 
 #ifdef _WIN32 // windows
 #ifndef _SSIZE_T_DEFINED
-#include <BaseTsd.h>
-typedef SSIZE_T ssize_t;
+typedef intptr_t ssize_t;
 #define _SSIZE_T_DEFINED
 #endif // !_SSIZE_T_DEFINED
 
@@ -64,9 +63,6 @@ extern "C"
     /// @brief **0000 0000 0010** :\n
     /// Indicate that that caller support read in the minimum defined
     /// chunk size, this disables internal cache then.
-    /// This flag is deprecated, instead use ADDON_READ_NO_CACHE to disable FileCache and
-    /// ADDON_READ_NO_BUFFER to disable StreamBuffer. On the contrary to explicitly indicate that
-    /// the file has audio/video content (suitable for caching), use the ADDON_READ_AUDIO_VIDEO flag.
     ADDON_READ_CHUNKED = 0x02,
 
     /// @brief **0000 0000 0100** :\n
@@ -87,9 +83,8 @@ extern "C"
     ADDON_READ_MULTI_STREAM = 0x20,
 
     /// @brief **0000 0100 0000** :\n
-    /// Indicate to the caller file is audio and/or video and is suitable for caching with FileCache or StreamBuffer.
-    /// The final method used will depend on the user's settings and file location, e.g. user can disable FileCache.
-    /// This flag ensures that at least the buffer size necessary to read with the appropriate chunk size will be used.
+    /// indicate to the caller file is audio and/or video (and e.g. may
+    /// grow).
     ADDON_READ_AUDIO_VIDEO = 0x40,
 
     /// @brief **0000 1000 0000** :\n
@@ -98,11 +93,7 @@ extern "C"
 
     /// @brief **0001 0000 0000** :\n
     /// Indicate that caller want to reopen a file if its already open.
-    ADDON_READ_REOPEN = 0x100,
-
-    /// @brief **0010 0000 0000** :\n
-    /// Indicate that caller want open a file without intermediate buffer regardless to file type.
-    ADDON_READ_NO_BUFFER = 0x200,
+    ADDON_READ_REOPEN = 0x100
   } OpenFileFlags;
   ///@}
   //----------------------------------------------------------------------------
@@ -137,7 +128,6 @@ extern "C"
     /// | <b>`user-agent`</b>                 | Set the "user-agent" header
     /// | <b>`seekable`</b>                   | Set the stream seekable. 1: enable, 0: disable
     /// | <b>`sslcipherlist`</b>              | Set list of accepted SSL ciphers.
-    /// | <b>`verifypeer`</b>                 | Set to false if curl must skip checking the authenticity of the SSL CA certificate.
     ///
     ADDON_CURL_OPTION_PROTOCOL,
 

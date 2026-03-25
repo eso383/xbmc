@@ -20,8 +20,7 @@ namespace CONTEXTMENU
 class CFavouriteContextMenuAction : public CStaticContextMenuAction
 {
 public:
-  using CStaticContextMenuAction::CStaticContextMenuAction;
-
+  explicit CFavouriteContextMenuAction(uint32_t label) : CStaticContextMenuAction(label) {}
   bool IsVisible(const CFileItem& item) const override;
   bool Execute(const std::shared_ptr<CFileItem>& item) const override;
 

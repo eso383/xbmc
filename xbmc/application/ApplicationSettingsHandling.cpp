@@ -24,8 +24,6 @@
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
 #include "settings/lib/SettingsManager.h"
-#include "windowing/WinSystem.h"
-
 #if defined(TARGET_DARWIN_OSX)
 #include "utils/StringUtils.h"
 #endif
@@ -34,11 +32,10 @@ namespace
 {
 bool IsPlaying(const std::string& condition,
                const std::string& value,
-               const SettingConstPtr& setting)
+               const SettingConstPtr& setting,
+               void* data)
 {
-  auto& components = CServiceBroker::GetAppComponents();
-  const auto appPlayer = components.GetComponent<CApplicationPlayer>();
-  return appPlayer ? appPlayer->IsPlaying() : false;
+  return data ? static_cast<CApplicationPlayer*>(data)->IsPlaying() : false;
 }
 } // namespace
 
@@ -70,7 +67,6 @@ void CApplicationSettingsHandling::RegisterSettings()
                                        CSettings::SETTING_VIDEOPLAYER_USEAMCODEC,
                                        CSettings::SETTING_VIDEOPLAYER_USEMEDIACODEC,
                                        CSettings::SETTING_VIDEOPLAYER_USEMEDIACODECSURFACE,
-                                       CSettings::SETTING_VIDEOPLAYER_USEDECODERFILTER,
                                        CSettings::SETTING_AUDIOOUTPUT_VOLUMESTEPS,
                                        CSettings::SETTING_SOURCE_VIDEOS,
                                        CSettings::SETTING_SOURCE_MUSIC,
@@ -87,7 +83,7 @@ void CApplicationSettingsHandling::RegisterSettings()
       {CSettings::SETTING_VIDEOPLAYER_SEEKDELAY, CSettings::SETTING_VIDEOPLAYER_SEEKSTEPS,
        CSettings::SETTING_MUSICPLAYER_SEEKDELAY, CSettings::SETTING_MUSICPLAYER_SEEKSTEPS});
 
-  settingsMgr->AddDynamicCondition("isplaying", IsPlaying);
+  settingsMgr->AddDynamicCondition("isplaying", IsPlaying, appPlayer.get());
 
   settings->RegisterSubSettings(this);
 }

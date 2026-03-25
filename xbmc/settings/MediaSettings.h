@@ -19,17 +19,19 @@
 #include <map>
 #include <string>
 
-constexpr int VOLUME_DRC_MINIMUM = 0; // 0dB
-constexpr int VOLUME_DRC_MAXIMUM = 6000; // 60dB
+#define VOLUME_DRC_MINIMUM 0    // 0dB
+#define VOLUME_DRC_MAXIMUM 6000 // 60dB
 
 class TiXmlNode;
 
-enum WatchedMode
-{
-  WatchedModeAll = 0,
+// Step used to increase/decrease audio delay
+static constexpr float AUDIO_DELAY_STEP = 0.005f;
+
+typedef enum {
+  WatchedModeAll        = 0,
   WatchedModeUnwatched,
   WatchedModeWatched
-};
+} WatchedMode;
 
 class CMediaSettings : public ISettingCallback, public ISettingsHandler, public ISubSettings
 {
@@ -87,10 +89,10 @@ public:
   void SetVideoNeedsUpdate(int version) { m_videoNeedsUpdate = version; }
 
 protected:
-  CMediaSettings() = default;
+  CMediaSettings();
   CMediaSettings(const CMediaSettings&) = delete;
   CMediaSettings& operator=(CMediaSettings const&) = delete;
-  ~CMediaSettings() override = default;
+  ~CMediaSettings() override;
 
   static std::string GetWatchedContent(const std::string &content);
 
@@ -100,25 +102,19 @@ private:
   CGameSettings m_defaultGameSettings;
   CGameSettings m_currentGameSettings;
 
-  using WatchedModes = std::map<std::string, WatchedMode, std::less<>>;
-  WatchedModes m_watchedModes{{"files", WatchedModeAll},
-                              {"movies", WatchedModeAll},
-                              {"tvshows", WatchedModeAll},
-                              {"musicvideos", WatchedModeAll},
-                              {"recordings", WatchedModeAll}};
+  typedef std::map<std::string, WatchedMode> WatchedModes;
+  WatchedModes m_watchedModes;
 
-  bool m_musicPlaylistRepeat{false};
-  bool m_musicPlaylistShuffle{false};
-  bool m_videoPlaylistRepeat{false};
-  bool m_videoPlaylistShuffle{false};
+  bool m_musicPlaylistRepeat;
+  bool m_musicPlaylistShuffle;
+  bool m_videoPlaylistRepeat;
+  bool m_videoPlaylistShuffle;
 
-  bool m_mediaStartWindowed{false};
-  int m_additionalSubtitleDirectoryChecked{0};
+  bool m_mediaStartWindowed;
+  int m_additionalSubtitleDirectoryChecked;
 
-  int m_musicNeedsUpdate{
-      0}; ///< if a database update means an update is required (set to the version number of the db)
-  int m_videoNeedsUpdate{
-      0}; ///< if a database update means an update is required (set to the version number of the db)
+  int m_musicNeedsUpdate; ///< if a database update means an update is required (set to the version number of the db)
+  int m_videoNeedsUpdate; ///< if a database update means an update is required (set to the version number of the db)
 
   mutable CCriticalSection m_critical;
 };

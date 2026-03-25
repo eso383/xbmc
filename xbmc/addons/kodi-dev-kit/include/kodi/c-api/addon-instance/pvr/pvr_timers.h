@@ -298,7 +298,7 @@ extern "C"
     /// @brief __1__ : The timer is scheduled for recording.
     PVR_TIMER_STATE_SCHEDULED = 1,
 
-    /// @brief __2__ : The timer is currently recording.
+    /// @brief __2__ : The timer is currently recordings.
     PVR_TIMER_STATE_RECORDING = 2,
 
     /// @brief __3__ : The recording completed successfully.
@@ -310,17 +310,19 @@ extern "C"
     /// @brief __5__ : The timer was scheduled, but was canceled.
     PVR_TIMER_STATE_CANCELLED = 5,
 
-    /// @brief __6__ : The scheduled timer conflicts with another one, but will be recorded.
+    /// @brief __6__ : The scheduled timer conflicts with another one, but will be
+    /// recorded.
     PVR_TIMER_STATE_CONFLICT_OK = 6,
 
-    /// @brief __7__ : The scheduled timer conflicts with another one and won't be recorded.
+    /// @brief __7__ : The scheduled timer conflicts with another one and won't be
+    /// recorded.
     PVR_TIMER_STATE_CONFLICT_NOK = 7,
 
     /// @brief __8__ : The timer is scheduled, but can't be recorded for some reason.
     PVR_TIMER_STATE_ERROR = 8,
 
-    /// @brief __9__ : The timer was disabled by the user, can be enabled via setting the state to
-    /// @ref PVR_TIMER_STATE_SCHEDULED.
+    /// @brief __9__ : The timer was disabled by the user, can be enabled via setting
+    /// the state to @ref PVR_TIMER_STATE_SCHEDULED.
     PVR_TIMER_STATE_DISABLED = 9,
   } PVR_TIMER_STATE;
   ///@}
@@ -345,11 +347,11 @@ extern "C"
     bool bEndAnyTime;
     enum PVR_TIMER_STATE state;
     unsigned int iTimerType;
-    const char* strTitle;
-    const char* strEpgSearchString;
+    char strTitle[PVR_ADDON_NAME_STRING_LENGTH];
+    char strEpgSearchString[PVR_ADDON_NAME_STRING_LENGTH];
     bool bFullTextEpgSearch;
-    const char* strDirectory;
-    const char* strSummary;
+    char strDirectory[PVR_ADDON_URL_STRING_LENGTH];
+    char strSummary[PVR_ADDON_DESC_STRING_LENGTH];
     int iPriority;
     int iLifetime;
     int iMaxRecordings;
@@ -362,13 +364,11 @@ extern "C"
     unsigned int iMarginEnd;
     int iGenreType;
     int iGenreSubType;
-    const char* strSeriesLink;
-    unsigned int iCustomPropsSize;
-    struct PVR_SETTING_KEY_VALUE_PAIR* customProps;
+    char strSeriesLink[PVR_ADDON_URL_STRING_LENGTH];
   } PVR_TIMER;
 
   /*!
-   * @brief "C" PVR add-on timer type.
+   * @brief "C" PVR add-on timer event type.
    *
    * Structure used to interface in "C" between Kodi and Addon.
    *
@@ -379,30 +379,27 @@ extern "C"
   {
     unsigned int iId;
     uint64_t iAttributes;
-    const char* strDescription;
+    char strDescription[PVR_ADDON_TIMERTYPE_STRING_LENGTH];
 
     unsigned int iPrioritiesSize;
-    struct PVR_ATTRIBUTE_INT_VALUE* priorities;
+    struct PVR_ATTRIBUTE_INT_VALUE priorities[PVR_ADDON_TIMERTYPE_VALUES_ARRAY_SIZE];
     int iPrioritiesDefault;
 
     unsigned int iLifetimesSize;
-    struct PVR_ATTRIBUTE_INT_VALUE* lifetimes;
+    struct PVR_ATTRIBUTE_INT_VALUE lifetimes[PVR_ADDON_TIMERTYPE_VALUES_ARRAY_SIZE];
     int iLifetimesDefault;
 
     unsigned int iPreventDuplicateEpisodesSize;
-    struct PVR_ATTRIBUTE_INT_VALUE* preventDuplicateEpisodes;
-    int iPreventDuplicateEpisodesDefault;
+    struct PVR_ATTRIBUTE_INT_VALUE preventDuplicateEpisodes[PVR_ADDON_TIMERTYPE_VALUES_ARRAY_SIZE];
+    unsigned int iPreventDuplicateEpisodesDefault;
 
     unsigned int iRecordingGroupSize;
-    struct PVR_ATTRIBUTE_INT_VALUE* recordingGroup;
-    int iRecordingGroupDefault;
+    struct PVR_ATTRIBUTE_INT_VALUE recordingGroup[PVR_ADDON_TIMERTYPE_VALUES_ARRAY_SIZE];
+    unsigned int iRecordingGroupDefault;
 
     unsigned int iMaxRecordingsSize;
-    struct PVR_ATTRIBUTE_INT_VALUE* maxRecordings;
+    struct PVR_ATTRIBUTE_INT_VALUE maxRecordings[PVR_ADDON_TIMERTYPE_VALUES_ARRAY_SIZE_SMALL];
     int iMaxRecordingsDefault;
-
-    unsigned int iCustomSettingDefsSize;
-    struct PVR_SETTING_DEFINITION** customSettingDefs;
   } PVR_TIMER_TYPE;
 
 #ifdef __cplusplus

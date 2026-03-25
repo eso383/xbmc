@@ -8,13 +8,11 @@
 
 #include "AppParams.h"
 
-#include "FileItemList.h"
+#include "FileItem.h"
 
 CAppParams::CAppParams() : m_playlist(std::make_unique<CFileItemList>())
 {
 }
-
-CAppParams::~CAppParams() = default;
 
 void CAppParams::SetRawArgs(std::vector<std::string> args)
 {

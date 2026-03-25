@@ -14,14 +14,12 @@
 #include "dialogs/GUIDialogKaiToast.h"
 #include "guilib/GUIMessage.h"
 #include "guilib/GUITexture.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/Texture.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/ColorUtils.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
 
 static int teletextFadeAmount = 0;
 
@@ -61,9 +59,7 @@ bool CGUIDialogTeletext::OnMessage(CGUIMessage& message)
     if (!appPlayer->HasTeletextCache())
     {
       Close();
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Info,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(23049), "", 1500, false);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(23049), "", 1500, false);
       return true;
     }
   }
@@ -121,7 +117,7 @@ void CGUIDialogTeletext::Render()
       Close();
   }
 
-  unsigned char* textureBuffer = (unsigned char*)m_TextDecoder.GetTextureBuffer();
+  auto textureBuffer = (unsigned char*)m_TextDecoder.GetTextureBuffer();
   if (!m_bClose && m_TextDecoder.NeedRendering() && textureBuffer)
   {
     m_pTxtTexture->Update(m_TextDecoder.GetWidth(), m_TextDecoder.GetHeight(), m_TextDecoder.GetWidth()*4, XB_FMT_A8R8G8B8, textureBuffer, false);
@@ -129,8 +125,8 @@ void CGUIDialogTeletext::Render()
     MarkDirtyRegion();
   }
 
-  KODI::UTILS::COLOR::Color color =
-      (static_cast<KODI::UTILS::COLOR::Color>(teletextFadeAmount * 2.55f) & 0xff) << 24 | 0xFFFFFF;
+  UTILS::COLOR::Color color =
+      (static_cast<UTILS::COLOR::Color>(teletextFadeAmount * 2.55f) & 0xff) << 24 | 0xFFFFFF;
   CGUITexture::DrawQuad(m_vertCoords, color, m_pTxtTexture.get(), nullptr, -1.0f);
 
   CGUIDialog::Render();

@@ -67,25 +67,26 @@ CPVRGUIActionListener::~CPVRGUIActionListener()
 
 void CPVRGUIActionListener::Init(CPVRManager& mgr)
 {
-  mgr.Events().Subscribe(this,
-                         [](const PVREvent& event)
-                         {
-                           if (event == PVREvent::AnnounceReminder)
-                           {
-                             if (g_application.IsInitialized())
-                             {
-                               // if GUI is ready, dispatch to GUI thread and handle the action there
-                               CServiceBroker::GetAppMessenger()->PostMsg(
-                                   TMSG_GUI_ACTION, WINDOW_INVALID, -1,
-                                   static_cast<void*>(new CAction(ACTION_PVR_ANNOUNCE_REMINDERS)));
-                             }
-                           }
-                         });
+  mgr.Events().Subscribe(this, &CPVRGUIActionListener::OnPVRManagerEvent);
 }
 
 void CPVRGUIActionListener::Deinit(CPVRManager& mgr)
 {
   mgr.Events().Unsubscribe(this);
+}
+
+void CPVRGUIActionListener::OnPVRManagerEvent(const PVREvent& event)
+{
+  if (event == PVREvent::AnnounceReminder)
+  {
+    if (g_application.IsInitialized())
+    {
+      // if GUI is ready, dispatch to GUI thread and handle the action there
+      CServiceBroker::GetAppMessenger()->PostMsg(
+          TMSG_GUI_ACTION, WINDOW_INVALID, -1,
+          static_cast<void*>(new CAction(ACTION_PVR_ANNOUNCE_REMINDERS)));
+    }
+  }
 }
 
 ChannelSwitchMode CPVRGUIActionListener::GetChannelSwitchMode(int iAction)
@@ -117,19 +118,17 @@ bool CPVRGUIActionListener::OnAction(const CAction& action)
         case ACTION_PVR_PLAY:
           if (!bIsPlayingPVR)
             CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
-                PlaybackType::TYPE_ANY);
+                PlaybackTypeAny);
           break;
         case ACTION_PVR_PLAY_TV:
           if (!bIsPlayingPVR || g_application.CurrentFileItem().GetPVRChannelInfoTag()->IsRadio())
             CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
-                PlaybackType::TYPE_TV);
+                PlaybackTypeTV);
           break;
         case ACTION_PVR_PLAY_RADIO:
           if (!bIsPlayingPVR || !g_application.CurrentFileItem().GetPVRChannelInfoTag()->IsRadio())
             CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
-                PlaybackType::TYPE_RADIO);
-          break;
-        default:
+                PlaybackTypeRadio);
           break;
       }
       return true;
@@ -281,8 +280,8 @@ bool CPVRGUIActionListener::OnAction(const CAction& action)
       if (!bIsPlayingPVR)
         return false;
 
-      const auto iChannelNumber{static_cast<int>(action.GetAmount(0))};
-      const auto iSubChannelNumber{static_cast<int>(action.GetAmount(1))};
+      int iChannelNumber = static_cast<int>(action.GetAmount(0));
+      int iSubChannelNumber = static_cast<int>(action.GetAmount(1));
 
       const std::shared_ptr<const CPVRPlaybackState> playbackState =
           CServiceBroker::GetPVRManager().PlaybackState();
@@ -295,7 +294,7 @@ bool CPVRGUIActionListener::OnAction(const CAction& action)
         return false;
 
       CServiceBroker::GetPVRManager().Get<PVR::GUI::Playback>().SwitchToChannel(
-          CFileItem(groupMember));
+          CFileItem(groupMember), false);
       return true;
     }
 
@@ -310,9 +309,6 @@ bool CPVRGUIActionListener::OnAction(const CAction& action)
       CServiceBroker::GetPVRManager().Get<PVR::GUI::Timers>().AnnounceReminders();
       return true;
     }
-
-    default:
-      break;
   }
   return false;
 }

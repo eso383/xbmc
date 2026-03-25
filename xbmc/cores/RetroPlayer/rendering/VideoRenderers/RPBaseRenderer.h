@@ -10,7 +10,6 @@
 
 #include "cores/GameSettings.h"
 #include "cores/RetroPlayer/rendering/RenderSettings.h"
-#include "cores/RetroPlayer/rendering/RenderUtils.h"
 #include "utils/Geometry.h"
 
 extern "C"
@@ -18,16 +17,12 @@ extern "C"
 #include <libavutil/pixfmt.h>
 }
 
+#include <array>
 #include <memory>
 #include <stdint.h>
 
 namespace KODI
 {
-namespace SHADER
-{
-class IShaderPreset;
-}
-
 namespace RETRO
 {
 class CRenderContext;
@@ -45,11 +40,15 @@ public:
   /*!
    * \brief Get the buffer pool used by this renderer
    */
-  IRenderBufferPool* GetBufferPool() { return m_bufferPool.get(); }
+  IRenderBufferPool* GetBufferPool() const { return m_bufferPool.get(); }
 
   // Player functions
   bool Configure(AVPixelFormat format);
   void FrameMove();
+  /*!
+   * \brief Performs whatever necessary before rendering the frame
+   */
+  void PreRender(bool clear) const;
   void SetBuffer(IRenderBuffer* buffer);
   void RenderFrame(bool clear, uint8_t alpha);
 
@@ -68,7 +67,6 @@ public:
   void SetScalingMethod(SCALINGMETHOD method);
   void SetStretchMode(STRETCHMODE stretchMode);
   void SetRenderRotation(unsigned int rotationDegCCW);
-  void SetShaderPreset(const std::string& presetPath);
   void SetPixels(const std::string& pixelPath);
 
   // Rendering properties
@@ -95,16 +93,7 @@ protected:
 
   // Geometry properties
   CRect m_sourceRect;
-  float m_fullDestWidth{0.0f};
-  float m_fullDestHeight{0.0f};
-  ViewportCoordinates m_rotatedDestCoords{};
-
-  // Video shaders
-  void Updateshaders();
-  std::unique_ptr<SHADER::IShaderPreset> m_shaderPreset;
-
-  bool m_bShadersNeedUpdate = true;
-  bool m_bUseShaderPreset = false;
+  std::array<CPoint, 4> m_rotatedDestCoords{};
 
 private:
   /*!
@@ -112,20 +101,15 @@ private:
    */
   virtual void ManageRenderArea(const IRenderBuffer& renderBuffer);
 
-  void MarkDirty();
-
-  /*!
-   * \brief Performs whatever necessary before rendering the frame
-   */
-  void PreRender(bool clear);
-
   /*!
    * \brief Performs whatever necessary after a frame has been rendered
    */
-  void PostRender();
+  void PostRender() const;
+
+  void MarkDirty();
 
   // Utility functions
-  void GetScreenDimensions(float& screenWidth, float& screenHeight, float& screenPixelRatio);
+  void GetScreenDimensions(float& screenWidth, float& screenHeight, float& screenPixelRatio) const;
 
   uint64_t m_renderFrameCount = 0;
   uint64_t m_lastRender = 0;

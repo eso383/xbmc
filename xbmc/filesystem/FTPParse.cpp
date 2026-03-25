@@ -17,23 +17,24 @@ CFTPParse::CFTPParse()
   m_size = 0;
 }
 
-int CFTPParse::getFlagtrycwd()
+std::string CFTPParse::getName()
 {
+  return m_name;
+}
+
+int CFTPParse::getFlagtrycwd() const {
   return m_flagtrycwd;
 }
 
-int CFTPParse::getFlagtryretr()
-{
+int CFTPParse::getFlagtryretr() const {
   return m_flagtryretr;
 }
 
-uint64_t CFTPParse::getSize()
-{
+uint64_t CFTPParse::getSize() const {
   return m_size;
 }
 
-time_t CFTPParse::getTime()
-{
+time_t CFTPParse::getTime() const {
   return m_time;
 }
 
@@ -78,7 +79,7 @@ void CFTPParse::setTime(const std::string& str)
     /* set the day of the month */
     time_struct.tm_mday = std::stol(day);
 
-    time_t t = time(NULL);
+    time_t t = time(nullptr);
     struct tm *current_time;
 #ifdef LOCALTIME_R
     struct tm result = {};
@@ -135,7 +136,7 @@ void CFTPParse::setTime(const std::string& str)
     time_struct.tm_min = std::stol(minute);
 
     /* set the second if given*/
-    if (!second.empty())
+    if (second.length() > 0)
       time_struct.tm_sec = std::stol(second);
   }
   // Regex to read MSDOS time format

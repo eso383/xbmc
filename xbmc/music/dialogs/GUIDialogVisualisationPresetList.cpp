@@ -14,8 +14,7 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIVisualisationControl.h"
 #include "guilib/GUIWindowManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 
@@ -55,15 +54,14 @@ void CGUIDialogVisualisationPresetList::SetVisualisation(CGUIVisualisationContro
   if (!m_viz)
   { // No viz, but show something if this dialog activated
     SetHeading(CVariant{ 10122 });
-    CFileItem item(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13389));
+    CFileItem item(g_localizeStrings.Get(13389));
     Add(item);
   }
   else
   {
     SetUseDetails(false);
     SetMultiSelection(false);
-    SetHeading(CVariant{StringUtils::Format(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13407), m_viz->Name())});
+    SetHeading(CVariant{StringUtils::Format(g_localizeStrings.Get(13407), m_viz->Name())});
     std::vector<std::string> presets;
     if (m_viz->GetPresetList(presets))
     {
@@ -78,7 +76,7 @@ void CGUIDialogVisualisationPresetList::SetVisualisation(CGUIVisualisationContro
     else
     { // Viz does not have any presets
       // "There are no presets available for this visualisation"
-      CFileItem item(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13389));
+      CFileItem item(g_localizeStrings.Get(13389));
       Add(item);
     }
   }

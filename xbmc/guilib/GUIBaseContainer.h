@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -29,7 +29,6 @@
  */
 
 class IListProvider;
-class TiXmlElement;
 class TiXmlNode;
 class CGUIListItemLayout;
 
@@ -124,7 +123,7 @@ protected:
   virtual void CalculateLayout();
   virtual void SelectItem(int item) {}
   virtual bool SelectItemFromPoint(const CPoint& point) { return false; }
-  virtual int GetCursorFromPoint(const CPoint& point, CPoint* itemPoint = NULL) const { return -1; }
+  virtual int GetCursorFromPoint(const CPoint& point, CPoint* itemPoint = nullptr) const { return -1; }
   virtual void Reset();
   virtual size_t GetNumItems() const { return m_items.size(); }
   virtual int GetCurrentPage() const;
@@ -135,7 +134,7 @@ protected:
 
   int ScrollCorrectionRange() const;
   inline float Size() const;
-  void FreeMemory(int keepStart, int keepEnd);
+  void FreeMemory(int keepStart, int keepEnd) const;
   void GetCurrentLayouts();
   CGUIListItemLayout *GetFocusedLayout() const;
 
@@ -164,7 +163,7 @@ protected:
   bool m_focusedLayoutCondition = false;
 
   virtual void ScrollToOffset(int offset);
-  void SetContainerMoving(int direction);
+  void SetContainerMoving(int direction) const;
   void UpdateScrollOffset(unsigned int currentTime);
 
   CScroller m_scroller;
@@ -220,12 +219,6 @@ protected:
 
   struct RENDERITEM
   {
-    // user-defined ctor for XCode 15.2 and emplace_back
-    RENDERITEM(float newPosX,
-               float newPosY,
-               std::shared_ptr<CGUIListItem> newItem,
-               bool newFocused);
-
     float posX;
     float posY;
     std::shared_ptr<CGUIListItem> item;
@@ -233,10 +226,10 @@ protected:
   };
 
   // Cached render items to avoid per-frame vector allocation
-  std::vector<RENDERITEM> m_renderItems;
+  mutable std::vector<RENDERITEM> m_renderItems;
 
 private:
-  bool OnContextMenu();
+  bool OnContextMenu() const;
 
   int m_cursor;
   int m_offset;

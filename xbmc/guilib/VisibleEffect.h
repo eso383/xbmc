@@ -88,8 +88,8 @@ class CFadeEffect : public CAnimEffect
 public:
   CFadeEffect(const TiXmlElement* node, bool reverseDefaults, EFFECT_TYPE effect);
   CFadeEffect(float start, float end, unsigned int delay, unsigned int length);
-  CFadeEffect(KODI::UTILS::COLOR::Color start,
-              KODI::UTILS::COLOR::Color end,
+  CFadeEffect(UTILS::COLOR::Color start,
+              UTILS::COLOR::Color end,
               unsigned int delay,
               unsigned int length);
   ~CFadeEffect() override = default;
@@ -98,8 +98,8 @@ private:
 
   float m_startAlpha;
   float m_endAlpha;
-  KODI::UTILS::COLOR::ColorFloats m_startColor;
-  KODI::UTILS::COLOR::ColorFloats m_endColor;
+  UTILS::COLOR::ColorFloats m_startColor;
+  UTILS::COLOR::ColorFloats m_endColor;
 };
 
 class CSlideEffect : public CAnimEffect
@@ -178,12 +178,12 @@ public:
   inline ANIMATION_PROCESS GetProcess() const { return m_currentProcess; }
   inline ANIMATION_PROCESS GetQueuedProcess() const { return m_queuedProcess; }
 
-  bool CheckCondition();
-  void UpdateCondition(const CGUIListItem *item = NULL);
+  bool CheckCondition() const;
+  void UpdateCondition(const CGUIListItem *item = nullptr);
   void SetInitialCondition();
 
 private:
-  void Calculate(const CPoint &point);
+  void Calculate(const CPoint &point) const;
   void AddEffect(const std::string &type, const TiXmlElement *node, const CRect &rect);
 
   enum ANIM_REPEAT { ANIM_REPEAT_NONE = 0, ANIM_REPEAT_PULSE, ANIM_REPEAT_LOOP };
@@ -256,7 +256,7 @@ public:
   unsigned int GetDuration() const { return m_duration; }
 
 private:
-  float Tween(float progress);
+  float Tween(float progress) const;
 
   float        m_scrollValue;
   float        m_delta;                   //!< Brief distance that we have to travel during scroll

@@ -12,9 +12,9 @@
 #include "cores/AudioEngine/Interfaces/AE.h"
 #include "cores/AudioEngine/Interfaces/IAudioCallback.h"
 #include "cores/IPlayer.h"
-#include "jobs/IJobCallback.h"
 #include "threads/CriticalSection.h"
 #include "threads/Thread.h"
+#include "utils/Job.h"
 
 #include <atomic>
 #include <list>
@@ -50,7 +50,7 @@ public:
   void GetAudioStreamInfo(int index, AudioStreamInfo& info) const override;
   void SetTime(int64_t time) override;
   void SeekTime(int64_t iTime = 0) override;
-  void GetAudioCapabilities(std::vector<IPlayerAudioCaps>& caps) const override {}
+  void GetAudioCapabilities(std::vector<int>& audioCaps) const override {}
 
   int GetAudioStreamCount() const override { return 1; }
   int GetAudioStream() override { return 0; }
@@ -76,7 +76,7 @@ protected:
   void OnStartup() override {}
   void Process() override;
   void OnExit() override;
-  float GetPercentage();
+  float GetPercentage() const;
 
 private:
   struct StreamInfo

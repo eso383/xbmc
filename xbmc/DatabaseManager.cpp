@@ -20,7 +20,6 @@
 #include "video/VideoDatabase.h"
 #include "view/ViewDatabase.h"
 
-#include <algorithm>
 #include <mutex>
 
 using namespace PVR;
@@ -35,9 +34,9 @@ CDatabaseManager::CDatabaseManager() :
 
 CDatabaseManager::~CDatabaseManager() = default;
 
-bool CDatabaseManager::Initialize()
+void CDatabaseManager::Initialize()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   m_dbStatus.clear();
 
@@ -61,29 +60,26 @@ bool CDatabaseManager::Initialize()
   CLog::Log(LOGDEBUG, "{}, updating databases... DONE", __FUNCTION__);
 
   m_bIsUpgrading = false;
-  m_connecting = false;
-
-  return std::ranges::all_of(m_dbStatus,
-                             [](const auto& db) { return db.second == DBStatus::READY; });
 }
 
 bool CDatabaseManager::CanOpen(const std::string &name)
 {
-  std::unique_lock lock(m_section);
-  const auto i = m_dbStatus.find(name);
+  std::lock_guard lock(m_section);
+
+  std::map<std::string, DB_STATUS>::const_iterator i = m_dbStatus.find(name);
   if (i != m_dbStatus.end())
-    return i->second == DBStatus::READY;
+    return i->second == DB_READY;
   return false; // db isn't even attempted to update yet
 }
 
 void CDatabaseManager::UpdateDatabase(CDatabase &db, DatabaseSettings *settings)
 {
   std::string name = db.GetBaseDBName();
-  UpdateStatus(name, DBStatus::UPDATING);
+  UpdateStatus(name, DB_UPDATING);
   if (Update(db, settings ? *settings : DatabaseSettings()))
-    UpdateStatus(name, DBStatus::READY);
+    UpdateStatus(name, DB_READY);
   else
-    UpdateStatus(name, DBStatus::FAILED);
+    UpdateStatus(name, DB_FAILED);
 }
 
 bool CDatabaseManager::Update(CDatabase &db, const DatabaseSettings &settings)
@@ -101,15 +97,7 @@ bool CDatabaseManager::Update(CDatabase &db, const DatabaseSettings &settings)
     if (version)
       dbName += std::to_string(version);
 
-    m_connecting = true;
-    const CDatabase::ConnectionState connectionState{db.Connect(dbName, dbSettings, false)};
-    m_connecting = false;
-
-    if (connectionState == CDatabase::ConnectionState::STATE_ERROR)
-    {
-      return false; // unable to connect
-    }
-    else if (connectionState == CDatabase::ConnectionState::STATE_CONNECTED)
+    if (db.Connect(dbName, dbSettings, false))
     {
       // Database exists, take a copy for our current version (if needed) and reopen that one
       if (version < db.GetSchemaVersion())
@@ -135,7 +123,7 @@ bool CDatabaseManager::Update(CDatabase &db, const DatabaseSettings &settings)
         if (copy_fail)
           return false;
 
-        if (db.Connect(latestDb, dbSettings, false) != CDatabase::ConnectionState::STATE_CONNECTED)
+        if (!db.Connect(latestDb, dbSettings, false))
         {
           CLog::Log(LOGERROR, "Unable to open freshly copied database {}", latestDb);
           return false;
@@ -154,7 +142,7 @@ bool CDatabaseManager::Update(CDatabase &db, const DatabaseSettings &settings)
     version--;
   }
   // try creating a new one
-  if (db.Connect(latestDb, dbSettings, true) == CDatabase::ConnectionState::STATE_CONNECTED)
+  if (db.Connect(latestDb, dbSettings, true))
     return true;
 
   // failed to update or open the database
@@ -238,15 +226,16 @@ bool CDatabaseManager::UpdateVersion(CDatabase &db, const std::string &dbName)
   return bReturn;
 }
 
-void CDatabaseManager::UpdateStatus(const std::string& name, DBStatus status)
+void CDatabaseManager::UpdateStatus(const std::string &name, DB_STATUS status)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_dbStatus[name] = status;
 }
 
 void CDatabaseManager::LocalizationChanged()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // update video version type table after language changed
   CVideoDatabase videodb;

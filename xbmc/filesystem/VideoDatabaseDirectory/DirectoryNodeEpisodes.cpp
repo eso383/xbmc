@@ -9,14 +9,13 @@
 #include "DirectoryNodeEpisodes.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "QueryParams.h"
 #include "video/VideoDatabase.h"
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
 CDirectoryNodeEpisodes::CDirectoryNodeEpisodes(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::EPISODES, strName, pParent)
+  : CDirectoryNode(NODE_TYPE_EPISODES, strName, pParent)
 {
 
 }
@@ -47,7 +46,7 @@ bool CDirectoryNodeEpisodes::GetContent(CFileItemList& items) const
   return bSuccess;
 }
 
-NodeType CDirectoryNodeEpisodes::GetChildType() const
+NODE_TYPE CDirectoryNodeEpisodes::GetChildType() const
 {
-  return NodeType::EPISODES;
+  return NODE_TYPE_EPISODES;
 }

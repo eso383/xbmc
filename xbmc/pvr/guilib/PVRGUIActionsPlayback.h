@@ -9,36 +9,52 @@
 #pragma once
 
 #include "pvr/IPVRComponent.h"
+#include "pvr/settings/PVRSettings.h"
 #include "utils/ContentUtils.h"
 
-#include <memory>
 #include <string>
 
 class CFileItem;
 
 namespace PVR
 {
-class CPVRSettings;
-
-enum class PlaybackType
+enum PlaybackType
 {
-  TYPE_ANY,
-  TYPE_TV,
-  TYPE_RADIO,
+  PlaybackTypeAny = 0,
+  PlaybackTypeTV,
+  PlaybackTypeRadio
 };
 
 class CPVRGUIActionsPlayback : public IPVRComponent
 {
 public:
   CPVRGUIActionsPlayback();
-  ~CPVRGUIActionsPlayback() override;
+  ~CPVRGUIActionsPlayback() override = default;
+
+  /*!
+   * @brief Resume a previously not completely played recording.
+   * @param item containing a recording or an epg tag.
+   * @param bFallbackToPlay controls whether playback of the recording should be started at the
+   * beginning ig no resume data are available.
+   * @return true on success, false otherwise.
+   */
+  bool ResumePlayRecording(const CFileItem& item, bool bFallbackToPlay) const;
 
   /*!
    * @brief Play recording.
    * @param item containing a recording or an epg tag.
+   * @param bCheckResume controls resume check.
    * @return true on success, false otherwise.
    */
-  bool PlayRecording(const CFileItem& item) const;
+  bool PlayRecording(const CFileItem& item, bool bCheckResume) const;
+
+  /*!
+   * @brief Play a recording folder.
+   * @param item containing a recording folder.
+   * @param bCheckResume controls resume check.
+   * @return true on success, false otherwise.
+   */
+  bool PlayRecordingFolder(const CFileItem& item, bool bCheckResume) const;
 
   /*!
    * @brief Play EPG tag.
@@ -53,9 +69,11 @@ public:
   /*!
    * @brief Switch channel.
    * @param item containing a channel or an epg tag.
+   * @param bCheckResume controls resume check in case a recording for the current epg event is
+   * present.
    * @return true on success, false otherwise.
    */
-  bool SwitchToChannel(const CFileItem& item) const;
+  bool SwitchToChannel(const CFileItem& item, bool bCheckResume) const;
 
   /*!
    * @brief Playback the given file item.
@@ -83,7 +101,7 @@ public:
    * playing event. If there is no next event, seek to the end of the currently playing event (to
    * the 'live' position).
    */
-  void SeekForward() const;
+  void SeekForward();
 
   /*!
    * @brief Seek to the start of the previous epg event in timeshift buffer, relative to the
@@ -92,11 +110,19 @@ public:
    * @param iThreshold the value in seconds to trigger seek to start of current event instead of
    * start of previous event.
    */
-  void SeekBackward(unsigned int iThreshold) const;
+  void SeekBackward(unsigned int iThreshold);
 
 private:
   CPVRGUIActionsPlayback(const CPVRGUIActionsPlayback&) = delete;
   CPVRGUIActionsPlayback const& operator=(CPVRGUIActionsPlayback const&) = delete;
+
+  /*!
+   * @brief Check whether resume play is possible for a given item, display "resume from ..."/"play
+   * from start" context menu in case.
+   * @param item containing a recording or an epg tag.
+   * @return true, to play/resume the item, false otherwise.
+   */
+  bool CheckResumeRecording(const CFileItem& item) const;
 
   /*!
    * @brief Check "play minimized" settings value and switch to fullscreen if not set.
@@ -104,7 +130,7 @@ private:
    */
   void CheckAndSwitchToFullscreen(bool bFullscreen) const;
 
-  std::unique_ptr<CPVRSettings> m_settings;
+  CPVRSettings m_settings;
 };
 
 namespace GUI

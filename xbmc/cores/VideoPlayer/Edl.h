@@ -8,13 +8,8 @@
 
 #pragma once
 
-#include "Edl/EdlParser.h"
-#include "cores/Direction.h"
 #include "cores/EdlEdit.h"
 
-#include <cstdint>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,7 +20,10 @@ class CEdl
 public:
   CEdl();
 
-  bool ReadEditDecisionLists(const CFileItem& fileItem, float fps);
+  // FIXME: remove const modifier for fFramesPerSecond as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool ReadEditDecisionLists(const CFileItem& fileItem, const float fFramesPerSecond);
   void Clear();
 
   /*!
@@ -47,7 +45,7 @@ public:
    * because of EDL cuts
    * @return the total cut time
   */
-  std::chrono::milliseconds GetTotalCutTime() const;
+  int GetTotalCutTime() const;
 
   /*!
    * @brief Providing a given seek time, return the actual time without
@@ -57,7 +55,7 @@ public:
    * @param seek the desired seek time
    * @return the seek time without considering EDL cut blocks
   */
-  std::chrono::milliseconds GetTimeWithoutCuts(std::chrono::milliseconds seekTime) const;
+  int GetTimeWithoutCuts(int seek) const;
 
   /*!
    * @brief Provided a given seek time, return the time after correction with
@@ -68,7 +66,7 @@ public:
    * @return the seek time after applying the cut blocks already surpassed by the
    * provided seek time
   */
-  std::chrono::milliseconds GetTimeAfterRestoringCuts(std::chrono::milliseconds seekTime) const;
+  double GetTimeAfterRestoringCuts(double seek) const;
 
   /*!
    * @brief Get the raw EDL edit list.
@@ -89,10 +87,10 @@ public:
    * @brief Get the list of EDL cut markers.
    * @return The list of EDL cut markers or an empty vector if no EDL cuts exist.
    * The returned values are accurate with respect to cut durations. I.e. if the file
-   * has multiple cuts, the positions of subsequent cuts are automatically corrected by
+   * has multiple cuts, the positions of subsquent cuts are automatically corrected by
    * substracting the previous cut durations.
   */
-  const std::vector<std::chrono::milliseconds> GetCutMarkers() const;
+  const std::vector<int64_t> GetCutMarkers() const;
 
   /*!
    * @brief Get the list of EDL scene markers.
@@ -101,34 +99,35 @@ public:
    * has multiple cuts, the positions of scene markers are automatically corrected by
    * substracting the surpassed cut durations until the scene marker point.
   */
-  const std::vector<std::chrono::milliseconds> GetSceneMarkers() const;
+  const std::vector<int64_t> GetSceneMarkers() const;
 
   /*!
    * @brief Check if for the provided seek time is contained within an EDL
-   * edit
+   * edit and fill pEdit with the respective edit struct.
    * @note seek time refers to the time in the original file timeline (i.e. without
    * considering cut blocks)
-   * @param seekTime The seek time (on the original timeline)
-   * @return a pointer to the edit struct if seekTime is within an edit, nullopt otherwise
+   * @param iSeek The seek time (on the original timeline)
+   * @param[in,out] pEdit The edit pointer (or nullptr if iSeek not within an edit)
+   * @return true if iSeek is within an edit, false otherwise
   */
-  std::optional<std::unique_ptr<EDL::Edit>> InEdit(std::chrono::milliseconds seekTime);
+  bool InEdit(int iSeek, EDL::Edit* pEdit = nullptr) const;
 
   /*!
    * @brief Get the last processed edit time (set during playback when a given
    * edit is surpassed)
-   * @return The last processed edit time or nullopt if not any
+   * @return The last processed edit time (ms) or -1 if not any
   */
-  std::optional<std::chrono::milliseconds> GetLastEditTime() const;
+  int GetLastEditTime() const;
 
   /*!
    * @brief Set the last processed edit time (set during playback when a given
    * edit is surpassed)
-   * @param editTime The last processed EDL edit time
+   * @param editTime The last processed EDL edit time (ms)
   */
-  void SetLastEditTime(std::chrono::milliseconds editTime);
+  void SetLastEditTime(int editTime);
 
   /*!
-   * @brief Reset the last recorded edit time (nullopt)
+   * @brief Reset the last recorded edit time (-1)
   */
   void ResetLastEditTime();
 
@@ -145,37 +144,49 @@ public:
   */
   EDL::Action GetLastEditActionType() const;
 
-  /*!
-   * @brief Get the next scene marker with respect to the provided clock time
-   * @param direction (the direction of the search - backward or forward)
-   * @param clock the current position of the clock
-   * @return the position of the scenemarker (nullopt if none)
-  */
-  std::optional<std::chrono::milliseconds> GetNextSceneMarker(Direction direction,
-                                                              std::chrono::milliseconds clockTime);
+  // FIXME: remove const modifier for iClock as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool GetNextSceneMarker(bool bPlus, const int iClock, int *iSceneMarker);
+
+  // FIXME: remove const modifier as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  static std::string MillisecondsToTimeString(const int iMilliseconds);
 
 private:
   // total cut time (edl cuts) in ms
-  std::chrono::milliseconds m_totalCutTime;
+  int m_totalCutTime;
   std::vector<EDL::Edit> m_vecEdits;
-  std::vector<std::chrono::milliseconds> m_vecSceneMarkers;
+  std::vector<int> m_vecSceneMarkers;
 
   /*!
    * @brief Last processed EDL edit time (ms)
   */
-  std::optional<std::chrono::milliseconds> m_lastEditTime;
+  int m_lastEditTime;
 
   /*!
    * @brief Last processed EDL edit action type
   */
   EDL::Action m_lastEditActionType{EDL::EDL_ACTION_NONE};
 
-  /*!
-   * @brief Process the result from an EDL parser
-   * @param result The parser result containing edits and scene markers
-   * @return true if the result was processed successfully
-   */
-  bool ProcessParserResult(const EDL::CEdlParserResult& result);
+  // FIXME: remove const modifier for fFramesPerSecond as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool ReadEdl(const std::string& strMovie, const float fFramesPerSecond);
+  // FIXME: remove const modifier for fFramesPerSecond as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool ReadComskip(const std::string& strMovie, const float fFramesPerSecond);
+  // FIXME: remove const modifier for strMovie as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool ReadVideoReDo(const std::string& strMovie);
+  // FIXME: remove const modifier for strMovie as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool ReadBeyondTV(const std::string& strMovie);
+  bool ReadPvr(const CFileItem& fileItem);
 
   /*!
    * @brief Adds an edit to the list of EDL edits
@@ -184,7 +195,10 @@ private:
   */
   bool AddEdit(const EDL::Edit& newEdit);
 
-  bool AddSceneMarker(std::chrono::milliseconds sceneMarker);
+  // FIXME: remove const modifier for strMovie as it makes no sense as it means nothing
+  // for the reader of the interface, but limits the implementation
+  // to not modify the parameter on stack
+  bool AddSceneMarker(const int sceneMarker);
 
   void MergeShortCommBreaks();
 

@@ -28,8 +28,7 @@ using namespace GAME;
 struct FeatureTypeEqual
 {
   FeatureTypeEqual(FEATURE_TYPE type, JOYSTICK::INPUT_TYPE inputType)
-    : type(type),
-      inputType(inputType)
+    : type(type), inputType(inputType)
   {
   }
 
@@ -58,8 +57,7 @@ struct FeatureTypeEqual
 const ControllerPtr CController::EmptyPtr;
 
 CController::CController(const ADDON::AddonInfoPtr& addonInfo)
-  : CAddon(addonInfo, ADDON::AddonType::GAME_CONTROLLER),
-    m_layout(std::make_unique<CControllerLayout>())
+  : CAddon(addonInfo, ADDON::AddonType::GAME_CONTROLLER), m_layout(new CControllerLayout)
 {
 }
 

@@ -17,6 +17,7 @@
 
 namespace ADDON
 {
+struct AddonEvent;
 class CAddonInfo;
 } // namespace ADDON
 
@@ -54,7 +55,7 @@ public:
    *
    * TODO: Move declaration to parent class
    */
-  bool SendRumbleEvent(const std::string& strLocation, unsigned int motorIndex, float magnitude);
+  bool SendRumbleEvent(const std::string& strLocation, unsigned int motorIndex, float magnitude) const;
 
   // Inherited from CPeripheralBus
   bool InitializeProperties(CPeripheral& peripheral) override;
@@ -84,6 +85,7 @@ protected:
   void UnregisterRemovedDevices(const PeripheralScanResults& results) override;
 
 private:
+  void OnEvent(const ADDON::AddonEvent& event);
   void UnRegisterAddon(const std::string& addonId);
 
   void PromptEnableAddons(const std::vector<std::shared_ptr<ADDON::CAddonInfo>>& disabledAddons);

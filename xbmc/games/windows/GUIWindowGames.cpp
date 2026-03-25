@@ -9,7 +9,6 @@
 #include "GUIWindowGames.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIPassword.h"
 #include "ServiceBroker.h"
 #include "URL.h"
@@ -147,7 +146,7 @@ bool CGUIWindowGames::OnClick(int iItem, const std::string& player /* = "" */)
   CFileItemPtr item = m_vecItems->Get(iItem);
   if (item)
   {
-    if (!item->IsFolder())
+    if (!item->m_bIsFolder)
     {
       PlayGame(*item);
       return true;
@@ -236,7 +235,7 @@ bool CGUIWindowGames::GetDirectory(const std::string& strDirectory, CFileItemLis
   for (int i = 0; i < items.Size(); ++i)
   {
     CFileItemPtr item = items[i];
-    if (item->IsFolder() || !item->IsFileFolder(FileFolderType::ALWAYS))
+    if (item->m_bIsFolder || !item->IsFileFolder(EFILEFOLDER_TYPE_ALWAYS))
       continue;
 
     const std::string originalPath = item->GetPath();
@@ -256,17 +255,17 @@ bool CGUIWindowGames::GetDirectory(const std::string& strDirectory, CFileItemLis
       }
 
       // Check if file folder contains games or subfolders
-      if (std::ranges::any_of(fileFolderItems,
-                              [](const CFileItemPtr& fileFolderItem) {
-                                return fileFolderItem->IsFolder() ||
-                                       CGameUtils::HasGameExtension(fileFolderItem->GetPath());
-                              }))
+      if (std::any_of(fileFolderItems.begin(), fileFolderItems.end(),
+                      [](const CFileItemPtr& fileFolderItem) {
+                        return fileFolderItem->m_bIsFolder ||
+                               CGameUtils::HasGameExtension(fileFolderItem->GetPath());
+                      }))
       {
         continue;
       }
 
       // If the file folder contains no games, turn it back into a regular file
-      item->SetFolder(false);
+      item->m_bIsFolder = false;
       item->SetPath(originalPath);
     }
     else
@@ -311,7 +310,7 @@ bool CGUIWindowGames::GetDirectory(const std::string& strDirectory, CFileItemLis
   // Ensure a game info tag is created so that files are recognized as games
   for (const CFileItemPtr& item : items)
   {
-    if (!item->IsFolder())
+    if (!item->m_bIsFolder)
       item->GetGameInfoTag();
   }
 
@@ -328,13 +327,13 @@ std::string CGUIWindowGames::GetStartFolder(const std::string& dir)
   }
 
   SetupShares();
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   m_rootDir.GetSources(shares);
   bool bIsSourceName = false;
   int iIndex = CUtil::GetMatchingSource(dir, shares, bIsSourceName);
   if (iIndex >= 0)
   {
-    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].GetLockInfo().IsLocked())
+    if (iIndex < static_cast<int>(shares.size()) && shares[iIndex].m_iHasLock == LOCK_STATE_LOCKED)
     {
       CFileItem item(shares[iIndex]);
       if (!g_passwordManager.IsItemUnlocked(&item, "games"))
@@ -347,8 +346,7 @@ std::string CGUIWindowGames::GetStartFolder(const std::string& dir)
   return CGUIMediaWindow::GetStartFolder(dir);
 }
 
-void CGUIWindowGames::OnItemInfo(int itemNumber)
-{
+void CGUIWindowGames::OnItemInfo(int itemNumber) const {
   CFileItemPtr item = m_vecItems->Get(itemNumber);
   if (!item)
     return;
@@ -377,14 +375,14 @@ bool CGUIWindowGames::PlayGame(const CFileItem& item)
 
   // Dereference file folders. The check here assumes all "is folder" items
   // passed CanPlay(), e.g. are definitely file folders.
-  if (itemCopy.IsFolder())
+  if (itemCopy.m_bIsFolder)
   {
-    itemCopy.SetFolder(false);
+    itemCopy.m_bIsFolder = false;
     itemCopy.SetPath(itemCopy.GetURL().GetHostName());
     itemCopy.GetGameInfoTag();
   }
 
-  return g_application.PlayMedia(itemCopy, "", PLAYLIST::Id::TYPE_NONE);
+  return g_application.PlayMedia(itemCopy, "", PLAYLIST::TYPE_NONE);
 }
 
 bool CGUIWindowGames::CanPlay(const CFileItem& item) const
@@ -392,7 +390,7 @@ bool CGUIWindowGames::CanPlay(const CFileItem& item) const
   if (item.IsGame())
     return true;
 
-  if (item.IsFolder())
+  if (item.m_bIsFolder)
   {
     // Check for file folders
     CURL url{item.GetPath()};

@@ -42,6 +42,7 @@ public:
 
   static void WaitMediaReady();
   static bool IsDiscInDrive();
+  static bool DriveReady();
   static DriveState GetDriveState();
   static CCdInfo* GetCdInfo();
   static CEvent m_evAutorun;

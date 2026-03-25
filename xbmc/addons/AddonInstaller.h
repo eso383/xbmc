@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "jobs/IJobCallback.h"
 #include "threads/Event.h"
+#include "utils/Job.h"
 
 #include <map>
 #include <memory>
@@ -193,7 +193,7 @@ public:
     bool downloadFinshed = false;
   };
 
-  using JobMap = std::map<std::string, CDownloadJob, std::less<>>;
+  typedef std::map<std::string, CDownloadJob> JobMap;
 
 private:
   // private construction, and no assignments; use the provided singleton methods
@@ -232,6 +232,9 @@ private:
    \return true if dependencies are available, false otherwise.
    */
   bool CheckDependencies(const ADDON::AddonPtr &addon, std::vector<std::string>& preDeps, CAddonDatabase &database, std::pair<std::string, std::string> &failedDep);
+
+  void PrunePackageCache();
+  int64_t EnumeratePackageFolder(std::map<std::string, std::unique_ptr<CFileItemList>>& result);
 
   mutable CCriticalSection m_critSection;
   JobMap m_downloadJobs;

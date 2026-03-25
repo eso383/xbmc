@@ -12,20 +12,16 @@
 #include "ServiceBroker.h"
 #include "dialogs/GUIDialogKaiToast.h"
 #include "filesystem/File.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/keyboard/KeyIDs.h"
 #include "input/keymaps/ButtonTranslator.h"
 #include "input/keymaps/joysticks/GamepadTranslator.h"
 #include "input/keymaps/keyboard/KeyboardTranslator.h"
 #include "input/keymaps/remote/IRTranslator.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
-#include "settings/Settings.h"
-#include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
 #include "utils/TimeUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <map>
 #include <mutex>
@@ -43,8 +39,7 @@ struct ButtonStateFinder
     , m_button(state.m_buttonName)
   {}
 
-  bool operator()(const CEventButtonState& state)
-  {
+  bool operator()(const CEventButtonState& state) const {
     return state.m_mapName    == m_map
         && state.m_iKeyCode   == m_keycode
         && state.m_buttonName == m_button;
@@ -62,7 +57,7 @@ void CEventButtonState::Load()
 {
   if ( m_iKeyCode == 0 )
   {
-    if ((!m_mapName.empty()) && (!m_buttonName.empty()))
+    if ( (m_mapName.length() > 0) && (m_buttonName.length() > 0) )
     {
       m_iKeyCode = KEYMAP::CButtonTranslator::TranslateString(m_mapName, m_buttonName);
       if (m_iKeyCode == 0)
@@ -132,7 +127,8 @@ bool CEventClient::AddPacket(std::unique_ptr<CEventPacket> packet)
       for (unsigned int i = 1; i <= packets; i++)
       {
         newPayloadIter =
-            std::copy_n(m_seqPackets[i]->Payload(), m_seqPackets[i]->PayloadSize(), newPayloadIter);
+            std::copy(m_seqPackets[i]->Payload(),
+                      m_seqPackets[i]->Payload() + m_seqPackets[i]->PayloadSize(), newPayloadIter);
 
         if (i > 1)
           m_seqPackets.erase(i);
@@ -164,7 +160,8 @@ void CEventClient::ProcessEvents()
 
 bool CEventClient::GetNextAction(CEventAction &action)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_actionQueue.empty())
   {
     // grab the next action in line
@@ -238,7 +235,7 @@ bool CEventClient::OnPacketHELO(CEventPacket *packet)
   if (Greeted())
     return false;
 
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
 
   // parse device name
@@ -293,14 +290,11 @@ bool CEventClient::OnPacketHELO(CEventPacket *packet)
   m_bGreeted = true;
   if (m_eLogoType == LT_NONE)
   {
-    CGUIDialogKaiToast::QueueNotification(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33200), m_deviceName);
+    CGUIDialogKaiToast::QueueNotification(g_localizeStrings.Get(33200), m_deviceName);
   }
   else
   {
-    CGUIDialogKaiToast::QueueNotification(
-        iconfile, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(33200),
-        m_deviceName);
+    CGUIDialogKaiToast::QueueNotification(iconfile, g_localizeStrings.Get(33200), m_deviceName);
   }
   return true;
 }
@@ -319,7 +313,7 @@ bool CEventClient::OnPacketBYE(CEventPacket *packet)
 
 bool CEventClient::OnPacketBUTTON(CEventPacket *packet)
 {
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
 
   std::string map, button;
@@ -382,7 +376,7 @@ bool CEventClient::OnPacketBUTTON(CEventPacket *packet)
   if(flags & PTB_QUEUE)
   {
     /* find the last queued item of this type */
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
 
     CEventButtonState state( keycode,
                              map,
@@ -413,7 +407,7 @@ bool CEventClient::OnPacketBUTTON(CEventPacket *packet)
       if(!active && it->m_bActive)
       {
         /* since modifying the list invalidates the reverse iterator */
-        std::list<CEventButtonState>::iterator it2 = (++it).base();
+        auto it2 = (++it).base();
 
         /* if last event had an amount, we must resend without amount */
         if (it2->m_bUseAmount && it2->m_fAmount != 0.0f)
@@ -453,7 +447,8 @@ bool CEventClient::OnPacketBUTTON(CEventPacket *packet)
   }
   else
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     if ( flags & PTB_DOWN )
     {
       m_currentButton.m_iKeyCode   = keycode;
@@ -491,7 +486,7 @@ bool CEventClient::OnPacketBUTTON(CEventPacket *packet)
 
 bool CEventClient::OnPacketMOUSE(CEventPacket *packet)
 {
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
   unsigned char flags;
   unsigned short mx, my;
@@ -509,7 +504,8 @@ bool CEventClient::OnPacketMOUSE(CEventPacket *packet)
     return false;
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     if ( flags & PTM_ABSOLUTE )
     {
       m_iMouseX = mx;
@@ -523,7 +519,7 @@ bool CEventClient::OnPacketMOUSE(CEventPacket *packet)
 
 bool CEventClient::OnPacketNOTIFICATION(CEventPacket *packet)
 {
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
   std::string title, message;
 
@@ -585,7 +581,7 @@ bool CEventClient::OnPacketNOTIFICATION(CEventPacket *packet)
 
 bool CEventClient::OnPacketLOG(CEventPacket *packet)
 {
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
   std::string logmsg;
   unsigned char ltype;
@@ -601,7 +597,7 @@ bool CEventClient::OnPacketLOG(CEventPacket *packet)
 
 bool CEventClient::OnPacketACTION(CEventPacket *packet)
 {
-  unsigned char *payload = (unsigned char *)packet->Payload();
+  auto payload = (unsigned char *)packet->Payload();
   int psize = (int)packet->PayloadSize();
   std::string actionString;
   unsigned char actionType;
@@ -616,7 +612,8 @@ bool CEventClient::OnPacketACTION(CEventPacket *packet)
   case AT_EXEC_BUILTIN:
   case AT_BUTTON:
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+
       m_actionQueue.emplace(actionString.c_str(), actionType);
     }
     break;
@@ -634,7 +631,7 @@ bool CEventClient::ParseString(unsigned char* &payload, int &psize, std::string&
   if (psize <= 0)
     return false;
 
-  unsigned char *pos = (unsigned char *)memchr((void*)payload, (int)'\0', psize);
+  auto pos = (unsigned char *)memchr((void*)payload, (int)'\0', psize);
   if (!pos)
     return false;
 
@@ -679,7 +676,7 @@ bool CEventClient::ParseUInt16(unsigned char* &payload, int &psize, unsigned sho
 
 void CEventClient::FreePacketQueues()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   while ( ! m_readyPackets.empty() )
     m_readyPackets.pop();
@@ -689,7 +686,8 @@ void CEventClient::FreePacketQueues()
 
 unsigned int CEventClient::GetButtonCode(std::string& strMapName, bool& isAxis, float& amount, bool &isJoystick)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   unsigned int bcode = 0;
 
   if ( m_currentButton.Active() )
@@ -697,7 +695,7 @@ unsigned int CEventClient::GetButtonCode(std::string& strMapName, bool& isAxis, 
     bcode = m_currentButton.KeyCode();
     strMapName = m_currentButton.JoystickName();
     isJoystick = true;
-    if (strMapName.empty())
+    if (strMapName.length() == 0)
     {
       strMapName = m_currentButton.CustomControllerName();
       isJoystick = false;
@@ -728,7 +726,7 @@ unsigned int CEventClient::GetButtonCode(std::string& strMapName, bool& isAxis, 
     strMapName   = it->JoystickName();
     isJoystick   = true;
 
-    if (strMapName.empty())
+    if (strMapName.length() == 0)
     {
       strMapName = it->CustomControllerName();
       isJoystick = false;
@@ -756,18 +754,10 @@ unsigned int CEventClient::GetButtonCode(std::string& strMapName, bool& isAxis, 
   return bcode;
 }
 
-void CEventClient::RefreshSettings()
-{
-  const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  m_iRepeatDelay =
-      std::chrono::milliseconds(settings->GetInt(CSettings::SETTING_SERVICES_ESINITIALDELAY));
-  m_iRepeatSpeed =
-      std::chrono::milliseconds(settings->GetInt(CSettings::SETTING_SERVICES_ESCONTINUOUSDELAY));
-}
-
 bool CEventClient::GetMousePos(float& x, float& y)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (m_bMouseMoved)
   {
     x = (m_iMouseX / 65535.0f) * CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth();
@@ -778,8 +768,7 @@ bool CEventClient::GetMousePos(float& x, float& y)
   return false;
 }
 
-bool CEventClient::CheckButtonRepeat(std::chrono::time_point<std::chrono::steady_clock>& next)
-{
+bool CEventClient::CheckButtonRepeat(std::chrono::time_point<std::chrono::steady_clock>& next) const {
   auto now = std::chrono::steady_clock::now();
 
   if (next.time_since_epoch().count() == 0)
@@ -798,7 +787,7 @@ bool CEventClient::CheckButtonRepeat(std::chrono::time_point<std::chrono::steady
 bool CEventClient::Alive() const
 {
   // 60 seconds timeout
-  if ( (time(NULL) - m_lastPing) > 60 )
+  if ( (time(nullptr) - m_lastPing) > 60 )
     return false;
   return true;
 }

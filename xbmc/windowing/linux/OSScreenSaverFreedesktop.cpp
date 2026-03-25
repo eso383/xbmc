@@ -9,9 +9,7 @@
 #include "OSScreenSaverFreedesktop.h"
 
 #include "CompileInfo.h"
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/log.h"
 
 #include "platform/linux/DBusMessage.h"
@@ -44,9 +42,8 @@ void COSScreenSaverFreedesktop::Inhibit()
   }
 
   CDBusMessage inhibitMessage(SCREENSAVER_INTERFACE, SCREENSAVER_OBJECT, SCREENSAVER_INTERFACE, "Inhibit");
-  inhibitMessage.AppendArguments(
-      std::string(CCompileInfo::GetAppName()),
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14086));
+  inhibitMessage.AppendArguments(std::string(CCompileInfo::GetAppName()),
+                                 g_localizeStrings.Get(14086));
   if (!inhibitMessage.SendSession())
   {
     // DBus call failed

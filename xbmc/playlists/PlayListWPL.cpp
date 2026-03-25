@@ -13,7 +13,7 @@
 #include "filesystem/File.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
-#include "utils/XBMCTinyXML2.h"
+#include "utils/XBMCTinyXML.h"
 #include "utils/XMLUtils.h"
 #include "utils/log.h"
 
@@ -21,6 +21,7 @@
 #include <string>
 
 using namespace XFILE;
+using namespace PLAYLIST;
 
 /* ------------------------ example wpl playlist file ---------------------------------
   <?wpl version="1.0"?>
@@ -41,9 +42,6 @@ using namespace XFILE;
 ------------------------ end of example wpl playlist file ---------------------------------*/
 //Note: File is utf-8 encoded by default
 
-namespace KODI::PLAYLIST
-{
-
 CPlayListWPL::CPlayListWPL(void) = default;
 
 CPlayListWPL::~CPlayListWPL(void) = default;
@@ -51,42 +49,35 @@ CPlayListWPL::~CPlayListWPL(void) = default;
 
 bool CPlayListWPL::LoadData(std::istream& stream)
 {
-  CXBMCTinyXML2 xmlDoc;
+  CXBMCTinyXML xmlDoc;
 
-  std::string wplStream(std::istreambuf_iterator<char>(stream), {});
-  xmlDoc.Parse(wplStream);
-
+  stream >> xmlDoc;
   if (xmlDoc.Error())
   {
-    CLog::Log(LOGERROR, "Unable to parse WPL info Error: {}", xmlDoc.ErrorStr());
+    CLog::Log(LOGERROR, "Unable to parse B4S info Error: {}", xmlDoc.ErrorDesc());
     return false;
   }
 
-  auto* pRootElement = xmlDoc.RootElement();
-  if (!pRootElement)
-    return false;
+  TiXmlElement* pRootElement = xmlDoc.RootElement();
+  if (!pRootElement ) return false;
 
-  auto* pHeadElement = pRootElement->FirstChildElement("head");
+  TiXmlElement* pHeadElement = pRootElement->FirstChildElement("head");
   if (pHeadElement )
   {
-    auto* pTitelElement = pHeadElement->FirstChildElement("title");
+    TiXmlElement* pTitelElement = pHeadElement->FirstChildElement("title");
     if (pTitelElement )
       m_strPlayListName = pTitelElement->Value();
   }
 
-  auto* pBodyElement = pRootElement->FirstChildElement("body");
-  if (!pBodyElement)
-    return false;
+  TiXmlElement* pBodyElement = pRootElement->FirstChildElement("body");
+  if (!pBodyElement ) return false;
 
-  auto* pSeqElement = pBodyElement->FirstChildElement("seq");
-  if (!pSeqElement)
-    return false;
+  TiXmlElement* pSeqElement = pBodyElement->FirstChildElement("seq");
+  if (!pSeqElement ) return false;
 
-  auto* pMediaElement = pSeqElement->FirstChildElement("media");
+  TiXmlElement* pMediaElement = pSeqElement->FirstChildElement("media");
 
-  if (!pMediaElement)
-    return false;
-
+  if (!pMediaElement) return false;
   while (pMediaElement)
   {
     std::string strFileName = XMLUtils::GetAttribute(pMediaElement, "src");
@@ -106,8 +97,7 @@ bool CPlayListWPL::LoadData(std::istream& stream)
 
 void CPlayListWPL::Save(const std::string& strFileName) const
 {
-  if (m_vecItems.empty())
-    return;
+  if (!m_vecItems.size()) return ;
   std::string strPlaylist = CUtil::MakeLegalPath(strFileName);
   CFile file;
   if (!file.OpenForWrite(strPlaylist, true))
@@ -138,5 +128,3 @@ void CPlayListWPL::Save(const std::string& strFileName) const
   file.Write(write.c_str(), write.size());
   file.Close();
 }
-
-} // namespace KODI::PLAYLIST

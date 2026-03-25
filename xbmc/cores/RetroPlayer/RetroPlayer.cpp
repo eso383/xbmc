@@ -39,14 +39,13 @@
 #include "games/tags/GameInfoTag.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "interfaces/AnnouncementManager.h"
-#include "jobs/JobManager.h"
 #include "messaging/ApplicationMessenger.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "utils/JobManager.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 #include "windowing/WinSystem.h"
@@ -59,8 +58,7 @@ using namespace GAME;
 using namespace RETRO;
 
 CRetroPlayer::CRetroPlayer(IPlayerCallback& callback)
-  : IPlayer(callback),
-    m_gameServices(CServiceBroker::GetGameServices())
+  : IPlayer(callback), m_gameServices(CServiceBroker::GetGameServices())
 {
   ResetPlayback();
   CServiceBroker::GetWinSystem()->RegisterRenderLoop(this);
@@ -105,7 +103,7 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
   m_guiMessenger = std::make_unique<CGUIGameMessenger>(*m_processInfo);
   m_renderManager = std::make_unique<CRPRenderManager>(*m_processInfo);
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   if (IsPlaying())
     CloseFile();
@@ -177,11 +175,8 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
           // overwrite the save
           bool dummy;
           if (!CGUIDialogYesNo::ShowAndGetInput(
-                  438,
-                  StringUtils::Format(
-                      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35217),
-                      addon->Name()),
-                  dummy, 222, 35218, 0))
+                  438, StringUtils::Format(g_localizeStrings.Get(35217), addon->Name()), dummy, 222,
+                  35218, 0))
             bSuccess = false;
         }
       }
@@ -233,7 +228,7 @@ bool CRetroPlayer::CloseFile(bool reopen /* = false */)
 
   m_playbackControl.reset();
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   if (m_gameClient && m_gameServices.GameSettings().AutosaveEnabled())
   {
@@ -385,13 +380,11 @@ bool CRetroPlayer::SeekTimeRelative(int64_t iTime)
   return true;
 }
 
-uint64_t CRetroPlayer::GetTime()
-{
+uint64_t CRetroPlayer::GetTime() const {
   return m_playback->GetTimeMs();
 }
 
-uint64_t CRetroPlayer::GetTotalTime()
-{
+uint64_t CRetroPlayer::GetTotalTime() const {
   return m_playback->GetTotalTimeMs();
 }
 
@@ -616,8 +609,7 @@ void CRetroPlayer::SetSpeedInternal(double speed)
     m_playback->SetSpeed(speed);
 }
 
-void CRetroPlayer::OnSpeedChange(double newSpeed)
-{
+void CRetroPlayer::OnSpeedChange(double newSpeed) const {
   m_streamManager->EnableAudio(newSpeed == 1.0);
   m_input->SetSpeed(newSpeed);
   m_renderManager->SetSpeed(newSpeed);
@@ -676,8 +668,7 @@ void CRetroPlayer::RegisterWindowCallbacks()
                                                     m_renderManager.get(), this);
 }
 
-void CRetroPlayer::UnregisterWindowCallbacks()
-{
+void CRetroPlayer::UnregisterWindowCallbacks() const {
   m_gameServices.GameRenderManager().UnregisterPlayer();
 }
 

@@ -16,6 +16,7 @@
 #include "guilib/GUIEditControl.h"
 #include "guilib/GUILabelControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/InputCodingTable.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
@@ -24,8 +25,6 @@
 #include "input/keyboard/XBMC_vkeys.h"
 #include "interfaces/AnnouncementManager.h"
 #include "messaging/ApplicationMessenger.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "speech/ISpeechRecognition.h"
@@ -75,10 +74,9 @@ public:
 
   void OnReadyForSpeech() override
   {
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Info,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39177), // Speech to text
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39179)); // Listening...
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info,
+                                          g_localizeStrings.Get(39177), // Speech to text
+                                          g_localizeStrings.Get(39179)); // Listening...
   }
 
   void OnError(int recognitionError) override
@@ -100,10 +98,9 @@ public:
         break;
     }
 
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Error,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39177), // Speech to text
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(msgId));
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error,
+                                          g_localizeStrings.Get(39177), // Speech to text
+                                          g_localizeStrings.Get(msgId));
   }
 
   void OnResults(const std::vector<std::string>& results) override
@@ -125,7 +122,7 @@ private:
 CGUIDialogKeyboardGeneric::CGUIDialogKeyboardGeneric()
 : CGUIDialog(WINDOW_DIALOG_KEYBOARD, "DialogKeyboard.xml")
 , CGUIKeyboard()
-, m_pCharCallback(NULL)
+, m_pCharCallback(nullptr)
 {
   m_bIsConfirmed = false;
   m_bShift = false;
@@ -141,18 +138,18 @@ CGUIDialogKeyboardGeneric::CGUIDialogKeyboardGeneric()
 
 void CGUIDialogKeyboardGeneric::OnWindowLoaded()
 {
-  CGUIEditControl *edit = static_cast<CGUIEditControl*>(GetControl(CTL_EDIT));
+  auto edit = static_cast<CGUIEditControl*>(GetControl(CTL_EDIT));
   if (edit)
   {
     // add control CTL_LABEL_HZCODE and CTL_LABEL_HZLIST if not exist
-    CGUIControlGroup *ParentControl = static_cast<CGUIControlGroup*>(edit->GetParentControl());
+    auto ParentControl = static_cast<CGUIControlGroup*>(edit->GetParentControl());
     CLabelInfo labelInfo = edit->GetLabelInfo();
     float px = edit->GetXPosition();
     float py = edit->GetYPosition();
     float pw = edit->GetWidth();
     float ph = edit->GetHeight();
 
-    CGUILabelControl* control = static_cast<CGUILabelControl*>(GetControl(CTL_LABEL_HZCODE));
+    auto control = static_cast<CGUILabelControl*>(GetControl(CTL_LABEL_HZCODE));
     if (!control)
     {
       control = new CGUILabelControl(GetID(), CTL_LABEL_HZCODE, px, py + ph, 90, 30, labelInfo, false, false);
@@ -219,8 +216,7 @@ void CGUIDialogKeyboardGeneric::OnInitWindow()
   if (m_hiddenInput)
   {
     SET_CONTROL_VISIBLE(CTL_BUTTON_REVEAL);
-    SET_CONTROL_LABEL(CTL_BUTTON_REVEAL,
-                      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(12308));
+    SET_CONTROL_LABEL(CTL_BUTTON_REVEAL, g_localizeStrings.Get(12308));
   }
   else
     SET_CONTROL_HIDDEN(CTL_BUTTON_REVEAL);
@@ -228,7 +224,7 @@ void CGUIDialogKeyboardGeneric::OnInitWindow()
   SetEditText(m_text);
 
   // get HZLIST label options
-  CGUILabelControl* pEdit = static_cast<CGUILabelControl*>(GetControl(CTL_LABEL_HZLIST));
+  auto pEdit = static_cast<CGUILabelControl*>(GetControl(CTL_LABEL_HZLIST));
   CLabelInfo labelInfo = pEdit->GetLabelInfo();
   m_listfont = labelInfo.font;
   m_listwidth = pEdit->GetWidth();
@@ -444,7 +440,7 @@ void CGUIDialogKeyboardGeneric::NormalCharacter(const std::string &ch)
 
 void CGUIDialogKeyboardGeneric::Backspace()
 {
-  if (m_codingtable && !m_hzcode.empty())
+  if (m_codingtable && m_hzcode.length() > 0)
   {
     std::wstring tmp;
     g_charsetConverter.utf8ToW(m_hzcode, tmp);
@@ -583,7 +579,7 @@ void CGUIDialogKeyboardGeneric::OnDeinitWindow(int nextWindowID)
 
 void CGUIDialogKeyboardGeneric::MoveCursor(int iAmount)
 {
-  if (m_codingtable && !m_words.empty())
+  if (m_codingtable && m_words.size())
     ChangeWordList(iAmount);
   else
   {
@@ -616,9 +612,7 @@ void CGUIDialogKeyboardGeneric::OnSymbols()
 void CGUIDialogKeyboardGeneric::OnReveal()
 {
   m_hiddenInput = !m_hiddenInput;
-  SET_CONTROL_LABEL(CTL_BUTTON_REVEAL,
-                    CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                        m_hiddenInput ? 12308 : 12309));
+  SET_CONTROL_LABEL(CTL_BUTTON_REVEAL, g_localizeStrings.Get(m_hiddenInput ? 12308 : 12309));
   CGUIMessage msg(GUI_MSG_SET_TYPE, GetID(), CTL_EDIT,
                   m_hiddenInput ? CGUIEditControl::INPUT_TYPE_PASSWORD
                                 : CGUIEditControl::INPUT_TYPE_TEXT);
@@ -648,8 +642,7 @@ void CGUIDialogKeyboardGeneric::OnIPAddress()
   }
   else
     start = text.size();
-  if (CGUIDialogNumeric::ShowAndGetIPAddress(
-          ip, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(14068)))
+  if (CGUIDialogNumeric::ShowAndGetIPAddress(ip, g_localizeStrings.Get(14068)))
     SetEditText(text.substr(0, start) + ip + text.substr(start + length));
 }
 
@@ -669,8 +662,7 @@ void CGUIDialogKeyboardGeneric::OnVoiceRecognition()
   }
 }
 
-void CGUIDialogKeyboardGeneric::SetControlLabel(int id, const std::string &label)
-{ // find all controls with this id, and set all their labels
+void CGUIDialogKeyboardGeneric::SetControlLabel(int id, const std::string &label) const { // find all controls with this id, and set all their labels
   CGUIMessage message(GUI_MSG_LABEL_SET, GetID(), id);
   message.SetLabel(label);
   for (unsigned int i = 0; i < m_children.size(); i++)
@@ -727,8 +719,7 @@ bool CGUIDialogKeyboardGeneric::ShowAndGetInput(char_callback_t pCallback, const
   else return false;
 }
 
-float CGUIDialogKeyboardGeneric::GetStringWidth(const std::wstring & utf16)
-{
+float CGUIDialogKeyboardGeneric::GetStringWidth(const std::wstring & utf16) const {
   vecText utf32;
 
   utf32.resize(utf16.size());
@@ -756,7 +747,8 @@ void CGUIDialogKeyboardGeneric::ChangeWordList(int direct)
 
 void CGUIDialogKeyboardGeneric::ShowWordList(int direct)
 {
-  std::unique_lock lock(m_CS);
+  std::lock_guard lock(m_CS);
+
   std::wstring hzlist = L"";
   CServiceBroker::GetWinSystem()->GetGfxContext().SetScalingResolution(m_coordsRes, true);
   float width = m_listfont->GetCharWidth(L'<') + m_listfont->GetCharWidth(L'>');

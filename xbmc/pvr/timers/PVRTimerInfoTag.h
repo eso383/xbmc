@@ -9,7 +9,6 @@
 #pragma once
 
 #include "XBDateTime.h"
-#include "pvr/settings/PVRCustomProperty.h"
 #include "pvr/timers/PVRTimerType.h"
 #include "threads/CriticalSection.h"
 #include "utils/ISerializable.h"
@@ -44,6 +43,13 @@ public:
                    unsigned int iClientId);
 
   bool operator==(const CPVRTimerInfoTag& right) const;
+  bool operator!=(const CPVRTimerInfoTag& right) const;
+
+  /*!
+   * @brief Copy over data to the given PVR_TIMER instance.
+   * @param timer The timer instance to fill.
+   */
+  void FillAddonData(PVR_TIMER& timer) const;
 
   // ISerializable implementation
   void Serialize(CVariant& value) const override;
@@ -77,11 +83,13 @@ public:
    * @param bCreateRule if true, create a timer rule, create a one shot timer otherwise
    * @param bCreateReminder if true, create a reminder timer or rule, create a recording timer
    * or rule otherwise
+   * @param bReadOnly whether the timer/rule is read only
    * @return the timer or null if timer could not be created
    */
   static std::shared_ptr<CPVRTimerInfoTag> CreateFromEpg(const std::shared_ptr<CPVREpgInfoTag>& tag,
                                                          bool bCreateRule,
-                                                         bool bCreateReminder);
+                                                         bool bCreateReminder,
+                                                         bool bReadOnly = false);
 
   /*!
    * @brief create a timer or timer rule for the given epg info tag.
@@ -118,7 +126,7 @@ public:
    * @brief Associate the given epg tag with this timer.
    * @param tag The epg tag to assign.
    */
-  void SetEpgInfoTag(const std::shared_ptr<CPVREpgInfoTag>& tag);
+  void SetEpgInfoTag(const std::shared_ptr<CPVREpgInfoTag>& tag) const;
 
   /*!
    * @brief get the epg info tag associated with this timer, if any
@@ -146,11 +154,6 @@ public:
    * @brief reset the state of children related to this timer.
    */
   void ResetChildState();
-
-  /*!
-   * @brief reset the client index of this timer.
-   */
-  void ResetClientIndex();
 
   /*!
    * @brief Whether this timer is active.
@@ -196,7 +199,7 @@ public:
    * @brief Gets the type of this timer.
    * @return the timer type or NULL if this tag has no timer type.
    */
-  std::shared_ptr<CPVRTimerType> GetTimerType() const { return m_timerType; }
+  const std::shared_ptr<CPVRTimerType> GetTimerType() const { return m_timerType; }
 
   /*!
    * @brief Sets the type of this timer.
@@ -230,7 +233,7 @@ public:
 
   /*!
    * @brief The ID of the client for this timer.
-   * @return The client ID or PVR_CLIENT_INVALID_UID  if this is a local timer.
+   * @return The client ID or -1  if this is a local timer.
    */
   int ClientID() const { return m_iClientId; }
 
@@ -261,7 +264,7 @@ public:
 
   /*!
    * @brief The index for the parent of this timer, as given by the client. Timers scheduled by a
-   * timer rule will have a parent index != PVR_TIMER_NO_PARENT.
+   * timer rule will have a parant index != PVR_TIMER_NO_PARENT.
    * @return The client index or PVR_TIMER_NO_PARENT if the timer has no parent.
    */
   int ParentClientIndex() const { return m_iParentClientIndex; }
@@ -324,7 +327,7 @@ public:
    * @brief Update the channel associated with this timer, based on current client ID and
    * channel UID.
    */
-  void UpdateChannel();
+  void UpdateChannel() const;
 
   /*!
    * @brief The name of the channel associated with this timer, if any.
@@ -411,6 +414,20 @@ public:
   void SetFirstDayFromLocalTime(const CDateTime& firstDay);
 
   /*!
+   * @brief Helper function to convert a given CDateTime containing data as UTC to local time.
+   * @param utc A CDateTime instance carrying data as UTC.
+   * @return A CDateTime instance carrying data as local time.
+   */
+  static CDateTime ConvertUTCToLocalTime(const CDateTime& utc);
+
+  /*!
+   * @brief Helper function to convert a given CDateTime containing data as local time to UTC.
+   * @param local A CDateTime instance carrying data as local time.
+   * @return A CDateTime instance carrying data as UTC.
+   */
+  static CDateTime ConvertLocalTimeToUTC(const CDateTime& local);
+
+  /*!
    * @brief Get the duration of this timer in seconds, excluding padding times.
    * @return The duration.
    */
@@ -468,48 +485,6 @@ public:
   const std::string& SeriesLink() const;
 
   /*!
-   * @brief The directory for the recordings for this timer.
-   * @return The directory.
-   */
-  const std::string& Directory() const { return m_strDirectory; }
-
-  /*!
-   * @brief The priority for this timer.
-   * @return The priority.
-   */
-  int Priority() const { return m_iPriority; }
-
-  /*!
-   * @brief The life time for this timer.
-   * @return The life time.
-   */
-  int Lifetime() const { return m_iLifetime; }
-
-  /*!
-   * @brief The maximum number of recordings for this timer.
-   * @return The number of maximum recordings.
-   */
-  int MaxRecordings() const { return m_iMaxRecordings; }
-
-  /*!
-   * @brief The policy to be used to prevent duplicate episodes for this timer.
-   * @return The policy for preventing duplicate episodes.
-   */
-  int PreventDupEpisodesPolicy() const { return m_iPreventDupEpisodes; }
-
-  /*!
-   * @brief The recording group for this timer.
-   * @return The recording group.
-   */
-  int RecordingGroup() const { return m_iRecordingGroup; }
-
-  /*!
-   * @brief Get custom properties for this tag.
-   * @return The list of properties or an empty list if none present.
-   */
-  const CustomPropertiesMap& GetCustomProperties() const { return m_customProps; }
-
-  /*!
    * @brief Get the UID of the epg event associated with this timer tag, if any.
    * @return The UID or EPG_TAG_INVALID_UID.
    */
@@ -546,7 +521,7 @@ public:
    * @brief Delete this timer from the local database.
    * @return True on success, false otherwise.
    */
-  bool DeleteFromDatabase();
+  bool DeleteFromDatabase() const;
 
   /*!
    * @brief GUI support: Get the text for the timer GUI notification.
@@ -601,13 +576,14 @@ private:
   CPVRTimerInfoTag& operator=(const CPVRTimerInfoTag& orig) = delete;
 
   std::string GetWeekdaysString() const;
-  void UpdateEpgInfoTag();
+  void UpdateEpgInfoTag() const;
 
   static std::shared_ptr<CPVRTimerInfoTag> CreateFromDate(
       const std::shared_ptr<CPVRChannel>& channel,
       const CDateTime& start,
       int iDuration,
-      bool bCreateReminder);
+      bool bCreateReminder,
+      bool bReadOnly);
 
   mutable CCriticalSection m_critSection;
 
@@ -645,7 +621,6 @@ private:
   mutable unsigned int
       m_iEpgUid; /*!< id of epg event associated with this timer, EPG_TAG_INVALID_UID if none. */
   std::string m_strSeriesLink; /*!< series link */
-  CustomPropertiesMap m_customProps; /*!< the map with custom properties supplied by the client. */
 
   CDateTime m_StartTime; /*!< start time */
   CDateTime m_StopTime; /*!< stop time */

@@ -13,7 +13,7 @@
 class CInputStreamPVRChannel : public CInputStreamPVRBase
 {
 public:
-  using CInputStreamPVRBase::CInputStreamPVRBase;
+  CInputStreamPVRChannel(IVideoPlayer* pPlayer, const CFileItem& fileitem);
   ~CInputStreamPVRChannel() override;
 
   CDVDInputStream::IDemux* GetIDemux() override;
@@ -27,9 +27,6 @@ protected:
   ENextStream NextPVRStream() override;
   bool CanPausePVRStream() override;
   bool CanSeekPVRStream() override;
-  bool IsRealtimePVRStream() override;
-  void PausePVRStream(bool paused) override;
-  bool GetPVRStreamTimes(Times& times) override;
 
 private:
   bool m_bDemuxActive = false;

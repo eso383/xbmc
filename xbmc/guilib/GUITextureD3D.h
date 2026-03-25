@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -19,7 +19,7 @@ public:
       float posX, float posY, float width, float height, const CTextureInfo& texture);
 
   static void DrawQuad(const CRect& coords,
-                       KODI::UTILS::COLOR::Color color,
+                       UTILS::COLOR::Color color,
                        CTexture* texture = nullptr,
                        const CRect* texCoords = nullptr,
                        const float depth = 1.0,
@@ -31,13 +31,13 @@ public:
   CGUITextureD3D* Clone() const override;
 
 protected:
-  void Begin(KODI::UTILS::COLOR::Color color);
+  void Begin(UTILS::COLOR::Color color);
   void Draw(float *x, float *y, float *z, const CRect &texture, const CRect &diffuse, int orientation);
   void End();
 
 private:
   CGUITextureD3D(const CGUITextureD3D& texture) = default;
 
-  KODI::UTILS::COLOR::Color m_col;
+  UTILS::COLOR::Color m_col;
 };
 

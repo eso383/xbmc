@@ -272,8 +272,7 @@ YUV2RGBProgressiveShader::YUV2RGBProgressiveShader(bool rect,
                                                    AVColorPrimaries srcPrimaries,
                                                    bool toneMap,
                                                    ETONEMAPMETHOD toneMapMethod,
-                                                   std::shared_ptr<GLSLOutput> output,
-                                                   bool gammaCorrection)
+                                                   std::shared_ptr<GLSLOutput> output)
   : BaseYUV2RGBGLSLShader(rect,
                           format,
                           stretch,
@@ -283,9 +282,6 @@ YUV2RGBProgressiveShader::YUV2RGBProgressiveShader(bool rect,
                           toneMapMethod,
                           std::move(output))
 {
-  if (gammaCorrection)
-    m_defines += "#define KODI_GAMMA_LINEARIZATION_FAST\n";
-
   PixelShader()->LoadSource("gl_yuv2rgb_basic.glsl", m_defines);
   PixelShader()->AppendSource("gl_output.glsl");
 

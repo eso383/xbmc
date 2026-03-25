@@ -10,14 +10,11 @@
 
 #include "XBDateTime.h"
 #include "addons/AddonVersion.h"
-#include "utils/Artwork.h"
-#include "utils/Locale.h"
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -29,9 +26,8 @@ enum class AddonType;
 class CAddonBuilder;
 class CAddonInfo;
 class CAddonType;
-
-using AddonInfoPtr = std::shared_ptr<CAddonInfo>;
-using AddonInfos = std::vector<AddonInfoPtr>;
+typedef std::shared_ptr<CAddonInfo> AddonInfoPtr;
+typedef std::vector<AddonInfoPtr> AddonInfos;
 
 using AddonInstanceId = uint32_t;
 
@@ -39,7 +35,7 @@ using AddonInstanceId = uint32_t;
  * Defines the default language code used as fallback in case the requested language is not
  * available. Used, for instance, to handle content from addon.xml.
  */
-constexpr const char* KODI_ADDON_DEFAULT_LANGUAGE_CODE = "en_GB";
+constexpr auto KODI_ADDON_DEFAULT_LANGUAGE_CODE = "en_GB";
 
 enum class AddonDisabledReason
 {
@@ -112,10 +108,8 @@ enum class AddonLifecycleState
 struct DependencyInfo
 {
   std::string id;
-  CAddonVersion versionMin;
-  CAddonVersion version;
+  CAddonVersion versionMin, version;
   bool optional;
-
   DependencyInfo(std::string id,
                  const CAddonVersion& versionMin,
                  const CAddonVersion& version,
@@ -127,10 +121,20 @@ struct DependencyInfo
   {
   }
 
-  bool operator==(const DependencyInfo& rhs) const = default;
+  bool operator==(const DependencyInfo& rhs) const
+  {
+    return id == rhs.id && versionMin == rhs.versionMin && version == rhs.version &&
+           optional == rhs.optional;
+  }
+
+  bool operator!=(const DependencyInfo& rhs) const
+  {
+    return !(rhs == *this);
+  }
 };
 
-using InfoMap = std::map<std::string, std::string, std::less<>>;
+typedef std::map<std::string, std::string> InfoMap;
+typedef std::map<std::string, std::string> ArtMap;
 
 class CAddonInfoBuilder;
 
@@ -142,12 +146,9 @@ public:
 
   void SetMainType(AddonType type) { m_mainType = type; }
   void SetBinary(bool isBinary) { m_isBinary = isBinary; }
-  void SetLibName(std::string_view libname) { m_libname = libname; }
-  void SetPath(std::string_view path) { m_path = path; }
-  void AddExtraInfo(const std::string& idName, std::string_view value)
-  {
-    m_extrainfo[idName] = value;
-  }
+  void SetLibName(const std::string& libname) { m_libname = libname; }
+  void SetPath(const std::string& path) { m_path = path; }
+  void AddExtraInfo(const std::string& idName, const std::string& value) { m_extrainfo[idName] = value; }
   void SetLastUsed(const CDateTime& dateTime) { m_lastUsed = dateTime; }
 
   const std::string& ID() const { return m_id; }
@@ -221,7 +222,7 @@ public:
   const std::string& ProfilePath() const { return m_profilePath; }
   const std::string& ChangeLog() const { return GetTranslatedText(m_changelog); }
   const std::string& Icon() const { return m_icon; }
-  const KODI::ART::Artwork& Art() const { return m_art; }
+  const ArtMap& Art() const { return m_art; }
   const std::vector<std::string>& Screenshots() const { return m_screenshots; }
   const std::string& Disclaimer() const { return GetTranslatedText(m_disclaimer); }
   const std::vector<DependencyInfo>& GetDependencies() const { return m_dependencies; }
@@ -255,7 +256,7 @@ public:
   static std::string TranslateType(AddonType type, bool pretty = false);
   static std::string TranslateIconType(AddonType type);
   static AddonType TranslateType(const std::string& string);
-  static AddonType TranslateSubContent(std::string_view content);
+  static AddonType TranslateSubContent(const std::string& content);
   static AddonInstanceSupport InstanceSupportType(AddonType type);
   //@}
 
@@ -272,8 +273,8 @@ private:
   bool m_isBinary = false;
   std::string m_name;
   std::string m_license;
-  CLocale::LocalizedStringsMap m_summary;
-  CLocale::LocalizedStringsMap m_description;
+  std::unordered_map<std::string, std::string> m_summary;
+  std::unordered_map<std::string, std::string> m_description;
   std::string m_author;
   std::string m_source;
   std::string m_website;
@@ -281,19 +282,19 @@ private:
   std::string m_email;
   std::string m_path;
   std::string m_profilePath;
-  CLocale::LocalizedStringsMap m_changelog;
+  std::unordered_map<std::string, std::string> m_changelog;
   std::string m_icon;
-  KODI::ART::Artwork m_art;
+  ArtMap m_art;
   std::vector<std::string> m_screenshots;
-  CLocale::LocalizedStringsMap m_disclaimer;
+  std::unordered_map<std::string, std::string> m_disclaimer;
   std::vector<DependencyInfo> m_dependencies;
   AddonLifecycleState m_lifecycleState = AddonLifecycleState::NORMAL;
-  CLocale::LocalizedStringsMap m_lifecycleStateDescription;
+  std::unordered_map<std::string, std::string> m_lifecycleStateDescription;
   CDateTime m_installDate;
   CDateTime m_lastUpdated;
   CDateTime m_lastUsed;
   std::string m_origin;
-  mutable std::optional<std::string> m_originName;
+  mutable std::unique_ptr<std::string> m_originName; // @todo use std::optional once we use c++17
   uint64_t m_packageSize = 0;
   std::string m_libname;
   InfoMap m_extrainfo;
@@ -302,7 +303,7 @@ private:
   bool m_supportsAddonSettings{false};
   bool m_supportsInstanceSettings{false};
 
-  const std::string& GetTranslatedText(const CLocale::LocalizedStringsMap& locales) const;
+  const std::string& GetTranslatedText(const std::unordered_map<std::string, std::string>& locales) const;
 };
 
 } /* namespace ADDON */

@@ -9,15 +9,14 @@
 #include "GUIListGroup.h"
 
 #include "GUIListLabel.h"
-#include "ServiceBroker.h"
-#include "utils/Set.h"
 #include "utils/log.h"
-#include "windowing/WinSystem.h"
+
+#include <set>
 
 namespace
 {
 // Supported control types. Keep sorted.
-constexpr CSet supportedTypes{
+const std::set<CGUIControl::GUICONTROLTYPES> supportedTypes = {
     // clang-format off
     CGUIControl::GUICONTROL_BORDEREDIMAGE,
     CGUIControl::GUICONTROL_GAME,
@@ -36,14 +35,14 @@ constexpr CSet supportedTypes{
 CGUIListGroup::CGUIListGroup(int parentID, int controlID, float posX, float posY, float width, float height)
 : CGUIControlGroup(parentID, controlID, posX, posY, width, height)
 {
-  m_item = NULL;
+  m_item = nullptr;
   ControlType = GUICONTROL_LISTGROUP;
 }
 
 CGUIListGroup::CGUIListGroup(const CGUIListGroup &right)
 : CGUIControlGroup(right)
 {
-  m_item = NULL;
+  m_item = nullptr;
   ControlType = GUICONTROL_LISTGROUP;
 }
 
@@ -56,7 +55,7 @@ void CGUIListGroup::AddControl(CGUIControl *control, int position /*= -1*/)
 {
   if (control)
   {
-    if (!supportedTypes.contains(control->GetControlType()))
+    if (supportedTypes.find(control->GetControlType()) == supportedTypes.end())
       CLog::Log(LOGWARNING, "Trying to add unsupported control type {}", control->GetControlType());
   }
   CGUIControlGroup::AddControl(control, position);
@@ -80,7 +79,7 @@ void CGUIListGroup::Process(unsigned int currentTime, CDirtyRegionList &dirtyreg
   CServiceBroker::GetWinSystem()->GetGfxContext().RestoreOrigin();
   CGUIControl::Process(currentTime, dirtyregions);
   m_renderRegion = rect;
-  m_item = NULL;
+  m_item = nullptr;
 }
 
 void CGUIListGroup::ResetAnimation(ANIMATION_TYPE type)
@@ -219,7 +218,7 @@ void CGUIListGroup::SetState(bool selected, bool focused)
   {
     if ((*it)->GetControlType() == CGUIControl::GUICONTROL_LISTLABEL)
     {
-      CGUIListLabel *label = (CGUIListLabel *)(*it);
+      auto label = (CGUIListLabel *)(*it);
       label->SetSelected(selected);
     }
     else if ((*it)->GetControlType() == CGUIControl::GUICONTROL_LISTGROUP)

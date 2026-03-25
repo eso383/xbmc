@@ -17,10 +17,10 @@
 class CViewState; // forward
 class CFileItemList;
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
-enum class Id;
-} // namespace KODI::PLAYLIST
+using Id = int;
+} // namespace PLAYLIST
 
 class CGUIViewState
 {
@@ -50,21 +50,21 @@ public:
   virtual bool HideParentDirItems();
   virtual bool DisableAddSourceButtons();
 
-  virtual KODI::PLAYLIST::Id GetPlaylist() const;
+  virtual PLAYLIST::Id GetPlaylist() const;
   const std::string& GetPlaylistDirectory();
   void SetPlaylistDirectory(const std::string& strDirectory);
-  bool IsCurrentPlaylistDirectory(const std::string& strDirectory);
+  bool IsCurrentPlaylistDirectory(const std::string& strDirectory) const;
   virtual bool AutoPlayNextItem();
 
   virtual std::string GetLockType();
   virtual std::string GetExtensions();
-  virtual std::vector<CMediaSource>& GetSources();
+  virtual VECSOURCES& GetSources();
 
 protected:
   explicit CGUIViewState(const CFileItemList& items);  // no direct object creation, use GetViewState()
 
   virtual void SaveViewState() = 0;
-  virtual void SaveViewToDb(const std::string &path, int windowID, CViewState *viewState = NULL);
+  virtual void SaveViewToDb(const std::string &path, int windowID, CViewState *viewState = nullptr);
   void LoadViewState(const std::string &path, int windowID);
 
   void AddLiveTVSources();
@@ -76,21 +76,11 @@ protected:
    */
   void AddPlaylistOrder(const CFileItemList& items, const LABEL_MASKS& label_masks);
 
-  void AddSortMethod(SortBy sortBy,
-                     int buttonLabel,
-                     const LABEL_MASKS& labelMasks,
-                     SortAttribute sortAttributes = SortAttributeNone,
-                     SortOrder sortOrder = SortOrder::NONE);
-  void AddSortMethod(SortBy sortBy,
-                     SortAttribute sortAttributes,
-                     int buttonLabel,
-                     const LABEL_MASKS& labelMasks,
-                     SortOrder sortOrder = SortOrder::NONE);
-  void AddSortMethod(const SortDescription& sortDescription,
-                     int buttonLabel,
-                     const LABEL_MASKS& labelMasks);
-  void SetSortMethod(SortBy sortBy, SortOrder sortOrder = SortOrder::NONE);
-  void SetSortMethod(const SortDescription& sortDescription);
+  void AddSortMethod(SortBy sortBy, int buttonLabel, const LABEL_MASKS &labelMasks, SortAttribute sortAttributes = SortAttributeNone, SortOrder sortOrder = SortOrderNone);
+  void AddSortMethod(SortBy sortBy, SortAttribute sortAttributes, int buttonLabel, const LABEL_MASKS &labelMasks, SortOrder sortOrder = SortOrderNone);
+  void AddSortMethod(SortDescription sortDescription, int buttonLabel, const LABEL_MASKS &labelMasks);
+  void SetSortMethod(SortBy sortBy, SortOrder sortOrder = SortOrderNone);
+  void SetSortMethod(SortDescription sortDescription);
   void SetSortOrder(SortOrder sortOrder);
 
   bool AutoPlayNextVideoItem() const;
@@ -98,12 +88,12 @@ protected:
   const CFileItemList& m_items;
 
   int m_currentViewAsControl;
-  KODI::PLAYLIST::Id m_playlist;
+  PLAYLIST::Id m_playlist;
 
   std::vector<GUIViewSortDetails> m_sortMethods;
   int m_currentSortMethod;
 
-  static std::vector<CMediaSource> m_sources;
+  static VECSOURCES m_sources;
   static std::string m_strPlaylistDirectory;
 };
 

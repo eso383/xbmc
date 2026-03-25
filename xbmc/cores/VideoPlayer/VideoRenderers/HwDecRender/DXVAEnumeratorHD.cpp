@@ -11,8 +11,6 @@
 #include "rendering/dx/RenderContext.h"
 #include "utils/log.h"
 
-#include "platform/win32/WIN32Util.h"
-
 #include <mutex>
 
 #include <Windows.h>
@@ -37,7 +35,8 @@ CEnumeratorHD::CEnumeratorHD()
 
 CEnumeratorHD::~CEnumeratorHD()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   DX::Windowing()->Unregister(this);
   UnInit();
 }
@@ -49,7 +48,8 @@ void CEnumeratorHD::UnInit()
 
 void CEnumeratorHD::Close()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_pEnumerator1 = nullptr;
   m_pEnumerator = nullptr;
   m_pVideoDevice = nullptr;
@@ -59,7 +59,8 @@ bool CEnumeratorHD::Open(unsigned int width, unsigned int height, DXGI_FORMAT in
 {
   Close();
 
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_width = width;
   m_height = height;
   m_input_dxgi_format = input_dxgi_format;
@@ -75,7 +76,7 @@ bool CEnumeratorHD::OpenEnumerator()
   if (FAILED(hr = pD3DDevice.As(&m_pVideoDevice)))
   {
     CLog::LogF(LOGWARNING, "video device initialization is failed. Error {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return false;
   }
 
@@ -93,14 +94,14 @@ bool CEnumeratorHD::OpenEnumerator()
                  &contentDesc, m_pEnumerator.ReleaseAndGetAddressOf())))
   {
     CLog::LogF(LOGWARNING, "failed to init video enumerator with params: {}x{}. Error {}", m_width,
-               m_height, CWIN32Util::FormatHRESULT(hr));
+               m_height, DX::GetErrorDescription(hr));
     return false;
   }
 
   if (FAILED(hr = m_pEnumerator.As(&m_pEnumerator1)))
   {
     CLog::LogF(LOGDEBUG, "ID3D11VideoProcessorEnumerator1 not available on this system. Message {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
   }
 
   return true;
@@ -108,7 +109,7 @@ bool CEnumeratorHD::OpenEnumerator()
 
 ProcessorCapabilities CEnumeratorHD::ProbeProcessorCaps()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (!m_pEnumerator)
     return {};
@@ -137,7 +138,7 @@ ProcessorCapabilities CEnumeratorHD::ProbeProcessorCaps()
 
   if (FAILED(hr = m_pEnumerator->GetVideoProcessorCaps(&result.m_vcaps)))
   {
-    CLog::LogF(LOGWARNING, "failed to get processor caps. Error {}", CWIN32Util::FormatHRESULT(hr));
+    CLog::LogF(LOGWARNING, "failed to get processor caps. Error {}", DX::GetErrorDescription(hr));
     return {};
   }
 
@@ -183,7 +184,7 @@ ProcessorCapabilities CEnumeratorHD::ProbeProcessorCaps()
     if (FAILED(hr = m_pEnumerator->GetVideoProcessorRateConversionCaps(i, &convCaps)))
     {
       CLog::LogF(LOGWARNING, "unable to retrieve processor rate conversion caps {}. Error {}", i,
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
       continue;
     }
 
@@ -212,7 +213,7 @@ ProcessorCapabilities CEnumeratorHD::ProbeProcessorCaps()
     CLog::LogF(LOGWARNING,
                "unable to retrieve processor rate conversion caps {}, the deinterlacing "
                "capabilities are unknown. Error {}",
-               result.m_procIndex, CWIN32Util::FormatHRESULT(hr));
+               result.m_procIndex, DX::GetErrorDescription(hr));
   }
 
   CLog::LogF(
@@ -271,7 +272,7 @@ ProcessorFormats CEnumeratorHD::GetProcessorFormats(bool inputFormats, bool outp
     {
       CLog::LogF(LOGWARNING,
                  "Unable to retrieve support of the dxva processor for format {}, error {}",
-                 DX::DXGIFormatToString(dxgiFormat), CWIN32Util::FormatHRESULT(hr));
+                 DX::DXGIFormatToString(dxgiFormat), DX::GetErrorDescription(hr));
       return formats;
     }
   }
@@ -307,7 +308,8 @@ bool CEnumeratorHD::CheckConversion(DXGI_FORMAT inputFormat,
                                     DXGI_FORMAT outputFormat,
                                     DXGI_COLOR_SPACE_TYPE outputCS)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   return CheckConversionInternal(inputFormat, inputCS, outputFormat, outputCS);
 }
 
@@ -331,7 +333,7 @@ bool CEnumeratorHD::CheckConversionInternal(DXGI_FORMAT inputFormat,
   else
   {
     CLog::LogF(LOGERROR, "unable to validate the format conversion, error {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return false;
   }
 }
@@ -367,7 +369,7 @@ ProcessorConversions CEnumeratorHD::ListConversions(
 void CEnumeratorHD::LogSupportedConversions(const DXGI_FORMAT inputFormat,
                                             const DXGI_COLOR_SPACE_TYPE inputNativeCS)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (!m_pEnumerator)
     return;
@@ -381,7 +383,7 @@ void CEnumeratorHD::LogSupportedConversions(const DXGI_FORMAT inputFormat,
   {
     CLog::LogFC(LOGDEBUG, LOGVIDEO,
                 "unable to retrieve processor support of input format {}. Error {}",
-                DX::DXGIFormatToString(inputFormat), CWIN32Util::FormatHRESULT(hr));
+                DX::DXGIFormatToString(inputFormat), DX::GetErrorDescription(hr));
     return;
   }
   else if (!(uiFlags & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT))
@@ -456,12 +458,14 @@ void CEnumeratorHD::LogSupportedConversions(const DXGI_FORMAT inputFormat,
 
 bool CEnumeratorHD::IsFormatSupportedInput(DXGI_FORMAT format)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   return IsFormatSupportedInternal(format, D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT);
 }
 bool CEnumeratorHD::IsFormatSupportedOutput(DXGI_FORMAT format)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+  
   return IsFormatSupportedInternal(format, D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_OUTPUT);
 }
 
@@ -486,7 +490,7 @@ bool CEnumeratorHD::IsFormatSupportedInternal(DXGI_FORMAT format,
 
 ComPtr<ID3D11VideoProcessor> CEnumeratorHD::CreateVideoProcessor(UINT RateConversionIndex)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // Not initialized yet
   if (!m_pEnumerator)
@@ -500,7 +504,7 @@ ComPtr<ID3D11VideoProcessor> CEnumeratorHD::CreateVideoProcessor(UINT RateConver
   if (FAILED(hr))
   {
     CLog::LogF(LOGDEBUG, "failed creating video processor with error {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return {};
   }
 
@@ -510,7 +514,7 @@ ComPtr<ID3D11VideoProcessor> CEnumeratorHD::CreateVideoProcessor(UINT RateConver
 ComPtr<ID3D11VideoProcessorInputView> CEnumeratorHD::CreateVideoProcessorInputView(
     ID3D11Resource* pResource, const D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC* pDesc)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // Not initialized yet
   if (!m_pEnumerator)
@@ -523,7 +527,7 @@ ComPtr<ID3D11VideoProcessorInputView> CEnumeratorHD::CreateVideoProcessorInputVi
 
   if (S_OK != hr)
     CLog::LogF(FAILED(hr) ? LOGERROR : LOGWARNING, "CreateVideoProcessorInputView returned {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
 
   return inputView;
 }
@@ -531,7 +535,7 @@ ComPtr<ID3D11VideoProcessorInputView> CEnumeratorHD::CreateVideoProcessorInputVi
 ComPtr<ID3D11VideoProcessorOutputView> CEnumeratorHD::CreateVideoProcessorOutputView(
     ID3D11Resource* pResource, const D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC* pDesc)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // Not initialized yet
   if (!m_pEnumerator)
@@ -543,14 +547,14 @@ ComPtr<ID3D11VideoProcessorOutputView> CEnumeratorHD::CreateVideoProcessorOutput
                                                               outputView.GetAddressOf());
   if (S_OK != hr)
     CLog::LogF(FAILED(hr) ? LOGERROR : LOGWARNING, "CreateVideoProcessorOutputView returned {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
 
   return outputView;
 }
 
 ProcessorConversions CEnumeratorHD::SupportedConversions(const SupportedConversionsArgs& args)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // Not initialized yet
   if (!m_pEnumerator)

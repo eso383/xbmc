@@ -42,11 +42,11 @@
         android:required="false" />
 
     <application
-        android:banner="@mipmap/banner"
+        android:banner="@drawable/banner"
         android:hasCode="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:logo="@mipmap/banner"
+        android:logo="@drawable/banner"
         android:requestLegacyExternalStorage="true">
         <activity
             android:name=".Splash"
@@ -72,7 +72,6 @@
                 <data android:mimeType="audio/*" />
                 <data android:mimeType="image/*" />
 
-                <data android:scheme="" />
                 <data android:scheme="file" />
                 <data android:scheme="content" />
                 <data android:scheme="http" />
@@ -114,6 +113,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.DREAMING_STOPPED" />
                 <action android:name="android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED" />
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
@@ -122,19 +122,15 @@
             android:name=".content.XBMCMediaContentProvider"
             android:authorities="@APP_PACKAGE@.media"
             android:exported="true" />
+
         <provider
             android:name=".content.XBMCFileContentProvider"
             android:authorities="@APP_PACKAGE@.file"
             android:exported="true" />
         <provider
-            android:name=".content.XBMCFileProvider"
-            android:authorities="@APP_PACKAGE@.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
+            android:name=".content.XBMCYTDLContentProvider"
+            android:authorities="@APP_PACKAGE@.ytdl"
+            android:exported="true" />
 
         <activity android:name=".XBMCSearchableActivity" 
                   android:exported="true">

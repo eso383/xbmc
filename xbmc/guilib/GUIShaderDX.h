@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -61,13 +61,7 @@ public:
   void XM_CALLCONV SetWorld(const DirectX::XMMATRIX &value);
   void XM_CALLCONV SetView(const DirectX::XMMATRIX &value);
   void XM_CALLCONV SetProjection(const DirectX::XMMATRIX &value);
-  void Project(float& x, float& y, float& z) const;
-
-  /*!
-   * \brief Sets the depth value of the primitives to be drawn (overrides z of the vertices)
-   * \param[in] depth value -1=far to 1=near (GL convention).
-   */
-  void SetDepth(float depth);
+  void Project(float &x, float &y, float &z);
 
   void DrawQuad(Vertex& v1, Vertex& v2, Vertex& v3, Vertex& v4);
   void DrawIndexed(unsigned int indexCount, unsigned int startIndex, unsigned int startVertex);
@@ -114,27 +108,23 @@ private:
     float colorRange;
     float sdrPeakLum;
     int PQ;
-    float depth;
   };
 
   void Release(void);
   bool CreateBuffers(void);
   bool CreateSamplers(void);
-  void SetSamplers(void);
   void ApplyChanges(void);
   void ClipToScissorParams(void);
 
   // GUI constants
   cbViewPort m_cbViewPort = {};
   cbWorldViewProj m_cbWorldViewProj = {};
-  float m_depth = 1.f;
 
   bool  m_bCreated;
   size_t m_currentShader;
   CD3DVertexShader m_vertexShader;
   CD3DPixelShader m_pixelShader[SHADER_METHOD_RENDER_COUNT];
   Microsoft::WRL::ComPtr<ID3D11SamplerState> m_pSampLinear;
-  Microsoft::WRL::ComPtr<ID3D11SamplerState> m_pSampNearestNeighbor;
 
   // GUI buffers
   bool m_bIsWVPDirty;

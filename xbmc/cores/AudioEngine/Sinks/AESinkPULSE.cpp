@@ -31,7 +31,7 @@ public:
   CDriverMonitor() = default;
   virtual ~CDriverMonitor();
   bool Start(bool allowPipeWireCompatServer);
-  bool IsInitialized();
+  bool IsInitialized() const;
 
   CCriticalSection m_sec;
 
@@ -189,7 +189,7 @@ constexpr std::array<unsigned int, 14> defaultSampleRates = {
 
 static void ContextStateCallback(pa_context *c, void *userdata)
 {
-  pa_threaded_mainloop* m = static_cast<pa_threaded_mainloop*>(userdata);
+  auto m = static_cast<pa_threaded_mainloop*>(userdata);
   switch (pa_context_get_state(c))
   {
     case PA_CONTEXT_READY:
@@ -206,7 +206,7 @@ static void ContextStateCallback(pa_context *c, void *userdata)
 
 static void StreamStateCallback(pa_stream *s, void *userdata)
 {
-  pa_threaded_mainloop* m = static_cast<pa_threaded_mainloop*>(userdata);
+  auto m = static_cast<pa_threaded_mainloop*>(userdata);
   switch (pa_stream_get_state(s))
   {
     case PA_STREAM_UNCONNECTED:
@@ -221,7 +221,7 @@ static void StreamStateCallback(pa_stream *s, void *userdata)
 
 static void StreamRequestCallback(pa_stream *s, size_t length, void *userdata)
 {
-  CAESinkPULSE* p = static_cast<CAESinkPULSE*>(userdata);
+  auto p = static_cast<CAESinkPULSE*>(userdata);
   if (!p)
     return;
 
@@ -234,14 +234,14 @@ static void StreamRequestCallback(pa_stream *s, size_t length, void *userdata)
 
 static void StreamLatencyUpdateCallback(pa_stream *s, void *userdata)
 {
-  pa_threaded_mainloop* m = static_cast<pa_threaded_mainloop*>(userdata);
+  auto m = static_cast<pa_threaded_mainloop*>(userdata);
   pa_threaded_mainloop_signal(m, 0);
 }
 
 
 static void SinkInputInfoCallback(pa_context *c, const pa_sink_input_info *i, int eol, void *userdata)
 {
-  CAESinkPULSE *p = static_cast<CAESinkPULSE*>(userdata);
+  auto p = static_cast<CAESinkPULSE*>(userdata);
   if (!p || !p->IsInitialized())
     return;
 
@@ -254,11 +254,12 @@ static void SinkCallback(pa_context* c,
                          uint32_t idx,
                          void* userdata)
 {
-  CDriverMonitor* p = static_cast<CDriverMonitor*>(userdata);
+  auto p = static_cast<CDriverMonitor*>(userdata);
   if (!p)
     return;
 
-  std::unique_lock lock(p->m_sec);
+  std::lock_guard lock(p->m_sec);
+
   if (p->IsInitialized())
   {
     if ((t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) == PA_SUBSCRIPTION_EVENT_SINK)
@@ -287,11 +288,12 @@ static void SinkCallback(pa_context* c,
 
 static void SinkChangedCallback(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata)
 {
-  CAESinkPULSE* p = static_cast<CAESinkPULSE*>(userdata);
+  auto p = static_cast<CAESinkPULSE*>(userdata);
   if(!p)
     return;
 
-  std::unique_lock lock(p->m_sec);
+  std::lock_guard lock(p->m_sec);
+
   if (p->IsInitialized())
   {
     if ((t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) == PA_SUBSCRIPTION_EVENT_SINK_INPUT)
@@ -305,7 +307,7 @@ static void SinkChangedCallback(pa_context *c, pa_subscription_event_type_t t, u
         // we need to leave the lock as we trigger a second callback
         CSingleExit exitlock(p->m_sec);
         pa_operation* op = pa_context_get_sink_input_info(c, idx, SinkInputInfoCallback, p);
-        if (op == NULL)
+        if (op == nullptr)
           CLog::Log(LOGERROR, "PulseAudio: Failed to sync volume");
         else
           pa_operation_unref(op);
@@ -350,7 +352,7 @@ struct SinkInfoStruct
     isNWDevice = false;
     isBTDevice = false;
     device_found = true;
-    mainloop = NULL; //called into C
+    mainloop = nullptr; //called into C
     samplerate = 0;
     pa_channel_map_init(&map);
   }
@@ -362,14 +364,14 @@ struct ModuleInfoStruct
   bool hasAllowPT;
   ModuleInfoStruct()
   {
-    mainloop = NULL; //called into C
+    mainloop = nullptr; //called into C
     hasAllowPT = false;
   }
 };
 
 static void SinkInfoCallback(pa_context *c, const pa_sink_info *i, int eol, void *userdata)
 {
-  SinkInfoStruct *sinkStruct = static_cast<SinkInfoStruct*>(userdata);
+  auto sinkStruct = static_cast<SinkInfoStruct*>(userdata);
   if (!sinkStruct)
     return;
 
@@ -485,7 +487,7 @@ static CAEChannelInfo PAChannelToAEChannelMap(const pa_channel_map& channels)
 
 static void ModuleInfoCallback(pa_context* c, const pa_module_info *i, int eol, void *userdata)
 {
-  ModuleInfoStruct *mis = static_cast<ModuleInfoStruct*>(userdata);
+  auto mis = static_cast<ModuleInfoStruct*>(userdata);
   if (!mis)
     return;
 
@@ -500,7 +502,7 @@ static void ModuleInfoCallback(pa_context* c, const pa_module_info *i, int eol, 
 static void SinkInfoRequestCallback(pa_context *c, const pa_sink_info *i, int eol, void *userdata)
 {
 
-  SinkInfoStruct *sinkStruct = static_cast<SinkInfoStruct*>(userdata);
+  auto sinkStruct = static_cast<SinkInfoStruct*>(userdata);
   if (!sinkStruct)
     return;
 
@@ -671,8 +673,7 @@ CDriverMonitor::~CDriverMonitor()
   }
 }
 
-bool CDriverMonitor::IsInitialized()
-{
+bool CDriverMonitor::IsInitialized() const {
   return m_isInit;
 }
 
@@ -712,10 +713,11 @@ bool CDriverMonitor::Start(bool allowPipeWireCompatServer)
 
   m_isInit = true;
 
-  std::unique_lock lock(m_sec);
+  std::lock_guard lock(m_sec);
+
   // Register Callback for Sink changes
   pa_context_set_subscribe_callback(m_pContext, SinkCallback, this);
-  const pa_subscription_mask_t mask = pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SINK);
+  const auto mask = pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SINK);
   pa_operation* op = pa_context_subscribe(m_pContext, mask, nullptr, this);
   if (op != nullptr)
     pa_operation_unref(op);
@@ -738,8 +740,8 @@ bool CAESinkPULSE::Register(bool allowPipeWireCompatServer)
   pa_sample_spec ss;
   ss.format = PA_SAMPLE_S16NE;
   ss.channels = 2;
-  ss.rate = 48000;
-  s = pa_simple_new(NULL, "Kodi-Tester", PA_STREAM_PLAYBACK, NULL, "Test", &ss, NULL, NULL, NULL);
+  ss.rate = 44100;
+  s = pa_simple_new(nullptr, "Kodi-Tester", PA_STREAM_PLAYBACK, nullptr, "Test", &ss, nullptr, nullptr, nullptr);
   if (!s)
   {
     CLog::Log(LOGINFO, "PulseAudio: Server not running");
@@ -779,13 +781,13 @@ CAESinkPULSE::CAESinkPULSE()
 {
   m_IsAllocated = false;
   m_passthrough = false;
-  m_MainLoop = NULL;
+  m_MainLoop = nullptr;
   m_BytesPerSecond = 0;
   m_BufferSize = 0;
   m_Channels = 0;
   m_maxLatency = 0.0;
-  m_Stream = NULL;
-  m_Context = NULL;
+  m_Stream = nullptr;
+  m_Context = nullptr;
   m_IsStreamPaused = false;
   m_volume_needs_update = false;
   m_periodSize = 0;
@@ -800,7 +802,8 @@ CAESinkPULSE::~CAESinkPULSE()
 bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
 {
   {
-    std::unique_lock lock(m_sec);
+    std::lock_guard lock(m_sec);
+
     m_IsAllocated = false;
   }
   m_passthrough = false;
@@ -808,11 +811,11 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   m_BufferSize = 0;
   m_Channels = 0;
   m_maxLatency = 0.0;
-  m_Stream = NULL;
-  m_Context = NULL;
+  m_Stream = nullptr;
+  m_Context = nullptr;
   m_periodSize = 0;
 
-  if (!SetupContext(NULL, "KodiSink", &m_Context, &m_MainLoop))
+  if (!SetupContext(nullptr, "KodiSink", &m_Context, &m_MainLoop))
   {
     CLog::Log(LOGINFO, "PulseAudio might not be running. Context was not created.");
     Deinitialize();
@@ -854,7 +857,7 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   if(StringUtils::EndsWithNoCase(device, std::string("default")))
     isDefaultDevice = true;
 
-  WaitForOperation(pa_context_get_sink_info_by_name(m_Context, isDefaultDevice ? NULL : device.c_str(), SinkInfoCallback, &sinkStruct), m_MainLoop, "Get Sink Info");
+  WaitForOperation(pa_context_get_sink_info_by_name(m_Context, isDefaultDevice ? nullptr : device.c_str(), SinkInfoCallback, &sinkStruct), m_MainLoop, "Get Sink Info");
   // only check if the device is existing - don't alter the sample rate
   if (!sinkStruct.device_found)
   {
@@ -923,7 +926,7 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   }
 
   pa_sample_spec spec;
-  pa_format_info_to_sample_spec(info[0], &spec, NULL);
+  pa_format_info_to_sample_spec(info[0], &spec, nullptr);
   if (!pa_sample_spec_valid(&spec))
   {
     CLog::Log(LOGERROR, "PulseAudio: Invalid sample spec");
@@ -936,10 +939,10 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   m_BytesPerSecond = pa_bytes_per_second(&spec);
   unsigned int frameSize = pa_frame_size(&spec);
 
-  m_Stream = pa_stream_new_extended(m_Context, "kodi audio stream", info, 1, NULL);
+  m_Stream = pa_stream_new_extended(m_Context, "kodi audio stream", info, 1, nullptr);
   pa_format_info_free(info[0]);
 
-  if (m_Stream == NULL)
+  if (m_Stream == nullptr)
   {
     CLog::Log(LOGERROR, "PulseAudio: Could not create a stream");
     pa_threaded_mainloop_unlock(m_MainLoop);
@@ -975,7 +978,7 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   if (m_passthrough)
     flags |= PA_STREAM_PASSTHROUGH;
 
-  if (pa_stream_connect_playback(m_Stream, isDefaultDevice ? NULL : device.c_str(), &buffer_attr, (pa_stream_flags) flags, NULL, NULL) < 0)
+  if (pa_stream_connect_playback(m_Stream, isDefaultDevice ? nullptr : device.c_str(), &buffer_attr, (pa_stream_flags) flags, nullptr, nullptr) < 0)
   {
     CLog::Log(LOGERROR, "PulseAudio: Failed to connect stream to output");
     pa_threaded_mainloop_unlock(m_MainLoop);
@@ -1020,12 +1023,13 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   }
 
   {
-    std::unique_lock lock(m_sec);
+    std::lock_guard lock(m_sec);
+
     // Register Callback for Sink changes
     pa_context_set_subscribe_callback(m_Context, SinkChangedCallback, this);
-    const pa_subscription_mask_t mask = pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SINK_INPUT);
-    pa_operation *op = pa_context_subscribe(m_Context, mask, NULL, this);
-    if (op != NULL)
+    const auto mask = pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SINK_INPUT);
+    pa_operation *op = pa_context_subscribe(m_Context, mask, nullptr, this);
+    if (op != nullptr)
       pa_operation_unref(op);
   }
 
@@ -1044,7 +1048,8 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
   // Cork stream will resume when adding first package
   Pause(true);
   {
-    std::unique_lock lock(m_sec);
+    std::lock_guard lock(m_sec);
+
     m_IsAllocated = true;
   }
   return true;
@@ -1052,7 +1057,8 @@ bool CAESinkPULSE::Initialize(AEAudioFormat &format, std::string &device)
 
 void CAESinkPULSE::Deinitialize()
 {
-  std::unique_lock lock(m_sec);
+  std::lock_guard lock(m_sec);
+
   m_IsAllocated = false;
   m_passthrough = false;
   m_periodSize = 0;
@@ -1063,7 +1069,7 @@ void CAESinkPULSE::Deinitialize()
   {
     CSingleExit exit(m_sec);
     pa_threaded_mainloop_lock(m_MainLoop);
-    WaitForOperation(pa_stream_flush(m_Stream, NULL, NULL), m_MainLoop, "Flush");
+    WaitForOperation(pa_stream_flush(m_Stream, nullptr, nullptr), m_MainLoop, "Flush");
     pa_threaded_mainloop_unlock(m_MainLoop);
   }
 
@@ -1077,7 +1083,7 @@ void CAESinkPULSE::Deinitialize()
   {
     pa_stream_disconnect(m_Stream);
     pa_stream_unref(m_Stream);
-    m_Stream = NULL;
+    m_Stream = nullptr;
     m_IsStreamPaused = false;
   }
 
@@ -1085,13 +1091,13 @@ void CAESinkPULSE::Deinitialize()
   {
     pa_context_disconnect(m_Context);
     pa_context_unref(m_Context);
-    m_Context = NULL;
+    m_Context = nullptr;
   }
 
   if (m_MainLoop)
   {
     pa_threaded_mainloop_free(m_MainLoop);
-    m_MainLoop = NULL;
+    m_MainLoop = nullptr;
   }
 }
 
@@ -1158,7 +1164,7 @@ unsigned int CAESinkPULSE::AddPackets(uint8_t **data, unsigned int frames, unsig
   }
 
   length = std::min(length, available);
-  int error = pa_stream_write(m_Stream, buffer, length, NULL, 0, PA_SEEK_RELATIVE);
+  int error = pa_stream_write(m_Stream, buffer, length, nullptr, 0, PA_SEEK_RELATIVE);
   pa_threaded_mainloop_unlock(m_MainLoop);
   if (error)
   {
@@ -1181,23 +1187,21 @@ void CAESinkPULSE::Drain()
     return;
 
   pa_threaded_mainloop_lock(m_MainLoop);
-  WaitForOperation(pa_stream_drain(m_Stream, NULL, NULL), m_MainLoop, "Drain");
-  WaitForOperation(pa_stream_cork(m_Stream, 1, NULL, NULL), m_MainLoop, "Pause");
+  WaitForOperation(pa_stream_drain(m_Stream, nullptr, nullptr), m_MainLoop, "Drain");
+  WaitForOperation(pa_stream_cork(m_Stream, 1, nullptr, nullptr), m_MainLoop, "Pause");
   m_IsStreamPaused = true;
   pa_threaded_mainloop_unlock(m_MainLoop);
 }
 
 // This is a helper to get stream info during the PA callbacks
 // it shall never be called from real outside
-pa_stream* CAESinkPULSE::GetInternalStream()
-{
+pa_stream* CAESinkPULSE::GetInternalStream() const {
   return m_Stream;
 }
 
 // This is a helper to use the internal mainloop from another thread, e.g. a RequestCallback
 // it is shipped via the userdata. Don't use it for other purposes than signalling
-pa_threaded_mainloop* CAESinkPULSE::GetInternalMainLoop()
-{
+pa_threaded_mainloop* CAESinkPULSE::GetInternalMainLoop() const {
   return m_MainLoop;
 }
 
@@ -1246,8 +1250,8 @@ void CAESinkPULSE::SetVolume(float volume)
     else
       pa_cvolume_set(&m_Volume, m_Channels, pavolume);
 
-    pa_operation *op = pa_context_set_sink_input_volume(m_Context, sink_input_idx, &m_Volume, NULL, NULL);
-    if (op == NULL)
+    pa_operation *op = pa_context_set_sink_input_volume(m_Context, sink_input_idx, &m_Volume, nullptr, nullptr);
+    if (op == nullptr)
       CLog::Log(LOGERROR, "PulseAudio: Failed to set volume");
     else
       pa_operation_unref(op);
@@ -1261,7 +1265,7 @@ void CAESinkPULSE::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
   pa_context *context;
   pa_threaded_mainloop *mainloop;
 
-  if (!SetupContext(NULL, "KodiSink", &context, &mainloop))
+  if (!SetupContext(nullptr, "KodiSink", &context, &mainloop))
   {
     CLog::Log(LOGINFO, "PulseAudio might not be running. Context was not created.");
     return;
@@ -1292,19 +1296,20 @@ void CAESinkPULSE::EnumerateDevicesEx(AEDeviceInfoList &list, bool force)
   {
     pa_context_disconnect(context);
     pa_context_unref(context);
-    context = NULL;
+    context = nullptr;
   }
 
   if (mainloop)
   {
     pa_threaded_mainloop_free(mainloop);
-    mainloop = NULL;
+    mainloop = nullptr;
   }
 }
 
 bool CAESinkPULSE::IsInitialized()
 {
-  std::unique_lock lock(m_sec);
+  std::lock_guard lock(m_sec);
+  
   return m_IsAllocated;
 }
 
@@ -1312,7 +1317,7 @@ void CAESinkPULSE::Pause(bool pause)
 {
   pa_threaded_mainloop_lock(m_MainLoop);
 
-  if (!WaitForOperation(pa_stream_cork(m_Stream, pause ? 1 : 0, NULL, NULL), m_MainLoop, pause ? "Pause" : "Resume"))
+  if (!WaitForOperation(pa_stream_cork(m_Stream, pause ? 1 : 0, nullptr, nullptr), m_MainLoop, pause ? "Pause" : "Resume"))
     pause = !pause;
 
   m_IsStreamPaused = pause;
@@ -1321,7 +1326,7 @@ void CAESinkPULSE::Pause(bool pause)
 
 inline bool CAESinkPULSE::WaitForOperation(pa_operation *op, pa_threaded_mainloop *mainloop, const char *LogEntry = "")
 {
-  if (op == NULL)
+  if (op == nullptr)
     return false;
 
   bool success = true;

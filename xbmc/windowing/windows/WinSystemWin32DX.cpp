@@ -22,7 +22,7 @@
 #include "platform/win32/CharsetConverter.h"
 #include "platform/win32/WIN32Util.h"
 
-#if !defined(_M_X64) && !defined(_M_ARM64)
+#ifndef _M_X64
 #include "utils/SystemInfo.h"
 #endif
 #pragma comment(lib, "dxgi.lib")
@@ -269,7 +269,7 @@ void CWinSystemWin32DX::InitHooks(IDXGIOutput* pOutput)
   CLog::LogF(LOGDEBUG, "Hooking into UserModeDriver on device {}. ",
              FromW(displayDevice.DeviceKey));
   const wchar_t* keyName =
-#if !defined(_M_X64) && !defined(_M_ARM64)
+#ifndef _M_X64
       // on x64 system and x32 build use UserModeDriverNameWow key
       CSysInfo::GetKernelBitness() == 64 ? keyName = L"UserModeDriverNameWow" :
 #endif // !_WIN64
@@ -299,7 +299,7 @@ void CWinSystemWin32DX::InitHooks(IDXGIOutput* pOutput)
       return;
     // 3. we take only first three values (dx12 driver isn't needed if it exists ofc)
     if (drivers.size() > 3)
-      drivers.resize(3);
+      drivers = std::vector<std::wstring>(drivers.begin(), drivers.begin() + 3);
     // 4. and then iterate with reverse order to start iterate with the best candidate for d3d11 driver
     for (auto it = drivers.rbegin(); it != drivers.rend(); ++it)
     {
@@ -320,7 +320,7 @@ void CWinSystemWin32DX::InitHooks(IDXGIOutput* pOutput)
           }
           else
           {
-            CLog::LogF(LOGDEBUG, "Unable to install and activate D3D11 hook.");
+            CLog::Log(LOGDEBUG, __FUNCTION__": Unable to install and activate D3D11 hook.");
             s_fnOpenAdapter10_2 = nullptr;
             FreeLibrary(m_hDriverModule);
             m_hDriverModule = nullptr;

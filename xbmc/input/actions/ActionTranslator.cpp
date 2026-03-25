@@ -10,21 +10,20 @@
 
 #include "ActionIDs.h"
 #include "interfaces/builtins/Builtins.h"
-#include "utils/Map.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
-#include <string_view>
+#include <map>
 
 using namespace KODI;
 using namespace ACTION;
 
 namespace
 {
-using ActionName = std::string_view;
+using ActionName = std::string;
 using ActionID = unsigned int;
 
-constexpr auto ActionMappings = make_map<ActionName, ActionID>({
+static const std::map<ActionName, ActionID> ActionMappings = {
     {"left", ACTION_MOVE_LEFT},
     {"right", ACTION_MOVE_RIGHT},
     {"up", ACTION_MOVE_UP},
@@ -54,18 +53,14 @@ constexpr auto ActionMappings = make_map<ActionName, ActionID>({
     {"osd", ACTION_SHOW_OSD},
     {"showsubtitles", ACTION_SHOW_SUBTITLES},
     {"nextsubtitle", ACTION_NEXT_SUBTITLE},
-    {"previoussubtitle", ACTION_PREV_SUBTITLE},
+    {"browsesubtitle", ACTION_BROWSE_SUBTITLE},
+    {"cyclesubtitle", ACTION_CYCLE_SUBTITLE},
+    {"playerdebug", ACTION_PLAYER_DEBUG},
+    {"playerdebugvideo", ACTION_PLAYER_DEBUG_VIDEO},
     {"vs10.original", ACTION_VS10_ORIGINAL},
     {"vs10.sdr", ACTION_VS10_SDR},
     {"vs10.hdr10", ACTION_VS10_HDR10},
     {"vs10.dv", ACTION_VS10_DV},
-    {"browsesubtitle", ACTION_BROWSE_SUBTITLE},
-    {"cyclesubtitle", ACTION_CYCLE_SUBTITLE},
-    {"dialogselectvideo", ACTION_DIALOG_SELECT_VIDEO},
-    {"dialogselectaudio", ACTION_DIALOG_SELECT_AUDIO},
-    {"dialogselectsubtitle", ACTION_DIALOG_SELECT_SUBTITLE},
-    {"playerdebug", ACTION_PLAYER_DEBUG},
-    {"playerdebugvideo", ACTION_PLAYER_DEBUG_VIDEO},
     {"codecinfo", ACTION_PLAYER_PROCESS_INFO},
     {"playerprocessinfo", ACTION_PLAYER_PROCESS_INFO},
     {"playerprogramselect", ACTION_PLAYER_PROGRAM_SELECT},
@@ -263,15 +258,14 @@ constexpr auto ActionMappings = make_map<ActionName, ActionID>({
 
     // Do nothing / error action
     {"error", ACTION_ERROR},
-    {"noop", ACTION_NOOP},
-});
+    {"noop", ACTION_NOOP}};
 } // namespace
 
 void CActionTranslator::GetActions(std::vector<std::string>& actionList)
 {
   actionList.reserve(ActionMappings.size());
   for (auto& actionMapping : ActionMappings)
-    actionList.emplace_back(actionMapping.first);
+    actionList.push_back(actionMapping.first);
 }
 
 bool CActionTranslator::IsAnalog(unsigned int actionID)

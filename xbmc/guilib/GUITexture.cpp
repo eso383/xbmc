@@ -9,14 +9,11 @@
 #include "GUITexture.h"
 
 #include "GUILargeTextureManager.h"
-#include "GUITextureCallbackManager.h"
-#include "ServiceBroker.h"
 #include "Texture.h"
 #include "TextureManager.h"
 #include "utils/MathUtils.h"
 #include "utils/StringUtils.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <stdexcept>
 
@@ -54,7 +51,7 @@ CGUITexture* CGUITexture::CreateTexture(
 }
 
 void CGUITexture::DrawQuad(const CRect& coords,
-                           KODI::UTILS::COLOR::Color color,
+                           UTILS::COLOR::Color color,
                            CTexture* texture,
                            const CRect* texCoords,
                            const float depth,
@@ -142,16 +139,8 @@ bool CGUITexture::AllocateOnDemand()
 {
   if (m_visible)
   { // visible, so make sure we're allocated
-    if (!IsAllocated())
+    if (!IsAllocated() || (m_isAllocated == LARGE && !m_texture.size()))
       return AllocResources();
-
-    // For LARGE textures, check if load completed but don't retry every frame
-    if (m_isAllocated == LARGE && !m_texture.size())
-    {
-      // Texture is loading asynchronously, don't claim we changed
-      // The load completion will trigger invalidation when ready
-      return false;
-    }
   }
   else
   { // hidden, so deallocate as applicable
@@ -176,10 +165,16 @@ bool CGUITexture::Process(unsigned int currentTime)
   if (m_invalid)
     changed |= CalculateSize();
 
-  // Only mark as changed if we're allocated and transition to not-ready
-  // Don't mark changed every frame while waiting for async texture load
-  if (m_isAllocated && m_isAllocated != LARGE && m_isAllocated != LARGE_FAILED)
-    changed |= !ReadyToRender();
+  if (m_isAllocated)
+  {
+    // Only report change on ready state transition, not every frame while loading
+    const bool ready = ReadyToRender();
+    if (ready != m_lastReadyState)
+    {
+      m_lastReadyState = ready;
+      changed = true;
+    }
+  }
 
   return changed;
 }
@@ -193,8 +188,8 @@ void CGUITexture::Render(int32_t depthOffset, int32_t overrideDepth)
   #define MIX_ALPHA(a,c) (((a * (c >> 24)) / 255) << 24) | (c & 0x00ffffff)
 
   // diffuse color
-  KODI::UTILS::COLOR::Color color =
-      (m_info.diffuseColor) ? (KODI::UTILS::COLOR::Color)m_info.diffuseColor : m_diffuseColor;
+  UTILS::COLOR::Color color =
+      (m_info.diffuseColor) ? (UTILS::COLOR::Color)m_info.diffuseColor : m_diffuseColor;
   // clang-format off
   if (m_alpha != 0xFF)
     color = MIX_ALPHA(m_alpha, color);
@@ -306,7 +301,7 @@ void CGUITexture::Render(float left,
   CRect diffuse(u1, v1, u2, v2);
   CRect texture(u1, v1, u2, v2);
   CRect vertex(left, top, right, bottom);
-  CServiceBroker::GetWinSystem()->GetGfxContext().ClipRect(vertex, texture, m_diffuse.size() ? &diffuse : NULL);
+  CServiceBroker::GetWinSystem()->GetGfxContext().ClipRect(vertex, texture, m_diffuse.size() ? &diffuse : nullptr);
 
   if (vertex.IsEmpty())
     return; // nothing to render
@@ -378,16 +373,7 @@ bool CGUITexture::AllocResources()
     if (m_isAllocated != NORMAL)
     { // use our large image background loader
       CTextureArray texture;
-      if (m_requestWidth == REQUEST_SIZE_UNSET && m_requestHeight == REQUEST_SIZE_UNSET)
-      {
-        CGraphicContext& gfxContext = CServiceBroker::GetWinSystem()->GetGfxContext();
-        m_requestWidth = (int)(m_width / gfxContext.GetGUIScaleX() + 0.5f);
-        m_requestHeight = (int)(m_height / gfxContext.GetGUIScaleY() + 0.5f);
-        CServiceBroker::GetGUI()->GetTextureCallbackManager().RegisterOnWindowResizeCallback(*this);
-      }
-      if (CServiceBroker::GetGUI()->GetLargeTextureManager().GetImage(
-              m_info.filename, texture, m_requestWidth, m_requestHeight, m_aspect.ratio,
-              !IsAllocated(), m_use_cache))
+      if (CServiceBroker::GetGUI()->GetLargeTextureManager().GetImage(m_info.filename, texture, !IsAllocated(), m_use_cache))
       {
         m_isAllocated = LARGE;
 
@@ -425,10 +411,6 @@ bool CGUITexture::AllocResources()
 
   CalculateSize();
 
-  // Set scaling method of the loaded textures
-  m_texture.SetScalingMethod(m_scalingMethod);
-  m_diffuse.SetScalingMethod(m_diffuseScalingMethod);
-
   // call our implementation
   Allocate();
 
@@ -453,7 +435,7 @@ bool CGUITexture::CalculateSize()
   float newWidth = m_width;
   float newHeight = m_height;
 
-  if (m_aspect.ratio != CAspectRatio::STRETCH && m_frameWidth && m_frameHeight)
+  if (m_aspect.ratio != CAspectRatio::AR_STRETCH && m_frameWidth && m_frameHeight)
   {
     // to get the pixel ratio, we must use the SCALED output sizes
     float pixelRatio = CServiceBroker::GetWinSystem()->GetGfxContext().GetScalingPixelRatio();
@@ -466,13 +448,13 @@ bool CGUITexture::CalculateSize()
     // maximize the width
     newHeight = m_width / fOutputFrameRatio;
 
-    if ((m_aspect.ratio == CAspectRatio::SCALE && newHeight < m_height) ||
-        (m_aspect.ratio == CAspectRatio::KEEP && newHeight > m_height))
+    if ((m_aspect.ratio == CAspectRatio::AR_SCALE && newHeight < m_height) ||
+        (m_aspect.ratio == CAspectRatio::AR_KEEP && newHeight > m_height))
     {
       newHeight = m_height;
       newWidth = newHeight * fOutputFrameRatio;
     }
-    if (m_aspect.ratio == CAspectRatio::CENTER)
+    if (m_aspect.ratio == CAspectRatio::AR_CENTER)
     { // keep original size + center
       newWidth = m_frameWidth / sqrt(pixelRatio);
       newHeight = m_frameHeight * sqrt(pixelRatio);
@@ -533,14 +515,7 @@ bool CGUITexture::CalculateSize()
 void CGUITexture::FreeResources(bool immediately /* = false */)
 {
   if (m_isAllocated == LARGE || m_isAllocated == LARGE_FAILED)
-  {
-    CServiceBroker::GetGUI()->GetLargeTextureManager().ReleaseImage(
-        m_info.filename, m_requestWidth, m_requestHeight, m_aspect.ratio,
-        immediately || (m_isAllocated == LARGE_FAILED));
-    m_requestWidth = REQUEST_SIZE_UNSET;
-    m_requestHeight = REQUEST_SIZE_UNSET;
-    CServiceBroker::GetGUI()->GetTextureCallbackManager().UnregisterOnWindowResizeCallback(*this);
-  }
+    CServiceBroker::GetGUI()->GetLargeTextureManager().ReleaseImage(m_info.filename, immediately || (m_isAllocated == LARGE_FAILED));
   else if (m_isAllocated == NORMAL && m_texture.size())
     CServiceBroker::GetGUI()->GetTextureManager().ReleaseTexture(m_info.filename, immediately);
 
@@ -570,11 +545,6 @@ void CGUITexture::DynamicResourceAlloc(bool allocateDynamically)
 void CGUITexture::SetInvalid()
 {
   m_invalid = true;
-}
-
-void CGUITexture::OnWindowResize()
-{
-  FreeResources(true);
 }
 
 bool CGUITexture::UpdateAnimFrame(unsigned int currentTime)
@@ -636,7 +606,7 @@ bool CGUITexture::SetAlpha(unsigned char alpha)
   return changed;
 }
 
-bool CGUITexture::SetDiffuseColor(KODI::UTILS::COLOR::Color color,
+bool CGUITexture::SetDiffuseColor(UTILS::COLOR::Color color,
                                   const CGUIListItem* item /* = nullptr */)
 {
   bool changed = m_diffuseColor != color;
@@ -769,20 +739,6 @@ bool CGUITexture::SetFileName(const std::string& filename)
 void CGUITexture::SetUseCache(const bool useCache)
 {
   m_use_cache = useCache;
-}
-
-void CGUITexture::SetScalingMethod(TEXTURE_SCALING scalingMethod)
-{
-  m_scalingMethod = scalingMethod;
-
-  m_texture.SetScalingMethod(m_scalingMethod);
-}
-
-void CGUITexture::SetDiffuseScalingMethod(TEXTURE_SCALING scalingMethod)
-{
-  m_diffuseScalingMethod = scalingMethod;
-
-  m_diffuse.SetScalingMethod(m_diffuseScalingMethod);
 }
 
 int CGUITexture::GetOrientation() const

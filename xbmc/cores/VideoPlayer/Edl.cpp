@@ -8,30 +8,27 @@
 
 #include "Edl.h"
 
-#include "Edl/EdlParserFactory.h"
 #include "FileItem.h"
 #include "ServiceBroker.h"
-#include "URL.h"
 #include "cores/EdlEdit.h"
+#include "filesystem/File.h"
+#include "pvr/PVREdl.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/StringUtils.h"
+#include "utils/URIUtils.h"
+#include "utils/XBMCTinyXML2.h"
 #include "utils/log.h"
 
-using namespace std::chrono_literals;
-using namespace EDL;
+#include "PlatformDefs.h"
 
-namespace
-{
-std::string FormatSourceLocation(const std::optional<EdlSourceLocation>& source)
-{
-  if (!source)
-    return {};
-  return source->index
-             ? StringUtils::Format(" from {}:{}", CURL::GetRedacted(source->source), *source->index)
-             : StringUtils::Format(" from {}", CURL::GetRedacted(source->source));
-}
-} // namespace
+#define COMSKIP_HEADER "FILE PROCESSING COMPLETE"
+#define VIDEOREDO_HEADER "<Version>2"
+#define VIDEOREDO_TAG_CUT "<Cut>"
+#define VIDEOREDO_TAG_SCENE "<SceneMarker "
+
+using namespace EDL;
+using namespace XFILE;
 
 CEdl::CEdl()
 {
@@ -42,64 +39,565 @@ void CEdl::Clear()
 {
   m_vecEdits.clear();
   m_vecSceneMarkers.clear();
-  m_totalCutTime = 0ms;
-  m_lastEditTime = std::nullopt;
+  m_totalCutTime = 0;
+  m_lastEditTime = -1;
 }
 
-bool CEdl::ReadEditDecisionLists(const CFileItem& fileItem, float fps)
+bool CEdl::ReadEditDecisionLists(const CFileItem& fileItem, const float fFramesPerSecond)
+{
+  bool bFound = false;
+
+  /*
+   * Only check for edit decision lists if the movie is on the local hard drive, or accessed over a
+   * network share (even if from a different private network).
+   */
+  const std::string& strMovie = fileItem.GetDynPath();
+  if ((URIUtils::IsHD(strMovie) || URIUtils::IsOnLAN(strMovie, LanCheckMode::ANY_PRIVATE_SUBNET)) &&
+      !URIUtils::IsInternetStream(strMovie))
+  {
+    CLog::Log(LOGDEBUG,
+              "{} - Checking for edit decision lists (EDL) on local drive or remote share for: {}",
+              __FUNCTION__, CURL::GetRedacted(strMovie));
+
+    /*
+     * Read any available file format until a valid EDL related file is found.
+     */
+    if (!bFound)
+      bFound = ReadVideoReDo(strMovie);
+
+    if (!bFound)
+      bFound = ReadEdl(strMovie, fFramesPerSecond);
+
+    if (!bFound)
+      bFound = ReadComskip(strMovie, fFramesPerSecond);
+
+    if (!bFound)
+      bFound = ReadBeyondTV(strMovie);
+  }
+  else
+  {
+    bFound = ReadPvr(fileItem);
+  }
+
+  if (bFound)
+  {
+    MergeShortCommBreaks();
+    AddSceneMarkersAtStartAndEndOfEdits();
+  }
+
+  return bFound;
+}
+
+bool CEdl::ReadEdl(const std::string& strMovie, const float fFramesPerSecond)
 {
   Clear();
 
-  CLog::LogF(LOGDEBUG, "Checking for edit decision lists (EDL) for: {}",
-             CURL::GetRedacted(fileItem.GetDynPath()));
+  std::string edlFilename(URIUtils::ReplaceExtension(strMovie, ".edl"));
+  if (!CFile::Exists(edlFilename))
+    return false;
 
-  for (const auto& parser : CEdlParserFactory::GetEdlParsersForItem(fileItem))
+  CFile edlFile;
+  if (!edlFile.Open(edlFilename))
   {
-    if (!parser->CanParse(fileItem))
+    CLog::Log(LOGERROR, "{} - Could not open EDL file: {}", __FUNCTION__,
+              CURL::GetRedacted(edlFilename));
+    return false;
+  }
+
+  bool bError = false;
+  int iLine = 0;
+  std::string strBuffer;
+  strBuffer.resize(1024);
+  while (edlFile.ReadString(&strBuffer[0], 1024))
+  {
+    // Log any errors from previous run in the loop
+    if (bError)
+      CLog::Log(LOGWARNING, "{} - Error on line {} in EDL file: {}", __FUNCTION__, iLine,
+                CURL::GetRedacted(edlFilename));
+
+    bError = false;
+
+    iLine++;
+
+    char buffer1[513];
+    char buffer2[513];
+    int iAction;
+    int iFieldsRead = sscanf(strBuffer.c_str(), "%512s %512s %i", buffer1,
+                             buffer2, &iAction);
+    if (iFieldsRead != 2 && iFieldsRead != 3) // Make sure we read the right number of fields
+    {
+      bError = true;
+      continue;
+    }
+
+    std::vector<std::string> strFields(2);
+    strFields[0] = buffer1;
+    strFields[1] = buffer2;
+
+    if (iFieldsRead == 2) // If only 2 fields read, then assume it's a scene marker.
+    {
+      iAction = atoi(strFields[1].c_str());
+      strFields[1] = strFields[0];
+    }
+
+    if (StringUtils::StartsWith(strFields[0], "##"))
+    {
+      CLog::Log(LOGDEBUG, "Skipping comment line {} in EDL file: {}", iLine,
+                CURL::GetRedacted(edlFilename));
+      continue;
+    }
+    /*
+     * For each of the first two fields read, parse based on whether it is a time string
+     * (HH:MM:SS.sss), frame marker (#12345), or normal seconds string (123.45).
+     */
+    int64_t editStartEnd[2];
+    for (int i = 0; i < 2; i++)
+    {
+      if (strFields[i].find(':') != std::string::npos) // HH:MM:SS.sss format
+      {
+        std::vector<std::string> fieldParts = StringUtils::Split(strFields[i], '.');
+        if (fieldParts.size() == 1) // No ms
+        {
+          editStartEnd[i] = StringUtils::TimeStringToSeconds(fieldParts[0]) *
+                            static_cast<int64_t>(1000); // seconds to ms
+        }
+        else if (fieldParts.size() == 2) // Has ms. Everything after the dot (.) is ms
+        {
+          /*
+           * Have to pad or truncate the ms portion to 3 characters before converting to ms.
+           */
+          if (fieldParts[1].length() == 1)
+          {
+            fieldParts[1] = fieldParts[1] + "00";
+          }
+          else if (fieldParts[1].length() == 2)
+          {
+            fieldParts[1] = fieldParts[1] + "0";
+          }
+          else if (fieldParts[1].length() > 3)
+          {
+            fieldParts[1] = fieldParts[1].substr(0, 3);
+          }
+          editStartEnd[i] =
+              static_cast<int64_t>(StringUtils::TimeStringToSeconds(fieldParts[0])) * 1000 +
+              std::atoi(fieldParts[1].c_str()); // seconds to ms
+        }
+        else
+        {
+          bError = true;
+          continue;
+        }
+      }
+      else if (strFields[i][0] == '#') // #12345 format for frame number
+      {
+        if (fFramesPerSecond > 0.0f)
+        {
+          editStartEnd[i] = static_cast<int64_t>(std::atol(strFields[i].substr(1).c_str()) /
+                                                 fFramesPerSecond * 1000); // frame number to ms
+        }
+        else
+        {
+          CLog::Log(LOGERROR,
+                    "Edl::ReadEdl - Frame number not supported in EDL files when frame rate is "
+                    "unavailable (ts) - supplied frame number: {}",
+                    strFields[i].substr(1));
+          return false;
+        }
+      }
+      else // Plain old seconds in float format, e.g. 123.45
+      {
+        editStartEnd[i] = std::lround(std::atof(strFields[i].c_str()) * 1000); // seconds to ms
+      }
+    }
+
+    if (bError) // If there was an error in the for loop, ignore and continue with the next line
       continue;
 
-    CEdlParserResult result = parser->Parse(fileItem, fps);
-    if (!result.IsEmpty())
-      return ProcessParserResult(result);
+    Edit edit;
+    edit.start = editStartEnd[0];
+    edit.end = editStartEnd[1];
+
+    switch (iAction)
+    {
+    case 0:
+      edit.action = Action::CUT;
+      if (!AddEdit(edit))
+      {
+        CLog::Log(LOGWARNING, "{} - Error adding cut from line {} in EDL file: {}", __FUNCTION__,
+                  iLine, CURL::GetRedacted(edlFilename));
+        continue;
+      }
+      break;
+    case 1:
+      edit.action = Action::MUTE;
+      if (!AddEdit(edit))
+      {
+        CLog::Log(LOGWARNING, "{} - Error adding mute from line {} in EDL file: {}", __FUNCTION__,
+                  iLine, CURL::GetRedacted(edlFilename));
+        continue;
+      }
+      break;
+    case 2:
+      if (!AddSceneMarker(edit.end))
+      {
+        CLog::Log(LOGWARNING, "{} - Error adding scene marker from line {} in EDL file: {}",
+                  __FUNCTION__, iLine, CURL::GetRedacted(edlFilename));
+        continue;
+      }
+      break;
+    case 3:
+      edit.action = Action::COMM_BREAK;
+      if (!AddEdit(edit))
+      {
+        CLog::Log(LOGWARNING, "{} - Error adding commercial break from line {} in EDL file: {}",
+                  __FUNCTION__, iLine, CURL::GetRedacted(edlFilename));
+        continue;
+      }
+      break;
+    default:
+      CLog::Log(LOGWARNING, "{} - Invalid action on line {} in EDL file: {}", __FUNCTION__, iLine,
+                CURL::GetRedacted(edlFilename));
+      continue;
+    }
   }
 
-  return false;
+  if (bError) // Log last line warning, if there was one, since while loop will have terminated.
+    CLog::Log(LOGWARNING, "{} - Error on line {} in EDL file: {}", __FUNCTION__, iLine,
+              CURL::GetRedacted(edlFilename));
+
+  edlFile.Close();
+
+  if (HasEdits() || HasSceneMarker())
+  {
+    CLog::Log(LOGDEBUG, "{0} - Read {1} edits and {2} scene markers in EDL file: {3}", __FUNCTION__,
+              m_vecEdits.size(), m_vecSceneMarkers.size(), CURL::GetRedacted(edlFilename));
+    return true;
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "{} - No edits or scene markers found in EDL file: {}", __FUNCTION__,
+              CURL::GetRedacted(edlFilename));
+    return false;
+  }
 }
 
-bool CEdl::ProcessParserResult(const CEdlParserResult& result)
+bool CEdl::ReadComskip(const std::string& strMovie, const float fFramesPerSecond)
 {
-  for (const auto& entry : result.GetSceneMarkers())
+  Clear();
+
+  std::string comskipFilename(URIUtils::ReplaceExtension(strMovie, ".txt"));
+  if (!CFile::Exists(comskipFilename))
+    return false;
+
+  CFile comskipFile;
+  if (!comskipFile.Open(comskipFilename))
   {
-    if (AddSceneMarker(entry.marker))
+    CLog::Log(LOGERROR, "{} - Could not open Comskip file: {}", __FUNCTION__,
+              CURL::GetRedacted(comskipFilename));
+    return false;
+  }
+
+  char szBuffer[1024];
+  if (comskipFile.ReadString(szBuffer, 1023)
+  &&  strncmp(szBuffer, COMSKIP_HEADER, strlen(COMSKIP_HEADER)) != 0) // Line 1.
+  {
+    CLog::Log(LOGERROR,
+              "{} - Invalid Comskip file: {}. Error reading line 1 - expected '{}' at start.",
+              __FUNCTION__, CURL::GetRedacted(comskipFilename), COMSKIP_HEADER);
+    comskipFile.Close();
+    return false;
+  }
+
+  int iFrames;
+  float fFrameRate;
+  if (sscanf(szBuffer, "FILE PROCESSING COMPLETE %i FRAMES AT %f", &iFrames, &fFrameRate) != 2)
+  {
+    /*
+     * Not all generated Comskip files have the frame rate information.
+     */
+    if (fFramesPerSecond > 0.0f)
     {
-      CLog::LogF(LOGDEBUG, "Adding scene marker [{}]{}",
-                 StringUtils::MillisecondsToTimeString(entry.marker),
-                 FormatSourceLocation(entry.source));
+      fFrameRate = fFramesPerSecond;
+      CLog::Log(LOGWARNING,
+                "Edl::ReadComskip - Frame rate not in Comskip file. Using detected frames per "
+                "second: {:.3f}",
+                fFrameRate);
     }
     else
     {
-      CLog::LogF(LOGERROR, "Error adding scene marker{}", FormatSourceLocation(entry.source));
+      CLog::Log(LOGERROR, "Edl::ReadComskip - Frame rate is unavailable and also not in Comskip file (ts).");
+      return false;
     }
   }
+  else
+    fFrameRate /= 100; // Reduce by factor of 100 to get fps.
 
-  for (const auto& entry : result.GetEdits())
+  (void)comskipFile.ReadString(szBuffer, 1023); // Line 2. Ignore "-------------"
+
+  bool bValid = true;
+  int iLine = 2;
+  while (bValid && comskipFile.ReadString(szBuffer, 1023)) // Line 3 and onwards.
   {
-    if (AddEdit(entry.edit))
+    iLine++;
+    double dStartFrame, dEndFrame;
+    if (sscanf(szBuffer, "%lf %lf", &dStartFrame, &dEndFrame) == 2)
     {
-      CLog::LogF(LOGDEBUG, "Added {} edit [{} - {}]{}.", ActionToString(entry.edit.action),
-                 StringUtils::MillisecondsToTimeString(entry.edit.start),
-                 StringUtils::MillisecondsToTimeString(entry.edit.end),
-                 FormatSourceLocation(entry.source));
+      Edit edit;
+      edit.start = std::lround(dStartFrame / static_cast<double>(fFrameRate) * 1000.0);
+      edit.end = std::lround(dEndFrame / static_cast<double>(fFrameRate) * 1000.0);
+      edit.action = Action::COMM_BREAK;
+      bValid = AddEdit(edit);
     }
     else
+      bValid = false;
+  }
+  comskipFile.Close();
+
+  if (!bValid)
+  {
+    CLog::Log(LOGERROR,
+              "{} - Invalid Comskip file: {}. Error on line {}. Clearing any valid commercial "
+              "breaks found.",
+              __FUNCTION__, CURL::GetRedacted(comskipFilename), iLine);
+    Clear();
+    return false;
+  }
+  else if (HasEdits())
+  {
+    CLog::Log(LOGDEBUG, "{0} - Read {1} commercial breaks from Comskip file: {2}", __FUNCTION__,
+              m_vecEdits.size(), CURL::GetRedacted(comskipFilename));
+    return true;
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "{} - No commercial breaks found in Comskip file: {}", __FUNCTION__,
+              CURL::GetRedacted(comskipFilename));
+    return false;
+  }
+}
+
+bool CEdl::ReadVideoReDo(const std::string& strMovie)
+{
+  /*
+   * VideoReDo file is strange. Tags are XML like, but it isn't an XML file.
+   *
+   * http://www.videoredo.com/
+   */
+
+  Clear();
+  std::string videoReDoFilename(URIUtils::ReplaceExtension(strMovie, ".Vprj"));
+  if (!CFile::Exists(videoReDoFilename))
+    return false;
+
+  CFile videoReDoFile;
+  if (!videoReDoFile.Open(videoReDoFilename))
+  {
+    CLog::Log(LOGERROR, "{} - Could not open VideoReDo file: {}", __FUNCTION__,
+              CURL::GetRedacted(videoReDoFilename));
+    return false;
+  }
+
+  char szBuffer[1024];
+  if (videoReDoFile.ReadString(szBuffer, 1023)
+  &&  strncmp(szBuffer, VIDEOREDO_HEADER, strlen(VIDEOREDO_HEADER)) != 0)
+  {
+    CLog::Log(LOGERROR,
+              "{} - Invalid VideoReDo file: {}. Error reading line 1 - expected {}. Only version 2 "
+              "files are supported.",
+              __FUNCTION__, CURL::GetRedacted(videoReDoFilename), VIDEOREDO_HEADER);
+    videoReDoFile.Close();
+    return false;
+  }
+
+  int iLine = 1;
+  bool bValid = true;
+  while (bValid && videoReDoFile.ReadString(szBuffer, 1023))
+  {
+    iLine++;
+    if (strncmp(szBuffer, VIDEOREDO_TAG_CUT, strlen(VIDEOREDO_TAG_CUT)) == 0) // Found the <Cut> tag
     {
-      CLog::LogF(LOGERROR, "Error adding edit{}", FormatSourceLocation(entry.source));
+      /*
+       * double is used as 32 bit float would overflow.
+       */
+      double dStart, dEnd;
+      if (sscanf(szBuffer + strlen(VIDEOREDO_TAG_CUT), "%lf:%lf", &dStart, &dEnd) == 2)
+      {
+        /*
+         *  Times need adjusting by 1/10,000 to get ms.
+         */
+        Edit edit;
+        edit.start = std::lround(dStart / 10000);
+        edit.end = std::lround(dEnd / 10000);
+        edit.action = Action::CUT;
+        bValid = AddEdit(edit);
+      }
+      else
+        bValid = false;
+    }
+    else if (strncmp(szBuffer, VIDEOREDO_TAG_SCENE, strlen(VIDEOREDO_TAG_SCENE)) == 0) // Found the <SceneMarker > tag
+    {
+      int iScene;
+      double dSceneMarker;
+      if (sscanf(szBuffer + strlen(VIDEOREDO_TAG_SCENE), " %i>%lf", &iScene, &dSceneMarker) == 2)
+        bValid = AddSceneMarker(
+            std::lround(dSceneMarker / 10000)); // Times need adjusting by 1/10,000 to get ms.
+      else
+        bValid = false;
+    }
+    /*
+     * Ignore any other tags.
+     */
+  }
+  videoReDoFile.Close();
+
+  if (!bValid)
+  {
+    CLog::Log(LOGERROR,
+              "{} - Invalid VideoReDo file: {}. Error in line {}. Clearing any valid edits or "
+              "scenes found.",
+              __FUNCTION__, CURL::GetRedacted(videoReDoFilename), iLine);
+    Clear();
+    return false;
+  }
+  else if (HasEdits() || HasSceneMarker())
+  {
+    CLog::Log(LOGDEBUG, "{0} - Read {1} edits and {2} scene markers in VideoReDo file: {3}",
+              __FUNCTION__, m_vecEdits.size(), m_vecSceneMarkers.size(),
+              CURL::GetRedacted(videoReDoFilename));
+    return true;
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "{} - No edits or scene markers found in VideoReDo file: {}", __FUNCTION__,
+              CURL::GetRedacted(videoReDoFilename));
+    return false;
+  }
+}
+
+bool CEdl::ReadBeyondTV(const std::string& strMovie)
+{
+  Clear();
+
+  std::string beyondTVFilename(URIUtils::ReplaceExtension(strMovie, URIUtils::GetExtension(strMovie) + ".chapters.xml"));
+  if (!CFile::Exists(beyondTVFilename))
+    return false;
+
+  CXBMCTinyXML2 xmlDoc;
+  if (!xmlDoc.LoadFile(beyondTVFilename))
+  {
+    CLog::Log(LOGERROR, "{} - Could not load Beyond TV file: {}. {}", __FUNCTION__,
+              CURL::GetRedacted(beyondTVFilename), xmlDoc.ErrorStr());
+    return false;
+  }
+
+  if (xmlDoc.Error())
+  {
+    CLog::Log(LOGERROR, "{} - Could not parse Beyond TV file: {}. {}", __FUNCTION__,
+              CURL::GetRedacted(beyondTVFilename), xmlDoc.ErrorStr());
+    return false;
+  }
+
+  const tinyxml2::XMLElement* root = xmlDoc.RootElement();
+  if (!root || strcmp(root->Value(), "cutlist"))
+  {
+    CLog::Log(LOGERROR, "{} - Invalid Beyond TV file: {}. Expected root node to be <cutlist>",
+              __FUNCTION__, CURL::GetRedacted(beyondTVFilename));
+    return false;
+  }
+
+  bool valid = true;
+  const tinyxml2::XMLElement* region = root->FirstChildElement("Region");
+  while (valid && region)
+  {
+    const tinyxml2::XMLElement* start = region->FirstChildElement("start");
+    const tinyxml2::XMLElement* end = region->FirstChildElement("end");
+    if (start && end && start->FirstChild() && end->FirstChild())
+    {
+      /*
+       * Need to divide the start and end times by a factor of 10,000 to get msec.
+       * E.g. <start comment="00:02:44.9980867">1649980867</start>
+       *
+       * Use atof so doesn't overflow 32 bit float or integer / long.
+       * E.g. <end comment="0:26:49.0000009">16090090000</end>
+       *
+       * Don't use atoll even though it is more correct as it isn't natively supported by
+       * Visual Studio.
+       *
+       * atof() returns 0 if there were any problems and will subsequently be rejected in AddEdit().
+       */
+      Edit edit;
+      edit.start = std::lround((std::atof(start->FirstChild()->Value()) / 10000));
+      edit.end = std::lround((std::atof(end->FirstChild()->Value()) / 10000));
+      edit.action = Action::COMM_BREAK;
+      valid = AddEdit(edit);
+    }
+    else
+      valid = false;
+
+    region = region->NextSiblingElement("Region");
+  }
+  if (!valid)
+  {
+    CLog::Log(LOGERROR,
+              "{} - Invalid Beyond TV file: {}. Clearing any valid commercial breaks found.",
+              __FUNCTION__, CURL::GetRedacted(beyondTVFilename));
+    Clear();
+    return false;
+  }
+  else if (HasEdits())
+  {
+    CLog::Log(LOGDEBUG, "{0} - Read {1} commercial breaks from Beyond TV file: {2}", __FUNCTION__,
+              m_vecEdits.size(), CURL::GetRedacted(beyondTVFilename));
+    return true;
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "{} - No commercial breaks found in Beyond TV file: {}", __FUNCTION__,
+              CURL::GetRedacted(beyondTVFilename));
+    return false;
+  }
+}
+
+bool CEdl::ReadPvr(const CFileItem &fileItem)
+{
+  const std::vector<Edit> editlist = PVR::CPVREdl::GetEdits(fileItem);
+  for (const auto& edit : editlist)
+  {
+    switch (edit.action)
+    {
+      case Action::CUT:
+      case Action::MUTE:
+      case Action::COMM_BREAK:
+        if (AddEdit(edit))
+        {
+          CLog::Log(LOGDEBUG, "{} - Added break [{} - {}] found in PVR item for: {}.", __FUNCTION__,
+                    MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+                    CURL::GetRedacted(fileItem.GetDynPath()));
+        }
+        else
+        {
+          CLog::Log(LOGERROR,
+                    "{} - Invalid break [{} - {}] found in PVR item for: {}. Continuing anyway.",
+                    __FUNCTION__, MillisecondsToTimeString(edit.start),
+                    MillisecondsToTimeString(edit.end), CURL::GetRedacted(fileItem.GetDynPath()));
+        }
+        break;
+
+      case Action::SCENE:
+        if (!AddSceneMarker(edit.end))
+        {
+          CLog::Log(LOGWARNING, "{} - Error adding scene marker for PVR item", __FUNCTION__);
+        }
+        break;
+
+      default:
+        CLog::Log(LOGINFO, "{} - Ignoring entry of unknown edit action: {}", __FUNCTION__,
+                  static_cast<int>(edit.action));
+        break;
     }
   }
 
-  MergeShortCommBreaks();
-  AddSceneMarkersAtStartAndEndOfEdits();
-  return true;
+  return !editlist.empty();
 }
 
 bool CEdl::AddEdit(const Edit& newEdit)
@@ -109,33 +607,34 @@ bool CEdl::AddEdit(const Edit& newEdit)
   if (edit.action != Action::CUT && edit.action != Action::MUTE &&
       edit.action != Action::COMM_BREAK)
   {
-    CLog::LogF(LOGERROR, "Not an Action::CUT, Action::MUTE, or Action::COMM_BREAK! [{} - {}], {}",
-               StringUtils::MillisecondsToTimeString(edit.start),
-               StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+    CLog::Log(LOGERROR,
+              "{} - Not an Action::CUT, Action::MUTE, or Action::COMM_BREAK! [{} - {}], {}",
+              __FUNCTION__, MillisecondsToTimeString(edit.start),
+              MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
     return false;
   }
 
-  if (edit.start < 0ms)
+  if (edit.start < 0)
   {
-    CLog::LogF(LOGERROR, "Before start! [{} - {}], {}",
-               StringUtils::MillisecondsToTimeString(edit.start),
-               StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+    CLog::Log(LOGERROR, "{} - Before start! [{} - {}], {}", __FUNCTION__,
+              MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+              static_cast<int>(edit.action));
     return false;
   }
 
   if (edit.start >= edit.end)
   {
-    CLog::LogF(LOGERROR, "Times are around the wrong way or the same! [{} - {}], {}",
-               StringUtils::MillisecondsToTimeString(edit.start),
-               StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+    CLog::Log(LOGERROR, "{} - Times are around the wrong way or the same! [{} - {}], {}",
+              __FUNCTION__, MillisecondsToTimeString(edit.start),
+              MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
     return false;
   }
 
   if (InEdit(edit.start) || InEdit(edit.end))
   {
-    CLog::LogF(LOGERROR, "Start or end is in an existing edit! [{} - {}], {}",
-               StringUtils::MillisecondsToTimeString(edit.start),
-               StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+    CLog::Log(LOGERROR, "{} - Start or end is in an existing edit! [{} - {}], {}", __FUNCTION__,
+              MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+              static_cast<int>(edit.action));
     return false;
   }
 
@@ -143,9 +642,9 @@ bool CEdl::AddEdit(const Edit& newEdit)
   {
     if (edit.start < m_vecEdits[i].start && edit.end > m_vecEdits[i].end)
     {
-      CLog::LogF(LOGERROR, "Edit surrounds an existing edit! [{} - {}], {}",
-                 StringUtils::MillisecondsToTimeString(edit.start),
-                 StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+      CLog::Log(LOGERROR, "{} - Edit surrounds an existing edit! [{} - {}], {}", __FUNCTION__,
+                MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+                static_cast<int>(edit.action));
       return false;
     }
   }
@@ -157,24 +656,20 @@ bool CEdl::AddEdit(const Edit& newEdit)
      * the start (autowait) and automatically rewind by a bit (autowind) at the end of the commercial
      * break.
      */
-    auto autowait = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::seconds(
-        CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_iEdlCommBreakAutowait));
-    std::chrono::milliseconds autowind = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::seconds(CServiceBroker::GetSettingsComponent()
-                                 ->GetAdvancedSettings()
-                                 ->m_iEdlCommBreakAutowind));
+    int autowait = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_iEdlCommBreakAutowait * 1000; // seconds -> ms
+    int autowind = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_iEdlCommBreakAutowind * 1000; // seconds -> ms
 
-    if (edit.start > 0ms) // Only autowait if not at the start.
+    if (edit.start > 0) // Only autowait if not at the start.
     {
       /* get the edit length so we don't start skipping after the end */
-      std::chrono::milliseconds editLength = edit.end - edit.start;
+      int editLength = edit.end - edit.start;
       /* add the lesser of the edit length or the autowait to the start */
       edit.start += autowait > editLength ? editLength : autowait;
     }
     if (edit.end > edit.start) // Only autowind if there is any edit time remaining.
     {
       /* get the remaining edit length so we don't rewind to before the start */
-      std::chrono::milliseconds editLength = edit.end - edit.start;
+      int editLength = edit.end - edit.start;
       /* subtract the lesser of the edit length or the autowind from the end */
       edit.end -= autowind > editLength ? editLength : autowind;
     }
@@ -185,9 +680,9 @@ bool CEdl::AddEdit(const Edit& newEdit)
    */
   if (m_vecEdits.empty() || edit.start > m_vecEdits.back().start)
   {
-    CLog::LogF(LOGDEBUG, "Pushing new edit to back [{} - {}], {}",
-               StringUtils::MillisecondsToTimeString(edit.start),
-               StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+    CLog::Log(LOGDEBUG, "{} - Pushing new edit to back [{} - {}], {}", __FUNCTION__,
+              MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+              static_cast<int>(edit.action));
     m_vecEdits.emplace_back(edit);
   }
   else
@@ -197,9 +692,9 @@ bool CEdl::AddEdit(const Edit& newEdit)
     {
       if (edit.start < pCurrentEdit->start)
       {
-        CLog::LogF(LOGDEBUG, "Inserting new edit [{} - {}], {}",
-                   StringUtils::MillisecondsToTimeString(edit.start),
-                   StringUtils::MillisecondsToTimeString(edit.end), static_cast<int>(edit.action));
+        CLog::Log(LOGDEBUG, "{} - Inserting new edit [{} - {}], {}", __FUNCTION__,
+                  MillisecondsToTimeString(edit.start), MillisecondsToTimeString(edit.end),
+                  static_cast<int>(edit.action));
         m_vecEdits.insert(pCurrentEdit, edit);
         break;
       }
@@ -212,14 +707,15 @@ bool CEdl::AddEdit(const Edit& newEdit)
   return true;
 }
 
-bool CEdl::AddSceneMarker(std::chrono::milliseconds iSceneMarker)
+bool CEdl::AddSceneMarker(const int iSceneMarker)
 {
-  const auto edit = InEdit(iSceneMarker);
-  if (edit && edit.value()->action == Action::CUT) // Only works for current cuts.
+  Edit edit;
+
+  if (InEdit(iSceneMarker, &edit) && edit.action == Action::CUT) // Only works for current cuts.
     return false;
 
-  CLog::LogF(LOGDEBUG, "Inserting new scene marker: {}",
-             StringUtils::MillisecondsToTimeString(iSceneMarker));
+  CLog::Log(LOGDEBUG, "{} - Inserting new scene marker: {}", __FUNCTION__,
+            MillisecondsToTimeString(iSceneMarker));
   m_vecSceneMarkers.push_back(iSceneMarker); // Unsorted
 
   return true;
@@ -232,10 +728,10 @@ bool CEdl::HasEdits() const
 
 bool CEdl::HasCuts() const
 {
-  return m_totalCutTime > 0ms;
+  return m_totalCutTime > 0;
 }
 
-std::chrono::milliseconds CEdl::GetTotalCutTime() const
+int CEdl::GetTotalCutTime() const
 {
   return m_totalCutTime; // ms
 }
@@ -244,7 +740,7 @@ const std::vector<EDL::Edit> CEdl::GetEditList() const
 {
   // the sum of cut durations while we iterate over them
   // note: edits are ordered by start time
-  std::chrono::milliseconds surpassedSumOfCutDurations{0ms};
+  int surpassedSumOfCutDurations{0};
   std::vector<EDL::Edit> editList;
 
   // @note we should not modify the original edits since
@@ -260,7 +756,7 @@ const std::vector<EDL::Edit> CEdl::GetEditList() const
       continue;
     }
 
-    // subtract the duration of already surpassed cuts
+    // substract the duration of already surpassed cuts
     edit.start -= surpassedSumOfCutDurations;
     edit.end -= surpassedSumOfCutDurations;
     editList.emplace_back(edit);
@@ -269,10 +765,10 @@ const std::vector<EDL::Edit> CEdl::GetEditList() const
   return editList;
 }
 
-const std::vector<std::chrono::milliseconds> CEdl::GetCutMarkers() const
+const std::vector<int64_t> CEdl::GetCutMarkers() const
 {
-  std::chrono::milliseconds surpassedSumOfCutDurations{0};
-  std::vector<std::chrono::milliseconds> cutList;
+  int surpassedSumOfCutDurations{0};
+  std::vector<int64_t> cutList;
   for (const EDL::Edit& edit : m_vecEdits)
   {
     if (edit.action != Action::CUT)
@@ -284,23 +780,23 @@ const std::vector<std::chrono::milliseconds> CEdl::GetCutMarkers() const
   return cutList;
 }
 
-const std::vector<std::chrono::milliseconds> CEdl::GetSceneMarkers() const
+const std::vector<int64_t> CEdl::GetSceneMarkers() const
 {
-  std::vector<std::chrono::milliseconds> sceneMarkers;
+  std::vector<int64_t> sceneMarkers;
   sceneMarkers.reserve(m_vecSceneMarkers.size());
-  for (const std::chrono::milliseconds& scene : m_vecSceneMarkers)
+  for (const int& scene : m_vecSceneMarkers)
   {
     sceneMarkers.emplace_back(GetTimeWithoutCuts(scene));
   }
   return sceneMarkers;
 }
 
-std::chrono::milliseconds CEdl::GetTimeWithoutCuts(std::chrono::milliseconds seek) const
+int CEdl::GetTimeWithoutCuts(int seek) const
 {
   if (!HasCuts())
     return seek;
 
-  std::chrono::milliseconds cutTime = 0ms;
+  int cutTime = 0;
   for (const EDL::Edit& edit : m_vecEdits)
   {
     if (edit.action != Action::CUT)
@@ -309,8 +805,8 @@ std::chrono::milliseconds CEdl::GetTimeWithoutCuts(std::chrono::milliseconds see
     // inside cut
     if (seek >= edit.start && seek <= edit.end)
     {
-      // decrease cut length by 1 ms to jump over the end boundary.
-      cutTime += seek - edit.start - 1ms;
+      // decrease cut lenght by 1 ms to jump over the end boundary.
+      cutTime += seek - edit.start - 1;
     }
     // cut has already been passed over
     else if (seek >= edit.start)
@@ -321,16 +817,16 @@ std::chrono::milliseconds CEdl::GetTimeWithoutCuts(std::chrono::milliseconds see
   return seek - cutTime;
 }
 
-std::chrono::milliseconds CEdl::GetTimeAfterRestoringCuts(std::chrono::milliseconds seek) const
+double CEdl::GetTimeAfterRestoringCuts(double seek) const
 {
   if (!HasCuts())
     return seek;
 
   for (const EDL::Edit& edit : m_vecEdits)
   {
-    std::chrono::milliseconds cutDuration = edit.end - edit.start;
+    double cutDuration = static_cast<double>(edit.end - edit.start);
     // add 1 ms to jump over the start boundary
-    if (edit.action == Action::CUT && seek > edit.start + 1ms)
+    if (edit.action == Action::CUT && seek > edit.start + 1)
     {
       seek += cutDuration;
     }
@@ -343,33 +839,36 @@ bool CEdl::HasSceneMarker() const
   return !m_vecSceneMarkers.empty();
 }
 
-std::optional<std::unique_ptr<EDL::Edit>> CEdl::InEdit(std::chrono::milliseconds seekTime)
-{
+bool CEdl::InEdit(const int iSeek, Edit* pEdit) const {
   for (size_t i = 0; i < m_vecEdits.size(); ++i)
   {
-    if (seekTime < m_vecEdits[i].start) // Early exit if not even up to the edit start time.
-      return std::nullopt;
+    if (iSeek < m_vecEdits[i].start) // Early exit if not even up to the edit start time.
+      return false;
 
-    if (seekTime >= m_vecEdits[i].start && seekTime <= m_vecEdits[i].end) // Inside edit.
-      return std::make_unique<EDL::Edit>(m_vecEdits[i]);
+    if (iSeek >= m_vecEdits[i].start && iSeek <= m_vecEdits[i].end) // Inside edit.
+    {
+      if (pEdit)
+        *pEdit = m_vecEdits[i];
+      return true;
+    }
   }
 
-  return std::nullopt;
+  return false;
 }
 
-std::optional<std::chrono::milliseconds> CEdl::GetLastEditTime() const
+int CEdl::GetLastEditTime() const
 {
   return m_lastEditTime;
 }
 
-void CEdl::SetLastEditTime(std::chrono::milliseconds editTime)
+void CEdl::SetLastEditTime(int editTime)
 {
   m_lastEditTime = editTime;
 }
 
 void CEdl::ResetLastEditTime()
 {
-  m_lastEditTime = std::nullopt;
+  m_lastEditTime = -1;
 }
 
 void CEdl::SetLastEditActionType(EDL::Action action)
@@ -382,37 +881,37 @@ EDL::Action CEdl::GetLastEditActionType() const
   return m_lastEditActionType;
 }
 
-std::optional<std::chrono::milliseconds> CEdl::GetNextSceneMarker(Direction direction,
-                                                                  std::chrono::milliseconds clock)
+bool CEdl::GetNextSceneMarker(bool bPlus, const int iClock, int *iSceneMarker)
 {
   if (!HasSceneMarker())
-    return std::nullopt;
+    return false;
 
-  std::optional<std::chrono::milliseconds> sceneMarker;
-  const std::chrono::milliseconds seekTime = GetTimeAfterRestoringCuts(clock);
+  int iSeek = GetTimeAfterRestoringCuts(iClock);
 
-  std::chrono::milliseconds diff =
-      std::chrono::milliseconds(10 * 60 * 60 * 1000); // 10 hours to ms.
+  int iDiff = 10 * 60 * 60 * 1000; // 10 hours to ms.
+  bool bFound = false;
 
-  if (direction == Direction::FORWARD) // Find closest scene forwards
+  if (bPlus) // Find closest scene forwards
   {
     for (int i = 0; i < (int)m_vecSceneMarkers.size(); i++)
     {
-      if ((m_vecSceneMarkers[i] > seekTime) && ((m_vecSceneMarkers[i] - seekTime) < diff))
+      if ((m_vecSceneMarkers[i] > iSeek) && ((m_vecSceneMarkers[i] - iSeek) < iDiff))
       {
-        diff = m_vecSceneMarkers[i] - seekTime;
-        sceneMarker = m_vecSceneMarkers[i];
+        iDiff = m_vecSceneMarkers[i] - iSeek;
+        *iSceneMarker = m_vecSceneMarkers[i];
+        bFound = true;
       }
     }
   }
-  else if (direction == Direction::BACKWARD) // Find closest scene backwards
+  else // Find closest scene backwards
   {
     for (int i = 0; i < (int)m_vecSceneMarkers.size(); i++)
     {
-      if ((m_vecSceneMarkers[i] < seekTime) && ((seekTime - m_vecSceneMarkers[i]) < diff))
+      if ((m_vecSceneMarkers[i] < iSeek) && ((iSeek - m_vecSceneMarkers[i]) < iDiff))
       {
-        diff = seekTime - m_vecSceneMarkers[i];
-        sceneMarker = m_vecSceneMarkers[i];
+        iDiff = iSeek - m_vecSceneMarkers[i];
+        *iSceneMarker = m_vecSceneMarkers[i];
+        bFound = true;
       }
     }
   }
@@ -421,16 +920,18 @@ std::optional<std::chrono::milliseconds> CEdl::GetNextSceneMarker(Direction dire
    * If the scene marker is in a cut then return the end of the cut. Can't guarantee that this is
    * picked up when scene markers are added.
    */
-  if (sceneMarker)
-  {
-    auto edit = InEdit(sceneMarker.value());
-    if (edit && edit.value()->action == Action::CUT)
-    {
-      sceneMarker = edit.value()->end;
-    }
-  }
+  Edit edit;
+  if (bFound && InEdit(*iSceneMarker, &edit) && edit.action == Action::CUT)
+    *iSceneMarker = edit.end;
 
-  return sceneMarker;
+  return bFound;
+}
+
+std::string CEdl::MillisecondsToTimeString(const int iMilliseconds)
+{
+  std::string strTimeString = StringUtils::SecondsToTimeString((long)(iMilliseconds / 1000), TIME_FORMAT_HH_MM_SS); // milliseconds to seconds
+  strTimeString += StringUtils::Format(".{:03}", iMilliseconds % 1000);
+  return strTimeString;
 }
 
 void CEdl::MergeShortCommBreaks()
@@ -442,16 +943,15 @@ void CEdl::MergeShortCommBreaks()
    * the algorithms below.
    */
   if (!m_vecEdits.empty() && m_vecEdits[0].action == Action::COMM_BREAK &&
-      (m_vecEdits[0].end - m_vecEdits[0].start) < 5s)
+      (m_vecEdits[0].end - m_vecEdits[0].start) < 5 * 1000) // 5 seconds
   {
-    CLog::LogF(LOGDEBUG, "Removing short commercial break at start [{} - {}]. <5 seconds",
-               StringUtils::MillisecondsToTimeString(m_vecEdits[0].start),
-               StringUtils::MillisecondsToTimeString(m_vecEdits[0].end));
+    CLog::Log(LOGDEBUG, "{} - Removing short commercial break at start [{} - {}]. <5 seconds",
+              __FUNCTION__, MillisecondsToTimeString(m_vecEdits[0].start),
+              MillisecondsToTimeString(m_vecEdits[0].end));
     m_vecEdits.erase(m_vecEdits.begin());
   }
 
-  const std::shared_ptr<CAdvancedSettings> advancedSettings =
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
+  const std::shared_ptr<CAdvancedSettings> advancedSettings = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings();
   if (advancedSettings->m_bEdlMergeShortCommBreaks)
   {
     for (size_t i = 0; i < m_vecEdits.size() - 1; ++i)
@@ -459,24 +959,22 @@ void CEdl::MergeShortCommBreaks()
       if ((m_vecEdits[i].action == Action::COMM_BREAK &&
            m_vecEdits[i + 1].action == Action::COMM_BREAK) &&
           (m_vecEdits[i + 1].end - m_vecEdits[i].start <
-           std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::seconds(advancedSettings->m_iEdlMaxCommBreakLength))) &&
-          (m_vecEdits[i + 1].start - m_vecEdits[i].end <
-           std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::seconds(advancedSettings->m_iEdlMaxCommBreakGap))))
+           advancedSettings->m_iEdlMaxCommBreakLength * 1000) // s to ms
+          && (m_vecEdits[i + 1].start - m_vecEdits[i].end <
+              advancedSettings->m_iEdlMaxCommBreakGap * 1000)) // s to ms
       {
         Edit commBreak;
         commBreak.action = Action::COMM_BREAK;
         commBreak.start = m_vecEdits[i].start;
         commBreak.end = m_vecEdits[i + 1].end;
 
-        CLog::LogF(LOGDEBUG, "Consolidating commercial break [{} - {}] and [{} - {}] to: [{} - {}]",
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i].start),
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i].end),
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i + 1].start),
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i + 1].end),
-                   StringUtils::MillisecondsToTimeString(commBreak.start),
-                   StringUtils::MillisecondsToTimeString(commBreak.end));
+        CLog::Log(
+            LOGDEBUG, "{} - Consolidating commercial break [{} - {}] and [{} - {}] to: [{} - {}]",
+            __FUNCTION__, MillisecondsToTimeString(m_vecEdits[i].start),
+            MillisecondsToTimeString(m_vecEdits[i].end),
+            MillisecondsToTimeString(m_vecEdits[i + 1].start),
+            MillisecondsToTimeString(m_vecEdits[i + 1].end),
+            MillisecondsToTimeString(commBreak.start), MillisecondsToTimeString(commBreak.end));
 
         /*
          * Erase old edits and insert the new merged one.
@@ -495,13 +993,12 @@ void CEdl::MergeShortCommBreaks()
      * the maximum commercial break length being triggered.
      */
     if (!m_vecEdits.empty() && m_vecEdits[0].action == Action::COMM_BREAK &&
-        m_vecEdits[0].start < std::chrono::duration_cast<std::chrono::milliseconds>(
-                                  std::chrono::seconds(advancedSettings->m_iEdlMaxStartGap)))
+        m_vecEdits[0].start < advancedSettings->m_iEdlMaxStartGap * 1000)
     {
-      CLog::LogF(LOGDEBUG, "Expanding first commercial break back to start [{} - {}].",
-                 StringUtils::MillisecondsToTimeString(m_vecEdits[0].start),
-                 StringUtils::MillisecondsToTimeString(m_vecEdits[0].end));
-      m_vecEdits[0].start = 0ms;
+      CLog::Log(LOGDEBUG, "{} - Expanding first commercial break back to start [{} - {}].",
+                __FUNCTION__, MillisecondsToTimeString(m_vecEdits[0].start),
+                MillisecondsToTimeString(m_vecEdits[0].end));
+      m_vecEdits[0].start = 0;
     }
 
     /*
@@ -509,16 +1006,15 @@ void CEdl::MergeShortCommBreaks()
      */
     for (size_t i = 0; i < m_vecEdits.size(); ++i)
     {
-      if (m_vecEdits[i].action == Action::COMM_BREAK && m_vecEdits[i].start > 0ms &&
+      if (m_vecEdits[i].action == Action::COMM_BREAK && m_vecEdits[i].start > 0 &&
           (m_vecEdits[i].end - m_vecEdits[i].start) <
-              std::chrono::duration_cast<std::chrono::milliseconds>(
-                  std::chrono::seconds(advancedSettings->m_iEdlMinCommBreakLength)))
+              advancedSettings->m_iEdlMinCommBreakLength * 1000)
       {
-        CLog::LogF(LOGDEBUG,
-                   "Removing short commercial break [{} - {}]. Minimum length: {} seconds",
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i].start),
-                   StringUtils::MillisecondsToTimeString(m_vecEdits[i].end),
-                   advancedSettings->m_iEdlMinCommBreakLength);
+        CLog::Log(LOGDEBUG,
+                  "{} - Removing short commercial break [{} - {}]. Minimum length: {} seconds",
+                  __FUNCTION__, MillisecondsToTimeString(m_vecEdits[i].start),
+                  MillisecondsToTimeString(m_vecEdits[i].end),
+                  advancedSettings->m_iEdlMinCommBreakLength);
         m_vecEdits.erase(m_vecEdits.begin() + i);
 
         i--;
@@ -535,7 +1031,7 @@ void CEdl::AddSceneMarkersAtStartAndEndOfEdits()
     if (edit.action == Action::COMM_BREAK)
     {
       // Don't add a scene marker at the start.
-      if (edit.start > 0ms)
+      if (edit.start > 0)
         AddSceneMarker(edit.start);
       AddSceneMarker(edit.end);
     }

@@ -8,9 +8,7 @@
 
 #include "IOSStorageProvider.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 
 #import <Foundation/Foundation.h>
@@ -20,13 +18,13 @@ std::unique_ptr<IStorageProvider> IStorageProvider::CreateInstance()
   return std::make_unique<CIOSStorageProvider>();
 }
 
-void CIOSStorageProvider::GetLocalDrives(std::vector<CMediaSource>& localDrives)
+void CIOSStorageProvider::GetLocalDrives(VECSOURCES& localDrives)
 {
   CMediaSource share;
 
   // User home folder
   share.strPath = "special://envhome/";
-  share.strName = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21440);
+  share.strName = g_localizeStrings.Get(21440);
   share.m_ignore = true;
   localDrives.push_back(share);
 
@@ -50,9 +48,8 @@ std::vector<std::string> CIOSStorageProvider::GetDiskUsage()
   for (const auto& pair :
        {std::make_pair(NSFileSystemFreeSize, 160), std::make_pair(NSFileSystemSize, 20161)})
     if (auto sizeStr = [formatter stringForObjectValue:fileSystemAttributes[pair.first]])
-      result.push_back(StringUtils::Format(
-          "{}: {}", CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(pair.second),
-          sizeStr.UTF8String));
+      result.push_back(
+          StringUtils::Format("{}: {}", g_localizeStrings.Get(pair.second), sizeStr.UTF8String));
 
   return result;
 }

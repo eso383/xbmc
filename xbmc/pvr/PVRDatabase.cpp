@@ -13,11 +13,9 @@
 #include "addons/addoninfo/AddonInfo.h"
 #include "addons/addoninfo/AddonType.h"
 #include "dbwrappers/dataset.h"
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
 #include "pvr/addons/PVRClient.h"
 #include "pvr/addons/PVRClientUID.h"
 #include "pvr/channels/PVRChannel.h"
-#include "pvr/channels/PVRChannelGroupFactory.h"
 #include "pvr/channels/PVRChannelGroupMember.h"
 #include "pvr/channels/PVRChannelGroups.h"
 #include "pvr/providers/PVRProvider.h"
@@ -45,7 +43,7 @@ namespace
 {
 // clang-format off
 
-  const std::string sqlCreateTimersTable =
+  static const std::string sqlCreateTimersTable =
     "CREATE TABLE timers ("
       "iClientIndex       integer primary key, "
       "iParentClientIndex integer, "
@@ -73,7 +71,7 @@ namespace
       "iRecordingGroup    integer"
   ")";
 
-  const std::string sqlCreateProvidersTable =
+  static const std::string sqlCreateProvidersTable =
     "CREATE TABLE providers ("
       "idProvider           integer primary key, "
       "iUniqueId            integer, "
@@ -85,62 +83,61 @@ namespace
       "sLanguages           varchar(64) "
     ")";
 
-// clang-format on
+  // clang-format on
 
-std::string GetClientIdsSQL(const std::vector<std::shared_ptr<CPVRClient>>& clients,
-                            bool migrate = false)
-{
-  if (clients.empty() && !migrate)
-    return {};
-
-  std::string clientIds{"("};
-  for (auto it = clients.cbegin(); it != clients.cend(); ++it)
+  std::string GetClientIdsSQL(const std::vector<std::shared_ptr<CPVRClient>>& clients,
+                              bool migrate = false)
   {
-    if (it != clients.cbegin())
-      clientIds += " OR ";
+    if (clients.empty() && !migrate)
+      return {};
 
-    clientIds += "iClientId = ";
-    clientIds += std::to_string((*it)->GetID());
-  }
-  if (migrate)
-  {
-    if (!clients.empty())
-      clientIds += " OR ";
+    std::string clientIds = "(";
+    for (auto it = clients.cbegin(); it != clients.cend(); ++it)
+    {
+      if (it != clients.cbegin())
+        clientIds += " OR ";
 
-    clientIds += "iClientId = -2"; // PVR_GROUP_CLIENT_ID_UNKNOWN
+      clientIds += "iClientId = ";
+      clientIds += std::to_string((*it)->GetID());
+    }
+    if (migrate)
+    {
+      if (!clients.empty())
+        clientIds += " OR ";
+
+      clientIds += "iClientId = -2"; // PVR_GROUP_CLIENT_ID_UNKNOWN
+    }
+    clientIds += ")";
+    return clientIds;
   }
-  clientIds += ")";
-  return clientIds;
-}
 
 } // unnamed namespace
 
 bool CPVRDatabase::Open()
 {
-  std::unique_lock lock(m_critSection);
-  return CDatabase::Open(
-      CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_databaseTV);
+  std::lock_guard lock(m_critSection);
+
+  return CDatabase::Open(CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_databaseTV);
 }
 
 void CPVRDatabase::Close()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   CDatabase::Close();
 }
 
-void CPVRDatabase::Lock()
-{
+void CPVRDatabase::Lock() const {
   m_critSection.lock();
 }
 
-void CPVRDatabase::Unlock()
-{
+void CPVRDatabase::Unlock() const {
   m_critSection.unlock();
 }
 
 void CPVRDatabase::CreateTables()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   CLog::LogF(LOGINFO, "Creating PVR database tables");
 
@@ -185,23 +182,24 @@ void CPVRDatabase::CreateTables()
               ")");
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Creating table 'map_channelgroups_channels'");
-  m_pDS->exec("CREATE TABLE map_channelgroups_channels ("
-              "idChannel         integer, "
-              "idGroup           integer, "
-              "iChannelNumber    integer, "
-              "iSubChannelNumber integer, "
-              "iOrder            integer, "
-              "iClientChannelNumber    integer, "
-              "iClientSubChannelNumber integer"
-              ")");
+  m_pDS->exec(
+      "CREATE TABLE map_channelgroups_channels ("
+        "idChannel         integer, "
+        "idGroup           integer, "
+        "iChannelNumber    integer, "
+        "iSubChannelNumber integer, "
+        "iOrder            integer, "
+        "iClientChannelNumber    integer, "
+        "iClientSubChannelNumber integer"
+      ")"
+  );
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Creating table 'clients'");
   m_pDS->exec("CREATE TABLE clients ("
               "idClient  integer primary key, "
               "iPriority integer, "
               "sAddonID TEXT, "
-              "iInstanceID integer,"
-              "sDateTimeFirstChannelsAdded varchar(20)"
+              "iInstanceID integer"
               ")");
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Creating table 'timers'");
@@ -213,21 +211,19 @@ void CPVRDatabase::CreateTables()
 
 void CPVRDatabase::CreateAnalytics()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   CLog::LogF(LOGINFO, "Creating PVR database indices");
   m_pDS->exec("CREATE INDEX idx_clients_idClient on clients(idClient);");
-  m_pDS->exec(
-      "CREATE UNIQUE INDEX idx_channels_iClientId_iUniqueId on channels(iClientId, iUniqueId);");
+  m_pDS->exec("CREATE UNIQUE INDEX idx_channels_iClientId_iUniqueId on channels(iClientId, iUniqueId);");
   m_pDS->exec("CREATE INDEX idx_channelgroups_bIsRadio on channelgroups(bIsRadio);");
-  m_pDS->exec("CREATE UNIQUE INDEX idx_idGroup_idChannel on map_channelgroups_channels(idGroup, "
-              "idChannel);");
+  m_pDS->exec("CREATE UNIQUE INDEX idx_idGroup_idChannel on map_channelgroups_channels(idGroup, idChannel);");
   m_pDS->exec("CREATE INDEX idx_timers_iClientIndex on timers(iClientIndex);");
 }
 
 void CPVRDatabase::UpdateTables(int iVersion)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (iVersion < 13)
     m_pDS->exec("ALTER TABLE channels ADD idEpg integer;");
@@ -392,12 +388,6 @@ void CPVRDatabase::UpdateTables(int iVersion)
 
     FixupClientIDs();
   }
-
-  if (iVersion < 47)
-  {
-    m_pDS->exec("ALTER TABLE clients ADD sDateTimeFirstChannelsAdded varchar(20)");
-    m_pDS->exec("UPDATE clients SET sDateTimeFirstChannelsAdded = ''");
-  }
 }
 
 /********** Client methods **********/
@@ -406,40 +396,34 @@ bool CPVRDatabase::DeleteClients()
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting all clients from the database");
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return DeleteValues("clients");
 }
 
 bool CPVRDatabase::Persist(const CPVRClient& client)
 {
-  if (client.GetID() == PVR_CLIENT_INVALID_UID)
+  if (client.GetID() == PVR_INVALID_CLIENT_ID)
     return false;
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Persisting client {} to database", client.GetID());
 
-  const CDateTime& dateTime{client.GetDateTimeFirstChannelsAdded()};
-  std::string dateTimeAdded;
-  if (dateTime.IsValid())
-    dateTimeAdded = dateTime.GetAsDBDateTime();
+  std::lock_guard lock(m_critSection);
 
-  std::unique_lock lock(m_critSection);
-
-  const std::string sql{
-      PrepareSQL("REPLACE INTO clients (idClient, iPriority, sAddonID, iInstanceID, "
-                 "sDateTimeFirstChannelsAdded) VALUES (%i, %i, '%s', %i, '%s')",
-                 client.GetID(), client.GetPriority(), client.ID().c_str(), client.InstanceID(),
-                 dateTimeAdded.c_str())};
+  const std::string sql{PrepareSQL(
+      "REPLACE INTO clients (idClient, iPriority, sAddonID, iInstanceID) VALUES (%i, %i, '%s', %i)",
+      client.GetID(), client.GetPriority(), client.ID().c_str(), client.InstanceID())};
   return ExecuteQuery(sql);
 }
 
 bool CPVRDatabase::Delete(const CPVRClient& client)
 {
-  if (client.GetID() == PVR_CLIENT_INVALID_UID)
+  if (client.GetID() == PVR_INVALID_CLIENT_ID)
     return false;
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting client {} from the database", client.GetID());
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   Filter filter;
   filter.AppendWhere(PrepareSQL("idClient = '%i'", client.GetID()));
@@ -449,12 +433,12 @@ bool CPVRDatabase::Delete(const CPVRClient& client)
 
 int CPVRDatabase::GetPriority(const CPVRClient& client) const
 {
-  if (client.GetID() == PVR_CLIENT_INVALID_UID)
+  if (client.GetID() == PVR_INVALID_CLIENT_ID)
     return 0;
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Getting priority for client {} from the database", client.GetID());
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   const std::string strWhereClause = PrepareSQL("idClient = '%i'", client.GetID());
   const std::string strValue = GetSingleValue("clients", "iPriority", strWhereClause);
@@ -463,26 +447,6 @@ int CPVRDatabase::GetPriority(const CPVRClient& client) const
     return 0;
 
   return atoi(strValue.c_str());
-}
-
-CDateTime CPVRDatabase::GetDateTimeFirstChannelsAdded(const CPVRClient& client) const
-{
-  if (client.GetID() == PVR_CLIENT_INVALID_UID)
-    return {};
-
-  CLog::LogFC(LOGDEBUG, LOGPVR,
-              "Getting datetime first channels added for client {} from the database",
-              client.GetID());
-
-  std::unique_lock lock(m_critSection);
-
-  const std::string whereClause{PrepareSQL("idClient = %i", client.GetID())};
-  const std::string value{GetSingleValue("clients", "sDateTimeFirstChannelsAdded", whereClause)};
-
-  if (value.empty())
-    return {};
-
-  return CDateTime::FromDBDateTime(value);
 }
 
 void CPVRDatabase::FixupClientIDs()
@@ -575,7 +539,7 @@ void CPVRDatabase::FixupClientIDs()
 
 int CPVRDatabase::GetClientID(const std::string& addonID, unsigned int instanceID)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   // Client id already present in clients table?
   std::string sql{PrepareSQL("sAddonID = '%s' AND iInstanceID = %i", addonID.c_str(), instanceID)};
@@ -584,14 +548,12 @@ int CPVRDatabase::GetClientID(const std::string& addonID, unsigned int instanceI
     return std::atoi(idString.c_str());
 
   // Create a new entry with a new client id in clients table.
-  // Priority and ChannelsAdded fields will be populated with real values later, on-demand.
-  sql = PrepareSQL("INSERT INTO clients (iPriority, sAddonID, iInstanceID, "
-                   "sDateTimeFirstChannelsAdded) VALUES (%i, '%s', %i, '%s')",
-                   0, addonID.c_str(), instanceID, "");
+  sql = PrepareSQL("INSERT INTO clients (iPriority, sAddonID, iInstanceID) VALUES (%i, '%s', %i)",
+                   0, addonID.c_str(), instanceID);
   if (ExecuteQuery(sql))
     return static_cast<int>(m_pDS->lastinsertid());
 
-  return PVR_CLIENT_INVALID_UID;
+  return -1;
 }
 
 /********** Channel provider methods **********/
@@ -600,7 +562,8 @@ bool CPVRDatabase::DeleteProviders()
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting all providers from the database");
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return DeleteValues("providers");
 }
 
@@ -615,7 +578,8 @@ bool CPVRDatabase::Persist(CPVRProvider& provider, bool updateRecord /* = false 
 
   std::string strQuery;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   {
     /* insert a new entry when this is a new group, or replace the existing one otherwise */
     if (!updateRecord)
@@ -651,9 +615,10 @@ bool CPVRDatabase::Persist(CPVRProvider& provider, bool updateRecord /* = false 
 
 bool CPVRDatabase::Delete(const CPVRProvider& provider)
 {
-  CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting provider '{}' from the database", provider.GetName());
+  CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting provider '{}' from the database",
+              provider.GetName());
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   Filter filter;
   filter.AppendWhere(PrepareSQL("idProvider = '%i'", provider.GetDatabaseId()));
@@ -671,7 +636,8 @@ bool CPVRDatabase::Get(CPVRProviders& results,
   if (!clientIds.empty())
     strQuery += "WHERE " + clientIds + " OR iType = 1"; // always load addon providers
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   strQuery = PrepareSQL(strQuery);
   if (ResultQuery(strQuery))
   {
@@ -679,12 +645,13 @@ bool CPVRDatabase::Get(CPVRProviders& results,
     {
       while (!m_pDS->eof())
       {
-        const auto provider{std::make_shared<CPVRProvider>(m_pDS->fv("iUniqueId").get_asInt(),
-                                                           m_pDS->fv("iClientId").get_asInt())};
+        auto provider = std::make_shared<CPVRProvider>(
+            m_pDS->fv("iUniqueId").get_asInt(), m_pDS->fv("iClientId").get_asInt());
 
         provider->SetDatabaseId(m_pDS->fv("idProvider").get_asInt());
         provider->SetName(m_pDS->fv("sName").get_asString());
-        provider->SetType(static_cast<PVR_PROVIDER_TYPE>(m_pDS->fv("iType").get_asInt()));
+        provider->SetType(
+            static_cast<PVR_PROVIDER_TYPE>(m_pDS->fv("iType").get_asInt()));
         provider->SetIconPath(m_pDS->fv("sIconPath").get_asString());
         provider->SetCountriesFromDBString(m_pDS->fv("sCountries").get_asString());
         provider->SetLanguagesFromDBString(m_pDS->fv("sLanguages").get_asString());
@@ -711,7 +678,8 @@ bool CPVRDatabase::Get(CPVRProviders& results,
 int CPVRDatabase::GetMaxProviderId() const
 {
   std::string strQuery = PrepareSQL("SELECT max(idProvider) as maxProviderId from providers");
-  std::unique_lock lock(m_critSection);
+
+  std::lock_guard lock(m_critSection);
 
   return GetSingleValueInt(strQuery);
 }
@@ -729,7 +697,8 @@ int CPVRDatabase::Get(bool bRadio,
   if (!clientIds.empty())
     strQuery += "AND " + clientIds;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   strQuery = PrepareSQL(strQuery, bRadio);
   if (ResultQuery(strQuery))
   {
@@ -737,8 +706,9 @@ int CPVRDatabase::Get(bool bRadio,
     {
       while (!m_pDS->eof())
       {
-        auto channel{std::make_shared<CPVRChannel>(m_pDS->fv("bIsRadio").get_asBool(),
-                                                   m_pDS->fv("sIconPath").get_asString())};
+        const auto channel = std::make_shared<CPVRChannel>(
+            m_pDS->fv("bIsRadio").get_asBool(),
+            m_pDS->fv("sIconPath").get_asString());
 
         channel->m_iChannelId = m_pDS->fv("idChannel").get_asInt();
         channel->m_iUniqueId = m_pDS->fv("iUniqueId").get_asInt();
@@ -756,13 +726,10 @@ int CPVRDatabase::Get(bool bRadio,
         channel->m_iClientProviderUid = m_pDS->fv("iClientProviderUid").get_asInt();
         channel->m_bIsUserSetHidden = m_pDS->fv("bIsUserSetHidden").get_asBool();
         channel->m_lastWatchedGroupId = m_pDS->fv("iLastWatchedGroupId").get_asInt();
-        const std::string dateTimeAdded{m_pDS->fv("sDateTimeAdded").get_asString()};
-        if (!dateTimeAdded.empty())
-          channel->m_dateTimeAdded = CDateTime::FromDBDateTime(dateTimeAdded);
 
         channel->UpdateEncryptionName();
 
-        results.try_emplace(channel->StorageId(), std::move(channel));
+        results.insert({channel->StorageId(), channel});
 
         m_pDS->next();
         ++iReturn;
@@ -787,16 +754,12 @@ bool CPVRDatabase::DeleteChannels()
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting all channels from the database");
 
-  std::unique_lock lock(m_critSection);
-  // Reset datetime first channels added for all clients.
-  if (!ExecuteQuery("UPDATE clients SET sDateTimeFirstChannelsAdded = ''"))
-    return false;
+  std::lock_guard lock(m_critSection);
 
-  // Delete all channels data.
   return DeleteValues("channels");
 }
 
-bool CPVRDatabase::QueueChannelDeleteQuery(const CPVRChannel& channel)
+bool CPVRDatabase::QueueDeleteQuery(const CPVRChannel& channel)
 {
   /* invalid channel */
   if (channel.ChannelID() <= 0)
@@ -820,7 +783,7 @@ bool CPVRDatabase::QueueChannelDeleteQuery(const CPVRChannel& channel)
 
 /********** Channel group member methods **********/
 
-bool CPVRDatabase::QueueGroupMemberDeleteQuery(const CPVRChannelGroupMember& groupMember)
+bool CPVRDatabase::QueueDeleteQuery(const CPVRChannelGroupMember& groupMember)
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Queueing delete for channel group member '{}' from the database",
               groupMember.Channel() ? groupMember.Channel()->ChannelName()
@@ -844,7 +807,8 @@ bool CPVRDatabase::RemoveChannelsFromGroup(const CPVRChannelGroup& group)
   Filter filter;
   filter.AppendWhere(PrepareSQL("idGroup = %i", group.GroupID()));
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return DeleteValues("map_channelgroups_channels", filter);
 }
 
@@ -852,7 +816,8 @@ bool CPVRDatabase::DeleteChannelGroups()
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting all channel groups from the database");
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return DeleteValues("channelgroups") && DeleteValues("map_channelgroups_channels");
 }
 
@@ -865,7 +830,7 @@ bool CPVRDatabase::Delete(const CPVRChannelGroup& group)
     return false;
   }
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   Filter filter;
   filter.AppendWhere(PrepareSQL("idGroup = %i", group.GroupID()));
@@ -883,11 +848,10 @@ int CPVRDatabase::GetGroups(CPVRChannelGroups& results, const std::string& query
     {
       while (!m_pDS->eof())
       {
-        const std::shared_ptr<CPVRChannelGroup> group = results.GetGroupFactory()->CreateGroup(
+        const std::shared_ptr<CPVRChannelGroup> group = results.CreateChannelGroup(
             m_pDS->fv("iGroupType").get_asInt(),
             CPVRChannelsPath(m_pDS->fv("bIsRadio").get_asBool(), m_pDS->fv("sName").get_asString(),
-                             m_pDS->fv("iClientId").get_asInt()),
-            results.GetGroupAll());
+                             m_pDS->fv("iClientId").get_asInt()));
 
         group->m_iGroupId = m_pDS->fv("idGroup").get_asInt();
         group->m_iLastWatched = static_cast<time_t>(m_pDS->fv("iLastWatched").get_asInt());
@@ -920,7 +884,8 @@ int CPVRDatabase::GetGroups(CPVRChannelGroups& results, const std::string& query
 
 int CPVRDatabase::GetLocalGroups(CPVRChannelGroups& results) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   const std::string query = PrepareSQL(
       "SELECT * from channelgroups WHERE bIsRadio = %u AND iClientId = -1", results.IsRadio());
   return GetGroups(results, query);
@@ -936,7 +901,8 @@ int CPVRDatabase::Get(CPVRChannelGroups& results,
   if (!clientIds.empty())
     query += "AND " + clientIds;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   query = PrepareSQL(query, results.IsRadio());
   return GetGroups(results, query);
 }
@@ -969,7 +935,8 @@ std::vector<std::shared_ptr<CPVRChannelGroupMember>> CPVRDatabase::Get(
     strQuery += "AND " + clientIds;
   strQuery += " ORDER BY map_channelgroups_channels.iChannelNumber";
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   strQuery = PrepareSQL(strQuery, group.GroupID());
   if (ResultQuery(strQuery))
   {
@@ -984,11 +951,13 @@ std::vector<std::shared_ptr<CPVRChannelGroupMember>> CPVRDatabase::Get(
         newMember->m_iGroupID = group.GroupID();
         newMember->m_iGroupClientID = group.GetClientID();
         newMember->m_bIsRadio = m_pDS->fv("bIsRadio").get_asBool();
-        newMember->m_channelNumber = {m_pDS->fv("iChannelNumber").get_asUInt(),
-                                      m_pDS->fv("iSubChannelNumber").get_asUInt()};
-        newMember->m_clientChannelNumber = {m_pDS->fv("iClientChannelNumber").get_asUInt(),
-                                            m_pDS->fv("iClientSubChannelNumber").get_asUInt()};
-        newMember->m_iOrder = m_pDS->fv("iOrder").get_asInt();
+        newMember->m_channelNumber = {
+            static_cast<unsigned int>(m_pDS->fv("iChannelNumber").get_asInt()),
+            static_cast<unsigned int>(m_pDS->fv("iSubChannelNumber").get_asInt())};
+        newMember->m_clientChannelNumber = {
+            static_cast<unsigned int>(m_pDS->fv("iClientChannelNumber").get_asInt()),
+            static_cast<unsigned int>(m_pDS->fv("iClientSubChannelNumber").get_asInt())};
+        newMember->m_iOrder = static_cast<int>(m_pDS->fv("iOrder").get_asInt());
         newMember->SetGroupName(group.GroupName());
 
         results.emplace_back(newMember);
@@ -996,7 +965,7 @@ std::vector<std::shared_ptr<CPVRChannelGroupMember>> CPVRDatabase::Get(
       }
       m_pDS->close();
     }
-    catch (...)
+    catch(...)
     {
       CLog::LogF(LOGERROR, "Failed to get channel group members");
     }
@@ -1017,13 +986,16 @@ bool CPVRDatabase::PersistChannels(const CPVRChannelGroup& group)
   bool bReturn(true);
 
   std::shared_ptr<CPVRChannel> channel;
-  for (const auto& [_, groupMember] : group.m_members)
+  for (const auto& groupMember : group.m_members)
   {
-    channel = groupMember->Channel();
-    if ((channel->IsChanged() || channel->IsNew()) && Persist(*channel, false))
+    channel = groupMember.second->Channel();
+    if (channel->IsChanged() || channel->IsNew())
     {
-      channel->Persisted();
-      bReturn = true;
+      if (Persist(*channel, false))
+      {
+        channel->Persisted();
+        bReturn = true;
+      }
     }
   }
 
@@ -1033,9 +1005,9 @@ bool CPVRDatabase::PersistChannels(const CPVRChannelGroup& group)
   {
     std::string strQuery;
     std::string strValue;
-    for (const auto& [_, groupMember] : group.m_members)
+    for (const auto& groupMember : group.m_members)
     {
-      channel = groupMember->Channel();
+      channel = groupMember.second->Channel();
       strQuery =
           PrepareSQL("iUniqueId = %i AND iClientId = %i", channel->UniqueID(), channel->ClientID());
       strValue = GetSingleValue("channels", "idChannel", strQuery);
@@ -1043,7 +1015,7 @@ bool CPVRDatabase::PersistChannels(const CPVRChannelGroup& group)
       {
         const int iChannelID = std::atoi(strValue.c_str());
         channel->SetChannelID(iChannelID);
-        groupMember->m_iChannelDatabaseID = iChannelID;
+        groupMember.second->m_iChannelDatabaseID = iChannelID;
       }
     }
   }
@@ -1119,7 +1091,8 @@ bool CPVRDatabase::PersistGroupMembers(const CPVRChannelGroup& group)
 
 bool CPVRDatabase::ResetEPG()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   const std::string strQuery = PrepareSQL("UPDATE channels SET idEpg = 0");
   return ExecuteQuery(strQuery);
 }
@@ -1135,7 +1108,7 @@ bool CPVRDatabase::Persist(CPVRChannelGroup& group)
 
   std::string strQuery;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (group.HasChanges() || group.IsNew())
   {
@@ -1181,7 +1154,7 @@ bool CPVRDatabase::Persist(CPVRChannelGroup& group)
   return bReturn;
 }
 
-bool CPVRDatabase::Persist(const CPVRChannel& channel, bool bCommit)
+bool CPVRDatabase::Persist(CPVRChannel& channel, bool bCommit)
 {
   bool bReturn(false);
 
@@ -1192,11 +1165,7 @@ bool CPVRDatabase::Persist(const CPVRChannel& channel, bool bCommit)
     return bReturn;
   }
 
-  std::string dateTimeAdded;
-  if (channel.DateTimeAdded().IsValid())
-    dateTimeAdded = channel.DateTimeAdded().GetAsDBDateTime();
-
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   // Note: Do not use channel.ChannelID value to check presence of channel in channels table. It might not yet be set correctly.
   std::string strQuery =
@@ -1219,7 +1188,7 @@ bool CPVRDatabase::Persist(const CPVRChannel& channel, bool bCommit)
         (channel.EPGEnabled() ? 1 : 0), channel.EPGScraper().c_str(),
         static_cast<unsigned int>(channel.LastWatched()), channel.ClientID(), channel.EpgID(),
         channel.HasArchive(), channel.ClientProviderUid(), channel.IsUserSetHidden() ? 1 : 0,
-        channel.LastWatchedGroupId(), dateTimeAdded.c_str());
+        channel.LastWatchedGroupId(), "");
   }
   else
   {
@@ -1239,7 +1208,7 @@ bool CPVRDatabase::Persist(const CPVRChannel& channel, bool bCommit)
         channel.EPGScraper().c_str(), static_cast<unsigned int>(channel.LastWatched()),
         channel.ClientID(), strValue.c_str(), channel.EpgID(), channel.HasArchive(),
         channel.ClientProviderUid(), channel.IsUserSetHidden() ? 1 : 0,
-        channel.LastWatchedGroupId(), dateTimeAdded.c_str());
+        channel.LastWatchedGroupId(), "");
   }
 
   if (QueueInsertQuery(strQuery))
@@ -1255,7 +1224,8 @@ bool CPVRDatabase::Persist(const CPVRChannel& channel, bool bCommit)
 
 bool CPVRDatabase::UpdateLastWatched(const CPVRChannel& channel, int groupId)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   const std::string strQuery = PrepareSQL(
       "UPDATE channels SET iLastWatched = %u, iLastWatchedGroupId = %i WHERE idChannel = %i",
       static_cast<unsigned int>(channel.LastWatched()), groupId, channel.ChannelID());
@@ -1264,7 +1234,8 @@ bool CPVRDatabase::UpdateLastWatched(const CPVRChannel& channel, int groupId)
 
 bool CPVRDatabase::UpdateLastWatched(const CPVRChannelGroup& group)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   const std::string strQuery =
       PrepareSQL("UPDATE channelgroups SET iLastWatched = %u WHERE idGroup = %i",
                  static_cast<unsigned int>(group.LastWatched()), group.GroupID());
@@ -1273,7 +1244,8 @@ bool CPVRDatabase::UpdateLastWatched(const CPVRChannelGroup& group)
 
 bool CPVRDatabase::UpdateLastOpened(const CPVRChannelGroup& group)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   const std::string strQuery =
       PrepareSQL("UPDATE channelgroups SET iLastOpened = %llu WHERE idGroup = %i",
                  group.LastOpened(), group.GroupID());
@@ -1283,16 +1255,17 @@ bool CPVRDatabase::UpdateLastOpened(const CPVRChannelGroup& group)
 /********** Timer methods **********/
 
 std::vector<std::shared_ptr<CPVRTimerInfoTag>> CPVRDatabase::GetTimers(
-    const std::vector<std::shared_ptr<CPVRClient>>& clients) const
+    CPVRTimers& timers, const std::vector<std::shared_ptr<CPVRClient>>& clients) const
 {
   std::vector<std::shared_ptr<CPVRTimerInfoTag>> result;
 
   std::string strQuery = "SELECT * FROM timers ";
   const std::string clientIds = GetClientIdsSQL(clients);
   if (!clientIds.empty())
-    strQuery += "WHERE " + clientIds + " OR (iClientId = -1)"; // always load client agnostic timers
+    strQuery += "WHERE " + clientIds;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   strQuery = PrepareSQL(strQuery);
   if (ResultQuery(strQuery))
   {
@@ -1300,23 +1273,21 @@ std::vector<std::shared_ptr<CPVRTimerInfoTag>> CPVRDatabase::GetTimers(
     {
       while (!m_pDS->eof())
       {
-        auto newTag{std::make_shared<CPVRTimerInfoTag>()};
+        auto newTag = std::make_shared<CPVRTimerInfoTag>();
 
         newTag->m_iClientIndex = -m_pDS->fv("iClientIndex").get_asInt();
         newTag->m_iParentClientIndex = m_pDS->fv("iParentClientIndex").get_asInt();
         newTag->m_iClientId = m_pDS->fv("iClientId").get_asInt();
-        newTag->SetTimerType(CPVRTimerType::CreateFromIds(m_pDS->fv("iTimerType").get_asInt(),
-                                                          PVR_CLIENT_INVALID_UID));
+        newTag->SetTimerType(CPVRTimerType::CreateFromIds(m_pDS->fv("iTimerType").get_asInt(), -1));
         newTag->m_state = static_cast<PVR_TIMER_STATE>(m_pDS->fv("iState").get_asInt());
         newTag->m_strTitle = m_pDS->fv("sTitle").get_asString().c_str();
         newTag->m_iClientChannelUid = m_pDS->fv("iClientChannelUid").get_asInt();
         newTag->m_strSeriesLink = m_pDS->fv("sSeriesLink").get_asString().c_str();
-        newTag->SetStartFromUTC(CDateTime::FromDBDateTime(m_pDS->fv("sStartTime").get_asString()));
+        newTag->SetStartFromUTC(CDateTime::FromDBDateTime(m_pDS->fv("sStartTime").get_asString().c_str()));
         newTag->m_bStartAnyTime = m_pDS->fv("bStartAnyTime").get_asBool();
-        newTag->SetEndFromUTC(CDateTime::FromDBDateTime(m_pDS->fv("sEndTime").get_asString()));
+        newTag->SetEndFromUTC(CDateTime::FromDBDateTime(m_pDS->fv("sEndTime").get_asString().c_str()));
         newTag->m_bEndAnyTime = m_pDS->fv("bEndAnyTime").get_asBool();
-        newTag->SetFirstDayFromUTC(
-            CDateTime::FromDBDateTime(m_pDS->fv("sFirstDay").get_asString()));
+        newTag->SetFirstDayFromUTC(CDateTime::FromDBDateTime(m_pDS->fv("sFirstDay").get_asString().c_str()));
         newTag->m_iWeekdays = m_pDS->fv("iWeekdays").get_asInt();
         newTag->m_iEpgUid = m_pDS->fv("iEpgUid").get_asInt();
         newTag->m_iMarginStart = m_pDS->fv("iMarginStart").get_asInt();
@@ -1330,7 +1301,7 @@ std::vector<std::shared_ptr<CPVRTimerInfoTag>> CPVRDatabase::GetTimers(
         newTag->m_iRecordingGroup = m_pDS->fv("iRecordingGroup").get_asInt();
         newTag->UpdateSummary();
 
-        result.emplace_back(std::move(newTag));
+        result.emplace_back(newTag);
 
         m_pDS->next();
       }
@@ -1346,52 +1317,38 @@ std::vector<std::shared_ptr<CPVRTimerInfoTag>> CPVRDatabase::GetTimers(
 
 bool CPVRDatabase::Persist(CPVRTimerInfoTag& timer)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   // insert a new entry if this is a new timer, or replace the existing one otherwise
   std::string strQuery;
   if (timer.m_iClientIndex == PVR_TIMER_NO_CLIENT_INDEX)
-    strQuery = PrepareSQL(
-        "INSERT INTO timers "
-        "(iParentClientIndex, iClientId, iTimerType, iState, sTitle, iClientChannelUid, "
-        "sSeriesLink, sStartTime,"
-        " bStartAnyTime, sEndTime, bEndAnyTime, sFirstDay, iWeekdays, iEpgUid, iMarginStart, "
-        "iMarginEnd,"
-        " sEpgSearchString, bFullTextEpgSearch, iPreventDuplicates, iPrority, iLifetime, "
-        "iMaxRecordings, iRecordingGroup) "
-        "VALUES (%i, %i, %u, %i, '%s', %i, '%s', '%s', %i, '%s', %i, '%s', %i, %u, %i, %i, '%s', "
-        "%i, %i, %i, %i, %i, %i);",
-        timer.m_iParentClientIndex, timer.m_iClientId, timer.GetTimerType()->GetTypeId(),
-        timer.m_state, timer.Title().c_str(), timer.m_iClientChannelUid, timer.SeriesLink().c_str(),
-        timer.StartAsUTC().GetAsDBDateTime().c_str(), timer.m_bStartAnyTime ? 1 : 0,
-        timer.EndAsUTC().GetAsDBDateTime().c_str(), timer.m_bEndAnyTime ? 1 : 0,
-        timer.FirstDayAsUTC().GetAsDBDateTime().c_str(), timer.m_iWeekdays,
-        timer.UniqueBroadcastID(), timer.m_iMarginStart, timer.m_iMarginEnd,
-        timer.m_strEpgSearchString.c_str(), timer.m_bFullTextEpgSearch ? 1 : 0,
-        timer.m_iPreventDupEpisodes, timer.m_iPriority, timer.m_iLifetime, timer.m_iMaxRecordings,
-        timer.m_iRecordingGroup);
+    strQuery = PrepareSQL("INSERT INTO timers "
+                          "(iParentClientIndex, iClientId, iTimerType, iState, sTitle, iClientChannelUid, sSeriesLink, sStartTime,"
+                          " bStartAnyTime, sEndTime, bEndAnyTime, sFirstDay, iWeekdays, iEpgUid, iMarginStart, iMarginEnd,"
+                          " sEpgSearchString, bFullTextEpgSearch, iPreventDuplicates, iPrority, iLifetime, iMaxRecordings, iRecordingGroup) "
+                          "VALUES (%i, %i, %u, %i, '%s', %i, '%s', '%s', %i, '%s', %i, '%s', %i, %u, %i, %i, '%s', %i, %i, %i, %i, %i, %i);",
+                          timer.m_iParentClientIndex, timer.m_iClientId, timer.GetTimerType()->GetTypeId(), timer.m_state,
+                          timer.Title().c_str(), timer.m_iClientChannelUid, timer.SeriesLink().c_str(),
+                          timer.StartAsUTC().GetAsDBDateTime().c_str(), timer.m_bStartAnyTime ? 1 : 0,
+                          timer.EndAsUTC().GetAsDBDateTime().c_str(), timer.m_bEndAnyTime ? 1 : 0,
+                          timer.FirstDayAsUTC().GetAsDBDateTime().c_str(), timer.m_iWeekdays, timer.UniqueBroadcastID(),
+                          timer.m_iMarginStart, timer.m_iMarginEnd, timer.m_strEpgSearchString.c_str(), timer.m_bFullTextEpgSearch ? 1 : 0,
+                          timer.m_iPreventDupEpisodes, timer.m_iPriority, timer.m_iLifetime, timer.m_iMaxRecordings, timer.m_iRecordingGroup);
   else
-    strQuery =
-        PrepareSQL("REPLACE INTO timers "
-                   "(iClientIndex,"
-                   " iParentClientIndex, iClientId, iTimerType, iState, sTitle, iClientChannelUid, "
-                   "sSeriesLink, sStartTime,"
-                   " bStartAnyTime, sEndTime, bEndAnyTime, sFirstDay, iWeekdays, iEpgUid, "
-                   "iMarginStart, iMarginEnd,"
-                   " sEpgSearchString, bFullTextEpgSearch, iPreventDuplicates, iPrority, "
-                   "iLifetime, iMaxRecordings, iRecordingGroup) "
-                   "VALUES (%i, %i, %i, %u, %i, '%s', %i, '%s', '%s', %i, '%s', %i, '%s', %i, %u, "
-                   "%i, %i, '%s', %i, %i, %i, %i, %i, %i);",
-                   -timer.m_iClientIndex, timer.m_iParentClientIndex, timer.m_iClientId,
-                   timer.GetTimerType()->GetTypeId(), timer.m_state, timer.Title().c_str(),
-                   timer.m_iClientChannelUid, timer.SeriesLink().c_str(),
-                   timer.StartAsUTC().GetAsDBDateTime().c_str(), timer.m_bStartAnyTime ? 1 : 0,
-                   timer.EndAsUTC().GetAsDBDateTime().c_str(), timer.m_bEndAnyTime ? 1 : 0,
-                   timer.FirstDayAsUTC().GetAsDBDateTime().c_str(), timer.m_iWeekdays,
-                   timer.UniqueBroadcastID(), timer.m_iMarginStart, timer.m_iMarginEnd,
-                   timer.m_strEpgSearchString.c_str(), timer.m_bFullTextEpgSearch ? 1 : 0,
-                   timer.m_iPreventDupEpisodes, timer.m_iPriority, timer.m_iLifetime,
-                   timer.m_iMaxRecordings, timer.m_iRecordingGroup);
+    strQuery = PrepareSQL("REPLACE INTO timers "
+                          "(iClientIndex,"
+                          " iParentClientIndex, iClientId, iTimerType, iState, sTitle, iClientChannelUid, sSeriesLink, sStartTime,"
+                          " bStartAnyTime, sEndTime, bEndAnyTime, sFirstDay, iWeekdays, iEpgUid, iMarginStart, iMarginEnd,"
+                          " sEpgSearchString, bFullTextEpgSearch, iPreventDuplicates, iPrority, iLifetime, iMaxRecordings, iRecordingGroup) "
+                          "VALUES (%i, %i, %i, %u, %i, '%s', %i, '%s', '%s', %i, '%s', %i, '%s', %i, %u, %i, %i, '%s', %i, %i, %i, %i, %i, %i);",
+                          -timer.m_iClientIndex,
+                          timer.m_iParentClientIndex, timer.m_iClientId, timer.GetTimerType()->GetTypeId(), timer.m_state,
+                          timer.Title().c_str(), timer.m_iClientChannelUid, timer.SeriesLink().c_str(),
+                          timer.StartAsUTC().GetAsDBDateTime().c_str(), timer.m_bStartAnyTime ? 1 : 0,
+                          timer.EndAsUTC().GetAsDBDateTime().c_str(), timer.m_bEndAnyTime ? 1 : 0,
+                          timer.FirstDayAsUTC().GetAsDBDateTime().c_str(), timer.m_iWeekdays, timer.UniqueBroadcastID(),
+                          timer.m_iMarginStart, timer.m_iMarginEnd, timer.m_strEpgSearchString.c_str(), timer.m_bFullTextEpgSearch ? 1 : 0,
+                          timer.m_iPreventDupEpisodes, timer.m_iPriority, timer.m_iLifetime, timer.m_iMaxRecordings, timer.m_iRecordingGroup);
 
   bool bReturn = ExecuteQuery(strQuery);
 
@@ -1412,7 +1369,7 @@ bool CPVRDatabase::Delete(const CPVRTimerInfoTag& timer)
 
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting timer '{}' from the database", timer.m_iClientIndex);
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   Filter filter;
   filter.AppendWhere(PrepareSQL("iClientIndex = '%i'", -timer.m_iClientIndex));
@@ -1424,6 +1381,7 @@ bool CPVRDatabase::DeleteTimers()
 {
   CLog::LogFC(LOGDEBUG, LOGPVR, "Deleting all timers from the database");
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   return DeleteValues("timers");
 }

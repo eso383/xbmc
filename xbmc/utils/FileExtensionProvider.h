@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012-2026 Team Kodi
+ *  Copyright (C) 2012-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,11 +8,8 @@
 
 #pragma once
 
-#include "threads/CriticalSection.h"
-
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +17,7 @@ namespace ADDON
 {
 enum class AddonType;
 class CAddonMgr;
+struct AddonEvent;
 }
 
 class CAdvancedSettings;
@@ -56,16 +54,6 @@ public:
   std::string GetDiscStubExtensions() const;
 
   /*!
-   * @brief Returns a list of archive extensions with a single dot (eg. .zip)
-   */
-  std::string GetArchiveExtensions() const;
-
-  /*!
-   * @brief Returns a list of archive extensions with a multiple dots (eg. .tar.gz)
-   */
-  std::string GetCompoundArchiveExtensions() const;
-
-  /*!
    * @brief Returns a file folder extensions
    */
   std::string GetFileFolderExtensions() const;
@@ -80,7 +68,7 @@ public:
    *
    * @note Thought for cases e.g. by ISO, where can be a video or also a SACD.
    */
-  static bool CanOperateExtension(const std::string& path);
+  bool CanOperateExtension(const std::string& path) const;
 
 private:
   std::string GetAddonExtensions(ADDON::AddonType type) const;
@@ -88,14 +76,11 @@ private:
   void SetAddonExtensions();
   void SetAddonExtensions(ADDON::AddonType type);
 
-  void OnAdvancedSettingsLoaded();
+  void OnAddonEvent(const ADDON::AddonEvent& event);
 
   // Construction properties
   std::shared_ptr<CAdvancedSettings> m_advancedSettings;
   ADDON::CAddonMgr &m_addonManager;
-  std::optional<int> m_callbackId;
-
-  mutable CCriticalSection m_critSection;
 
   // File extension properties
   std::map<ADDON::AddonType, std::string> m_addonExtensions;
@@ -103,18 +88,4 @@ private:
 
   // Protocols from add-ons with encoded host names
   std::vector<std::string> m_encoded;
-
-  // Cached extensions lists - use through atomic operations only
-  //
-  // @todo: use the safer C++20 std::atomic<std::shared_ptr<std::string>> partial specialization
-  // once available for all platform builders
-  // std::atomic_load/store of std::shared_ptr<T> is deprecated in C++20 and removed in C++26
-  mutable std::shared_ptr<const std::string> m_discStubExtensions;
-  mutable std::shared_ptr<const std::string> m_musicExtensions;
-  mutable std::shared_ptr<const std::string> m_pictureExtensions;
-  mutable std::shared_ptr<const std::string> m_subtitlesExtensions;
-  mutable std::shared_ptr<const std::string> m_videoExtensions;
-  mutable std::shared_ptr<const std::string> m_archiveExtensions;
-  mutable std::shared_ptr<const std::string> m_compoundArchiveExtensions;
-  mutable std::shared_ptr<const std::string> m_fileFolderExtensions;
 };

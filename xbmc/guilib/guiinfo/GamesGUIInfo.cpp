@@ -26,15 +26,14 @@ using namespace KODI::RETRO;
 //! @todo Savestates were removed from v18
 //#define FILEITEM_PROPERTY_SAVESTATE_DURATION  "duration"
 
-bool CGamesGUIInfo::InitCurrentItem(CFileItem* item)
+bool CGamesGUIInfo::InitCurrentItem(CFileItem *item)
 {
   if (item && item->IsGame())
   {
     CLog::Log(LOGDEBUG, "CGamesGUIInfo::InitCurrentItem({})", item->GetPath());
 
     item->LoadGameTag();
-    CGameInfoTag* tag =
-        item->GetGameInfoTag(); // creates item if not yet set, so no nullptr checks needed
+    CGameInfoTag* tag = item->GetGameInfoTag(); // creates item if not yet set, so no nullptr checks needed
 
     if (tag->GetTitle().empty())
     {
@@ -46,13 +45,9 @@ bool CGamesGUIInfo::InitCurrentItem(CFileItem* item)
   return false;
 }
 
-bool CGamesGUIInfo::GetLabel(std::string& value,
-                             const CFileItem* item,
-                             int contextWindow,
-                             const CGUIInfo& info,
-                             std::string* fallback) const
+bool CGamesGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // RETROPLAYER_*
@@ -64,15 +59,13 @@ bool CGamesGUIInfo::GetLabel(std::string& value,
     }
     case RETROPLAYER_STRETCH_MODE:
     {
-      STRETCHMODE stretchMode =
-          CMediaSettings::GetInstance().GetCurrentGameSettings().StretchMode();
+      STRETCHMODE stretchMode = CMediaSettings::GetInstance().GetCurrentGameSettings().StretchMode();
       value = CRetroPlayerUtils::StretchModeToIdentifier(stretchMode);
       return true;
     }
     case RETROPLAYER_VIDEO_ROTATION:
     {
-      const unsigned int rotationDegCCW =
-          CMediaSettings::GetInstance().GetCurrentGameSettings().RotationDegCCW();
+      const unsigned int rotationDegCCW = CMediaSettings::GetInstance().GetCurrentGameSettings().RotationDegCCW();
       value = std::to_string(rotationDegCCW);
       return true;
     }
@@ -83,18 +76,12 @@ bool CGamesGUIInfo::GetLabel(std::string& value,
   return false;
 }
 
-bool CGamesGUIInfo::GetInt(int& value,
-                           const CGUIListItem* gitem,
-                           int contextWindow,
-                           const CGUIInfo& info) const
+bool CGamesGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
   return false;
 }
 
-bool CGamesGUIInfo::GetBool(bool& value,
-                            const CGUIListItem* gitem,
-                            int contextWindow,
-                            const CGUIInfo& info) const
+bool CGamesGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
   return false;
 }

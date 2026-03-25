@@ -17,15 +17,15 @@
 #include "settings/SettingsComponent.h"
 #include "utils/log.h"
 
-CInputStreamPVRBase::CInputStreamPVRBase(const CFileItem& fileitem)
+CInputStreamPVRBase::CInputStreamPVRBase(IVideoPlayer* pPlayer, const CFileItem& fileitem)
   : CDVDInputStream(DVDSTREAM_TYPE_PVRMANAGER, fileitem),
-    m_StreamProps(std::make_shared<PVR_STREAM_PROPERTIES>()),
+    m_StreamProps(new PVR_STREAM_PROPERTIES()),
     m_client(CServiceBroker::GetPVRManager().GetClient(fileitem))
 {
   if (!m_client)
-  {
-    CLog::LogF(LOGERROR, "Unable to obtain pvr addon instance for item '{}'", fileitem.GetPath());
-  }
+    CLog::Log(LOGERROR,
+              "CInputStreamPVRBase - {} - unable to obtain pvr addon instance for item '{}'",
+              __FUNCTION__, fileitem.GetPath());
 }
 
 CInputStreamPVRBase::~CInputStreamPVRBase()
@@ -40,9 +40,8 @@ bool CInputStreamPVRBase::IsEOF()
 
 bool CInputStreamPVRBase::Open()
 {
-  if (!m_isOpen && CDVDInputStream::Open() && OpenPVRStream())
+  if (CDVDInputStream::Open() && OpenPVRStream())
   {
-    m_isOpen = true;
     m_eof = false;
     m_StreamProps->iStreamCount = 0;
     return true;
@@ -55,13 +54,9 @@ bool CInputStreamPVRBase::Open()
 
 void CInputStreamPVRBase::Close()
 {
-  if (m_isOpen)
-  {
-    ClosePVRStream();
-    CDVDInputStream::Close();
-    m_eof = true;
-    m_isOpen = false;
-  }
+  ClosePVRStream();
+  CDVDInputStream::Close();
+  m_eof = true;
 }
 
 int CInputStreamPVRBase::Read(uint8_t* buf, int buf_size)
@@ -79,7 +74,7 @@ int CInputStreamPVRBase::Read(uint8_t* buf, int buf_size)
 
 int64_t CInputStreamPVRBase::Seek(int64_t offset, int whence)
 {
-  if (whence == DVDSTREAM_SEEK_POSSIBLE)
+  if (whence == SEEK_POSSIBLE)
     return CanSeek() ? 1 : 0;
 
   int64_t ret = SeekPVRStream(offset, whence);
@@ -108,7 +103,19 @@ int CInputStreamPVRBase::GetBlockSize()
 
 bool CInputStreamPVRBase::GetTimes(Times &times)
 {
-  return GetPVRStreamTimes(times);
+  PVR_STREAM_TIMES streamTimes = {};
+  if (m_client && m_client->GetStreamTimes(&streamTimes) == PVR_ERROR_NO_ERROR)
+  {
+    times.startTime = streamTimes.startTime;
+    times.ptsStart = streamTimes.ptsStart;
+    times.ptsBegin = streamTimes.ptsBegin;
+    times.ptsEnd = streamTimes.ptsEnd;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 CDVDInputStream::ENextStream CInputStreamPVRBase::NextStream()
@@ -126,14 +133,19 @@ bool CInputStreamPVRBase::CanSeek()
   return CanSeekPVRStream();
 }
 
-void CInputStreamPVRBase::Pause(bool bPaused)
-{
-  PausePVRStream(bPaused);
+void CInputStreamPVRBase::Pause(bool bPaused) const {
+  if (m_client)
+    m_client->PauseStream(bPaused);
 }
 
 bool CInputStreamPVRBase::IsRealtime()
 {
-  return IsRealtimePVRStream();
+  bool ret = false;
+
+  if (m_client)
+    m_client->IsRealTimeStream(ret);
+
+  return ret;
 }
 
 bool CInputStreamPVRBase::OpenDemux()
@@ -189,8 +201,8 @@ std::vector<CDemuxStream*> CInputStreamPVRBase::GetStreams() const
   std::vector<CDemuxStream*> streams;
 
   streams.reserve(m_streamMap.size());
-  for (const auto& [_, st] : m_streamMap)
-    streams.emplace_back(st.get());
+  for (const auto& st : m_streamMap)
+    streams.emplace_back(st.second.get());
 
   return streams;
 }

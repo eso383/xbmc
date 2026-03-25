@@ -10,7 +10,6 @@
 
 #include "Directory.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "Util.h"
@@ -47,7 +46,7 @@ bool CMultiPathDirectory::GetDirectory(const CURL& url, CFileItemList &items)
     return false;
 
   XbmcThreads::EndTime<> progressTime(3000ms); // 3 seconds before showing progress bar
-  CGUIDialogProgress* dlgProgress = NULL;
+  CGUIDialogProgress* dlgProgress = nullptr;
 
   unsigned int iFailures = 0;
   for (unsigned int i = 0; i < vecPaths.size(); ++i)
@@ -166,7 +165,7 @@ bool CMultiPathDirectory::GetPaths(const std::string& path, std::vector<std::str
 
   // URL decode each item
   paths.resize(temp.size());
-  std::ranges::transform(temp, paths.begin(), CURL::Decode);
+  std::transform(temp.begin(), temp.end(), paths.begin(), CURL::Decode);
   return true;
 }
 
@@ -219,7 +218,7 @@ std::string CMultiPathDirectory::ConstructMultiPath(const std::vector<std::strin
   //CLog::Log(LOGDEBUG, "Building multipath");
   std::string newPath = "multipath://";
   //CLog::Log(LOGDEBUG, "-- adding path: {}", strPath);
-  for (std::vector<std::string>::const_iterator path = vecPaths.begin(); path != vecPaths.end(); ++path)
+  for (auto path = vecPaths.begin(); path != vecPaths.end(); ++path)
     AddToMultiPath(newPath, *path);
   //CLog::Log(LOGDEBUG, "Final path: {}", newPath);
   return newPath;
@@ -242,18 +241,18 @@ void CMultiPathDirectory::MergeItems(CFileItemList &items)
     return;
   // sort items by label
   // folders are before files in this sort method
-  items.Sort(SortBy::LABEL, SortOrder::ASCENDING);
+  items.Sort(SortByLabel, SortOrderAscending);
   int i = 0;
 
   // if first item in the sorted list is a file, just abort
-  if (!items.Get(i)->IsFolder())
+  if (!items.Get(i)->m_bIsFolder)
     return;
 
   while (i + 1 < items.Size())
   {
     // there are no more folders left, so exit the loop
     CFileItemPtr pItem1 = items.Get(i);
-    if (!pItem1->IsFolder())
+    if (!pItem1->m_bIsFolder)
       break;
 
     std::vector<int> stack;

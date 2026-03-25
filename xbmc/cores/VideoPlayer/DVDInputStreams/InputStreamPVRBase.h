@@ -30,7 +30,7 @@ class CInputStreamPVRBase
   , public CDVDInputStream::IDemux
 {
 public:
-  explicit CInputStreamPVRBase(const CFileItem& fileitem);
+  CInputStreamPVRBase(IVideoPlayer* pPlayer, const CFileItem& fileitem);
   ~CInputStreamPVRBase() override;
   bool Open() override;
   void Close() override;
@@ -48,7 +48,7 @@ public:
 
   bool CanSeek() override; //! @todo drop this
   bool CanPause() override;
-  void Pause(bool bPaused);
+  void Pause(bool bPaused) const;
 
   // Demux interface
   CDVDInputStream::IDemux* GetIDemux() override { return nullptr; }
@@ -64,9 +64,6 @@ public:
   void FlushDemux() override;
 
 protected:
-  PVR::CPVRClient& GetClient() const { return *m_client; }
-  bool IsEOF() const { return m_eof; }
-
   void UpdateStreamMap();
   std::shared_ptr<CDemuxStream> GetStreamInternal(int iStreamId);
 
@@ -78,14 +75,9 @@ protected:
   virtual ENextStream NextPVRStream() = 0;
   virtual bool CanPausePVRStream() = 0;
   virtual bool CanSeekPVRStream() = 0;
-  virtual bool IsRealtimePVRStream() = 0;
-  virtual void PausePVRStream(bool paused) = 0;
-  virtual bool GetPVRStreamTimes(Times& times) = 0;
 
-private:
   bool m_eof = true;
   std::shared_ptr<PVR_STREAM_PROPERTIES> m_StreamProps;
   std::map<int, std::shared_ptr<CDemuxStream>> m_streamMap;
   std::shared_ptr<PVR::CPVRClient> m_client;
-  bool m_isOpen{false};
 };

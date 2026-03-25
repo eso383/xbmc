@@ -111,7 +111,7 @@ public:
    * \return The renderer, or nullptr on failure
    */
   CRPBaseRenderer* CreateRenderer(IRenderBufferPool* renderBufferPool,
-                                  const CRenderSettings& renderSettings);
+                                  const CRenderSettings& renderSettings) const;
 
   /*!
    * \brief Set data cache
@@ -121,7 +121,7 @@ public:
   /*!
    * \brief Reset data cache info
    */
-  void ResetInfo();
+  void ResetInfo() const;
 
   /// @name Rendering functions
   ///{
@@ -129,12 +129,12 @@ public:
   /*!
    * \brief Get the context shared by the rendering system
    */
-  CRenderContext& GetRenderContext() { return *m_renderContext; }
+  CRenderContext& GetRenderContext() const { return *m_renderContext; }
 
   /*!
    * \brief Get the buffer manager that owns the buffer pools
    */
-  CRenderBufferManager& GetBufferManager() { return *m_renderBufferManager; }
+  CRenderBufferManager& GetBufferManager() const { return *m_renderBufferManager; }
 
   /*!
    * \brief Check if a buffer pool supports the given scaling method
@@ -147,34 +147,33 @@ public:
   SCALINGMETHOD GetDefaultScalingMethod() const { return m_defaultScalingMethod; }
 
   /*!
-   * \brief Get a symbol from the hardware context
+   * \brief Configure the render system
    *
-   * \param symbol The symbol's name
-   *
-   * \return A function pointer for the specified symbol, or nullptr if
-   *         unavailable
+   * \param format The pixel format of the video stream, or AV_PIX_FMT_NONE
+   *        if the stream has ended
    */
-  virtual HwProcedureAddress GetHwProcedureAddress(const char* symbol) { return nullptr; }
+  virtual void ConfigureRenderSystem(AVPixelFormat format) { }
+
   ///}
 
   /// @name Player video info
   ///{
-  void SetVideoPixelFormat(AVPixelFormat pixFormat);
-  void SetVideoDimensions(int width, int height);
-  void SetVideoFps(float fps);
+  void SetVideoPixelFormat(AVPixelFormat pixFormat) const;
+  void SetVideoDimensions(int width, int height) const;
+  void SetVideoFps(float fps) const;
   ///}
 
   /// @name Player audio info
   ///{
-  void SetAudioChannels(const std::string& channels);
-  void SetAudioSampleRate(int sampleRate);
-  void SetAudioBitsPerSample(int bitsPerSample);
+  void SetAudioChannels(const std::string& channels) const;
+  void SetAudioSampleRate(int sampleRate) const;
+  void SetAudioBitsPerSample(int bitsPerSample) const;
   ///}
 
   /// @name Player states
   ///{
-  void SetSpeed(float speed);
-  void SetPlayTimes(time_t start, int64_t current, int64_t min, int64_t max);
+  void SetSpeed(float speed) const;
+  void SetPlayTimes(time_t start, int64_t current, int64_t min, int64_t max) const;
   ///}
 
 protected:

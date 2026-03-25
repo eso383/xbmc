@@ -9,12 +9,9 @@
 #include "GUIDialogSelect.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
-#include "ServiceBroker.h"
 #include "guilib/GUIMessage.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/ActionIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 
 #include <memory>
@@ -191,15 +188,13 @@ void CGUIDialogSelect::Reset()
   m_selectedItems.clear();
 }
 
-int CGUIDialogSelect::Add(const std::string& strLabel)
-{
+int CGUIDialogSelect::Add(const std::string& strLabel) const {
   CFileItemPtr pItem(new CFileItem(strLabel));
   m_vecList->Add(pItem);
   return m_vecList->Size() - 1;
 }
 
-int CGUIDialogSelect::Add(const CFileItem& item)
-{
+int CGUIDialogSelect::Add(const CFileItem& item) const {
   m_vecList->Add(std::make_shared<CFileItem>(item));
   return m_vecList->Size() - 1;
 }
@@ -214,7 +209,7 @@ void CGUIDialogSelect::SetItems(const CFileItemList& pList)
 
 int CGUIDialogSelect::GetSelectedItem() const
 {
-  return !m_selectedItems.empty() ? m_selectedItems[0] : -1;
+  return m_selectedItems.size() > 0 ? m_selectedItems[0] : -1;
 }
 
 const CFileItemPtr CGUIDialogSelect::GetSelectedFileItem() const
@@ -232,7 +227,7 @@ const std::vector<int>& CGUIDialogSelect::GetSelectedItems() const
 void CGUIDialogSelect::EnableButton(bool enable, int label)
 {
   m_bButtonEnabled = enable;
-  m_buttonLabel = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(label);
+  m_buttonLabel = g_localizeStrings.Get(label);
 }
 
 void CGUIDialogSelect::EnableButton(bool enable, const std::string& label)
@@ -244,7 +239,7 @@ void CGUIDialogSelect::EnableButton(bool enable, const std::string& label)
 void CGUIDialogSelect::EnableButton2(bool enable, int label)
 {
   m_bButton2Enabled = enable;
-  m_button2Label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(label);
+  m_button2Label = g_localizeStrings.Get(label);
 }
 
 void CGUIDialogSelect::EnableButton2(bool enable, const std::string& label)
@@ -253,25 +248,22 @@ void CGUIDialogSelect::EnableButton2(bool enable, const std::string& label)
   m_button2Label = label;
 }
 
-bool CGUIDialogSelect::IsButtonPressed()
-{
+bool CGUIDialogSelect::IsButtonPressed() const {
   return m_bButtonPressed;
 }
 
-bool CGUIDialogSelect::IsButton2Pressed()
-{
+bool CGUIDialogSelect::IsButton2Pressed() const {
   return m_bButton2Pressed;
 }
 
-void CGUIDialogSelect::Sort(bool bSortOrder /*=true*/)
-{
-  m_vecList->Sort(SortBy::LABEL, bSortOrder ? SortOrder::ASCENDING : SortOrder::DESCENDING);
+void CGUIDialogSelect::Sort(bool bSortOrder /*=true*/) const {
+  m_vecList->Sort(SortByLabel, bSortOrder ? SortOrderAscending : SortOrderDescending);
 }
 
 void CGUIDialogSelect::SetSelected(int iSelected)
 {
   if (iSelected < 0 || iSelected >= m_vecList->Size() ||
-      m_vecList->Get(iSelected).get() == NULL)
+      m_vecList->Get(iSelected).get() == nullptr)
     return;
 
   // only set m_iSelected if there is no multi-select
@@ -356,10 +348,8 @@ void CGUIDialogSelect::OnInitWindow()
   }
   m_viewControl.SetCurrentView(m_useDetails ? CONTROL_DETAILED_LIST : CONTROL_SIMPLE_LIST);
 
-  SET_CONTROL_LABEL(
-      CONTROL_NUMBER_OF_ITEMS,
-      StringUtils::Format("{} {}", m_vecList->Size(),
-                          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(127)));
+  SET_CONTROL_LABEL(CONTROL_NUMBER_OF_ITEMS,
+                    StringUtils::Format("{} {}", m_vecList->Size(), g_localizeStrings.Get(127)));
 
   if (m_multiSelection)
     EnableButton(true, 186);
@@ -380,8 +370,7 @@ void CGUIDialogSelect::OnInitWindow()
   else
     SET_CONTROL_HIDDEN(CONTROL_EXTRA_BUTTON2);
 
-  SET_CONTROL_LABEL(CONTROL_CANCEL_BUTTON,
-                    CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(222));
+  SET_CONTROL_LABEL(CONTROL_CANCEL_BUTTON, g_localizeStrings.Get(222));
 
   CGUIDialogBoxBase::OnInitWindow();
 

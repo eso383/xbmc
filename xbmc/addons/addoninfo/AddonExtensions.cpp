@@ -17,17 +17,17 @@ bool SExtValue::asBoolean() const
   return StringUtils::EqualsNoCase(str, "true");
 }
 
-SExtValue CAddonExtensions::GetValue(std::string_view id) const
+const SExtValue CAddonExtensions::GetValue(const std::string& id) const
 {
-  for (const auto& [_, values] : m_values)
+  for (const auto& values : m_values)
   {
-    for (const auto& [valueId, valueValue] : values)
+    for (const auto& value : values.second)
     {
-      if (valueId == id)
-        return valueValue;
+      if (value.first == id)
+        return value.second;
     }
   }
-  return {};
+  return SExtValue("");
 }
 
 const EXT_VALUES& CAddonExtensions::GetValues() const
@@ -35,27 +35,27 @@ const EXT_VALUES& CAddonExtensions::GetValues() const
   return m_values;
 }
 
-const CAddonExtensions* CAddonExtensions::GetElement(std::string_view id) const
+const CAddonExtensions* CAddonExtensions::GetElement(const std::string& id) const
 {
-  for (const auto& [childId, childExts] : m_children)
+  for (const auto& child : m_children)
   {
-    if (childId == id)
-      return &childExts;
+    if (child.first == id)
+      return &child.second;
   }
 
   return nullptr;
 }
 
-EXT_ELEMENTS CAddonExtensions::GetElements(std::string_view id /*= ""*/) const
+const EXT_ELEMENTS CAddonExtensions::GetElements(const std::string& id) const
 {
   if (id.empty())
     return m_children;
 
   EXT_ELEMENTS children;
-  for (const auto& [childId, childExts] : m_children)
+  for (const auto& child : m_children)
   {
-    if (childId == id)
-      children.emplace_back(childId, childExts);
+    if (child.first == id)
+      children.emplace_back(child.first, child.second);
   }
   return children;
 }

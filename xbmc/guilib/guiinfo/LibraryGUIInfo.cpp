@@ -9,7 +9,6 @@
 #include "guilib/guiinfo/LibraryGUIInfo.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "filesystem/Directory.h"
@@ -39,8 +38,7 @@ bool CLibraryGUIInfo::GetLibraryBool(int condition) const
   return value;
 }
 
-void CLibraryGUIInfo::SetLibraryBool(int condition, bool value)
-{
+void CLibraryGUIInfo::SetLibraryBool(int condition, bool value) const {
   switch (condition)
   {
     case LIBRARY_HAS_MUSIC:
@@ -72,8 +70,7 @@ void CLibraryGUIInfo::SetLibraryBool(int condition, bool value)
   }
 }
 
-void CLibraryGUIInfo::ResetLibraryBools()
-{
+void CLibraryGUIInfo::ResetLibraryBools() const {
   m_libraryHasMusic = -1;
   m_libraryHasMovies = -1;
   m_libraryHasTVShows = -1;
@@ -85,34 +82,24 @@ void CLibraryGUIInfo::ResetLibraryBools()
   m_libraryRoleCounts.clear();
 }
 
-bool CLibraryGUIInfo::InitCurrentItem(CFileItem* item)
+bool CLibraryGUIInfo::InitCurrentItem(CFileItem *item)
 {
   return false;
 }
 
-bool CLibraryGUIInfo::GetLabel(std::string& value,
-                               const CFileItem* item,
-                               int contextWindow,
-                               const CGUIInfo& info,
-                               std::string* fallback) const
+bool CLibraryGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
   return false;
 }
 
-bool CLibraryGUIInfo::GetInt(int& value,
-                             const CGUIListItem* gitem,
-                             int contextWindow,
-                             const CGUIInfo& info) const
+bool CLibraryGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
   return false;
 }
 
-bool CLibraryGUIInfo::GetBool(bool& value,
-                              const CGUIListItem* gitem,
-                              int contextWindow,
-                              const CGUIInfo& info) const
+bool CLibraryGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // LIBRARY_*
@@ -240,11 +227,11 @@ bool CLibraryGUIInfo::GetBool(bool& value,
       std::string strRole = info.GetData3();
       // Find value for role if already stored
       int artistcount = -1;
-      for (const auto& [role, artists] : m_libraryRoleCounts)
+      for (const auto &role : m_libraryRoleCounts)
       {
-        if (StringUtils::EqualsNoCase(strRole, role))
+        if (StringUtils::EqualsNoCase(strRole, role.first))
         {
-          artistcount = artists;
+          artistcount = role.second;
           break;
         }
       }
@@ -266,12 +253,12 @@ bool CLibraryGUIInfo::GetBool(bool& value,
     {
       const CURL url(info.GetData3());
       const std::shared_ptr<CProfileManager> profileManager =
-          CServiceBroker::GetSettingsComponent()->GetProfileManager();
+            CServiceBroker::GetSettingsComponent()->GetProfileManager();
       CFileItemList items;
 
       std::string libDir = profileManager->GetLibraryFolder();
       XFILE::CDirectory::GetDirectory(libDir, items, "", XFILE::DIR_FLAG_NO_FILE_DIRS);
-      if (items.IsEmpty())
+      if (items.Size() == 0)
         libDir = "special://xbmc/system/library/";
 
       std::string nodePath = URIUtils::AddFileToFolder(libDir, url.GetHostName() + "/");
@@ -295,8 +282,6 @@ bool CLibraryGUIInfo::GetBool(bool& value,
       value = CMusicLibraryQueue::GetInstance().IsScanningLibrary();
       return true;
     }
-    default:
-      break;
   }
 
   return false;

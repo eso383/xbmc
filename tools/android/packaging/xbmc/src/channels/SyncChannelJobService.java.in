@@ -130,7 +130,7 @@ public class SyncChannelJobService extends JobService
 
     protected Boolean doInBackground()
     {
-      XBMCJsonRPC json = new XBMCJsonRPC(mContext);
+      XBMCJsonRPC json = new XBMCJsonRPC();
       if (!json.Ping())
         return false;
       json = null;

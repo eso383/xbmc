@@ -9,16 +9,21 @@
 #pragma once
 
 #include "Resolution.h"
-#include "rendering/RenderSystemTypes.h"
+#include "rendering/RenderSystem.h"
 #include "threads/CriticalSection.h"
 #include "utils/ColorUtils.h"
 #include "utils/Geometry.h" // for CRect/CPoint
 #include "utils/StreamDetails.h"
 #include "utils/TransformMatrix.h" // for the members m_guiTransform etc.
 
+#include <map>
 #include <stack>
 #include <string>
 #include <vector>
+
+// required by clients
+#include "ServiceBroker.h"
+#include "WinSystem.h"
 
 #define D3DPRESENTFLAG_INTERLACED   1
 #define D3DPRESENTFLAG_WIDESCREEN   2
@@ -99,13 +104,13 @@ public:
   void SetViewWindow(float left, float top, float right, float bottom);
   bool IsCalibrating() const;
   void SetCalibrating(bool bOnOff);
-  void ResetOverscan(RESOLUTION res, OVERSCAN &overscan);
+  void ResetOverscan(RESOLUTION res, OVERSCAN &overscan) const;
   void ResetOverscan(RESOLUTION_INFO &resinfo);
   void ResetScreenParameters(RESOLUTION res);
   void CaptureStateBlock();
   void ApplyStateBlock();
-  /*! \brief Invalidates color buffer, clears the depth buffer (if used).
-   Will result in undefined color buffer values which will have to be
+  /*! \brief Invalidates color buffer, clears the depth buffer (if used). 
+   Will result in undefined color buffer values which will have to be 
    repainted. Has to be called at the beginning of a frame.
    */
   void Clear();
@@ -113,7 +118,7 @@ public:
    a defined color buffer value. Has to be called at the beginning of a frame.
    \param color the specified color.
    */
-  void Clear(KODI::UTILS::COLOR::Color color);
+  void Clear(UTILS::COLOR::Color color);
   void GetAllowedResolutions(std::vector<RESOLUTION> &res);
   /*! \brief Sets the direction of the current rendering pass.
    \param renderOrder direction of the pass
@@ -128,7 +133,7 @@ public:
   void ResetDepth() { m_layer = 2; }
   /*! \brief Reserve layers for the caller to use
    \param addLayers number of layers needed
-   \returns uint32_t returns the absolute layer height
+   \returns uint32_t returns the absolute layer hight
    */
   uint32_t GetDepth(uint32_t addLayers = 2);
 
@@ -139,7 +144,7 @@ public:
    \param scaleY [out] the scaling amount in the Y direction.
    \param matrix [out] if non-NULL, a suitable transformation from res to screen resolution is set.
    */
-  void GetGUIScaling(const RESOLUTION_INFO &res, float &scaleX, float &scaleY, TransformMatrix *matrix = NULL);
+  void GetGUIScaling(const RESOLUTION_INFO &res, float &scaleX, float &scaleY, TransformMatrix *matrix = nullptr) const;
   void SetRenderingResolution(const RESOLUTION_INFO &res, bool needsScaling);  ///< Sets scaling up for rendering
   void SetScalingResolution(const RESOLUTION_INFO &res, bool needsScaling);    ///< Sets scaling up for skin loading etc.
   float GetScalingPixelRatio() const;
@@ -152,17 +157,17 @@ public:
   const TransformMatrix &GetGUIMatrix() const;
   float GetGUIScaleX() const;
   float GetGUIScaleY() const;
-  KODI::UTILS::COLOR::Color MergeAlpha(KODI::UTILS::COLOR::Color color) const;
-  KODI::UTILS::COLOR::Color MergeColor(KODI::UTILS::COLOR::Color color) const;
+  UTILS::COLOR::Color MergeAlpha(UTILS::COLOR::Color color) const;
+  UTILS::COLOR::Color MergeColor(UTILS::COLOR::Color color) const;
   void SetOrigin(float x, float y);
   void RestoreOrigin();
   void SetCameraPosition(const CPoint &camera);
-  void SetStereoView(RenderStereoView view);
-  RenderStereoView GetStereoView() { return m_stereoView; }
-  void SetStereoMode(RenderStereoMode mode) { m_stereoMode = mode; }
-  RenderStereoMode GetStereoMode() { return m_stereoMode; }
+  void SetStereoView(RENDER_STEREO_VIEW view);
+  RENDER_STEREO_VIEW GetStereoView() const { return m_stereoView; }
+  void SetStereoMode(RENDER_STEREO_MODE mode) { m_stereoMode = mode; }
+  RENDER_STEREO_MODE GetStereoMode() const { return m_stereoMode; }
   void SetHDRType(StreamHdrType hdrType)  { m_hdrType = hdrType; }
-  StreamHdrType GetHDRType()  { return m_hdrType; }
+  StreamHdrType GetHDRType() const { return m_hdrType; }
   void RestoreCameraPosition();
   void SetStereoFactor(float factor);
   void RestoreStereoFactor();
@@ -171,7 +176,7 @@ public:
    \returns float normalized -1 to 1
    */
   float GetTransformDepth(int32_t depthOffset = 0);
-  /*! \brief Gets the (normalized) depth information
+  /*! \brief Gets the (normalized) depth information 
    \param depth to be normalized
    \returns float normalized -1 to 1
    */
@@ -203,7 +208,7 @@ public:
    */
   bool SetClipRegion(float x, float y, float w, float h);
   void RestoreClipRegion();
-  void ClipRect(CRect &vertex, CRect &texture, CRect *diffuse = NULL);
+  void ClipRect(CRect &vertex, CRect &texture, CRect *diffuse = nullptr);
   CRect GetClipRegion();
   void AddGUITransform();
   TransformMatrix AddTransform(const TransformMatrix &matrix);
@@ -226,7 +231,7 @@ public:
 
 protected:
 
-  void UpdateCameraPosition(const CPoint &camera, const float &factor);
+  void UpdateCameraPosition(const CPoint &camera, const float &factor) const;
   void SetVideoResolutionInternal(RESOLUTION res, bool forceUpdate);
   void ApplyVideoResolution(RESOLUTION res);
   void UpdateInternalStateWithResolution(RESOLUTION res);
@@ -270,9 +275,9 @@ protected:
 
   UITransform m_guiTransform;
   UITransform m_finalTransform;
-  std::stack<UITransform, std::vector<UITransform>> m_transforms;
-  RenderStereoView m_stereoView = RenderStereoView::OFF;
-  RenderStereoMode m_stereoMode = RenderStereoMode::OFF;
+  std::stack<UITransform> m_transforms;
+  RENDER_STEREO_VIEW m_stereoView = RENDER_STEREO_VIEW_OFF;
+  RENDER_STEREO_MODE m_stereoMode = RENDER_STEREO_MODE_OFF;
   StreamHdrType m_hdrType;
 
   bool m_isTransferPQ{false};

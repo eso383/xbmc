@@ -9,7 +9,6 @@
 #include "RecentlyAddedJob.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindow.h"
@@ -267,7 +266,7 @@ bool CRecentlyAddedJob::UpdateMusic()
   }
 
   i = 0;
-  std::vector<CAlbum> albums;
+  VECALBUMS albums;
 
   if (musicdatabase.GetRecentlyAddedAlbums(albums, NUM_ITEMS))
   {
@@ -341,7 +340,7 @@ bool CRecentlyAddedJob::UpdateTotal()
 
   CFileItemList items;
   CDatabase::Filter filter;
-  musicdatabase.GetArtistsByWhere(musicUrl.ToString(), items, SortDescription(), filter, true);
+  musicdatabase.GetArtistsByWhere(musicUrl.ToString(), filter, items, SortDescription(), true);
   int MusArtistTotals = 0;
   if (items.Size() == 1 && items.Get(0)->HasProperty("total"))
     MusArtistTotals = static_cast<int>(items.Get(0)->GetProperty("total").asInteger());

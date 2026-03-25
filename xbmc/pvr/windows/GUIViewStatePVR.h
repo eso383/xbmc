@@ -17,19 +17,15 @@ namespace PVR
 class CGUIViewStatePVR : public CGUIViewState
 {
 public:
-  CGUIViewStatePVR(const int windowId, const CFileItemList& items)
-    : CGUIViewState(items),
-      m_windowId(windowId)
+  CGUIViewStatePVR(const int windowId, const CFileItemList& items) : CGUIViewState(items)
   {
+    m_windowId = windowId;
   }
-
-  int GetWindowId() const { return m_windowId; }
 
 protected:
   bool HideParentDirItems() override { return true; }
 
-private:
-  const int m_windowId{-1};
+  int m_windowId;
 };
 
 class CGUIViewStateWindowPVRChannels : public CGUIViewStatePVR
@@ -74,16 +70,6 @@ class CGUIViewStateWindowPVRSearch : public CGUIViewStatePVR
 {
 public:
   CGUIViewStateWindowPVRSearch(const int windowId, const CFileItemList& items);
-
-protected:
-  void SaveViewState() override;
-  bool HideParentDirItems() override;
-};
-
-class CGUIViewStateWindowPVRProviders : public CGUIViewStatePVR
-{
-public:
-  CGUIViewStateWindowPVRProviders(const int windowId, const CFileItemList& items);
 
 protected:
   void SaveViewState() override;

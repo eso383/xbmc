@@ -41,7 +41,7 @@ public:
   ~CFile();
 
   bool CURLCreate(const std::string &url);
-  bool CURLAddOption(CURLOptionType type, const char* name, const char* value);
+  bool CURLAddOption(XFILE::CURLOPTIONTYPE type, const char* name, const char * value);
   bool CURLOpen(unsigned int flags);
 
   /**
@@ -71,35 +71,8 @@ public:
    *         buffer, zero if no bytes are available to read (end of file was reached)
    *         or undetectable error occur, -1 in case of any explicit error
    */
-  ssize_t Read(void* bufPtr, size_t bufSize);
-
-  /*!
-   * \brief String reading by line
-   * \param line[OUT] The line read
-   * \return True if has success, otherwise false for EOF or error
-   */
-  bool ReadLine(std::string& line);
-
-  /**
-   * See \ref IFile::ReadLineResult
-   */
-  struct ReadLineResult
-  {
-    enum class ResultCode
-    {
-      FAILURE,
-      TRUNCATED,
-      OK,
-    };
-    using enum ResultCode;
-
-    ResultCode code;
-    std::size_t length;
-  };
-  /**
-   * See \ref IFile
-   */
-  ReadLineResult ReadLine(char* buffer, std::size_t bufferSize);
+  ssize_t Read(void* bufPtr, size_t bufSize) const;
+  bool ReadString(char *szLine, int iLineLength) const;
   /**
    * Attempt to write bufSize bytes from buffer bufPtr into currently opened file.
    * @param bufPtr  pointer to buffer
@@ -108,14 +81,14 @@ public:
    *         zero if no bytes were written and no detectable error occur,
    *         -1 in case of any explicit error
    */
-  ssize_t Write(const void* bufPtr, size_t bufSize);
-  void Flush();
-  int64_t Seek(int64_t iFilePosition, int iWhence = SEEK_SET);
-  int Truncate(int64_t iSize);
+  ssize_t Write(const void* bufPtr, size_t bufSize) const;
+  void Flush() const;
+  int64_t Seek(int64_t iFilePosition, int iWhence = SEEK_SET) const;
+  int Truncate(int64_t iSize) const;
   int64_t GetPosition() const;
-  int64_t GetLength();
+  int64_t GetLength() const;
   void Close();
-  int GetChunkSize();
+  int GetChunkSize() const;
   const std::string GetProperty(XFILE::FileProperty type, const std::string &name = "") const;
   const std::vector<std::string> GetPropertyValues(XFILE::FileProperty type, const std::string &name = "") const;
   ssize_t LoadFile(const std::string& filename, std::vector<uint8_t>& outputBuffer);
@@ -124,49 +97,44 @@ public:
 
   const std::unique_ptr<BitstreamStats>& GetBitstreamStats() const { return m_bitStreamStats; }
 
-  int IoControl(IOControl request, void* param);
+  int IoControl(EIoControl request, void* param) const;
 
   IFile* GetImplementation() const { return m_pFile.get(); }
 
   // CURL interface
   static bool Exists(const CURL& file, bool bUseCache = true);
   static bool Delete(const CURL& file);
-  /*!
-   * \brief Fills struct __stat64 with information about file specified by url.
-   *
-   * For st_mode function will set correctly _S_IFDIR (directory) flag and may set
-   * _S_IREAD (read permission), _S_IWRITE (write permission) flags if such
-   * information is available. Function may set st_size (file size), st_atime,
-   * st_mtime, st_ctime (access, modification, creation times).
-   * Any other flags and members of __stat64 that didn't updated with actual file
-   * information will be set to zero (st_nlink can be set ether to 1 or zero).
-   *
-   * \param[in] file specifies requested file. Ends with a directory separator for directories.
-   * \param[out] buffer pointer to __stat64 buffer to receive information about file
-   * \return zero for success, -1 otherwise.
-   */
+  /**
+  * Fills struct __stat64 with information about file specified by filename
+  * For st_mode function will set correctly _S_IFDIR (directory) flag and may set
+  * _S_IREAD (read permission), _S_IWRITE (write permission) flags if such
+  * information is available. Function may set st_size (file size), st_atime,
+  * st_mtime, st_ctime (access, modification, creation times).
+  * Any other flags and members of __stat64 that didn't updated with actual file
+  * information will be set to zero (st_nlink can be set ether to 1 or zero).
+  * @param file        specifies requested file
+  * @param buffer      pointer to __stat64 buffer to receive information about file
+  * @return zero of success, -1 otherwise.
+  */
   static int  Stat(const CURL& file, struct __stat64* buffer);
   static bool Rename(const CURL& file, const CURL& urlNew);
-  static bool Copy(const CURL& file, const CURL& dest, XFILE::IFileCallback* pCallback = NULL, void* pContext = NULL);
+  static bool Copy(const CURL& file, const CURL& dest, XFILE::IFileCallback* pCallback = nullptr, void* pContext = nullptr);
   static bool SetHidden(const CURL& file, bool hidden);
 
   // string interface
   static bool Exists(const std::string& strFileName, bool bUseCache = true);
-  /*!
-   * \brief Fills struct __stat64 with information about file specified by filename.
-   *
-   * For st_mode function will set correctly _S_IFDIR (directory) flag and may set
-   * _S_IREAD (read permission), _S_IWRITE (write permission) flags if such
-   * information is available. Function may set st_size (file size), st_atime,
-   * st_mtime, st_ctime (access, modification, creation times).
-   * Any other flags and members of __stat64 that didn't updated with actual file
-   * information will be set to zero (st_nlink can be set ether to 1 or zero).
-   *
-   * \param[in] strFileName specifies requested file. Ends with a directory separator for
-   * directories.
-   * \param[out] buffer pointer to __stat64 buffer to receive information about file
-   * \return zero for success, -1 otherwise.
-   */
+  /**
+  * Fills struct __stat64 with information about file specified by filename
+  * For st_mode function will set correctly _S_IFDIR (directory) flag and may set
+  * _S_IREAD (read permission), _S_IWRITE (write permission) flags if such
+  * information is available. Function may set st_size (file size), st_atime,
+  * st_mtime, st_ctime (access, modification, creation times).
+  * Any other flags and members of __stat64 that didn't updated with actual file
+  * information will be set to zero (st_nlink can be set ether to 1 or zero).
+  * @param strFileName specifies requested file
+  * @param buffer      pointer to __stat64 buffer to receive information about file
+  * @return zero of success, -1 otherwise.
+  */
   static int  Stat(const std::string& strFileName, struct __stat64* buffer);
   /**
   * Fills struct __stat64 with information about currently open file
@@ -179,13 +147,12 @@ public:
   * @param buffer      pointer to __stat64 buffer to receive information about file
   * @return zero of success, -1 otherwise.
   */
-  int Stat(struct __stat64 *buffer);
-  static bool FileExists(const std::string& strPath);
+  int Stat(struct __stat64 *buffer) const;
   static bool Delete(const std::string& strFileName);
   static bool Rename(const std::string& strFileName, const std::string& strNewFileName);
-  static bool Copy(const std::string& strFileName, const std::string& strDest, XFILE::IFileCallback* pCallback = NULL, void* pContext = NULL);
+  static bool Copy(const std::string& strFileName, const std::string& strDest, XFILE::IFileCallback* pCallback = nullptr, void* pContext = nullptr);
   static bool SetHidden(const std::string& fileName, bool hidden);
-  double GetDownloadSpeed();
+  double GetDownloadSpeed() const;
 
 private:
   /*!
@@ -203,7 +170,7 @@ private:
    * This improves performance when reads big files through Network.
    * \param url Source file info as CULR class.
    */
-  bool ShouldUseStreamBuffer(const CURL& url);
+  bool ShouldUseStreamBuffer(const CURL& url) const;
 
   unsigned int m_flags = 0;
   CURL                m_curl;
@@ -247,7 +214,7 @@ public:
   bool Open(const CURL& filename);
   void Close();
 
-  int64_t GetLength();
+  int64_t GetLength() const;
 private:
   CFileStreamBuffer m_buffer;
   std::unique_ptr<IFile> m_file;

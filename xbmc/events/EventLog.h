@@ -28,7 +28,7 @@ public:
   CEventLog& operator=(CEventLog const&) = delete;
   ~CEventLog() = default;
 
-  const Events& Get() const;
+  Events Get() const;
   Events Get(EventLevel level, bool includeHigherLevels = false) const;
   EventPtr Get(const std::string& eventIdentifier) const;
 

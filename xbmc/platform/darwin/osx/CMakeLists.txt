@@ -12,4 +12,9 @@ set(HEADERS CocoaInterface.h
             MediaKeys.h
             PlatformDarwinOSX.h)
 
+if(ENABLE_XBMCHELPER)
+  list(APPEND SOURCES XBMCHelper.cpp)
+  list(APPEND HEADERS XBMCHelper.h)
+endif()
+
 core_add_library(platform_osx)

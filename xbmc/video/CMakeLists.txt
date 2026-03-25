@@ -2,15 +2,13 @@ set(SOURCES Bookmark.cpp
             ContextMenus.cpp
             GUIViewStateVideo.cpp
             PlayerController.cpp
-            SetInfoTag.cpp
             Teletext.cpp
+            VideoChapterImageFileLoader.cpp
             VideoDatabase.cpp
-            VideoDatabaseDDL.cpp
-            VideoDatabaseMigration.cpp
             VideoDbUrl.cpp
             VideoEmbeddedImageFileLoader.cpp
-            VideoFileItemClassify.cpp
             VideoGeneratedImageFileLoader.cpp
+            VideoFileItemClassify.cpp
             VideoInfoDownloader.cpp
             VideoInfoScanner.cpp
             VideoInfoTag.cpp
@@ -25,12 +23,10 @@ set(HEADERS Bookmark.h
             Episode.h
             GUIViewStateVideo.h
             PlayerController.h
-            SetInfoTag.h
             Teletext.h
             TeletextDefines.h
+            VideoChapterImageFileLoader.h
             VideoDatabase.h
-            VideoDatabaseColumns.h
-            VideoDatabaseDDL.h
             VideoDbUrl.h
             VideoEmbeddedImageFileLoader.h
             VideoFileItemClassify.h

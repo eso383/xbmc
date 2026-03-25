@@ -9,28 +9,26 @@
 #include "DirectoryNodeAlbum.h"
 
 #include "QueryParams.h"
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "music/MusicDatabase.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
 CDirectoryNodeAlbum::CDirectoryNodeAlbum(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::ALBUM, strName, pParent)
+  : CDirectoryNode(NODE_TYPE_ALBUM, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeAlbum::GetChildType() const
+NODE_TYPE CDirectoryNodeAlbum::GetChildType() const
 {
-  return NodeType::DISC;
+  return NODE_TYPE_DISC;
 }
 
 std::string CDirectoryNodeAlbum::GetLocalizedName() const
 {
   if (GetID() == -1)
-    return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15102); // All Albums
+    return g_localizeStrings.Get(15102); // All Albums
   CMusicDatabase db;
   if (db.Open())
     return db.GetAlbumById(GetID());
@@ -46,8 +44,7 @@ bool CDirectoryNodeAlbum::GetContent(CFileItemList& items) const
   CQueryParams params;
   CollectQueryParams(params);
 
-  bool bSuccess = musicdatabase.GetAlbumsNav(BuildPath(), items, SortDescription(),
-                                             params.GetGenreId(), params.GetArtistId());
+  bool bSuccess=musicdatabase.GetAlbumsNav(BuildPath(), items, params.GetGenreId(), params.GetArtistId());
 
   musicdatabase.Close();
 

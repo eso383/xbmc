@@ -58,25 +58,6 @@ bool CWinSystemGbmEGLContext::InitWindowSystemEGL(EGLint renderableType, EGLint 
     return false;
   }
 
-  if (CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_ANDROID_native_fence_sync") &&
-      CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_KHR_fence_sync"))
-  {
-    if (m_DRM->SupportsFencing())
-    {
-      m_eglFence = std::make_unique<KODI::UTILS::EGL::CEGLFence>(m_eglContext.GetEGLDisplay());
-    }
-    else
-    {
-      CLog::Log(LOGWARNING, "[GBM] EGL_KHR_fence_sync and EGL_ANDROID_native_fence_sync supported"
-                            ", but DRM backend doesn't support fencing");
-    }
-  }
-  else
-  {
-    CLog::Log(LOGWARNING, "[GBM] missing support for EGL_KHR_fence_sync and "
-                          "EGL_ANDROID_native_fence_sync - performance may be impacted");
-  }
-
   return true;
 }
 
@@ -114,8 +95,7 @@ bool CWinSystemGbmEGLContext::CreateNewWindow(const std::string& name,
   }
 
   // This check + the reinterpret cast is for security reason, if the user has outdated platform header files which often is the case
-  static_assert(sizeof(EGLNativeWindowType) == sizeof(gbm_surface*),
-                "Declaration specifier differs in size");
+  static_assert(sizeof(EGLNativeWindowType) == sizeof(gbm_surface*), "Declaration specifier differs in size");
 
   if (!m_eglContext.CreatePlatformSurface(
           m_GBM->GetDevice().GetSurface().Get(),
@@ -155,7 +135,7 @@ bool CWinSystemGbmEGLContext::DestroyWindowSystem()
   return CWinSystemGbm::DestroyWindowSystem();
 }
 
-void CWinSystemGbmEGLContext::delete_CVaapiProxy::operator()(CVaapiProxy* p) const
+void CWinSystemGbmEGLContext::delete_CVaapiProxy::operator()(CVaapiProxy *p) const
 {
   VaapiProxyDelete(p);
 }

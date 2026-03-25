@@ -9,7 +9,6 @@
 #include "GUIActivePortList.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "addons/AddonEvents.h"
 #include "addons/AddonManager.h"
@@ -58,20 +57,7 @@ bool CGUIActivePortList::Initialize(GameClientPtr gameClient)
 
   // Register observers
   m_gameClient->Input().RegisterObserver(this);
-  CServiceBroker::GetAddonMgr().Events().Subscribe(
-      this,
-      [this](const ADDON::AddonEvent& event)
-      {
-        if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
-            typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
-            typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
-            typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
-        {
-          CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), m_controlId);
-          msg.SetStringParam(event.addonId);
-          CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
-        }
-      });
+  CServiceBroker::GetAddonMgr().Events().Subscribe(this, &CGUIActivePortList::OnEvent);
 
   return true;
 }
@@ -129,9 +115,21 @@ void CGUIActivePortList::Notify(const Observable& obs, const ObservableMessage m
   }
 }
 
+void CGUIActivePortList::OnEvent(const ADDON::AddonEvent& event) {
+  if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
+      typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
+      typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
+      typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
+  {
+    CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), m_controlId);
+    msg.SetStringParam(event.addonId);
+    CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
+  }
+}
+
 void CGUIActivePortList::InitializeGUI()
 {
-  CGUIGameControllerList* activePortList =
+  auto activePortList =
       dynamic_cast<CGUIGameControllerList*>(m_guiWindow.GetControl(m_controlId));
 
   if (activePortList != nullptr)
@@ -147,15 +145,14 @@ void CGUIActivePortList::DeinitializeGUI()
 {
   CleanupItems();
 
-  CGUIGameControllerList* activePortList =
+  auto activePortList =
       dynamic_cast<CGUIGameControllerList*>(m_guiWindow.GetControl(m_controlId));
 
   if (activePortList != nullptr)
     activePortList->ClearGameClient();
 }
 
-void CGUIActivePortList::AddInputDisabled()
-{
+void CGUIActivePortList::AddInputDisabled() const {
   CFileItem item;
   item.SetArt("icon", "DefaultAddonNone.png");
   m_vecItems->Add(std::move(item));
@@ -176,21 +173,19 @@ void CGUIActivePortList::AddItems(const PortVec& ports)
 }
 
 void CGUIActivePortList::AddItem(const ControllerPtr& controller,
-                                 const std::string& controllerAddress)
-{
+                                 const std::string& controllerAddress) const {
   // Check if a controller is connected that provides input
   if (controller && controller->Topology().ProvidesInput())
   {
     // Add GUI item
-    CFileItemPtr item = std::make_shared<CFileItem>(controller->Layout().Label());
+    auto item = std::make_shared<CFileItem>(controller->Layout().Label());
     item->SetArt("icon", controller->Layout().ImagePath());
     item->SetPath(controllerAddress);
     m_vecItems->Add(std::move(item));
   }
 }
 
-void CGUIActivePortList::AddPadding()
-{
+void CGUIActivePortList::AddPadding() const {
   unsigned int itemCount = MAX_PORT_COUNT;
   if (m_showInputDisabled)
     itemCount++;
@@ -199,7 +194,6 @@ void CGUIActivePortList::AddPadding()
     m_vecItems->AddFront(std::make_shared<CFileItem>(), 0);
 }
 
-void CGUIActivePortList::CleanupItems()
-{
+void CGUIActivePortList::CleanupItems() const {
   m_vecItems->Clear();
 }

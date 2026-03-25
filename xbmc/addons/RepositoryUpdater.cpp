@@ -24,12 +24,11 @@
 #include "events/EventLog.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "jobs/JobManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
+#include "utils/JobManager.h"
 #include "utils/ProgressJob.h"
 #include "utils/log.h"
 
@@ -83,10 +82,10 @@ bool CRepositoryUpdateJob::DoWork()
 
   MarkFinished();
 
-  if (status == CRepository::FetchStatus::FETCH_ERROR)
+  if (status == CRepository::STATUS_ERROR)
     return false;
 
-  if (status == CRepository::FetchStatus::NOT_MODIFIED)
+  if (status == CRepository::STATUS_NOT_MODIFIED)
   {
     CLog::Log(LOGDEBUG, "CRepositoryUpdateJob[{}] checksum not changed.", m_repo->ID());
     return true;
@@ -114,8 +113,8 @@ bool CRepositoryUpdateJob::DoWork()
         for (const auto& path : oldAddon->Screenshots())
           textureDB.InvalidateCachedTexture(path);
 
-        for (const auto& [_, arturl] : oldAddon->Art())
-          textureDB.InvalidateCachedTexture(arturl);
+        for (const auto& art : oldAddon->Art())
+          textureDB.InvalidateCachedTexture(art.second);
       }
     }
     textureDB.CommitMultipleExecute();
@@ -125,23 +124,20 @@ bool CRepositoryUpdateJob::DoWork()
   return true;
 }
 
-CRepositoryUpdater::CRepositoryUpdater(CAddonMgr& addonMgr) : m_timer(this), m_addonMgr(addonMgr)
+CRepositoryUpdater::CRepositoryUpdater(CAddonMgr& addonMgr) :
+  m_timer(this),
+  m_doneEvent(true),
+  m_addonMgr(addonMgr)
 {
-  CServiceBroker::GetSettingsComponent()->GetSettings()->RegisterCallback(
-      this, {CSettings::SETTING_ADDONS_AUTOUPDATES});
+  // Register settings
+  std::set<std::string> settingSet;
+  settingSet.insert(CSettings::SETTING_ADDONS_AUTOUPDATES);
+  CServiceBroker::GetSettingsComponent()->GetSettings()->RegisterCallback(this, settingSet);
 }
 
 void CRepositoryUpdater::Start()
 {
-  m_addonMgr.Events().Subscribe(this,
-                                [this](const ADDON::AddonEvent& event)
-                                {
-                                  if (typeid(event) == typeid(ADDON::AddonEvents::Enabled))
-                                  {
-                                    if (m_addonMgr.HasType(event.addonId, AddonType::REPOSITORY))
-                                      ScheduleUpdate(UpdateScheduleType::First);
-                                  }
-                                });
+  m_addonMgr.Events().Subscribe(this, &CRepositoryUpdater::OnEvent);
   ScheduleUpdate(UpdateScheduleType::First);
 }
 
@@ -153,10 +149,20 @@ CRepositoryUpdater::~CRepositoryUpdater()
   m_addonMgr.Events().Unsubscribe(this);
 }
 
+void CRepositoryUpdater::OnEvent(const ADDON::AddonEvent& event)
+{
+  if (typeid(event) == typeid(ADDON::AddonEvents::Enabled))
+  {
+    if (m_addonMgr.HasType(event.addonId, AddonType::REPOSITORY))
+      ScheduleUpdate(UpdateScheduleType::First);
+  }
+}
+
 void CRepositoryUpdater::OnJobComplete(unsigned int jobID, bool success, CJob* job)
 {
-  std::unique_lock lock(m_criticalSection);
-  m_jobs.erase(std::ranges::find(m_jobs, job));
+  std::lock_guard lock(m_criticalSection);
+
+  m_jobs.erase(std::find(m_jobs.begin(), m_jobs.end(), job));
   if (m_jobs.empty())
   {
     CLog::Log(LOGDEBUG, "CRepositoryUpdater: done.");
@@ -164,25 +170,25 @@ void CRepositoryUpdater::OnJobComplete(unsigned int jobID, bool success, CJob* j
 
     VECADDONS updates = m_addonMgr.GetAvailableUpdates();
 
-    if (!updates.empty() &&
-        CAddonSystemSettings::GetInstance().GetAddonAutoUpdateMode() == AUTO_UPDATES_NOTIFY)
+    if (CAddonSystemSettings::GetInstance().GetAddonAutoUpdateMode() == AUTO_UPDATES_NOTIFY)
     {
-      if (updates.size() == 1)
-        CGUIDialogKaiToast::QueueNotification(
-            updates[0]->Icon(), updates[0]->Name(),
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24068),
-            TOAST_DISPLAY_TIME, false, TOAST_DISPLAY_TIME);
-      else
-        CGUIDialogKaiToast::QueueNotification(
-            "", CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24001),
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24061),
-            TOAST_DISPLAY_TIME, false, TOAST_DISPLAY_TIME);
-
-      auto eventLog = CServiceBroker::GetEventLog();
-      for (const auto& addon : updates)
+      if (!updates.empty())
       {
-        if (eventLog)
-          eventLog->Add(std::make_shared<CAddonManagementEvent>(addon, 24068));
+        if (updates.size() == 1)
+          CGUIDialogKaiToast::QueueNotification(
+              updates[0]->Icon(), updates[0]->Name(), g_localizeStrings.Get(24068),
+              TOAST_DISPLAY_TIME, false, TOAST_DISPLAY_TIME);
+        else
+          CGUIDialogKaiToast::QueueNotification(
+              "", g_localizeStrings.Get(24001), g_localizeStrings.Get(24061),
+              TOAST_DISPLAY_TIME, false, TOAST_DISPLAY_TIME);
+
+        auto eventLog = CServiceBroker::GetEventLog();
+        for (const auto &addon : updates)
+        {
+          if (eventLog)
+            eventLog->Add(std::make_shared<const CAddonManagementEvent>(addon, 24068));
+        }
       }
     }
 
@@ -202,7 +208,8 @@ bool CRepositoryUpdater::CheckForUpdates(bool showProgress)
   VECADDONS addons;
   if (m_addonMgr.GetAddons(addons, AddonType::REPOSITORY) && !addons.empty())
   {
-    std::unique_lock lock(m_criticalSection);
+    std::lock_guard lock(m_criticalSection);
+
     for (const auto& addon : addons)
       CheckForUpdates(std::static_pointer_cast<ADDON::CRepository>(addon), showProgress);
 
@@ -216,31 +223,24 @@ static void SetProgressIndicator(CRepositoryUpdateJob* job)
 {
   auto dialog = CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogExtendedProgressBar>(WINDOW_DIALOG_EXT_PROGRESS);
   if (dialog)
-    job->SetProgressIndicators(
-        dialog->GetHandle(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24092)),
-        nullptr);
+    job->SetProgressIndicators(dialog->GetHandle(g_localizeStrings.Get(24092)), nullptr);
 }
 
 void CRepositoryUpdater::CheckForUpdates(const ADDON::RepositoryPtr& repo, bool showProgress)
 {
-  std::unique_lock lock(m_criticalSection);
-  if (IsSleeping())
-  {
-    CLog::LogF(LOGDEBUG, "Repository update check postponed. System is sleeping.");
-    return;
-  }
+  std::lock_guard lock(m_criticalSection);
 
-  const auto job = std::ranges::find_if(m_jobs, [&repo](const CRepositoryUpdateJob* updateJob)
-                                        { return updateJob->GetAddon()->ID() == repo->ID(); });
+  auto job = std::find_if(m_jobs.begin(), m_jobs.end(),
+      [&](CRepositoryUpdateJob* job){ return job->GetAddon()->ID() == repo->ID(); });
 
   if (job == m_jobs.end())
   {
-    auto* updatJob = new CRepositoryUpdateJob(repo);
-    m_jobs.emplace_back(updatJob);
+    auto* job = new CRepositoryUpdateJob(repo);
+    m_jobs.push_back(job);
     m_doneEvent.Reset();
     if (showProgress)
-      SetProgressIndicator(updatJob);
-    CServiceBroker::GetJobManager()->AddJob(updatJob, this, CJob::PRIORITY_LOW);
+      SetProgressIndicator(job);
+    CServiceBroker::GetJobManager()->AddJob(job, this, CJob::PRIORITY_LOW);
   }
   else
   {
@@ -285,17 +285,15 @@ CDateTime CRepositoryUpdater::LastUpdated() const
   CAddonDatabase db;
   db.Open();
   std::vector<CDateTime> updateTimes;
-  std::ranges::transform(repos, std::back_inserter(updateTimes),
-                         [&](const AddonPtr& repo)
-                         {
-                           const auto updateData = db.GetRepoUpdateData(repo->ID());
-                           if (updateData.lastCheckedAt.IsValid() &&
-                               updateData.lastCheckedVersion == repo->Version())
-                             return updateData.lastCheckedAt;
-                           return CDateTime();
-                         });
+  std::transform(
+      repos.begin(), repos.end(), std::back_inserter(updateTimes), [&](const AddonPtr& repo) {
+        const auto updateData = db.GetRepoUpdateData(repo->ID());
+        if (updateData.lastCheckedAt.IsValid() && updateData.lastCheckedVersion == repo->Version())
+          return updateData.lastCheckedAt;
+        return CDateTime();
+      });
 
-  return *std::ranges::min_element(updateTimes);
+  return *std::min_element(updateTimes.begin(), updateTimes.end());
 }
 
 CDateTime CRepositoryUpdater::ClosestNextCheck() const
@@ -307,24 +305,23 @@ CDateTime CRepositoryUpdater::ClosestNextCheck() const
   CAddonDatabase db;
   db.Open();
   std::vector<CDateTime> nextCheckTimes;
-  std::ranges::transform(repos, std::back_inserter(nextCheckTimes),
-                         [&](const AddonPtr& repo)
-                         {
-                           const auto updateData = db.GetRepoUpdateData(repo->ID());
-                           if (updateData.nextCheckAt.IsValid() &&
-                               updateData.lastCheckedVersion == repo->Version())
-                             return updateData.nextCheckAt;
-                           return CDateTime();
-                         });
+  std::transform(
+      repos.begin(), repos.end(), std::back_inserter(nextCheckTimes), [&](const AddonPtr& repo) {
+        const auto updateData = db.GetRepoUpdateData(repo->ID());
+        if (updateData.nextCheckAt.IsValid() && updateData.lastCheckedVersion == repo->Version())
+          return updateData.nextCheckAt;
+        return CDateTime();
+      });
 
-  return *std::ranges::min_element(nextCheckTimes);
+  return *std::min_element(nextCheckTimes.begin(), nextCheckTimes.end());
 }
 
 void CRepositoryUpdater::ScheduleUpdate(UpdateScheduleType scheduleType)
 {
   using namespace std::chrono;
 
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
+  
   m_timer.Stop(true);
 
   if (CAddonSystemSettings::GetInstance().GetAddonAutoUpdateMode() == AUTO_UPDATES_NEVER)

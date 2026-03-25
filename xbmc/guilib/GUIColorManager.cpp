@@ -8,10 +8,8 @@
 
 #include "GUIColorManager.h"
 
-#include "ServiceBroker.h"
 #include "addons/Skin.h"
 #include "filesystem/SpecialProtocol.h"
-#include "guilib/GUIComponent.h"
 #include "utils/ColorUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -35,17 +33,13 @@ void CGUIColorManager::Load(const std::string &colorFile)
 {
   Clear();
 
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-
   // load the global color map if it exists
   CXBMCTinyXML xmlDoc;
   if (xmlDoc.LoadFile(CSpecialProtocol::TranslatePathConvertCase("special://xbmc/system/colors.xml")))
     LoadXML(xmlDoc);
 
   // first load the default color map if it exists
-  std::string path = URIUtils::AddFileToFolder(skin->Path(), "colors", "defaults.xml");
+  std::string path = URIUtils::AddFileToFolder(g_SkinInfo->Path(), "colors", "defaults.xml");
 
   if (xmlDoc.LoadFile(CSpecialProtocol::TranslatePathConvertCase(path)))
     LoadXML(xmlDoc);
@@ -54,7 +48,7 @@ void CGUIColorManager::Load(const std::string &colorFile)
   if (StringUtils::EqualsNoCase(colorFile, "SKINDEFAULT"))
     return; // nothing to do
 
-  path = URIUtils::AddFileToFolder(skin->Path(), "colors", colorFile);
+  path = URIUtils::AddFileToFolder(g_SkinInfo->Path(), "colors", colorFile);
   if (!URIUtils::HasExtension(path))
     path += ".xml";
   CLog::Log(LOGINFO, "Loading colors from {}", path);
@@ -80,7 +74,7 @@ bool CGUIColorManager::LoadXML(CXBMCTinyXML &xmlDoc)
   {
     if (color->FirstChild() && color->Attribute("name"))
     {
-      KODI::UTILS::COLOR::Color value = 0xffffffff;
+      UTILS::COLOR::Color value = 0xffffffff;
       if (sscanf(color->FirstChild()->Value(), "%x", (unsigned int*)&value) != 1)
         value = 0xffffffff;
       std::string name = color->Attribute("name");
@@ -96,7 +90,7 @@ bool CGUIColorManager::LoadXML(CXBMCTinyXML &xmlDoc)
 }
 
 // lookup a color and return it's hex value
-KODI::UTILS::COLOR::Color CGUIColorManager::GetColor(const std::string& color) const
+UTILS::COLOR::Color CGUIColorManager::GetColor(const std::string& color) const
 {
   // fast path: try direct lookup without trimming (common case)
   const auto directIt = m_colors.find(color);
@@ -113,14 +107,14 @@ KODI::UTILS::COLOR::Color CGUIColorManager::GetColor(const std::string& color) c
       return it->second;
 
     // try converting hex directly
-    KODI::UTILS::COLOR::Color value = 0;
+    UTILS::COLOR::Color value = 0;
     if (sscanf(trimmed.c_str(), "%x", &value) != 1)
       value = 0;
     return value;
   }
 
   // try converting hex directly
-  KODI::UTILS::COLOR::Color value = 0;
+  UTILS::COLOR::Color value = 0;
   if (sscanf(color.c_str(), "%x", &value) != 1)
     value = 0;
   return value;
@@ -128,7 +122,7 @@ KODI::UTILS::COLOR::Color CGUIColorManager::GetColor(const std::string& color) c
 
 bool CGUIColorManager::LoadColorsListFromXML(
     const std::string& filePath,
-    std::vector<std::pair<std::string, KODI::UTILS::COLOR::ColorInfo>>& colors,
+    std::vector<std::pair<std::string, UTILS::COLOR::ColorInfo>>& colors,
     bool sortColors)
 {
   CLog::Log(LOGDEBUG, "Loading colors from file {}", filePath);
@@ -153,13 +147,13 @@ bool CGUIColorManager::LoadColorsListFromXML(
     if (xmlColor->FirstChild() && xmlColor->Attribute("name"))
     {
       colors.emplace_back(xmlColor->Attribute("name"),
-                          KODI::UTILS::COLOR::MakeColorInfo(xmlColor->FirstChild()->Value()));
+                          UTILS::COLOR::MakeColorInfo(xmlColor->FirstChild()->Value()));
     }
     xmlColor = xmlColor->NextSiblingElement("color");
   }
 
   if (sortColors)
-    std::sort(colors.begin(), colors.end(), KODI::UTILS::COLOR::comparePairColorInfo);
+    std::sort(colors.begin(), colors.end(), UTILS::COLOR::comparePairColorInfo);
 
   return true;
 }

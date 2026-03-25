@@ -23,8 +23,6 @@
 #include "windowing/Resolution.h"
 #include "platform/linux/powermanagement/LinuxPowerSyscall.h"
 #include "platform/linux/ScreenshotSurfaceAML.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -61,7 +59,8 @@ CWinSystemAmlogic::CWinSystemAmlogic()
   }
 
   m_nativeDisplay = EGL_NO_DISPLAY;
-  m_stereo_mode = RenderStereoMode::OFF;
+
+  m_stereo_mode = RENDER_STEREO_MODE_OFF;
   m_delayDispReset = false;
 
   m_libinput->Start();

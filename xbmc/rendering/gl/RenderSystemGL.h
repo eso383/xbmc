@@ -76,7 +76,7 @@ public:
   bool EndRender() override;
   void PresentRender(bool rendered, bool videoLayer) override;
   void InvalidateColorBuffer() override;
-  bool ClearBuffers(KODI::UTILS::COLOR::Color color) override;
+  bool ClearBuffers(UTILS::COLOR::Color color) override;
   bool IsExtSupported(const char* extension) const override;
 
   void SetVSync(bool vsync);
@@ -90,15 +90,15 @@ public:
   void SetScissors(const CRect &rect) override;
   void ResetScissors() override;
 
-  void SetDepthCulling(DepthCulling culling) override;
+  void SetDepthCulling(DEPTH_CULLING culling) override;
 
   void CaptureStateBlock() override;
   void ApplyStateBlock() override;
 
   void SetCameraPosition(const CPoint &camera, int screenWidth, int screenHeight, float stereoFactor = 0.0f) override;
 
-  void SetStereoMode(RenderStereoMode mode, RenderStereoView view) override;
-  bool SupportsStereo(RenderStereoMode mode) const override;
+  void SetStereoMode(RENDER_STEREO_MODE mode, RENDER_STEREO_VIEW view) override;
+  bool SupportsStereo(RENDER_STEREO_MODE mode) const override;
   bool SupportsNPOT(bool dxt) const override;
 
   void Project(float &x, float &y, float &z) override;

@@ -32,35 +32,27 @@ namespace XFILE
 
 class CSetting;
 
-enum class AutoCDAction
+enum AutoCDAction
 {
-  NONE = 0,
-  PLAY,
-  RIP
+  AUTOCD_NONE = 0,
+  AUTOCD_PLAY,
+  AUTOCD_RIP
 };
 
 namespace MEDIA_DETECT
 {
-
-struct PlayDiscOptions
-{
-  bool bypassSettings{false};
-  bool startFromBeginning{false};
-  bool forceSelection{false};
-};
-
 class CAutorun
 {
 public:
   CAutorun();
   virtual ~CAutorun();
   static bool CanResumePlayDVD(const std::string& path);
-  static bool PlayDisc(const std::string& path, const PlayDiscOptions& options);
+  static bool PlayDisc(const std::string& path="", bool bypassSettings = false, bool startFromBeginning = false);
   static bool PlayDiscAskResume(const std::string& path="");
   bool IsEnabled() const;
   void Enable();
   void Disable();
-  void HandleAutorun();
+  void HandleAutorun() const;
 
   /*! \brief Execute the autorun. Used for example to automatically rip cds or play optical discs
     * @param path the path for the item (e.g. the disc path)
@@ -70,14 +62,11 @@ public:
 
   static void SettingOptionAudioCdActionsFiller(const std::shared_ptr<const CSetting>& setting,
                                                 std::vector<IntegerSettingOption>& list,
-                                                int& current);
+                                                int& current,
+                                                void* data);
 
 protected:
-  static bool RunDisc(XFILE::IDirectory* pDir,
-                      const std::string& strDrive,
-                      int& nAddedToPlaylist,
-                      bool bRoot,
-                      const PlayDiscOptions& options);
+  static bool RunDisc(XFILE::IDirectory* pDir, const std::string& strDrive, int& nAddedToPlaylist, bool bRoot, bool bypassSettings, bool startFromBeginning);
   bool m_bEnable;
 };
 }

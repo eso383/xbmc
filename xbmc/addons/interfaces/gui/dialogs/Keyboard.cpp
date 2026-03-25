@@ -54,26 +54,26 @@ bool Interface_GUIDialogKeyboard::show_and_get_input_with_head(KODI_HANDLE kodiB
                                                                bool hidden_input,
                                                                unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!text_in || !text_out || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (text_in='{}', "
-               "text_out='{}', heading='{}') on addon '{}'",
-               static_cast<const void*>(text_in), static_cast<void*>(text_out),
-               static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (text_in='{}', "
+              "text_out='{}', heading='{}') on addon '{}'",
+              __func__, static_cast<const void*>(text_in), static_cast<void*>(text_out),
+              static_cast<const void*>(heading), addon->ID());
     return false;
   }
 
   std::string str = text_in;
-  const bool bRet{CGUIKeyboardFactory::ShowAndGetInput(str, CVariant{heading}, allow_empty_result,
-                                                       hidden_input, auto_close_ms)};
+  bool bRet = CGUIKeyboardFactory::ShowAndGetInput(str, CVariant{heading}, allow_empty_result,
+                                                   hidden_input, auto_close_ms);
   if (bRet)
     *text_out = strdup(str.c_str());
   return bRet;
@@ -85,24 +85,25 @@ bool Interface_GUIDialogKeyboard::show_and_get_input(KODI_HANDLE kodiBase,
                                                      bool allow_empty_result,
                                                      unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!text_in || !text_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (text_in='{}', "
-               "text_out='{}') on addon '{}'",
-               static_cast<const void*>(text_in), static_cast<void*>(text_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (text_in='{}', "
+              "text_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(text_in), static_cast<void*>(text_out),
+              addon->ID());
     return false;
   }
 
   std::string str = text_in;
-  const bool bRet{CGUIKeyboardFactory::ShowAndGetInput(str, allow_empty_result, auto_close_ms)};
+  bool bRet = CGUIKeyboardFactory::ShowAndGetInput(str, allow_empty_result, auto_close_ms);
   if (bRet)
     *text_out = strdup(str.c_str());
   return bRet;
@@ -115,26 +116,26 @@ bool Interface_GUIDialogKeyboard::show_and_get_new_password_with_head(KODI_HANDL
                                                                       bool allow_empty_result,
                                                                       unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!password_in || !password_out || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (password_in='{}', "
-               "password_out='{}', heading='{}') on addon '{}'",
-               static_cast<const void*>(password_in), static_cast<void*>(password_out),
-               static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (password_in='{}', "
+              "password_out='{}', heading='{}') on addon '{}'",
+              __func__, static_cast<const void*>(password_in), static_cast<void*>(password_out),
+              static_cast<const void*>(heading), addon->ID());
     return false;
   }
 
   std::string str = password_in;
-  const bool bRet{
-      CGUIKeyboardFactory::ShowAndGetNewPassword(str, heading, allow_empty_result, auto_close_ms)};
+  bool bRet =
+      CGUIKeyboardFactory::ShowAndGetNewPassword(str, heading, allow_empty_result, auto_close_ms);
   if (bRet)
     *password_out = strdup(str.c_str());
   return bRet;
@@ -145,25 +146,25 @@ bool Interface_GUIDialogKeyboard::show_and_get_new_password(KODI_HANDLE kodiBase
                                                             char** password_out,
                                                             unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!password_in || !password_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (password_in='{}', "
-               "password_out='{}') on addon '{}'",
-               static_cast<const void*>(password_in), static_cast<void*>(password_out),
-               addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (password_in='{}', "
+              "password_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(password_in), static_cast<void*>(password_out),
+              addon->ID());
     return false;
   }
 
   std::string str = password_in;
-  const bool bRet{CGUIKeyboardFactory::ShowAndGetNewPassword(str, auto_close_ms)};
+  bool bRet = CGUIKeyboardFactory::ShowAndGetNewPassword(str, auto_close_ms);
   if (bRet)
     *password_out = strdup(str.c_str());
   return bRet;
@@ -175,25 +176,26 @@ bool Interface_GUIDialogKeyboard::show_and_verify_new_password_with_head(KODI_HA
                                                                          bool allowEmpty,
                                                                          unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!password_out || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (password_out='{}', "
-               "heading='{}') on addon '{}'",
-               static_cast<void*>(password_out), static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (password_out='{}', "
+              "heading='{}') on addon '{}'",
+              __func__, static_cast<void*>(password_out), static_cast<const void*>(heading),
+              addon->ID());
     return false;
   }
 
   std::string str;
-  const bool bRet{
-      CGUIKeyboardFactory::ShowAndVerifyNewPassword(str, heading, allowEmpty, auto_close_ms)};
+  bool bRet =
+      CGUIKeyboardFactory::ShowAndVerifyNewPassword(str, heading, allowEmpty, auto_close_ms);
   if (bRet)
     *password_out = strdup(str.c_str());
   return bRet;
@@ -203,24 +205,24 @@ bool Interface_GUIDialogKeyboard::show_and_verify_new_password(KODI_HANDLE kodiB
                                                                char** password_out,
                                                                unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!password_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (password_out='{}') on "
-               "addon '{}'",
-               static_cast<void*>(password_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (password_out='{}') on "
+              "addon '{}'",
+              __func__, static_cast<void*>(password_out), addon->ID());
     return false;
   }
 
   std::string str;
-  const bool bRet{CGUIKeyboardFactory::ShowAndVerifyNewPassword(str, auto_close_ms)};
+  bool bRet = CGUIKeyboardFactory::ShowAndVerifyNewPassword(str, auto_close_ms);
   if (bRet)
     *password_out = strdup(str.c_str());
   return bRet;
@@ -233,25 +235,25 @@ int Interface_GUIDialogKeyboard::show_and_verify_password(KODI_HANDLE kodiBase,
                                                           int retries,
                                                           unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!password_in || !password_out || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (password_in='{}', "
-               "password_out='{}', heading='{}') on addon '{}'",
-               static_cast<const void*>(password_in), static_cast<void*>(password_out),
-               static_cast<const void*>(heading), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (password_in='{}', "
+              "password_out='{}', heading='{}') on addon '{}'",
+              __func__, static_cast<const void*>(password_in), static_cast<void*>(password_out),
+              static_cast<const void*>(heading), addon->ID());
     return false;
   }
 
   std::string str = password_in;
-  const int iRet{CGUIKeyboardFactory::ShowAndVerifyPassword(str, heading, retries, auto_close_ms)};
+  int iRet = CGUIKeyboardFactory::ShowAndVerifyPassword(str, heading, retries, auto_close_ms);
   if (iRet)
     *password_out = strdup(str.c_str());
   return iRet;
@@ -263,25 +265,26 @@ bool Interface_GUIDialogKeyboard::show_and_get_filter(KODI_HANDLE kodiBase,
                                                       bool searching,
                                                       unsigned int auto_close_ms)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
   if (!text_in || !text_out)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (text_in='{}', "
-               "text_out='{}') on addon '{}'",
-               static_cast<const void*>(text_in), static_cast<void*>(text_out), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogKeyboard::{} - invalid handler data (text_in='{}', "
+              "text_out='{}') on addon '{}'",
+              __func__, static_cast<const void*>(text_in), static_cast<void*>(text_out),
+              addon->ID());
     return false;
   }
 
 
   std::string str = text_in;
-  const bool bRet{CGUIKeyboardFactory::ShowAndGetFilter(str, searching, auto_close_ms)};
+  bool bRet = CGUIKeyboardFactory::ShowAndGetFilter(str, searching, auto_close_ms);
   if (bRet)
     *text_out = strdup(str.c_str());
   return bRet;
@@ -291,10 +294,10 @@ bool Interface_GUIDialogKeyboard::send_text_to_active_keyboard(KODI_HANDLE kodiB
                                                                const char* text,
                                                                bool close_keyboard)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 
@@ -303,10 +306,10 @@ bool Interface_GUIDialogKeyboard::send_text_to_active_keyboard(KODI_HANDLE kodiB
 
 bool Interface_GUIDialogKeyboard::is_keyboard_activated(KODI_HANDLE kodiBase)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogKeyboard::{} - invalid data", __func__);
     return false;
   }
 

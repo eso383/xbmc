@@ -16,7 +16,6 @@
 #include <string>
 
 class CSettingList;
-class TiXmlElement;
 class TiXmlNode;
 
 /*!
@@ -46,6 +45,8 @@ public:
   static constexpr auto SETTING_LOCALE_CHARSET = "locale.charset";
   static constexpr auto SETTING_LOCALE_KEYBOARDLAYOUTS = "locale.keyboardlayouts";
   static constexpr auto SETTING_LOCALE_ACTIVEKEYBOARDLAYOUT = "locale.activekeyboardlayout";
+  static constexpr auto SETTING_LOCALE_TIMEZONECOUNTRY = "locale.timezonecountry";
+  static constexpr auto SETTING_LOCALE_TIMEZONE = "locale.timezone";
   static constexpr auto SETTING_LOCALE_SHORTDATEFORMAT = "locale.shortdateformat";
   static constexpr auto SETTING_LOCALE_LONGDATEFORMAT = "locale.longdateformat";
   static constexpr auto SETTING_LOCALE_TIMEFORMAT = "locale.timeformat";
@@ -56,7 +57,6 @@ public:
   static constexpr auto SETTING_FILELISTS_SHOWEXTENSIONS = "filelists.showextensions";
   static constexpr auto SETTING_FILELISTS_IGNORETHEWHENSORTING = "filelists.ignorethewhensorting";
   static constexpr auto SETTING_FILELISTS_ALLOWFILEDELETION = "filelists.allowfiledeletion";
-  static constexpr auto SETTING_FILELISTS_CONFIRMFILEDELETION = "filelists.confirmfiledeletion";
   static constexpr auto SETTING_FILELISTS_SHOWADDSOURCEBUTTONS = "filelists.showaddsourcebuttons";
   static constexpr auto SETTING_FILELISTS_SHOWHIDDEN = "filelists.showhidden";
   static constexpr auto SETTING_SCREENSAVER_MODE = "screensaver.mode";
@@ -99,6 +99,8 @@ public:
   static constexpr auto SETTING_VIDEOLIBRARY_IGNOREVIDEOVERSIONS =
       "videolibrary.ignorevideoversions";
   static constexpr auto SETTING_VIDEOLIBRARY_IGNOREVIDEOEXTRAS = "videolibrary.ignorevideoextras";
+  static constexpr auto SETTING_VIDEOLIBRARY_SHOWVIDEOVERSIONSASFOLDER =
+      "videolibrary.showvideoversionsasfolder";
   static constexpr auto SETTING_LOCALE_AUDIOLANGUAGE = "locale.audiolanguage";
   static constexpr auto SETTING_VIDEOPLAYER_PREFERDEFAULTFLAG = "videoplayer.preferdefaultflag";
   static constexpr auto SETTING_VIDEOPLAYER_AUTOPLAYNEXTITEM = "videoplayer.autoplaynextitem";
@@ -116,17 +118,16 @@ public:
       "videoplayer.quitstereomodeonstop";
   static constexpr auto SETTING_VIDEOPLAYER_RENDERMETHOD = "videoplayer.rendermethod";
   static constexpr auto SETTING_VIDEOPLAYER_HQSCALERS = "videoplayer.hqscalers";
-  static constexpr auto SETTING_VIDEOPLAYER_HQSCALERPRECISION = "videoplayer.hqscalerprecision";
   static constexpr auto SETTING_VIDEOPLAYER_USESUPERRESOLUTION = "videoplayer.usesuperresolution";
   static constexpr auto SETTING_VIDEOPLAYER_HIGHPRECISIONPROCESSING = "videoplayer.highprecision";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODEC = "videoplayer.useamcodec";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECMPEG2 = "videoplayer.useamcodecmpeg2";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECMPEG4 = "videoplayer.useamcodecmpeg4";
   static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECH264 = "videoplayer.useamcodech264";
+  static constexpr auto SETTING_VIDEOPLAYER_USEAMCODECVC1 = "videoplayer.useamcodecvc1";
   static constexpr auto SETTING_VIDEOPLAYER_USEMEDIACODEC = "videoplayer.usemediacodec";
   static constexpr auto SETTING_VIDEOPLAYER_USEMEDIACODECSURFACE =
       "videoplayer.usemediacodecsurface";
-  static constexpr auto SETTING_VIDEOPLAYER_USEDECODERFILTER = "videoplayer.usedecoderfilter";
   static constexpr auto SETTING_VIDEOPLAYER_USEVDPAU = "videoplayer.usevdpau";
   static constexpr auto SETTING_VIDEOPLAYER_USEVDPAUMIXER = "videoplayer.usevdpaumixer";
   static constexpr auto SETTING_VIDEOPLAYER_USEVDPAUMPEG2 = "videoplayer.usevdpaumpeg2";
@@ -135,16 +136,13 @@ public:
   static constexpr auto SETTING_VIDEOPLAYER_USEDXVA2 = "videoplayer.usedxva2";
   static constexpr auto SETTING_VIDEOPLAYER_USEVTB = "videoplayer.usevtb";
   static constexpr auto SETTING_VIDEOPLAYER_USEPRIMEDECODER = "videoplayer.useprimedecoder";
-  static constexpr auto SETTING_VIDEOPLAYER_USESTARFISHDECODER = "videoplayer.usestarfishdecoder";
   static constexpr auto SETTING_VIDEOPLAYER_USESTAGEFRIGHT = "videoplayer.usestagefright";
   static constexpr auto SETTING_VIDEOPLAYER_LIMITGUIUPDATE = "videoplayer.limitguiupdate";
   static constexpr auto SETTING_VIDEOPLAYER_SUPPORTMVC = "videoplayer.supportmvc";
   static constexpr auto SETTING_VIDEOPLAYER_CONVERTDOVI = "videoplayer.convertdovi";
   static constexpr auto SETTING_VIDEOPLAYER_ALLOWEDHDRFORMATS = "videoplayer.allowedhdrformats";
-  static constexpr auto SETTING_VIDEOPLAYER_DOVIZEROLEVEL5 = "videoplayer.dovizerolevel5";
-  static constexpr auto SETTING_VIDEOPLAYER_QUEUETIMESIZE = "videoplayer.queuetimesize";
-  static constexpr auto SETTING_VIDEOPLAYER_QUEUEDATASIZE = "videoplayer.queuedatasize";
   static constexpr auto SETTING_MYVIDEOS_SELECTACTION = "myvideos.selectaction";
+  static constexpr auto SETTING_MYVIDEOS_SELECTDEFAULTVERSION = "myvideos.selectdefaultversion";
   static constexpr auto SETTING_MYVIDEOS_PLAYACTION = "myvideos.playaction";
   static constexpr auto SETTING_MYVIDEOS_USETAGS = "myvideos.usetags";
   static constexpr auto SETTING_MYVIDEOS_EXTRACTFLAGS = "myvideos.extractflags";
@@ -155,7 +153,6 @@ public:
   static constexpr auto SETTING_LOCALE_SUBTITLELANGUAGE = "locale.subtitlelanguage";
   static constexpr auto SETTING_SUBTITLES_PARSECAPTIONS = "subtitles.parsecaptions";
   static constexpr auto SETTING_SUBTITLES_CAPTIONSALIGN = "subtitles.captionsalign";
-  static constexpr auto SETTING_SUBTITLES_CAPTIONSIMPAIRED = "subtitles.captionsimpaired";
   static constexpr auto SETTING_SUBTITLES_ALIGN = "subtitles.align";
   static constexpr auto SETTING_SUBTITLES_STEREOSCOPICDEPTH = "subtitles.stereoscopicdepth";
   static constexpr auto SETTING_SUBTITLES_FONTNAME = "subtitles.fontname";
@@ -166,7 +163,6 @@ public:
   static constexpr auto SETTING_SUBTITLES_BORDERCOLOR = "subtitles.bordercolorpick";
   static constexpr auto SETTING_SUBTITLES_OPACITY = "subtitles.opacity";
   static constexpr auto SETTING_SUBTITLES_BLUR = "subtitles.blur";
-  static constexpr auto SETTING_SUBTITLES_LINE_SPACING = "subtitles.linespacing";
   static constexpr auto SETTING_SUBTITLES_BACKGROUNDTYPE = "subtitles.backgroundtype";
   static constexpr auto SETTING_SUBTITLES_SHADOWCOLOR = "subtitles.shadowcolor";
   static constexpr auto SETTING_SUBTITLES_SHADOWOPACITY = "subtitles.shadowopacity";
@@ -232,6 +228,7 @@ public:
   static constexpr auto SETTING_PVRPLAYBACK_CHANNELENTRYTIMEOUT = "pvrplayback.channelentrytimeout";
   static constexpr auto SETTING_PVRPLAYBACK_DELAYMARKLASTWATCHED =
       "pvrplayback.delaymarklastwatched";
+  static constexpr auto SETTING_PVRPLAYBACK_FPS = "pvrplayback.fps";
   static constexpr auto SETTING_PVRPLAYBACK_AUTOPLAYNEXTPROGRAMME =
       "pvrplayback.autoplaynextprogramme";
   static constexpr auto SETTING_PVRRECORD_INSTANTRECORDACTION = "pvrrecord.instantrecordaction";
@@ -239,7 +236,6 @@ public:
   static constexpr auto SETTING_PVRRECORD_MARGINSTART = "pvrrecord.marginstart";
   static constexpr auto SETTING_PVRRECORD_MARGINEND = "pvrrecord.marginend";
   static constexpr auto SETTING_PVRRECORD_TIMERNOTIFICATIONS = "pvrrecord.timernotifications";
-  static constexpr auto SETTING_PVRRECORD_DELETEAFTERWATCH = "pvrrecord.deleteafterwatch";
   static constexpr auto SETTING_PVRRECORD_GROUPRECORDINGS = "pvrrecord.grouprecordings";
   static constexpr auto SETTING_PVRREMINDERS_AUTOCLOSEDELAY = "pvrreminders.autoclosedelay";
   static constexpr auto SETTING_PVRREMINDERS_AUTORECORD = "pvrreminders.autorecord";
@@ -289,7 +285,6 @@ public:
   static constexpr auto SETTING_MUSICLIBRARY_EXPORT_ARTWORK = "musiclibrary.exportartwork";
   static constexpr auto SETTING_MUSICLIBRARY_EXPORT_SKIPNFO = "musiclibrary.exportskipnfo";
   static constexpr auto SETTING_MUSICLIBRARY_IMPORT = "musiclibrary.import";
-  static constexpr auto SETTING_MAINTENANCE_CLEANIMAGECACHE = "maintenance.cleanimagecache";
   static constexpr auto SETTING_MUSICPLAYER_AUTOPLAYNEXTITEM = "musicplayer.autoplaynextitem";
   static constexpr auto SETTING_MUSICPLAYER_QUEUEBYDEFAULT = "musicplayer.queuebydefault";
   static constexpr auto SETTING_MUSICPLAYER_SEEKSTEPS = "musicplayer.seeksteps";
@@ -380,7 +375,6 @@ public:
   static constexpr auto SETTING_VIDEOSCREEN_STEREOSCOPICMODE = "videoscreen.stereoscopicmode";
   static constexpr auto SETTING_VIDEOSCREEN_PREFEREDSTEREOSCOPICMODE =
       "videoscreen.preferedstereoscopicmode";
-  static constexpr auto SETTING_VIDEOSCREEN_NOOFBUFFERS = "videoscreen.noofbuffers";
   static constexpr auto SETTING_VIDEOSCREEN_3DLUT = "videoscreen.cms3dlut";
   static constexpr auto SETTING_VIDEOSCREEN_DISPLAYPROFILE = "videoscreen.displayprofile";
   static constexpr auto SETTING_VIDEOSCREEN_GUICALIBRATION = "videoscreen.guicalibration";
@@ -429,6 +423,9 @@ public:
   static constexpr auto SETTING_INPUT_RUMBLENOTIFY = "input.rumblenotify";
   static constexpr auto SETTING_INPUT_TESTRUMBLE = "input.testrumble";
   static constexpr auto SETTING_INPUT_CONTROLLERPOWEROFF = "input.controllerpoweroff";
+  static constexpr auto SETTING_INPUT_APPLEREMOTEMODE = "input.appleremotemode";
+  static constexpr auto SETTING_INPUT_APPLEREMOTEALWAYSON = "input.appleremotealwayson";
+  static constexpr auto SETTING_INPUT_APPLEREMOTESEQUENCETIME = "input.appleremotesequencetime";
   static constexpr auto SETTING_INPUT_SIRIREMOTEIDLETIMERENABLED = "input.siriremoteidletimerenabled";
   static constexpr auto SETTING_INPUT_SIRIREMOTEIDLETIME = "input.siriremoteidletime";
   static constexpr auto SETTING_INPUT_SIRIREMOTEHORIZONTALSENSITIVITY =
@@ -468,20 +465,16 @@ public:
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_MODE = "coreelec.amlogic.dolbyvision.mode";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_MODE_ON_LUMINANCE = "coreelec.amlogic.dolbyvision.mode.on.luminance";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_TYPE = "coreelec.amlogic.dolbyvision.type";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_COLORIMETRY_FOR_STD = "coreelec.amlogic.dolbyvision.colorimtry.for.std";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVELS_METADATA = "coreelec.amlogic.dolbyvision.std.source.levels.metadata";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVEL_5 = "coreelec.amlogic.dolbyvision.std.source.level.5";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVEL_6 = "coreelec.amlogic.dolbyvision.std.source.level.6";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_RESTRICT_OVERLAYS="coreelec.amlogic.dolbyvision.std.restrict.overlays";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VIDEO_PROCESSOR = "coreelec.amlogic.dolbyvision.video.processor";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VIDEO_PROCESSOR_TM = "coreelec.amlogic.dolbyvision.video.processor.tm";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_TYPE_VP_AUTO = "coreelec.amlogic.dolbyvision.video.type.vp.auto";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_INJECT = "coreelec.amlogic.dolbyvision.vsvdb.inject";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_PAYLOAD = "coreelec.amlogic.dolbyvision.vsvdb.payload";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_CS = "coreelec.amlogic.dolbyvision.vsvdb.colour.space";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_MIN_LUM = "coreelec.amlogic.dolbyvision.vsvdb.min.luminance";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VSVDB_MAX_LUM = "coreelec.amlogic.dolbyvision.vsvdb.max.luminance";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR_INJECT = "coreelec.amlogic.dolbyvision.hdr.inject";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR_PAYLOAD = "coreelec.amlogic.dolbyvision.hdr.payload";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_LL_VSVDB_LIMIT = "coreelec.amlogic.dolbyvision.ll.vsvdb.limit";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_LL_VSVDB_LIMIT_BRIGHTNESS = "coreelec.amlogic.dolbyvision.ll.vsvdb.limit.brightness";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVEL_5 = "coreelec.amlogic.dolbyvision.std.source.metadata.level5";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_STD_SOURCE_LEVEL_5_OSDST = "coreelec.amlogic.dolbyvision.std.source.metadata.level5.osdst";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_SDR8 = "coreelec.amlogic.dolbyvision.vs10.sdr8";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_SDR10 = "coreelec.amlogic.dolbyvision.vs10.sdr10";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_VS10_HDR10 = "coreelec.amlogic.dolbyvision.vs10.hdr10";
@@ -492,9 +485,10 @@ public:
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PREFER_CONVERT = "coreelec.amlogic.dolbyvision.hdr10plus.prefer.convert";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_HDR10PLUS_PEAK_BRIGHTNESS_SOURCE = "coreelec.amlogic.dolbyvision.hdr10plus.peak.brightness.source";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_DUAL_PRIORITY = "coreelec.amlogic.dolbyvision.dual.priority";
-  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_RPU_CONVERT = "coreelec.amlogic.dolbyvision.rpu.convert";
   static constexpr auto SETTING_COREELEC_AMLOGIC_DV_CMV40_APPEND = "coreelec.amlogic.dolbyvision.cmv40.append";
+  static constexpr auto SETTING_COREELEC_AMLOGIC_DV_AUDIO_SEAMLESSBRANCH = "coreelec.amlogic.dolbyvision.audio.seamlessbranch";
   static constexpr auto SETTING_COREELEC_AUDIO_AC3_DIALNORM = "coreelec.audio.ac3.dialnorm";
+  static constexpr auto SETTING_COREELEC_AUDIO_EAC3_ATMOS_DIALNORM = "coreelec.audio.eac3.atmos.dialnorm";
   static constexpr auto SETTING_COREELEC_AUDIO_TRUEHD_ATMOS_DIALNORM = "coreelec.audio.truehd.atmos.dialnorm";
   static constexpr auto SETTING_CACHE_HARDDISK = "cache.harddisk";
   static constexpr auto SETTING_CACHEVIDEO_DVDROM = "cachevideo.dvdrom";
@@ -561,6 +555,8 @@ public:
   CSettings() = default;
   ~CSettings() override = default;
 
+  CSettingsManager* GetSettingsManager() const { return m_settingsManager; }
+
   // specialization of CSettingsBase
   bool Initialize() override;
 
@@ -602,7 +598,7 @@ public:
    \param hide Whether to hide the loaded settings or not
    \return True if the setting values were successfully loaded, false otherwise
    */
-  bool LoadHidden(const TiXmlElement *root) { return CSettingsBase::LoadHiddenValuesFromXml(root); }
+  bool LoadHidden(const TiXmlElement *root) const { return CSettingsBase::LoadHiddenValuesFromXml(root); }
 
   /*!
    \brief Saves the setting values to the given (XML) file.
@@ -610,7 +606,7 @@ public:
    \param file Path to an XML file
    \return True if the setting values were successfully saved, false otherwise
    */
-  bool Save(const std::string& file) const;
+  bool Save(const std::string &file) const;
   /*!
    \brief Saves the setting values to the given XML node.
 
@@ -627,7 +623,7 @@ public:
    \param settingId Setting identifier
    \return True if the setting was successfully loaded from the given XML node, false otherwise
    */
-  bool LoadSetting(const TiXmlNode* node, const std::string& settingId) const;
+  bool LoadSetting(const TiXmlNode *node, const std::string &settingId) const;
 
   // overwrite (not override) from CSettingsBase
   bool GetBool(const std::string& id) const;
@@ -649,6 +645,7 @@ protected:
   void UninitializeOptionFillers() override;
   void InitializeConditions() override;
   void UninitializeConditions() override;
+  void InitializeVisibility() override;
   void InitializeDefaults() override;
   void InitializeISettingsHandlers() override;
   void UninitializeISettingsHandlers() override;
@@ -669,7 +666,7 @@ private:
   // implementation of ISubSettings
   bool Load(const TiXmlNode* settings) override;
 
-  bool Initialize(const std::string &file);
+  bool Initialize(const std::string &file) const;
   bool Reset();
 
   std::set<ISubSettings*> m_subSettings;

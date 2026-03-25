@@ -9,7 +9,6 @@
 #include "GUIDialogSubtitles.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "LangInfo.h"
 #include "ServiceBroker.h"
 #include "URL.h"
@@ -32,13 +31,12 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIKeyboardFactory.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/ActionIDs.h"
-#include "jobs/Job.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
+#include "utils/JobManager.h"
 #include "utils/LangCodeExpander.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -86,11 +84,11 @@ public:
     CDirectory::GetDirectory(m_url.Get(), *m_items, "", DIR_FLAG_DEFAULTS);
     return true;
   }
-  bool Equals(const CJob* job) const override
+  bool operator==(const CJob *job) const override
   {
     if (strcmp(job->GetType(),GetType()) == 0)
     {
-      const CSubtitlesJob* rjob = dynamic_cast<const CSubtitlesJob*>(job);
+      auto rjob = dynamic_cast<const CSubtitlesJob*>(job);
       if (rjob)
       {
         return m_url.Get() == rjob->m_url.Get() &&
@@ -171,10 +169,7 @@ bool CGUIDialogSubtitles::OnMessage(CGUIMessage& message)
     else if (iControl == CONTROL_MANUALSEARCH)
     {
       //manual search
-      if (CGUIKeyboardFactory::ShowAndGetInput(
-              m_strManualSearch,
-              CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24121)},
-              true))
+      if (CGUIKeyboardFactory::ShowAndGetInput(m_strManualSearch, CVariant{g_localizeStrings.Get(24121)}, true))
       {
         Search(m_strManualSearch);
         return true;
@@ -225,7 +220,8 @@ void CGUIDialogSubtitles::Process(unsigned int currentTime, CDirtyRegionList &di
     std::string status;
     CFileItemList subs;
     {
-      std::unique_lock lock(m_critsection);
+      std::lock_guard lock(m_critsection);
+
       status = m_status;
       subs.Assign(*m_subtitles);
     }
@@ -410,7 +406,8 @@ void CGUIDialogSubtitles::OnJobComplete(unsigned int jobID, bool success, CJob *
 
 void CGUIDialogSubtitles::OnSearchComplete(const CFileItemList *items)
 {
-  std::unique_lock lock(m_critsection);
+  std::lock_guard lock(m_critsection);
+
   m_subtitles->Assign(*items);
   UpdateStatus(SEARCH_COMPLETE);
   m_updateSubsList = true;
@@ -440,10 +437,10 @@ void CGUIDialogSubtitles::OnSubtitleServiceContextMenu(int itemIdx)
   CContextButtons buttons;
   // Subtitle addon settings
   buttons.Add(static_cast<int>(SUBTITLE_SERVICE_CONTEXT_BUTTONS::ADDON_SETTINGS),
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21417));
+              g_localizeStrings.Get(21417));
   // Disable addon
   buttons.Add(static_cast<int>(SUBTITLE_SERVICE_CONTEXT_BUTTONS::ADDON_DISABLE),
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24021));
+              g_localizeStrings.Get(24021));
 
   auto idx = static_cast<SUBTITLE_SERVICE_CONTEXT_BUTTONS>(CGUIDialogContextMenu::Show(buttons));
   switch (idx)
@@ -490,26 +487,25 @@ void CGUIDialogSubtitles::OnSubtitleServiceContextMenu(int itemIdx)
 
 void CGUIDialogSubtitles::UpdateStatus(STATUS status)
 {
-  std::unique_lock lock(m_critsection);
+  std::lock_guard lock(m_critsection);
+
   std::string label;
   switch (status)
   {
     case NO_SERVICES:
-      label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24114);
+      label = g_localizeStrings.Get(24114);
       break;
     case SEARCHING:
-      label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24107);
+      label = g_localizeStrings.Get(24107);
       break;
     case SEARCH_COMPLETE:
       if (!m_subtitles->IsEmpty())
-        label = StringUtils::Format(
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24108),
-            m_subtitles->Size());
+        label = StringUtils::Format(g_localizeStrings.Get(24108), m_subtitles->Size());
       else
-        label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24109);
+        label = g_localizeStrings.Get(24109);
       break;
     case DOWNLOADING:
-      label = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24110);
+      label = g_localizeStrings.Get(24110);
       break;
     default:
       break;
@@ -540,14 +536,12 @@ void CGUIDialogSubtitles::OnDownloadComplete(const CFileItemList *items, const s
   {
     CFileItemPtr service = GetService();
     if (service)
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Error, service->GetLabel(),
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24113));
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, service->GetLabel(), g_localizeStrings.Get(24113));
     UpdateStatus(SEARCH_COMPLETE);
     return;
   }
 
-  SUBTITLE_STORAGEMODE storageMode = (SUBTITLE_STORAGEMODE) CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_SUBTITLES_STORAGEMODE);
+  auto storageMode = (SUBTITLE_STORAGEMODE) CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_SUBTITLES_STORAGEMODE);
 
   // Get (unstacked) path
   std::string strCurrentFile = g_application.CurrentUnstackedItem().GetDynPath();
@@ -626,9 +620,7 @@ void CGUIDialogSubtitles::OnDownloadComplete(const CFileItemList *items, const s
 
     if (!CFile::Copy(strUrl, strDownloadFile))
     {
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Error, strSubName,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(24113));
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, strSubName, g_localizeStrings.Get(24113));
       CLog::Log(LOGERROR, "{} - Saving of subtitle {} to {} failed", __FUNCTION__, strUrl,
                 strDownloadFile);
     }
@@ -695,7 +687,9 @@ void CGUIDialogSubtitles::ClearSubtitles()
 {
   CGUIMessage msg(GUI_MSG_LABEL_RESET, GetID(), CONTROL_SUBLIST);
   OnMessage(msg);
-  std::unique_lock lock(m_critsection);
+
+  std::lock_guard lock(m_critsection);
+
   m_subtitles->Clear();
 }
 

@@ -9,15 +9,13 @@
 #include "AddonInfo.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "LangInfo.h"
 #include "ServiceBroker.h"
 #include "addons/AddonManager.h"
 #include "addons/IAddon.h"
 #include "addons/addoninfo/AddonType.h"
 #include "filesystem/Directory.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
@@ -28,7 +26,7 @@
 namespace ADDON
 {
 
-struct TypeMapping
+typedef struct
 {
   std::string_view name;
   std::string_view old_name;
@@ -36,10 +34,10 @@ struct TypeMapping
   int pretty;
   AddonInstanceSupport instance_support;
   std::string_view icon;
-};
+} TypeMapping;
 
 // clang-format off
-static constexpr const std::array<TypeMapping, 42> types =
+static constexpr const std::array<TypeMapping, 40> types =
   {{
    {"unknown",                           "", AddonType::UNKNOWN,                 0, AddonInstanceSupport::SUPPORT_NONE,      "" },
    {"xbmc.metadata.scraper.albums",      "", AddonType::SCRAPER_ALBUMS,      24016, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonAlbumInfo.png" },
@@ -64,7 +62,6 @@ static constexpr const std::array<TypeMapping, 42> types =
    {"xbmc.addon.repository",             "", AddonType::REPOSITORY,          24011, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonRepository.png" },
    {"kodi.pvrclient",      "xbmc.pvrclient", AddonType::PVRDLL,              24019, AddonInstanceSupport::SUPPORT_SETTINGS,  "DefaultAddonPVRClient.png" },
    {"kodi.gameclient",                   "", AddonType::GAMEDLL,             35049, AddonInstanceSupport::SUPPORT_OPTIONAL,  "DefaultAddonGame.png" },
-   {"kodi.shader.presets",               "", AddonType::SHADERDLL,           35049, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonGame.png" },
    {"kodi.peripheral",                   "", AddonType::PERIPHERALDLL,       35010, AddonInstanceSupport::SUPPORT_MANDATORY, "DefaultAddonPeripheral.png" },
    {"xbmc.addon.video",                  "", AddonType::VIDEO,                1037, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonVideo.png" },
    {"xbmc.addon.audio",                  "", AddonType::AUDIO,                1038, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonMusic.png" },
@@ -79,7 +76,6 @@ static constexpr const std::array<TypeMapping, 42> types =
    {"kodi.resource.uisounds",            "", AddonType::RESOURCE_UISOUNDS,   24006, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonUISounds.png" },
    {"kodi.resource.games",               "", AddonType::RESOURCE_GAMES,      35209, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonGame.png" },
    {"kodi.resource.font",                "", AddonType::RESOURCE_FONT,       13303, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonFont.png" },
-   {"kodi.resource.skin",                "", AddonType::RESOURCE_SKIN,           0, AddonInstanceSupport::SUPPORT_NONE,      "DefaultAddonSkin.png" },
    {"kodi.inputstream",                  "", AddonType::INPUTSTREAM,         24048, AddonInstanceSupport::SUPPORT_MANDATORY, "DefaultAddonInputstream.png" },
    {"kodi.vfs",                          "", AddonType::VFS,                 39013, AddonInstanceSupport::SUPPORT_MANDATORY, "DefaultAddonVfs.png" },
    {"kodi.imagedecoder",                 "", AddonType::IMAGEDECODER,        39015, AddonInstanceSupport::SUPPORT_MANDATORY, "DefaultAddonImageDecoder.png" },
@@ -92,9 +88,9 @@ const std::string& CAddonInfo::OriginName() const
   {
     ADDON::AddonPtr origin;
     if (CServiceBroker::GetAddonMgr().GetAddon(m_origin, origin, ADDON::OnlyEnabled::CHOICE_NO))
-      m_originName = origin->Name();
+      m_originName = std::make_unique<std::string>(origin->Name());
     else
-      m_originName = ""; // remember we tried to fetch the name
+      m_originName = std::make_unique<std::string>(); // remember we tried to fetch the name
   }
   return *m_originName;
 }
@@ -111,7 +107,7 @@ std::string CAddonInfo::TranslateType(AddonType type, bool pretty /*= false*/)
     if (type == map.type)
     {
       if (pretty && map.pretty)
-        return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(map.pretty);
+        return g_localizeStrings.Get(map.pretty);
       else
         return std::string(map.name.data(), map.name.size());
     }
@@ -140,7 +136,7 @@ std::string CAddonInfo::TranslateIconType(AddonType type)
   return "";
 }
 
-AddonType CAddonInfo::TranslateSubContent(std::string_view content)
+AddonType CAddonInfo::TranslateSubContent(const std::string& content)
 {
   if (content == "audio")
     return AddonType::AUDIO;
@@ -158,8 +154,8 @@ AddonType CAddonInfo::TranslateSubContent(std::string_view content)
 
 AddonInstanceSupport CAddonInfo::InstanceSupportType(AddonType type)
 {
-  const auto it =
-      std::ranges::find_if(types, [type](const TypeMapping& entry) { return entry.type == type; });
+  const auto it = std::find_if(types.begin(), types.end(),
+                               [type](const TypeMapping& entry) { return entry.type == type; });
   if (it != types.end())
     return it->instance_support;
 
@@ -178,7 +174,7 @@ const CAddonType* CAddonInfo::Type(AddonType type) const
   if (!m_types.empty())
   {
     if (type == AddonType::UNKNOWN)
-      return m_types.data();
+      return &m_types[0];
 
     for (auto& addonType : m_types)
     {
@@ -201,13 +197,14 @@ bool CAddonInfo::ProvidesSubContent(AddonType content, AddonType mainType) const
   if (content == AddonType::UNKNOWN)
     return false;
 
-  return std::ranges::any_of(m_types,
-                             [content, mainType](const auto& addonType)
-                             {
-                               return (mainType == AddonType::UNKNOWN ||
-                                       mainType == addonType.Type()) &&
-                                      addonType.ProvidesSubContent(content);
-                             });
+  for (const auto& addonType : m_types)
+  {
+    if ((mainType == AddonType::UNKNOWN || addonType.Type() == mainType) &&
+        addonType.ProvidesSubContent(content))
+      return true;
+  }
+
+  return false;
 }
 
 bool CAddonInfo::ProvidesSeveralSubContents() const
@@ -225,8 +222,8 @@ bool CAddonInfo::MeetsVersion(const CAddonVersion& versionMin, const CAddonVersi
 
 const CAddonVersion& CAddonInfo::DependencyMinVersion(const std::string& dependencyID) const
 {
-  auto it = std::ranges::find_if(m_dependencies, [&dependencyID](const DependencyInfo& other)
-                                 { return other.id == dependencyID; });
+  auto it = std::find_if(m_dependencies.begin(), m_dependencies.end(),
+                         [&](const DependencyInfo& other) { return other.id == dependencyID; });
 
   if (it != m_dependencies.end())
     return it->versionMin;
@@ -237,8 +234,7 @@ const CAddonVersion& CAddonInfo::DependencyMinVersion(const std::string& depende
 
 const CAddonVersion& CAddonInfo::DependencyVersion(const std::string& dependencyID) const
 {
-  auto it = std::ranges::find_if(m_dependencies, [&dependencyID](const DependencyInfo& other)
-                                 { return other.id == dependencyID; });
+  auto it = std::find_if(m_dependencies.begin(), m_dependencies.end(), [&](const DependencyInfo& other) { return other.id == dependencyID; });
 
   if (it != m_dependencies.end())
     return it->version;
@@ -247,7 +243,7 @@ const CAddonVersion& CAddonInfo::DependencyVersion(const std::string& dependency
   return emptyVersion;
 }
 
-const std::string& CAddonInfo::GetTranslatedText(const CLocale::LocalizedStringsMap& locales) const
+const std::string& CAddonInfo::GetTranslatedText(const std::unordered_map<std::string, std::string>& locales) const
 {
   if (locales.size() == 1)
     return locales.begin()->second;
@@ -269,14 +265,12 @@ bool CAddonInfo::SupportsMultipleInstances() const
 {
   switch (m_addonInstanceSupportType)
   {
-    using enum AddonInstanceSupport;
-
-    case SUPPORT_MANDATORY:
-    case SUPPORT_OPTIONAL:
+    case AddonInstanceSupport::SUPPORT_MANDATORY:
+    case AddonInstanceSupport::SUPPORT_OPTIONAL:
       return true;
-    case SUPPORT_SETTINGS:
+    case AddonInstanceSupport::SUPPORT_SETTINGS:
       return m_supportsInstanceSettings;
-    case SUPPORT_NONE:
+    case AddonInstanceSupport::SUPPORT_NONE:
     default:
       return false;
   }
@@ -306,7 +300,7 @@ std::vector<AddonInstanceId> CAddonInfo::GetKnownInstanceIds() const
       {
         URIUtils::RemoveExtension(filename);
         const std::string_view uid(filename.data() + startName.length());
-        if (!uid.empty() && StringUtils::IsInteger(uid))
+        if (!uid.empty() && StringUtils::IsInteger(uid.data()))
           ret.emplace_back(std::atoi(uid.data()));
       }
     }

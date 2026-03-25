@@ -17,10 +17,9 @@
 
 #include "qry_dat.h"
 
-#include <cstdlib>
-#include <string>
-#include <string_view>
-#include <utility>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifndef __GNUC__
 #pragma warning(disable : 4800)
@@ -29,54 +28,85 @@
 
 namespace dbiplus
 {
-using enum fType;
 
 //Constructors
-field_value::field_value() : field_type(ft_String)
+field_value::field_value()
 {
+  field_type = ft_String;
+  is_null = false;
 }
 
-field_value::field_value(const char* s) : field_type(ft_String), str_value(s)
+field_value::field_value(const char* s) : str_value(s)
 {
+  field_type = ft_String;
+  is_null = false;
 }
 
-field_value::field_value(const bool b) : field_type(ft_Boolean), bool_value(b)
+field_value::field_value(const bool b)
 {
+  bool_value = b;
+  field_type = ft_Boolean;
+  is_null = false;
 }
 
-field_value::field_value(const char c) : field_type(ft_Char), char_value(c)
+field_value::field_value(const char c)
 {
+  char_value = c;
+  field_type = ft_Char;
+  is_null = false;
 }
 
-field_value::field_value(const short s) : field_type(ft_Short), short_value(s)
+field_value::field_value(const short s)
 {
+  short_value = s;
+  field_type = ft_Short;
+  is_null = false;
 }
 
-field_value::field_value(const unsigned short us) : field_type(ft_UShort), ushort_value(us)
+field_value::field_value(const unsigned short us)
 {
+  ushort_value = us;
+  field_type = ft_UShort;
+  is_null = false;
 }
 
-field_value::field_value(const int i) : field_type(ft_Int), int_value(i)
+field_value::field_value(const int i)
 {
+  int_value = i;
+  field_type = ft_Int;
+  is_null = false;
 }
 
-field_value::field_value(const unsigned int ui) : field_type(ft_UInt), uint_value(ui)
+field_value::field_value(const unsigned int ui)
 {
+  uint_value = ui;
+  field_type = ft_UInt;
+  is_null = false;
 }
 
-field_value::field_value(const float f) : field_type(ft_Float), float_value(f)
+field_value::field_value(const float f)
 {
+  float_value = f;
+  field_type = ft_Float;
+  is_null = false;
 }
 
-field_value::field_value(const double d) : field_type(ft_Double), double_value(d)
+field_value::field_value(const double d)
 {
+  double_value = d;
+  field_type = ft_Double;
+  is_null = false;
 }
 
-field_value::field_value(const int64_t i) : field_type(ft_Int64), int64_value(i)
+field_value::field_value(const int64_t i)
 {
+  int64_value = i;
+  field_type = ft_Int64;
+  is_null = false;
 }
 
-field_value::field_value(const char* s, std::size_t len) : field_type(ft_String), str_value(s, len)
+field_value::field_value(const char* s, std::size_t len)
+  : field_type(ft_String), str_value(s, len), is_null(false)
 {
 }
 
@@ -170,31 +200,45 @@ std::string field_value::get_asString() const&
     }
     case ft_Short:
     {
-      return std::to_string(short_value);
+      char t[10];
+      snprintf(t, sizeof(t), "%i", short_value);
+      return t;
     }
     case ft_UShort:
     {
-      return std::to_string(ushort_value);
+      char t[10];
+      snprintf(t, sizeof(t), "%i", ushort_value);
+      return t;
     }
     case ft_Int:
     {
-      return std::to_string(int_value);
+      char t[12];
+      snprintf(t, sizeof(t), "%d", int_value);
+      return t;
     }
     case ft_UInt:
     {
-      return std::to_string(uint_value);
+      char t[12];
+      snprintf(t, sizeof(t), "%u", uint_value);
+      return t;
     }
     case ft_Float:
     {
-      return std::to_string(float_value);
+      char t[16];
+      snprintf(t, sizeof(t), "%f", static_cast<double>(float_value));
+      return t;
     }
     case ft_Double:
     {
-      return std::to_string(double_value);
+      char t[32];
+      snprintf(t, sizeof(t), "%f", double_value);
+      return t;
     }
     case ft_Int64:
     {
-      return std::to_string(int64_value);
+      char t[23];
+      snprintf(t, sizeof(t), "%" PRId64, int64_value);
+      return t;
     }
     default:
       return "";
@@ -236,31 +280,31 @@ bool field_value::get_asBool() const
     }
     case ft_Short:
     {
-      return static_cast<bool>(short_value);
+      return (bool)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<bool>(ushort_value);
+      return (bool)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<bool>(int_value);
+      return (bool)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<bool>(uint_value);
+      return (bool)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<bool>(float_value);
+      return (bool)float_value;
     }
     case ft_Double:
     {
-      return static_cast<bool>(double_value);
+      return (bool)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<bool>(int64_value);
+      return (bool)int64_value;
     }
     default:
       return false;
@@ -269,7 +313,68 @@ bool field_value::get_asBool() const
 
 char field_value::get_asChar() const
 {
-  return get_asString()[0];
+  switch (field_type)
+  {
+    case ft_String:
+    {
+      return str_value[0];
+    }
+    case ft_Boolean:
+    {
+      if (bool_value)
+        return 'T';
+      else
+        return 'F';
+    }
+    case ft_Char:
+    {
+      return char_value;
+    }
+    case ft_Short:
+    {
+      char t[10];
+      snprintf(t, sizeof(t), "%i", short_value);
+      return t[0];
+    }
+    case ft_UShort:
+    {
+      char t[10];
+      snprintf(t, sizeof(t), "%i", ushort_value);
+      return t[0];
+    }
+    case ft_Int:
+    {
+      char t[12];
+      snprintf(t, sizeof(t), "%d", int_value);
+      return t[0];
+    }
+    case ft_UInt:
+    {
+      char t[12];
+      snprintf(t, sizeof(t), "%u", uint_value);
+      return t[0];
+    }
+    case ft_Float:
+    {
+      char t[16];
+      snprintf(t, sizeof(t), "%f", static_cast<double>(float_value));
+      return t[0];
+    }
+    case ft_Double:
+    {
+      char t[32];
+      snprintf(t, sizeof(t), "%f", double_value);
+      return t[0];
+    }
+    case ft_Int64:
+    {
+      char t[24];
+      snprintf(t, sizeof(t), "%" PRId64, int64_value);
+      return t[0];
+    }
+    default:
+      return '\0';
+  }
 }
 
 short field_value::get_asShort() const
@@ -278,15 +383,15 @@ short field_value::get_asShort() const
   {
     case ft_String:
     {
-      return static_cast<short>(std::atoi(str_value.c_str()));
+      return (short)atoi(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<short>(bool_value);
+      return (short)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<short>(char_value);
+      return (short)char_value;
     }
     case ft_Short:
     {
@@ -294,27 +399,27 @@ short field_value::get_asShort() const
     }
     case ft_UShort:
     {
-      return static_cast<short>(ushort_value);
+      return (short)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<short>(int_value);
+      return (short)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<short>(uint_value);
+      return (short)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<short>(float_value);
+      return (short)float_value;
     }
     case ft_Double:
     {
-      return static_cast<short>(double_value);
+      return (short)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<short>(int64_value);
+      return (short)int64_value;
     }
     default:
       return 0;
@@ -327,19 +432,19 @@ unsigned short field_value::get_asUShort() const
   {
     case ft_String:
     {
-      return static_cast<unsigned short>(std::atoi(str_value.c_str()));
+      return (unsigned short)atoi(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<unsigned short>(bool_value);
+      return (unsigned short)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<unsigned short>(char_value);
+      return (unsigned short)char_value;
     }
     case ft_Short:
     {
-      return static_cast<unsigned short>(short_value);
+      return (unsigned short)short_value;
     }
     case ft_UShort:
     {
@@ -347,23 +452,23 @@ unsigned short field_value::get_asUShort() const
     }
     case ft_Int:
     {
-      return static_cast<unsigned short>(int_value);
+      return (unsigned short)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<unsigned short>(uint_value);
+      return (unsigned short)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<unsigned short>(float_value);
+      return (unsigned short)float_value;
     }
     case ft_Double:
     {
-      return static_cast<unsigned short>(double_value);
+      return (unsigned short)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<unsigned short>(int64_value);
+      return (unsigned short)int64_value;
     }
     default:
       return 0;
@@ -376,23 +481,23 @@ int field_value::get_asInt() const
   {
     case ft_String:
     {
-      return std::atoi(str_value.c_str());
+      return atoi(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<int>(bool_value);
+      return (int)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<int>(char_value);
+      return (int)char_value;
     }
     case ft_Short:
     {
-      return static_cast<int>(short_value);
+      return (int)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<int>(ushort_value);
+      return (int)ushort_value;
     }
     case ft_Int:
     {
@@ -400,19 +505,19 @@ int field_value::get_asInt() const
     }
     case ft_UInt:
     {
-      return static_cast<int>(uint_value);
+      return (int)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<int>(float_value);
+      return (int)float_value;
     }
     case ft_Double:
     {
-      return static_cast<int>(double_value);
+      return (int)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<int>(int64_value);
+      return (int)int64_value;
     }
     default:
       return 0;
@@ -425,27 +530,27 @@ unsigned int field_value::get_asUInt() const
   {
     case ft_String:
     {
-      return static_cast<unsigned int>(std::atoi(str_value.c_str()));
+      return (unsigned int)atoi(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<unsigned int>(bool_value);
+      return (unsigned int)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<unsigned int>(char_value);
+      return (unsigned int)char_value;
     }
     case ft_Short:
     {
-      return static_cast<unsigned int>(short_value);
+      return (unsigned int)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<unsigned int>(ushort_value);
+      return (unsigned int)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<unsigned int>(int_value);
+      return (unsigned int)int_value;
     }
     case ft_UInt:
     {
@@ -453,15 +558,15 @@ unsigned int field_value::get_asUInt() const
     }
     case ft_Float:
     {
-      return static_cast<unsigned int>(float_value);
+      return (unsigned int)float_value;
     }
     case ft_Double:
     {
-      return static_cast<unsigned int>(double_value);
+      return (unsigned int)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<unsigned int>(int64_value);
+      return (unsigned int)int64_value;
     }
     default:
       return 0;
@@ -474,31 +579,31 @@ float field_value::get_asFloat() const
   {
     case ft_String:
     {
-      return static_cast<float>(std::atof(str_value.c_str()));
+      return (float)atof(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<float>(bool_value);
+      return (float)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<float>(char_value);
+      return (float)char_value;
     }
     case ft_Short:
     {
-      return static_cast<float>(short_value);
+      return (float)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<float>(ushort_value);
+      return (float)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<float>(int_value);
+      return (float)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<float>(uint_value);
+      return (float)uint_value;
     }
     case ft_Float:
     {
@@ -506,11 +611,11 @@ float field_value::get_asFloat() const
     }
     case ft_Double:
     {
-      return static_cast<float>(double_value);
+      return (float)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<float>(int64_value);
+      return (float)int64_value;
     }
     default:
       return 0.0;
@@ -523,43 +628,43 @@ double field_value::get_asDouble() const
   {
     case ft_String:
     {
-      return std::atof(str_value.c_str());
+      return atof(str_value.c_str());
     }
     case ft_Boolean:
     {
-      return static_cast<double>(bool_value);
+      return (double)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<double>(char_value);
+      return (double)char_value;
     }
     case ft_Short:
     {
-      return static_cast<double>(short_value);
+      return (double)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<double>(ushort_value);
+      return (double)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<double>(int_value);
+      return (double)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<double>(uint_value);
+      return (double)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<double>(float_value);
+      return (double)float_value;
     }
     case ft_Double:
     {
-      return double_value;
+      return (double)double_value;
     }
     case ft_Int64:
     {
-      return static_cast<double>(int64_value);
+      return (double)int64_value;
     }
     default:
       return 0.0;
@@ -576,35 +681,35 @@ int64_t field_value::get_asInt64() const
     }
     case ft_Boolean:
     {
-      return static_cast<int64_t>(bool_value);
+      return (int64_t)bool_value;
     }
     case ft_Char:
     {
-      return static_cast<int64_t>(char_value);
+      return (int64_t)char_value;
     }
     case ft_Short:
     {
-      return static_cast<int64_t>(short_value);
+      return (int64_t)short_value;
     }
     case ft_UShort:
     {
-      return static_cast<int64_t>(ushort_value);
+      return (int64_t)ushort_value;
     }
     case ft_Int:
     {
-      return static_cast<int64_t>(int_value);
+      return (int64_t)int_value;
     }
     case ft_UInt:
     {
-      return static_cast<int64_t>(uint_value);
+      return (int64_t)uint_value;
     }
     case ft_Float:
     {
-      return static_cast<int64_t>(float_value);
+      return (int64_t)float_value;
     }
     case ft_Double:
     {
-      return static_cast<int64_t>(double_value);
+      return (int64_t)double_value;
     }
     case ft_Int64:
     {
@@ -627,58 +732,66 @@ field_value& field_value::operator=(const field_value& fv)
     case ft_String:
     {
       set_asString(fv.get_asString());
+      return *this;
       break;
     }
     case ft_Boolean:
     {
       set_asBool(fv.get_asBool());
+      return *this;
       break;
     }
     case ft_Char:
     {
       set_asChar(fv.get_asChar());
+      return *this;
       break;
     }
     case ft_Short:
     {
       set_asShort(fv.get_asShort());
+      return *this;
       break;
     }
     case ft_UShort:
     {
       set_asUShort(fv.get_asUShort());
+      return *this;
       break;
     }
     case ft_Int:
     {
       set_asInt(fv.get_asInt());
+      return *this;
       break;
     }
     case ft_UInt:
     {
       set_asUInt(fv.get_asUInt());
+      return *this;
       break;
     }
     case ft_Float:
     {
       set_asFloat(fv.get_asFloat());
+      return *this;
       break;
     }
     case ft_Double:
     {
       set_asDouble(fv.get_asDouble());
+      return *this;
       break;
     }
     case ft_Int64:
     {
       set_asInt64(fv.get_asInt64());
+      return *this;
       break;
     }
     default:
-      break;
+      return *this;
   }
-
-  return *this;
 }
 
 field_value& field_value::operator=(field_value&& fv) noexcept
@@ -692,12 +805,10 @@ field_value& field_value::operator=(field_value&& fv) noexcept
   {
     case ft_String:
       set_asString(std::move(fv.str_value));
-      break;
+      return *this;
     default:
-      *this = fv;
-      break;
+      return *this = fv;
   }
-  return *this;
 }
 
 //Set functions
@@ -713,7 +824,7 @@ void field_value::set_asString(const char* s, std::size_t len)
   field_type = ft_String;
 }
 
-void field_value::set_asString(std::string_view s)
+void field_value::set_asString(const std::string& s)
 {
   str_value = s;
   field_type = ft_String;
@@ -779,35 +890,59 @@ void field_value::set_asInt64(const int64_t i)
   field_type = ft_Int64;
 }
 
-fType field_value::get_field_type() const
-{
+fType field_value::get_field_type() const {
   return field_type;
 }
 
-std::string_view field_value::gft() const
-{
+std::string field_value::gft() const {
+  std::string tmp;
   switch (field_type)
   {
     case ft_String:
-      return "string";
+    {
+      tmp.assign("string");
+      return tmp;
+    }
     case ft_Boolean:
-      return "bool";
+    {
+      tmp.assign("bool");
+      return tmp;
+    }
     case ft_Char:
-      return "char";
+    {
+      tmp.assign("char");
+      return tmp;
+    }
     case ft_Short:
-      return "short";
+    {
+      tmp.assign("short");
+      return tmp;
+    }
     case ft_Int:
-      return "int";
+    {
+      tmp.assign("int");
+      return tmp;
+    }
     case ft_Float:
-      return "float";
+    {
+      tmp.assign("float");
+      return tmp;
+    }
     case ft_Double:
-      return "double";
+    {
+      tmp.assign("double");
+      return tmp;
+    }
     case ft_Int64:
-      return "int64";
+    {
+      tmp.assign("int64");
+      return tmp;
+    }
     default:
       break;
   }
-  return "";
+
+  return tmp;
 }
 
 } // namespace dbiplus

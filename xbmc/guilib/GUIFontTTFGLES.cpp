@@ -14,7 +14,6 @@
 #include "Texture.h"
 #include "TextureManager.h"
 #include "gui3d.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/MatrixGL.h"
 #include "rendering/gles/RenderSystemGLES.h"
 #include "settings/AdvancedSettings.h"
@@ -22,7 +21,6 @@
 #include "utils/GLUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <cassert>
 #include <memory>
@@ -58,7 +56,7 @@ CGUIFontTTFGLES::~CGUIFontTTFGLES(void)
 
 bool CGUIFontTTFGLES::FirstBegin()
 {
-  CRenderSystemGLES* renderSystem =
+  auto renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
   renderSystem->EnableGUIShader(ShaderMethodGLES::SM_FONTS);
   GLenum pixformat = GL_ALPHA; // deprecated
@@ -96,10 +94,10 @@ bool CGUIFontTTFGLES::FirstBegin()
 
     // Set the texture image -- THIS WORKS, so the pixels must be wrong.
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, m_texture->GetWidth(), m_texture->GetHeight(), 0,
-                 pixformat, GL_UNSIGNED_BYTE, 0);
+                 pixformat, GL_UNSIGNED_BYTE, nullptr);
 
 #ifdef GL_TEXTURE_MAX_ANISOTROPY_EXT
-    if (CGLExtensions::IsExtensionSupported(CGLExtensions::EXT_texture_filter_anisotropic))
+    if (CServiceBroker::GetRenderSystem()->IsExtSupported("GL_EXT_texture_filter_anisotropic"))
     {
       int32_t aniso =
           CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_guiAnisotropicFiltering;
@@ -144,7 +142,7 @@ void CGUIFontTTFGLES::LastEnd()
   if (!winSystem)
     return;
 
-  CRenderSystemGLES* renderSystem =
+  auto renderSystem =
       dynamic_cast<CRenderSystemGLES*>(CServiceBroker::GetRenderSystem());
 
   GLint posLoc = renderSystem->GUIShaderGetPos();
@@ -269,7 +267,7 @@ void CGUIFontTTFGLES::LastEnd()
             tex0Loc, 2, GL_FLOAT, GL_FALSE, sizeof(SVertex),
             reinterpret_cast<GLvoid*>(character * sizeof(SVertex) * 4 + offsetof(SVertex, u)));
 
-        glDrawElements(GL_TRIANGLES, 6 * count, GL_UNSIGNED_SHORT, 0);
+        glDrawElements(GL_TRIANGLES, 6 * count, GL_UNSIGNED_SHORT, nullptr);
       }
 
       glMatrixModview.Pop();
@@ -333,7 +331,8 @@ std::unique_ptr<CTexture> CGUIFontTTFGLES::ReallocTexture(unsigned int& newHeigh
 
   if (!newTexture || !newTexture->GetPixels())
   {
-    CLog::LogF(LOGERROR, "Error creating new cache texture for size {:f}", m_height);
+    CLog::Log(LOGERROR, "GUIFontTTFGLES::{}: Error creating new cache texture for size {:f}",
+              __func__, m_height);
     return nullptr;
   }
 
@@ -342,8 +341,9 @@ std::unique_ptr<CTexture> CGUIFontTTFGLES::ReallocTexture(unsigned int& newHeigh
   m_textureWidth = newTexture->GetWidth();
   m_textureScaleX = 1.0f / m_textureWidth;
   if (m_textureHeight < newHeight)
-    CLog::LogF(LOGWARNING, "allocated new texture with height of {}, requested {}", m_textureHeight,
-               newHeight);
+    CLog::Log(LOGWARNING,
+              "GUIFontTTFGLES::{}: allocated new texture with height of {}, requested {}", __func__,
+              m_textureHeight, newHeight);
   m_staticCache.Flush();
   m_dynamicCache.Flush();
 

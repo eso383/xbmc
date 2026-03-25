@@ -98,8 +98,8 @@ bool CEncoderFFmpeg::Init()
     /* Set the basic encoder parameters.
      * The input file's sample rate is used to avoid a sample rate conversion. */
     const AVSampleFormat* sampleFmts = nullptr;
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 12, 100)
     int numFmts = 0;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 12, 100)
     if (avcodec_get_supported_config(m_codecCtx, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0,
                                      reinterpret_cast<const void**>(&sampleFmts), &numFmts) < 0)
     {
@@ -210,14 +210,15 @@ bool CEncoderFFmpeg::Init()
     if (err != 0)
       throw FFMpegException("Failed to write the header (error '{}')", FFMpegErrorToString(err));
 
-    CLog::LogF(LOGDEBUG, "Successfully initialized with muxer {} and codec {}",
-               m_formatCtx->oformat->long_name ? m_formatCtx->oformat->long_name
-                                               : m_formatCtx->oformat->name,
-               codec->long_name ? codec->long_name : codec->name);
+    CLog::Log(LOGDEBUG, "CEncoderFFmpeg::{} - Successfully initialized with muxer {} and codec {}",
+              __func__,
+              m_formatCtx->oformat->long_name ? m_formatCtx->oformat->long_name
+                                              : m_formatCtx->oformat->name,
+              codec->long_name ? codec->long_name : codec->name);
   }
   catch (const FFMpegException& caught)
   {
-    CLog::LogF(LOGERROR, "{}", caught.what());
+    CLog::Log(LOGERROR, "CEncoderFFmpeg::{} - {}", __func__, caught.what());
 
     av_freep(&m_buffer);
     av_channel_layout_uninit(&m_bufferFrame->ch_layout);
@@ -240,17 +241,16 @@ bool CEncoderFFmpeg::Init()
   return true;
 }
 
-void CEncoderFFmpeg::SetTag(const std::string& tag, const std::string& value)
-{
+void CEncoderFFmpeg::SetTag(const std::string& tag, const std::string& value) const {
   av_dict_set(&m_formatCtx->metadata, tag.c_str(), value.c_str(), 0);
 }
 
 int CEncoderFFmpeg::avio_write_callback(void* opaque, const uint8_t* buf, int buf_size)
 {
-  CEncoderFFmpeg* enc = static_cast<CEncoderFFmpeg*>(opaque);
+  auto enc = static_cast<CEncoderFFmpeg*>(opaque);
   if (enc->Write(buf, buf_size) != buf_size)
   {
-    CLog::LogF(LOGERROR, "Error writing FFmpeg buffer to file");
+    CLog::Log(LOGERROR, "CEncoderFFmpeg::{} - Error writing FFmpeg buffer to file", __func__);
     return -1;
   }
   return buf_size;
@@ -258,7 +258,7 @@ int CEncoderFFmpeg::avio_write_callback(void* opaque, const uint8_t* buf, int bu
 
 int64_t CEncoderFFmpeg::avio_seek_callback(void* opaque, int64_t offset, int whence)
 {
-  CEncoderFFmpeg* enc = static_cast<CEncoderFFmpeg*>(opaque);
+  auto enc = static_cast<CEncoderFFmpeg*>(opaque);
   return enc->Seek(offset, whence);
 }
 
@@ -291,7 +291,8 @@ bool CEncoderFFmpeg::WriteFrame()
   AVPacket* pkt = av_packet_alloc();
   if (!pkt)
   {
-    CLog::LogF(LOGERROR, "av_packet_alloc failed: {}", strerror(errno));
+    CLog::Log(LOGERROR, "CEncoderFFmpeg::{} - av_packet_alloc failed: {}", __func__,
+              strerror(errno));
     return false;
   }
 
@@ -347,7 +348,7 @@ bool CEncoderFFmpeg::WriteFrame()
   }
   catch (const FFMpegException& caught)
   {
-    CLog::LogF(LOGERROR, "{}", caught.what());
+    CLog::Log(LOGERROR, "CEncoderFFmpeg::{} - {}", __func__, caught.what());
   }
 
   av_packet_free(&pkt);

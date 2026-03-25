@@ -52,7 +52,7 @@ bool CDVDDemuxVobsub::Open(const std::string& filename, int source, const std::s
     return false;
 
   std::string vobsub = subfilename;
-  if (vobsub.empty())
+  if ( vobsub == "")
   {
     vobsub = filename;
     vobsub.erase(vobsub.rfind('.'), vobsub.size());
@@ -62,7 +62,7 @@ bool CDVDDemuxVobsub::Open(const std::string& filename, int source, const std::s
   CFileItem item(vobsub, false);
   item.SetMimeType("video/x-vobsub");
   item.SetContentLookup(false);
-  m_Input = CDVDFactoryInputStream::CreateInputStream(NULL, item);
+  m_Input = CDVDFactoryInputStream::CreateInputStream(nullptr, item);
   if (!m_Input || !m_Input->Open())
     return false;
 
@@ -154,17 +154,17 @@ DemuxPacket* CDVDDemuxVobsub::Read()
   std::vector<STimestamp>::iterator current;
   do {
     if(m_Timestamp == m_Timestamps.end())
-      return NULL;
+      return nullptr;
 
     current =  m_Timestamp++;
   } while(m_Streams[current->id]->m_discard == true);
 
   if(!m_Demuxer->SeekByte(current->pos))
-    return NULL;
+    return nullptr;
 
   DemuxPacket *packet = m_Demuxer->Read();
   if(!packet)
-    return NULL;
+    return nullptr;
 
   packet->iStreamId = current->id;
   packet->pts = current->pts;
@@ -225,7 +225,7 @@ bool CDVDDemuxVobsub::ParseId(SState& state, std::string& line)
   stream->codec = AV_CODEC_ID_DVD_SUBTITLE;
   stream->uniqueId = m_Streams.size();
   stream->source = m_source;
-  stream->demuxerId = GetDemuxerId();
+  stream->demuxerId = m_demuxerId;
 
   state.id = stream->uniqueId;
   m_Streams.push_back(stream.release());

@@ -141,7 +141,7 @@ namespace XBMCAddon
       ///
       getX();
 #else
-      int getX() { return dwPosX; }
+      int getX() const { return dwPosX; }
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -163,7 +163,7 @@ namespace XBMCAddon
       ///
       getY();
 #else
-      int getY() { return dwPosY; }
+      int getY() const { return dwPosY; }
 #endif
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -693,7 +693,7 @@ namespace XBMCAddon
 #endif
 
 #ifndef SWIG
-      KODI::UTILS::COLOR::Color color;
+      UTILS::COLOR::Color color;
       std::string strTextureUp;
       std::string strTextureDown;
       std::string strTextureUpFocus;
@@ -768,8 +768,8 @@ namespace XBMCAddon
     {
     public:
       ControlLabel(long x, long y, long width, long height, const String& label,
-                  const char* font = NULL, const char* textColor = NULL,
-                  const char* disabledColor = NULL,
+                  const char* font = nullptr, const char* textColor = nullptr,
+                  const char* disabledColor = nullptr,
                   long alignment = XBFONT_LEFT,
                   bool hasPath = false, long angle = 0);
 
@@ -828,11 +828,11 @@ namespace XBMCAddon
       setLabel(...);
 #else
       virtual void setLabel(const String& label = emptyString,
-                            const char* font = NULL,
-                            const char* textColor = NULL,
-                            const char* disabledColor = NULL,
-                            const char* shadowColor = NULL,
-                            const char* focusedColor = NULL,
+                            const char* font = nullptr,
+                            const char* textColor = nullptr,
+                            const char* disabledColor = nullptr,
+                            const char* shadowColor = nullptr,
+                            const char* focusedColor = nullptr,
                             const String& label2 = emptyString);
 #endif
 
@@ -841,8 +841,8 @@ namespace XBMCAddon
 
       std::string strFont;
       std::string strText;
-      KODI::UTILS::COLOR::Color textColor;
-      KODI::UTILS::COLOR::Color disabledColor;
+      UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color disabledColor;
       uint32_t align;
       bool bHasPath = false;
       int iAngle = 0;
@@ -915,10 +915,10 @@ namespace XBMCAddon
     {
     public:
       ControlEdit(long x, long y, long width, long height, const String& label,
-                  const char* font = NULL, const char* textColor = NULL,
-                  const char* disabledColor = NULL,
-                  long _alignment = XBFONT_LEFT, const char* focusTexture = NULL,
-                  const char* noFocusTexture = NULL);
+                  const char* font = nullptr, const char* textColor = nullptr,
+                  const char* disabledColor = nullptr,
+                  long _alignment = XBFONT_LEFT, const char* focusTexture = nullptr,
+                  const char* noFocusTexture = nullptr);
 
 
       // setLabel() Method
@@ -953,11 +953,11 @@ namespace XBMCAddon
       setLabel(...);
 #else
       virtual void setLabel(const String& label = emptyString,
-                            const char* font = NULL,
-                            const char* textColor = NULL,
-                            const char* disabledColor = NULL,
-                            const char* shadowColor = NULL,
-                            const char* focusedColor = NULL,
+                            const char* font = nullptr,
+                            const char* textColor = nullptr,
+                            const char* disabledColor = nullptr,
+                            const char* shadowColor = nullptr,
+                            const char* focusedColor = nullptr,
                             const String& label2 = emptyString);
 #endif
 
@@ -1038,8 +1038,8 @@ namespace XBMCAddon
       std::string strText;
       std::string strTextureFocus;
       std::string strTextureNoFocus;
-      KODI::UTILS::COLOR::Color textColor;
-      KODI::UTILS::COLOR::Color disabledColor;
+      UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color disabledColor;
       uint32_t align;
 
       CGUIControl* Create() override;
@@ -1154,10 +1154,10 @@ namespace XBMCAddon
       void internAddListItem(const AddonClass::Ref<ListItem>& listitem, bool sendMessage);
 
     public:
-      ControlList(long x, long y, long width, long height, const char* font = NULL,
-                  const char* textColor = NULL, const char* buttonTexture = NULL,
-                  const char* buttonFocusTexture = NULL,
-                  const char* selectedColor = NULL,
+      ControlList(long x, long y, long width, long height, const char* font = nullptr,
+                  const char* textColor = nullptr, const char* buttonTexture = nullptr,
+                  const char* buttonFocusTexture = nullptr,
+                  const char* selectedColor = nullptr,
                   long _imageWidth=10, long _imageHeight=10, long _itemTextXOffset = CONTROL_TEXT_OFFSET_X,
                   long _itemTextYOffset = CONTROL_TEXT_OFFSET_Y, long _itemHeight = 27, long _space = 2,
                   long _alignmentY = XBFONT_CENTER_Y);
@@ -1502,7 +1502,7 @@ namespace XBMCAddon
       /// @brief \python_func{ getItemHeight() }
       /// Returns the control's current item height as an integer.
       ///
-      /// @return                       Current item height
+      /// @return                       Current item heigh
       ///
       ///
       ///--------------------------------------------------------------------------
@@ -1595,7 +1595,7 @@ namespace XBMCAddon
 #endif
 
 #ifndef SWIG
-      void sendLabelBind(int tail);
+      void sendLabelBind(int tail) const;
 
       bool canAcceptMessages(int actionId) override
       { return ((actionId == ACTION_SELECT_ITEM) | (actionId == ACTION_MOUSE_LEFT_CLICK)); }
@@ -1608,8 +1608,8 @@ namespace XBMCAddon
       std::string strFont;
       AddonClass::Ref<ControlSpin> pControlSpin;
 
-      KODI::UTILS::COLOR::Color textColor;
-      KODI::UTILS::COLOR::Color selectedColor;
+      UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color selectedColor;
       std::string strTextureButton;
       std::string strTextureButtonFocus;
 
@@ -1686,8 +1686,8 @@ namespace XBMCAddon
     {
     public:
       ControlFadeLabel(long x, long y, long width, long height,
-                       const char* font = NULL,
-                       const char* textColor = NULL,
+                       const char* font = nullptr,
+                       const char* textColor = nullptr,
                        long _alignment = XBFONT_LEFT);
 
       // addLabel() Method
@@ -1761,7 +1761,7 @@ namespace XBMCAddon
 
 #ifndef SWIG
       std::string strFont;
-      KODI::UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color textColor;
       std::vector<std::string> vecLabels;
       uint32_t align;
 
@@ -1827,8 +1827,8 @@ namespace XBMCAddon
     {
     public:
       ControlTextBox(long x, long y, long width, long height,
-                     const char* font = NULL,
-                     const char* textColor = NULL);
+                     const char* font = nullptr,
+                     const char* textColor = nullptr);
 
       // SetText() Method
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -1965,7 +1965,7 @@ namespace XBMCAddon
 
 #ifndef SWIG
       std::string strFont;
-      KODI::UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color textColor;
 
       CGUIControl* Create() override;
 
@@ -2022,7 +2022,7 @@ namespace XBMCAddon
     public:
       ControlImage(long x, long y, long width, long height,
                    const char* filename, long aspectRatio = 0,
-                   const char* colorDiffuse = NULL);
+                   const char* colorDiffuse = nullptr);
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
       ///
@@ -2082,7 +2082,7 @@ namespace XBMCAddon
 
       std::string strFileName;
       int aspectRatio = 0;
-      KODI::UTILS::COLOR::Color colorDiffuse;
+      UTILS::COLOR::Color colorDiffuse;
 
       CGUIControl* Create() override;
 #endif
@@ -2159,11 +2159,11 @@ namespace XBMCAddon
     {
     public:
       ControlProgress(long x, long y, long width, long height,
-                      const char* texturebg = NULL,
-                      const char* textureleft = NULL,
-                      const char* texturemid = NULL,
-                      const char* textureright = NULL,
-                      const char* textureoverlay = NULL);
+                      const char* texturebg = nullptr,
+                      const char* textureleft = nullptr,
+                      const char* texturemid = nullptr,
+                      const char* textureright = nullptr,
+                      const char* textureoverlay = nullptr);
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
       ///
@@ -2223,7 +2223,7 @@ namespace XBMCAddon
       std::string strTextureBg;
       std::string strTextureOverlay;
       int aspectRatio = 0;
-      KODI::UTILS::COLOR::Color colorDiffuse;
+      UTILS::COLOR::Color colorDiffuse;
 
       CGUIControl* Create() override;
       ControlProgress() = default;
@@ -2305,13 +2305,13 @@ namespace XBMCAddon
     {
     public:
       ControlButton(long x, long y, long width, long height, const String& label,
-                    const char* focusTexture = NULL, const char* noFocusTexture = NULL,
+                    const char* focusTexture = nullptr, const char* noFocusTexture = nullptr,
                     long textOffsetX = CONTROL_TEXT_OFFSET_X,
                     long textOffsetY = CONTROL_TEXT_OFFSET_Y,
                     long alignment = (XBFONT_LEFT | XBFONT_CENTER_Y),
-                    const char* font = NULL, const char* textColor = NULL,
-                    const char* disabledColor = NULL, long angle = 0,
-                    const char* shadowColor = NULL, const char* focusedColor = NULL);
+                    const char* font = nullptr, const char* textColor = nullptr,
+                    const char* disabledColor = nullptr, long angle = 0,
+                    const char* shadowColor = nullptr, const char* focusedColor = nullptr);
 
       // setLabel() Method
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2346,11 +2346,11 @@ namespace XBMCAddon
       setLabel(...);
 #else
       virtual void setLabel(const String& label = emptyString,
-                            const char* font = NULL,
-                            const char* textColor = NULL,
-                            const char* disabledColor = NULL,
-                            const char* shadowColor = NULL,
-                            const char* focusedColor = NULL,
+                            const char* font = nullptr,
+                            const char* textColor = nullptr,
+                            const char* disabledColor = nullptr,
+                            const char* shadowColor = nullptr,
+                            const char* focusedColor = nullptr,
                             const String& label2 = emptyString);
 #endif
 
@@ -2434,10 +2434,10 @@ namespace XBMCAddon
 
       int textOffsetX = 0;
       int textOffsetY = 0;
-      KODI::UTILS::COLOR::Color align;
+      UTILS::COLOR::Color align;
       std::string strFont;
-      KODI::UTILS::COLOR::Color textColor;
-      KODI::UTILS::COLOR::Color disabledColor;
+      UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color disabledColor;
       int iAngle = 0;
       int shadowColor = 0;
       int focusedColor = 0;
@@ -2581,16 +2581,16 @@ namespace XBMCAddon
     {
     public:
       ControlRadioButton(long x, long y, long width, long height, const String& label,
-                         const char* focusOnTexture = NULL, const char* noFocusOnTexture = NULL,
-                         const char* focusOffTexture = NULL, const char* noFocusOffTexture = NULL,
-                         const char* focusTexture = NULL, const char* noFocusTexture = NULL,
+                         const char* focusOnTexture = nullptr, const char* noFocusOnTexture = nullptr,
+                         const char* focusOffTexture = nullptr, const char* noFocusOffTexture = nullptr,
+                         const char* focusTexture = nullptr, const char* noFocusTexture = nullptr,
                          long textOffsetX = CONTROL_TEXT_OFFSET_X,
                          long textOffsetY = CONTROL_TEXT_OFFSET_Y,
                          long _alignment = (XBFONT_LEFT | XBFONT_CENTER_Y),
-                         const char* font = NULL, const char* textColor = NULL,
-                         const char* disabledColor = NULL, long angle = 0,
-                         const char* shadowColor = NULL, const char* focusedColor = NULL,
-                         const char* disabledOnTexture = NULL, const char* disabledOffTexture = NULL);
+                         const char* font = nullptr, const char* textColor = nullptr,
+                         const char* disabledColor = nullptr, long angle = 0,
+                         const char* shadowColor = nullptr, const char* focusedColor = nullptr,
+                         const char* disabledOnTexture = nullptr, const char* disabledOffTexture = nullptr);
 
       // setSelected() Method
 #ifdef DOXYGEN_SHOULD_USE_THIS
@@ -2685,11 +2685,11 @@ namespace XBMCAddon
       setLabel(...);
 #else
       virtual void setLabel(const String& label = emptyString,
-                            const char* font = NULL,
-                            const char* textColor = NULL,
-                            const char* disabledColor = NULL,
-                            const char* shadowColor = NULL,
-                            const char* focusedColor = NULL,
+                            const char* font = nullptr,
+                            const char* textColor = nullptr,
+                            const char* disabledColor = nullptr,
+                            const char* shadowColor = nullptr,
+                            const char* focusedColor = nullptr,
                             const String& label2 = emptyString);
 #endif
 
@@ -2738,14 +2738,14 @@ namespace XBMCAddon
       std::string strTextureRadioOffNoFocus;
       std::string strTextureRadioOnDisabled;
       std::string strTextureRadioOffDisabled;
-      KODI::UTILS::COLOR::Color textColor;
-      KODI::UTILS::COLOR::Color disabledColor;
+      UTILS::COLOR::Color textColor;
+      UTILS::COLOR::Color disabledColor;
       int textOffsetX = 0;
       int textOffsetY = 0;
      uint32_t align;
       int iAngle = 0;
-      KODI::UTILS::COLOR::Color shadowColor;
-      KODI::UTILS::COLOR::Color focusedColor;
+      UTILS::COLOR::Color shadowColor;
+      UTILS::COLOR::Color focusedColor;
 
       CGUIControl* Create() override;
 
@@ -2803,12 +2803,12 @@ namespace XBMCAddon
                     long y,
                     long width,
                     long height,
-                    const char* textureback = NULL,
-                    const char* texture = NULL,
-                    const char* texturefocus = NULL,
+                    const char* textureback = nullptr,
+                    const char* texture = nullptr,
+                    const char* texturefocus = nullptr,
                     int orientation = 1,
-                    const char* texturebackdisabled = NULL,
-                    const char* texturedisabled = NULL);
+                    const char* texturebackdisabled = nullptr,
+                    const char* texturedisabled = nullptr);
 
 #ifdef DOXYGEN_SHOULD_USE_THIS
       ///

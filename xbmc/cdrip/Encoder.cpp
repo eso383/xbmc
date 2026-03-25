@@ -33,7 +33,7 @@ bool CEncoder::EncoderInit(const std::string& strFile, int iInChannels, int iInR
 
   if (!FileCreate(strFile))
   {
-    CLog::LogF(LOGERROR, "Cannot open file: '{}'", strFile);
+    CLog::Log(LOGERROR, "CEncoder::{} - Cannot open file: {}", __func__, strFile);
     return false;
   }
 
@@ -45,7 +45,7 @@ ssize_t CEncoder::EncoderEncode(uint8_t* pbtStream, size_t nNumBytesRead)
   const int iBytes = Encode(pbtStream, nNumBytesRead);
   if (iBytes < 0)
   {
-    CLog::LogF(LOGERROR, "Internal encoder error: {}", iBytes);
+    CLog::Log(LOGERROR, "CEncoder::{} - Internal encoder error: {}", __func__, iBytes);
     return 0;
   }
   return 1;
@@ -81,8 +81,7 @@ bool CEncoder::FileClose()
 }
 
 // return total bytes written, or -1 on error
-ssize_t CEncoder::FileWrite(const uint8_t* pBuffer, size_t iBytes)
-{
+ssize_t CEncoder::FileWrite(const uint8_t* pBuffer, size_t iBytes) const {
   if (!m_file)
     return -1;
 

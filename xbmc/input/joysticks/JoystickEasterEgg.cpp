@@ -21,7 +21,7 @@ using namespace JOYSTICK;
 
 const std::map<std::string, std::vector<FeatureName>> CJoystickEasterEgg::m_sequence = {
     {
-        GAME::DEFAULT_CONTROLLER_ID,
+        DEFAULT_CONTROLLER_ID,
         {
             GAME::CDefaultController::FEATURE_UP,
             GAME::CDefaultController::FEATURE_UP,
@@ -36,7 +36,7 @@ const std::map<std::string, std::vector<FeatureName>> CJoystickEasterEgg::m_sequ
         },
     },
     {
-        GAME::DEFAULT_REMOTE_ID,
+        DEFAULT_REMOTE_ID,
         {
             "up",
             "up",

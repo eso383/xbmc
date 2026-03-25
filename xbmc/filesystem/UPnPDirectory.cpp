@@ -13,7 +13,6 @@
 #include "UPnPDirectory.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "network/upnp/UPnP.h"
@@ -55,7 +54,7 @@ static std::string GetContentMapping(NPT_String& objectClass)
         , { "object.container.album.photoAlbum"                     , "photos"       }
         , { "object.container.album"                                , "albums"       }
         , { "object.container.person"                               , "artists"      }
-        , { NULL                                                    , NULL           }
+        , {nullptr, nullptr}
     };
     for(const SClassMapping* map = mapping; map->ObjectClass; map++)
     {
@@ -187,7 +186,7 @@ CUPnPDirectory::GetDirectory(const CURL& url, CFileItemList &items)
     CUPnP* upnp = CUPnP::GetInstance();
 
     /* upnp should never be cached, it has internal cache */
-    items.SetCacheToDisc(CFileItemList::CacheType::NEVER);
+    items.SetCacheToDisc(CFileItemList::CACHE_NEVER);
 
     // We accept upnp://devuuid/[item_id/]
     NPT_String path = url.Get().c_str();
@@ -205,12 +204,12 @@ CUPnPDirectory::GetDirectory(const CURL& url, CFileItemList &items)
             NPT_String name = (*device)->GetFriendlyName();
             NPT_String uuid = (*device)->GetUUID();
 
-            auto pItem{std::make_shared<CFileItem>(static_cast<const char*>(name))};
-            pItem->SetPath(static_cast<const char*>("upnp://" + uuid + "/"));
-            pItem->SetFolder(true);
-            pItem->SetArt("thumb", static_cast<const char*>((*device)->GetIconUrl("image/png")));
+            CFileItemPtr pItem(new CFileItem((const char*)name));
+            pItem->SetPath(std::string((const char*) "upnp://" + uuid + "/"));
+            pItem->m_bIsFolder = true;
+            pItem->SetArt("thumb", (const char*)(*device)->GetIconUrl("image/png"));
 
-            items.Add(std::move(pItem));
+            items.Add(pItem);
 
             ++device;
         }
@@ -316,13 +315,13 @@ CUPnPDirectory::GetDirectory(const CURL& url, CFileItemList &items)
 
             std::string id;
             if ((*entry)->m_ReferenceID.IsEmpty())
-              id = static_cast<const char*>((*entry)->m_ObjectID);
+                id = (const char*) (*entry)->m_ObjectID;
             else
-              id = static_cast<const char*>((*entry)->m_ReferenceID);
+                id = (const char*) (*entry)->m_ReferenceID;
 
             id = CURL::Encode(id);
             URIUtils::AddSlashAtEnd(id);
-            pItem->SetPath(static_cast<const char*>("upnp://" + uuid + "/" + id.c_str()));
+            pItem->SetPath(std::string((const char*) "upnp://" + uuid + "/" + id.c_str()));
 
             items.Add(pItem);
 
@@ -343,11 +342,10 @@ CUPnPDirectory::GetDirectory(const CURL& url, CFileItemList &items)
         items.SetContent(content);
         if (content == "unknown")
         {
-          items.AddSortMethod(SortBy::NONE, 571, LABEL_MASKS("%L", "%I", "%L", ""));
-          items.AddSortMethod(SortBy::LABEL, SortAttributeIgnoreFolders, 551,
-                              LABEL_MASKS("%L", "%I", "%L", ""));
-          items.AddSortMethod(SortBy::SIZE, 553, LABEL_MASKS("%L", "%I", "%L", "%I"));
-          items.AddSortMethod(SortBy::DATE, 552, LABEL_MASKS("%L", "%J", "%L", "%J"));
+          items.AddSortMethod(SortByNone, 571, LABEL_MASKS("%L", "%I", "%L", ""));
+          items.AddSortMethod(SortByLabel, SortAttributeIgnoreFolders, 551, LABEL_MASKS("%L", "%I", "%L", ""));
+          items.AddSortMethod(SortBySize, 553, LABEL_MASKS("%L", "%I", "%L", "%I"));
+          items.AddSortMethod(SortByDate, 552, LABEL_MASKS("%L", "%J", "%L", "%J"));
         }
     }
 

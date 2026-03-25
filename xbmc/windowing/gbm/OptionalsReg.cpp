@@ -11,10 +11,9 @@
 //-----------------------------------------------------------------------------
 // VAAPI
 //-----------------------------------------------------------------------------
-#if defined(HAVE_LIBVA)
-#include "cores/VideoPlayer/DVDCodecs/Video/VAAPI.h"
-
+#if defined (HAVE_LIBVA)
 #include <va/va_drm.h>
+#include "cores/VideoPlayer/DVDCodecs/Video/VAAPI.h"
 #if defined(HAS_GL)
 #include "cores/VideoPlayer/VideoRenderers/HwDecRender/RendererVAAPIGL.h"
 #endif
@@ -32,13 +31,13 @@ namespace GBM
 class CVaapiProxy : public VAAPI::IVaapiWinSystem
 {
 public:
-  CVaapiProxy(int fd) : m_fd(fd){};
+  CVaapiProxy(int fd) : m_fd(fd) {};
   virtual ~CVaapiProxy() = default;
   VADisplay GetVADisplay() override;
-  void* GetEGLDisplay() override { return eglDisplay; };
+  void *GetEGLDisplay() override { return eglDisplay; };
 
   VADisplay vaDpy;
-  void* eglDisplay;
+  void *eglDisplay;
 
 private:
   int m_fd{-1};
@@ -54,18 +53,18 @@ CVaapiProxy* VaapiProxyCreate(int fd)
   return new CVaapiProxy(fd);
 }
 
-void VaapiProxyDelete(CVaapiProxy* proxy)
+void VaapiProxyDelete(CVaapiProxy *proxy)
 {
   delete proxy;
 }
 
-void VaapiProxyConfig(CVaapiProxy* proxy, void* eglDpy)
+void VaapiProxyConfig(CVaapiProxy *proxy, void *eglDpy)
 {
   proxy->vaDpy = proxy->GetVADisplay();
   proxy->eglDisplay = eglDpy;
 }
 
-void VAAPIRegister(CVaapiProxy* winSystem, bool deepColor)
+void VAAPIRegister(CVaapiProxy *winSystem, bool deepColor)
 {
   VAAPI::CDecoder::Register(winSystem, deepColor);
 }
@@ -85,9 +84,9 @@ void VAAPIRegisterRenderGLES(CVaapiProxy* winSystem, bool& general, bool& deepCo
                                deepColor);
 }
 #endif
-} // namespace GBM
-} // namespace WINDOWING
-} // namespace KODI
+}
+}
+}
 
 #else
 
@@ -107,21 +106,24 @@ CVaapiProxy* VaapiProxyCreate(int fd)
   return nullptr;
 }
 
-void VaapiProxyDelete(CVaapiProxy* proxy)
+void VaapiProxyDelete(CVaapiProxy *proxy)
 {
 }
 
-void VaapiProxyConfig(CVaapiProxy* proxy, void* eglDpy)
+void VaapiProxyConfig(CVaapiProxy *proxy, void *eglDpy)
 {
+
 }
 
-void VAAPIRegister(CVaapiProxy* winSystem, bool deepColor)
+void VAAPIRegister(CVaapiProxy *winSystem, bool deepColor)
 {
+
 }
 
 #if defined(HAS_GL)
 void VAAPIRegisterRenderGL(CVaapiProxy* winSystem, bool& general, bool& deepColor)
 {
+
 }
 #endif
 
@@ -130,8 +132,8 @@ void VAAPIRegisterRenderGLES(CVaapiProxy* winSystem, bool& general, bool& deepCo
 {
 }
 #endif
-} // namespace GBM
-} // namespace WINDOWING
-} // namespace KODI
+}
+}
+}
 
 #endif

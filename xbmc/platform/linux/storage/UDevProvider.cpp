@@ -17,12 +17,10 @@ extern "C" {
 #include <poll.h>
 }
 
-namespace
-{
-const char* get_mountpoint(const char* devnode)
+static const char *get_mountpoint(const char *devnode)
 {
   static char buf[4096];
-  const char *delim = " ";
+  auto delim = " ";
   const char *mountpoint = nullptr;
   FILE *fp = fopen("/proc/mounts", "r");
   if (!fp)
@@ -61,7 +59,6 @@ const char* get_mountpoint(const char* devnode)
   fclose(fp);
   return mountpoint;
 }
-} // namespace
 
 CUDevProvider::CUDevProvider()
 {
@@ -94,8 +91,7 @@ void CUDevProvider::Stop()
   udev_unref(m_udev);
 }
 
-void CUDevProvider::GetDisks(std::vector<CMediaSource>& disks, bool removable)
-{
+void CUDevProvider::GetDisks(VECSOURCES& disks, bool removable) const {
   // enumerate existing block devices
   struct udev_enumerate *u_enum = udev_enumerate_new(m_udev);
   if (!u_enum)
@@ -192,12 +188,12 @@ void CUDevProvider::GetDisks(std::vector<CMediaSource>& disks, bool removable)
     if (isRemovable)
     {
       if (optical)
-        share.m_iDriveType = SourceType::OPTICAL_DISC;
+        share.m_iDriveType = CMediaSource::SOURCE_TYPE_DVD;
       else
-        share.m_iDriveType = SourceType::REMOVABLE;
+        share.m_iDriveType = CMediaSource::SOURCE_TYPE_REMOVABLE;
     }
     else
-      share.m_iDriveType = SourceType::LOCAL;
+      share.m_iDriveType = CMediaSource::SOURCE_TYPE_LOCAL;
 
     disks.push_back(share);
     udev_device_unref(device);
@@ -205,12 +201,12 @@ void CUDevProvider::GetDisks(std::vector<CMediaSource>& disks, bool removable)
   udev_enumerate_unref(u_enum);
 }
 
-void CUDevProvider::GetLocalDrives(std::vector<CMediaSource>& localDrives)
+void CUDevProvider::GetLocalDrives(VECSOURCES &localDrives)
 {
   GetDisks(localDrives, false);
 }
 
-void CUDevProvider::GetRemovableDrives(std::vector<CMediaSource>& removableDrives)
+void CUDevProvider::GetRemovableDrives(VECSOURCES &removableDrives)
 {
   GetDisks(removableDrives, true);
 }
@@ -288,12 +284,11 @@ bool CUDevProvider::PumpDriveChangeEvents(IStorageEventsCallback *callback)
       if (strcmp(action, "change") == 0 && !(bd && strcmp(bd, "1") == 0))
       {
         const char *optical = udev_device_get_property_value(dev, "ID_CDROM");
-        const bool isOptical = optical && (strcmp(optical, "1") == 0);
+        bool isOptical = optical && (strcmp(optical, "1") != 0);
         storageDevice.type =
             isOptical ? MEDIA_DETECT::STORAGE::Type::OPTICAL : MEDIA_DETECT::STORAGE::Type::UNKNOWN;
-        storageDevice.path = devnode;
 
-        if (mountpoint && isOptical)
+        if (mountpoint && !isOptical)
         {
           CLog::Log(LOGINFO, "UDev: Changed / Added {}", mountpoint);
           if (callback)

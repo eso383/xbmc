@@ -9,6 +9,7 @@
 #pragma once
 
 #include "IPortList.h"
+#include "addons/AddonEvents.h"
 #include "games/GameTypes.h"
 #include "games/controllers/ControllerTypes.h"
 #include "games/controllers/dialogs/ControllerSelect.h"
@@ -49,13 +50,16 @@ public:
   void ResetPorts() override;
 
 private:
+  // Add-on API
+  void OnEvent(const ADDON::AddonEvent& event);
+
   bool AddItems(const CPortNode& port, unsigned int& itemId, const std::string& itemLabel);
   void CleanupItems();
   void OnItemFocus(unsigned int itemIndex);
   void OnItemSelect(unsigned int itemIndex);
 
   // Controller selection callback
-  void OnControllerSelected(const CPortNode& port, const ControllerPtr& controller);
+  void OnControllerSelected(const CPortNode& port, const ControllerPtr& controller) const;
 
   static std::string GetLabel(const CPortNode& port);
 

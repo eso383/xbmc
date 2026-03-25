@@ -9,7 +9,6 @@
 #include "SMBWSDiscovery.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "network/IWSDiscovery.h"
 #include "utils/StringUtils.h"
@@ -74,7 +73,7 @@ bool CWSDiscoveryPosix::IsRunning()
 bool CWSDiscoveryPosix::GetServerList(CFileItemList& items)
 {
   {
-    std::unique_lock lock(m_critWSD);
+    std::lock_guard lock(m_critWSD);
 
     for (const auto& item : m_vecWSDInfo)
     {
@@ -89,9 +88,9 @@ bool CWSDiscoveryPosix::GetServerList(CFileItemList& items)
         host = item.xaddrs_host;
       }
 
-      CFileItemPtr pItem = std::make_shared<CFileItem>(host);
+      auto pItem = std::make_shared<CFileItem>(host);
       pItem->SetPath("smb://" + host + '/');
-      pItem->SetFolder(true);
+      pItem->m_bIsFolder = true;
       items.Add(pItem);
     }
   }
@@ -102,7 +101,8 @@ bool CWSDiscoveryPosix::GetCached(const std::string& strHostName, std::string& s
 {
   const std::string match = strHostName + "/";
 
-  std::unique_lock lock(m_critWSD);
+  std::lock_guard lock(m_critWSD);
+
   for (const auto& item : m_vecWSDInfo)
   {
     if (!item.computer.empty() && StringUtils::StartsWithNoCase(item.computer, match))
@@ -120,7 +120,8 @@ bool CWSDiscoveryPosix::GetCached(const std::string& strHostName, std::string& s
 void CWSDiscoveryPosix::SetItems(std::vector<wsd_req_info> entries)
 {
   {
-    std::unique_lock lock(m_critWSD);
+    std::lock_guard lock(m_critWSD);
+    
     m_vecWSDInfo = std::move(entries);
   }
 }

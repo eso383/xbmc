@@ -37,24 +37,25 @@ public:
 
   virtual ~CAddonVersion() = default;
 
-  long Epoch() const { return m_epoch; }
-  const std::string& Upstream() const { return m_upstream; }
-  const std::string& Revision() const { return m_revision; }
+  int Epoch() const { return mEpoch; }
+  const std::string& Upstream() const { return mUpstream; }
+  const std::string& Revision() const { return mRevision; }
 
   bool operator<(const CAddonVersion& other) const;
   bool operator>(const CAddonVersion& other) const;
   bool operator<=(const CAddonVersion& other) const;
   bool operator>=(const CAddonVersion& other) const;
   bool operator==(const CAddonVersion& other) const;
+  bool operator!=(const CAddonVersion& other) const;
   std::string asString() const;
   bool empty() const;
 
   static bool SplitFileName(std::string& ID, std::string& version, const std::string& filename);
 
-private:
-  long m_epoch;
-  std::string m_upstream;
-  std::string m_revision;
+protected:
+  int mEpoch;
+  std::string mUpstream;
+  std::string mRevision;
 
   static int CompareComponent(const char* a, const char* b);
 };

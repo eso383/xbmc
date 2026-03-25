@@ -1,47 +1,39 @@
-include ../../Makefile.include UDFREAD-VERSION ../../download-files.include
-DEPS = ../../Makefile.include Makefile UDFREAD-VERSION ../../download-files.include \
-                                        001-win-MR10-merged.patch
-
-MESON_BUILD_TYPE=release
-
-ifeq ($(DEBUG_BUILD), yes)
-  MESON_BUILD_TYPE=debug
-endif
-
-# configuration settings
-CONFIGURE = $(NATIVEPREFIX)/bin/python3 $(NATIVEPREFIX)/bin/meson setup \
-  --prefix=$(PREFIX) \
-  --libdir=lib \
-  --buildtype=$(MESON_BUILD_TYPE) \
-  . build
+-include ../../Makefile.include
+include UDFREAD-VERSION
+DEPS = Makefile UDFREAD-VERSION ../../download-files.include ../../download-files.include
 
 ifeq ($(CROSS_COMPILING), yes)
-  CONFIGURE += --cross-file=$(PREFIX)/share/cross-file.meson
-  export CC=$(CC_FOR_BUILD)
-  export CXX=$(CXX_FOR_BUILD)
-  export CFLAGS=$(CFLAGS_FOR_BUILD)
-  export CXXFLAGS=$(CXXFLAGS_FOR_BUILD)
+  DEPS += ../../Makefile.include
 else
-  export CC CXX CFLAGS CXXFLAGS
+  ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+  TARBALLS_LOCATION ?= $(ROOT_DIR)
+  BASE_URL ?= http://mirrors.kodi.tv/build-deps/sources
+  RETRIEVE_TOOL := curl
+  RETRIEVE_TOOL_FLAGS := -LsS --create-dirs --retry 10 --retry-connrefused -o
+  ARCHIVE_TOOL := tar
+  ARCHIVE_TOOL_FLAGS := --strip-components=1 -xf
 endif
 
-export PKG_CONFIG_LIBDIR=$(PREFIX)/share/pkgconfig
+include ../../download-files.include
 
-LIBDYLIB=$(PLATFORM)/build/src/$(BYPRODUCT)
+# configuration settings
+CONFIGURE = ./configure --prefix=$(PREFIX) --disable-shared --enable-static
+
+LIBDYLIB=$(PLATFORM)/.libs/$(BYPRODUCT)
 
 all: .installed-$(PLATFORM)
 
 $(PLATFORM): $(DEPS) | $(TARBALLS_LOCATION)/$(ARCHIVE).$(HASH_TYPE)
 	rm -rf $(PLATFORM)/*; mkdir -p $(PLATFORM)
 	cd $(PLATFORM); $(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
-	cd $(PLATFORM); patch -p1 -i ../001-win-MR10-merged.patch
+	cd $(PLATFORM); $(AUTORECONF) -vif
 	cd $(PLATFORM); $(CONFIGURE)
 
 $(LIBDYLIB): $(PLATFORM)
-	cd $(PLATFORM)/build; $(NATIVEPREFIX)/bin/ninja -v
+	$(MAKE) -C $(PLATFORM)
 
 .installed-$(PLATFORM): $(LIBDYLIB)
-	cd $(PLATFORM)/build; $(NATIVEPREFIX)/bin/ninja -v install
+	$(MAKE) -C $(PLATFORM) install
 	touch $@
 
 clean:

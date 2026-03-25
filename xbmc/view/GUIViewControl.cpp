@@ -9,15 +9,13 @@
 #include "GUIViewControl.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIInfoManager.h"
 #include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/IGUIContainer.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
@@ -66,7 +64,7 @@ void CGUIViewControl::SetCurrentView(int viewMode, bool bRefresh /* = false */)
   UpdateViewVisibility();
 
   // viewMode is of the form TYPE << 16 | ID
-  VIEW_TYPE type = (VIEW_TYPE)(viewMode >> 16);
+  auto type = (VIEW_TYPE)(viewMode >> 16);
   int id = viewMode & 0xffff;
 
   // first find a view that matches this view, if possible...
@@ -136,8 +134,7 @@ void CGUIViewControl::UpdateContents(const CGUIControl *control, int currentItem
   CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg, m_parentWindow);
 }
 
-void CGUIViewControl::UpdateView()
-{
+void CGUIViewControl::UpdateView() const {
   //  CLog::Log(LOGDEBUG,"UpdateView: {}", m_currentView);
   if (m_currentView < 0 || m_currentView >= (int)m_visibleViews.size())
     return; // no valid current view!
@@ -187,8 +184,7 @@ std::string CGUIViewControl::GetSelectedItemPath() const
   return "";
 }
 
-void CGUIViewControl::SetSelectedItem(int item)
-{
+void CGUIViewControl::SetSelectedItem(int item) const {
   if (!m_fileItems || item < 0 || item >= m_fileItems->Size())
     return;
 
@@ -221,8 +217,7 @@ void CGUIViewControl::SetSelectedItem(const std::string &itemPath)
   SetSelectedItem(item);
 }
 
-void CGUIViewControl::SetFocused()
-{
+void CGUIViewControl::SetFocused() const {
   if (m_currentView < 0 || m_currentView >= (int)m_visibleViews.size())
     return; // no valid current view!
 
@@ -255,7 +250,7 @@ int CGUIViewControl::GetViewModeNumber(int number) const
   IGUIContainer *nextView = nullptr;
   if (number >= 0 && number < (int)m_visibleViews.size())
     nextView = static_cast<IGUIContainer*>(m_visibleViews[number]);
-  else if (!m_visibleViews.empty())
+  else if (m_visibleViews.size())
     nextView = static_cast<IGUIContainer*>(m_visibleViews[0]);
   if (nextView)
     return (nextView->GetType() << 16) | nextView->GetID();
@@ -272,7 +267,7 @@ int CGUIViewControl::GetViewModeByID(int id) const
 {
   for (unsigned int i = 0; i < m_visibleViews.size(); ++i)
   {
-    IGUIContainer *view = static_cast<IGUIContainer*>(m_visibleViews[i]);
+    auto view = static_cast<IGUIContainer*>(m_visibleViews[i]);
     if (view->GetID() == id)
       return (view->GetType() << 16) | view->GetID();
   }
@@ -282,17 +277,16 @@ int CGUIViewControl::GetViewModeByID(int id) const
 // returns the next viewmode in the cycle
 int CGUIViewControl::GetNextViewMode(int direction) const
 {
-  if (m_visibleViews.empty())
+  if (!m_visibleViews.size())
     return 0; // no view modes :(
 
   int viewNumber = (m_currentView + direction) % (int)m_visibleViews.size();
   if (viewNumber < 0) viewNumber += m_visibleViews.size();
-  IGUIContainer *nextView = static_cast<IGUIContainer*>(m_visibleViews[viewNumber]);
+  auto nextView = static_cast<IGUIContainer*>(m_visibleViews[viewNumber]);
   return (nextView->GetType() << 16) | nextView->GetID();
 }
 
-void CGUIViewControl::Clear()
-{
+void CGUIViewControl::Clear() const {
   if (m_currentView < 0 || m_currentView >= (int)m_visibleViews.size())
     return; // no valid current view!
 
@@ -304,23 +298,21 @@ int CGUIViewControl::GetView(VIEW_TYPE type, int id) const
 {
   for (int i = 0; i < (int)m_visibleViews.size(); i++)
   {
-    IGUIContainer *view = static_cast<IGUIContainer*>(m_visibleViews[i]);
+    auto view = static_cast<IGUIContainer*>(m_visibleViews[i]);
     if ((type == VIEW_TYPE_NONE || type == view->GetType()) && (!id || view->GetID() == id))
       return i;
   }
   return -1;
 }
 
-void CGUIViewControl::UpdateViewAsControl(const std::string &viewLabel)
-{
+void CGUIViewControl::UpdateViewAsControl(const std::string &viewLabel) const {
   // the view as control could be a select/spin/dropdown button
   std::vector< std::pair<std::string, int> > labels;
   for (unsigned int i = 0; i < m_visibleViews.size(); i++)
   {
-    IGUIContainer *view = static_cast<IGUIContainer*>(m_visibleViews[i]);
-    std::string label =
-        StringUtils::Format(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(534),
-                            view->GetLabel()); // View: {}
+    auto view = static_cast<IGUIContainer*>(m_visibleViews[i]);
+    std::string label = StringUtils::Format(g_localizeStrings.Get(534),
+                                            view->GetLabel()); // View: {}
     labels.emplace_back(std::move(label), i);
   }
   CGUIMessage msg(GUI_MSG_SET_LABELS, m_parentWindow, m_viewAsControl, m_currentView);
@@ -328,9 +320,7 @@ void CGUIViewControl::UpdateViewAsControl(const std::string &viewLabel)
   CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg, m_parentWindow);
 
   // otherwise it's just a normal button
-  std::string label =
-      StringUtils::Format(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(534),
-                          viewLabel); // View: {}
+  std::string label = StringUtils::Format(g_localizeStrings.Get(534), viewLabel); // View: {}
   CGUIMessage msgSet(GUI_MSG_LABEL_SET, m_parentWindow, m_viewAsControl);
   msgSet.SetLabel(label);
   CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msgSet, m_parentWindow);

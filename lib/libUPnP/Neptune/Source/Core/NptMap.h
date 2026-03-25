@@ -76,11 +76,11 @@ public:
     };
 
     // constructors
-    NPT_Map() {}
-    NPT_Map(const NPT_Map<K, V>& copy);
+    NPT_Map<K,V>() {}
+    NPT_Map<K,V>(const NPT_Map<K,V>& copy);
 
     // destructor
-    ~NPT_Map();
+    ~NPT_Map<K,V>();
 
     // methods
     NPT_Result   Put(const K& key, const V& value);
@@ -399,12 +399,12 @@ public:
     };
 
     // constructors
-    NPT_HashMap();
-    NPT_HashMap(const HF& hasher);
-    NPT_HashMap(const NPT_HashMap<K, V, HF>& copy);
+    NPT_HashMap<K,V,HF>();
+    NPT_HashMap<K,V,HF>(const HF& hasher);
+    NPT_HashMap<K,V,HF>(const NPT_HashMap<K,V,HF>& copy);
 
     // destructor
-    ~NPT_HashMap();
+    ~NPT_HashMap<K,V,HF>();
 
     // methods
     NPT_Result   Put(const K& key, const V& value);

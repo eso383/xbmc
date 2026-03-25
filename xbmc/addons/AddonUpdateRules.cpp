@@ -26,24 +26,26 @@ bool CAddonUpdateRules::RefreshRulesMap(const CAddonDatabase& db)
 
 bool CAddonUpdateRules::IsAutoUpdateable(const std::string& id) const
 {
-  std::unique_lock lock(m_critSection);
-  return !m_updateRules.contains(id);
+  std::lock_guard lock(m_critSection);
+
+  return m_updateRules.find(id) == m_updateRules.end();
 }
 
 bool CAddonUpdateRules::IsUpdateableByRule(const std::string& id, AddonUpdateRule updateRule) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   const auto& updateRulesEntry = m_updateRules.find(id);
   return (updateRulesEntry == m_updateRules.end() ||
-          std::ranges::none_of(updateRulesEntry->second,
-                               [updateRule](AddonUpdateRule rule) { return rule == updateRule; }));
+          std::none_of(updateRulesEntry->second.begin(), updateRulesEntry->second.end(),
+                       [updateRule](AddonUpdateRule rule) { return rule == updateRule; }));
 }
 
 bool CAddonUpdateRules::AddUpdateRuleToList(CAddonDatabase& db,
                                             const std::string& id,
                                             AddonUpdateRule updateRule)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (!IsUpdateableByRule(id, updateRule))
   {
@@ -74,7 +76,7 @@ bool CAddonUpdateRules::RemoveFromUpdateRuleslist(CAddonDatabase& db,
                                                   const std::string& id,
                                                   AddonUpdateRule updateRule)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   const auto& updateRulesEntry = m_updateRules.find(id);
   if (updateRulesEntry != m_updateRules.end())
@@ -92,7 +94,8 @@ bool CAddonUpdateRules::RemoveFromUpdateRuleslist(CAddonDatabase& db,
     }
     else if (!onlySingleRule)
     {
-      const auto& position = std::ranges::find(updateRulesEntry->second, updateRule);
+      const auto& position =
+          std::find(updateRulesEntry->second.begin(), updateRulesEntry->second.end(), updateRule);
       if (position != updateRulesEntry->second.end() && db.RemoveUpdateRuleForAddon(id, updateRule))
       {
         updateRulesEntry->second.erase(position);

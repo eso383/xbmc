@@ -30,7 +30,7 @@ public:
 
   // specialization of CJob
   const char *GetType() const override { return "MusicLibraryImportJob"; }
-  bool Equals(const CJob* job) const override;
+  bool operator==(const CJob* job) const override;
 
 protected:
   // implementation of CMusicLibraryJob

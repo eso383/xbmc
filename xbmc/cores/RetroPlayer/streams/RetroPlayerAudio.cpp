@@ -24,7 +24,8 @@ using namespace RETRO;
 
 const double MAX_DELAY = 0.3; // seconds
 
-CRetroPlayerAudio::CRetroPlayerAudio(CRPProcessInfo& processInfo) : m_processInfo(processInfo)
+CRetroPlayerAudio::CRetroPlayerAudio(CRPProcessInfo& processInfo)
+  : m_processInfo(processInfo), m_pAudioStream(nullptr)
 {
   CLog::Log(LOGDEBUG, "RetroPlayer[AUDIO]: Initializing audio");
 }
@@ -38,7 +39,7 @@ CRetroPlayerAudio::~CRetroPlayerAudio()
 
 bool CRetroPlayerAudio::OpenStream(const StreamProperties& properties)
 {
-  const AudioStreamProperties& audioProperties =
+  const auto &audioProperties =
       static_cast<const AudioStreamProperties&>(properties);
 
   const AEDataFormat pcmFormat = CAudioTranslator::TranslatePCMFormat(audioProperties.format);
@@ -105,7 +106,7 @@ bool CRetroPlayerAudio::OpenStream(const StreamProperties& properties)
 
 void CRetroPlayerAudio::AddStreamData(const StreamPacket& packet)
 {
-  const AudioStreamPacket& audioPacket = static_cast<const AudioStreamPacket&>(packet);
+  const auto &audioPacket = static_cast<const AudioStreamPacket&>(packet);
 
   if (m_bAudioEnabled)
   {

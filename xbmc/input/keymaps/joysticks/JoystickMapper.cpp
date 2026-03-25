@@ -38,7 +38,8 @@ void CJoystickMapper::MapActions(int windowID, const tinyxml2::XMLNode* pDevice)
     return;
 
   // Update Controller IDs
-  if (std::ranges::find(m_controllerIds, controllerId) == m_controllerIds.end())
+  if (std::find(m_controllerIds.begin(), m_controllerIds.end(), controllerId) ==
+      m_controllerIds.end())
     m_controllerIds.emplace_back(controllerId);
 
   // Create/overwrite keymap

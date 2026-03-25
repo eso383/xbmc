@@ -16,10 +16,9 @@
 #include "Util.h"
 #include "Variant.h"
 #include "addons/IAddon.h"
+#include "guilib/LocalizeStrings.h"
 #include "music/tags/MusicInfoTag.h"
 #include "pictures/PictureInfoTag.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -99,13 +98,12 @@ using namespace MUSIC_INFO;
  *  %d - Date and Time
  *  %e - Original release date
  *  %f - bpm
- *  %h - plugin label2
  *  %p - Last Played
  *  %r - User Rating
  *  *t - Date Taken (suitable for Pictures)
  */
 
-#define MASK_CHARS "NSATBGYFLDIJRCKMEPHZOQUVXWabcdefhiprstuv"
+#define MASK_CHARS "NSATBGYFLDIJRCKMEPHZOQUVXWabcdefiprstuv"
 
 CLabelFormatter::CLabelFormatter(const std::string &mask, const std::string &mask2)
 {
@@ -143,7 +141,7 @@ void CLabelFormatter::FormatLabel(CFileItem *item) const
   std::string maskedLabel = GetContent(0, item);
   if (!maskedLabel.empty())
     item->SetLabel(maskedLabel);
-  else if (!item->IsFolder() && m_hideFileExtensions)
+  else if (!item->m_bIsFolder && m_hideFileExtensions)
     item->RemoveExtension();
 }
 
@@ -172,15 +170,15 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
       value = StringUtils::Format("{:02}", music->GetDiscNumber());
     break;
   case 'A':
-    if (music && !music->GetArtistString().empty())
+    if (music && music->GetArtistString().size())
       value = music->GetArtistString();
-    if (movie && !movie->m_artist.empty())
+    if (movie && movie->m_artist.size())
       value = StringUtils::Join(movie->m_artist, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
     break;
   case 'T':
-    if (music && !music->GetTitle().empty())
+    if (music && music->GetTitle().size())
       value = music->GetTitle();
-    if (movie && !movie->m_strTitle.empty())
+    if (movie && movie->m_strTitle.size())
       value = movie->m_strTitle;
     break;
   case 'Z':
@@ -188,15 +186,15 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
       value = movie->m_strShowTitle;
     break;
   case 'B':
-    if (music && !music->GetAlbum().empty())
+    if (music && music->GetAlbum().size())
       value = music->GetAlbum();
     else if (movie)
       value = movie->m_strAlbum;
     break;
   case 'G':
-    if (music && !music->GetGenre().empty())
+    if (music && music->GetGenre().size())
       value = StringUtils::Join(music->GetGenre(), CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_musicItemSeparator);
-    if (movie && !movie->m_genre.empty())
+    if (movie && movie->m_genre.size())
       value = StringUtils::Join(movie->m_genre, CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoItemSeparator);
     break;
   case 'Y':
@@ -211,14 +209,14 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
     }
     break;
   case 'F': // filename
-    value = CUtil::GetTitleFromPath(item->GetPath(), item->IsFolder() && !item->IsFileFolder());
+    value = CUtil::GetTitleFromPath(item->GetPath(), item->m_bIsFolder && !item->IsFileFolder());
     break;
   case 'L':
     value = item->GetLabel();
     // is the label the actual file or folder name?
     if (value == URIUtils::GetFileName(item->GetPath()))
     { // label is the same as filename, clean it up as appropriate
-      value = CUtil::GetTitleFromPath(item->GetPath(), item->IsFolder() && !item->IsFileFolder());
+      value = CUtil::GetTitleFromPath(item->GetPath(), item->m_bIsFolder && !item->IsFileFolder());
     }
     break;
   case 'D':
@@ -230,31 +228,22 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
         nDuration = movie->GetDuration();
       if (nDuration > 0)
         value = StringUtils::SecondsToTimeString(nDuration, (nDuration >= 3600) ? TIME_FORMAT_H_MM_SS : TIME_FORMAT_MM_SS);
-      else if (item->GetSize() > 0)
-        value = StringUtils::SizeToString(item->GetSize());
+      else if (item->m_dwSize > 0)
+        value = StringUtils::SizeToString(item->m_dwSize);
     }
     break;
   case 'I': // size
-  {
-    const int64_t size{item->GetSize()};
-    if ((item->IsFolder() && size != 0) || size >= 0)
-      value = StringUtils::SizeToString(item->GetSize());
+    if( (item->m_bIsFolder && item->m_dwSize != 0) || item->m_dwSize >= 0 )
+      value = StringUtils::SizeToString(item->m_dwSize);
     break;
-  }
   case 'J': // date
-  {
-    const CDateTime& dateTime{item->GetDateTime()};
-    if (dateTime.IsValid())
-      value = dateTime.GetAsLocalizedDate();
+    if (item->m_dateTime.IsValid())
+      value = item->m_dateTime.GetAsLocalizedDate();
     break;
-  }
   case 'Q': // time
-  {
-    const CDateTime& dateTime{item->GetDateTime()};
-    if (dateTime.IsValid())
-      value = dateTime.GetAsLocalizedTime("", false);
+    if (item->m_dateTime.IsValid())
+      value = item->m_dateTime.GetAsLocalizedTime("", false);
     break;
-  }
   case 'R': // rating
     if (music && music->GetRating() != 0.f)
       value = StringUtils::Format("{:.1f}", music->GetRating());
@@ -262,19 +251,18 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
       value = StringUtils::Format("{:.1f}", movie->GetRating().rating);
     break;
   case 'C': // programs count
-    value = std::to_string(item->GetProgramCount());
+    value = std::to_string(item->m_iprogramCount);
     break;
   case 'c': // relevance
     value = std::to_string(movie->m_relevance);
     break;
   case 'K':
-    value = item->GetTitle();
+    value = item->m_strTitle;
     break;
   case 'M':
     if (movie && movie->m_iEpisode > 0)
       value = StringUtils::Format("{} {}", movie->m_iEpisode,
-                                  CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                      movie->m_iEpisode == 1 ? 20452 : 20453));
+                                  g_localizeStrings.Get(movie->m_iEpisode == 1 ? 20452 : 20453));
     break;
   case 'E':
     if (movie && movie->m_iEpisode > 0)
@@ -317,19 +305,15 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
       value = std::to_string(movie->GetPlayCount());
     break;
   case 'X': // Bitrate
-    if (!item->IsFolder())
-    {
-      const int64_t size{item->GetSize()};
-      if (size != 0)
-        value = StringUtils::Format("{} kbps", size);
-    }
+    if( !item->m_bIsFolder && item->m_dwSize != 0 )
+      value = StringUtils::Format("{} kbps", item->m_dwSize);
     break;
    case 'W': // Listeners
-     if (!item->IsFolder() && music && music->GetListeners() != 0)
-       value = StringUtils::Format("{} {}", music->GetListeners(),
-                                   CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                       music->GetListeners() == 1 ? 20454 : 20455));
-     break;
+    if( !item->m_bIsFolder && music && music->GetListeners() != 0 )
+      value =
+          StringUtils::Format("{} {}", music->GetListeners(),
+                              g_localizeStrings.Get(music->GetListeners() == 1 ? 20454 : 20455));
+    break;
   case 'a': // Date Added
     if (movie && movie->m_dateAdded.IsValid())
       value = movie->m_dateAdded.GetAsLocalizedDate();
@@ -349,12 +333,9 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
     }
     break;
   case 'd': // date and time
-  {
-    const CDateTime& dateTime{item->GetDateTime()};
-    if (dateTime.IsValid())
-      value = dateTime.GetAsLocalizedDateTime();
+    if (item->m_dateTime.IsValid())
+      value = item->m_dateTime.GetAsLocalizedDateTime();
     break;
-  }
   case 'p': // Last played
     if (movie && movie->m_lastPlayed.IsValid())
       value = movie->m_lastPlayed.GetAsLocalizedDate();
@@ -390,9 +371,6 @@ std::string CLabelFormatter::GetMaskContent(const CMaskString &mask, const CFile
   case 'f': // BPM
     if (music)
       value = std::to_string(music->GetBPM());
-    break;
-  case 'h': //plugin label2
-    value = item->GetLabel2();
     break;
   }
   if (!value.empty())
@@ -448,8 +426,7 @@ bool CLabelFormatter::FillMusicTag(const std::string &fileName, CMusicInfoTag *t
     return false;
   for (unsigned int i = 1; i < m_staticContent[0].size(); i++)
   {
-    size_t pos2 = !m_staticContent[0][i].empty() ? fileName.find(m_staticContent[0][i], pos1)
-                                                 : fileName.size();
+    size_t pos2 = m_staticContent[0][i].size() ? fileName.find(m_staticContent[0][i], pos1) : fileName.size();
     if (pos2 == std::string::npos)
       return false;
     // found static content - thus we have the dynamic content surrounded

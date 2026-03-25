@@ -11,27 +11,21 @@
 #include "settings/lib/ISettingControl.h"
 #include "settings/lib/ISettingControlCreator.h"
 
-#include <functional>
-#include <memory>
-#include <string>
-#include <string_view>
-
-constexpr const char* SETTING_XML_ELM_CONTROL_FORMATLABEL = "formatlabel";
-constexpr const char* SETTING_XML_ELM_CONTROL_HIDDEN = "hidden";
-constexpr const char* SETTING_XML_ELM_CONTROL_VERIFYNEW = "verifynew";
-constexpr const char* SETTING_XML_ELM_CONTROL_HEADING = "heading";
-constexpr const char* SETTING_XML_ELM_CONTROL_HIDEVALUE = "hidevalue";
-constexpr const char* SETTING_XML_ELM_CONTROL_MULTISELECT = "multiselect";
-constexpr const char* SETTING_XML_ELM_CONTROL_POPUP = "popup";
-constexpr const char* SETTING_XML_ELM_CONTROL_FORMATVALUE = "value";
-constexpr const char* SETTING_XML_ELM_CONTROL_ADDBUTTONLABEL = "addbuttonlabel";
-constexpr const char* SETTING_XML_ATTR_SHOW_MORE = "more";
-constexpr const char* SETTING_XML_ATTR_SHOW_DETAILS = "details";
-constexpr const char* SETTING_XML_ATTR_SEPARATOR_POSITION = "separatorposition";
-constexpr const char* SETTING_XML_ATTR_HIDE_SEPARATOR = "hideseparator";
+#define SETTING_XML_ELM_CONTROL_FORMATLABEL "formatlabel"
+#define SETTING_XML_ELM_CONTROL_HIDDEN "hidden"
+#define SETTING_XML_ELM_CONTROL_VERIFYNEW "verifynew"
+#define SETTING_XML_ELM_CONTROL_HEADING "heading"
+#define SETTING_XML_ELM_CONTROL_HIDEVALUE "hidevalue"
+#define SETTING_XML_ELM_CONTROL_MULTISELECT "multiselect"
+#define SETTING_XML_ELM_CONTROL_POPUP "popup"
+#define SETTING_XML_ELM_CONTROL_FORMATVALUE "value"
+#define SETTING_XML_ELM_CONTROL_ADDBUTTONLABEL "addbuttonlabel"
+#define SETTING_XML_ATTR_SHOW_MORE "more"
+#define SETTING_XML_ATTR_SHOW_DETAILS "details"
+#define SETTING_XML_ATTR_SEPARATOR_POSITION "separatorposition"
+#define SETTING_XML_ATTR_HIDE_SEPARATOR "hideseparator"
 
 class CVariant;
-class TiXmlNode;
 
 class CSettingControlCreator : public ISettingControlCreator
 {
@@ -68,14 +62,13 @@ public:
   int GetFormatLabel() const { return m_formatLabel; }
   void SetFormatLabel(int formatLabel) { m_formatLabel = formatLabel; }
   const std::string& GetFormatString() const { return m_formatString; }
-  void SetFormatString(std::string_view formatString) { m_formatString = formatString; }
+  void SetFormatString(const std::string &formatString) { m_formatString = formatString; }
   int GetMinimumLabel() const { return m_minimumLabel; }
   void SetMinimumLabel(int minimumLabel) { m_minimumLabel = minimumLabel; }
 
 protected:
   CSettingControlFormattedRange() = default;
 
-private:
   int m_formatLabel = -1;
   std::string m_formatString = "{}";
   int m_minimumLabel = -1;
@@ -115,7 +108,7 @@ public:
   int GetHeading() const { return m_heading; }
   void SetHeading(int heading) { m_heading = heading; }
 
-private:
+protected:
   bool m_hidden = false;
   bool m_verifyNewValue = false;
   int m_heading = -1;
@@ -153,12 +146,12 @@ public:
 
   bool HasActionData() const { return !m_actionData.empty(); }
   const std::string& GetActionData() const { return m_actionData; }
-  void SetActionData(std::string_view actionData) { m_actionData = actionData; }
+  void SetActionData(const std::string& actionData) { m_actionData = actionData; }
 
   bool CloseDialog() const { return m_closeDialog; }
   void SetCloseDialog(bool closeDialog) { m_closeDialog = closeDialog; }
 
-private:
+protected:
   int m_heading = -1;
   bool m_hideValue = false;
 
@@ -175,9 +168,8 @@ private:
 };
 
 class CSetting;
-
 using SettingControlListValueFormatter =
-    std::function<std::string(const std::shared_ptr<const CSetting>& setting)>;
+    std::string (*)(const std::shared_ptr<const CSetting>& setting);
 
 class CSettingControlList : public CSettingControlFormattedRange
 {
@@ -201,28 +193,28 @@ public:
   int GetAddButtonLabel() const { return m_addButtonLabel; }
   void SetAddButtonLabel(int label) { m_addButtonLabel = label; }
 
-  const SettingControlListValueFormatter& GetFormatter() const { return m_formatter; }
-  void SetFormatter(const SettingControlListValueFormatter& formatter) { m_formatter = formatter; }
+  SettingControlListValueFormatter GetFormatter() const { return m_formatter; }
+  void SetFormatter(SettingControlListValueFormatter formatter) { m_formatter = formatter; }
 
   bool UseDetails() const { return m_useDetails; }
   void SetUseDetails(bool useDetails) { m_useDetails = useDetails; }
 
-private:
+protected:
   int m_heading = -1;
   bool m_multiselect = false;
   bool m_hideValue = false;
   int m_addButtonLabel = -1;
-  SettingControlListValueFormatter m_formatter;
+  SettingControlListValueFormatter m_formatter = nullptr;
   bool m_useDetails{false};
 };
 
 class CSettingControlSlider;
 using SettingControlSliderFormatter =
-    std::function<std::string(const std::shared_ptr<const CSettingControlSlider>& control,
-                              const CVariant& value,
-                              const CVariant& minimum,
-                              const CVariant& step,
-                              const CVariant& maximum)>;
+    std::string (*)(const std::shared_ptr<const CSettingControlSlider>& control,
+                    const CVariant& value,
+                    const CVariant& minimum,
+                    const CVariant& step,
+                    const CVariant& maximum);
 
 class CSettingControlSlider : public ISettingControl
 {
@@ -242,13 +234,13 @@ public:
   int GetFormatLabel() const { return m_formatLabel; }
   void SetFormatLabel(int formatLabel) { m_formatLabel = formatLabel; }
   const std::string& GetFormatString() const { return m_formatString; }
-  void SetFormatString(std::string_view formatString) { m_formatString = formatString; }
+  void SetFormatString(const std::string &formatString) { m_formatString = formatString; }
   std::string GetDefaultFormatString() const;
 
-  const SettingControlSliderFormatter& GetFormatter() const { return m_formatter; }
-  void SetFormatter(const SettingControlSliderFormatter& formatter) { m_formatter = formatter; }
+  SettingControlSliderFormatter GetFormatter() const { return m_formatter; }
+  void SetFormatter(SettingControlSliderFormatter formatter) { m_formatter = formatter; }
 
-private:
+protected:
   int m_heading = -1;
   bool m_popup = false;
   int m_formatLabel = -1;
@@ -272,9 +264,9 @@ public:
   int GetValueFormatLabel() const { return m_valueFormatLabel; }
   void SetValueFormatLabel(int valueFormatLabel) { m_valueFormatLabel = valueFormatLabel; }
   const std::string& GetValueFormat() const { return m_valueFormat; }
-  void SetValueFormat(std::string_view valueFormat) { m_valueFormat = valueFormat; }
+  void SetValueFormat(const std::string &valueFormat) { m_valueFormat = valueFormat; }
 
-private:
+protected:
   int m_formatLabel = 21469;
   int m_valueFormatLabel = -1;
   std::string m_valueFormat = "{}";
@@ -295,7 +287,7 @@ public:
   bool IsSeparatorBelowLabel() const { return m_separatorBelowLabel; }
   void SetSeparatorBelowLabel(bool below) { m_separatorBelowLabel = below; }
 
-private:
+protected:
   bool m_separatorHidden = false;
   bool m_separatorBelowLabel = true;
 };

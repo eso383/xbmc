@@ -8,16 +8,17 @@
 
 #pragma once
 
+#include "ServiceBroker.h"
 #include "utils/StringUtils.h"
 
-extern "C"
-{
+extern "C" {
 #include <libavcodec/avcodec.h>
-#include <libavfilter/avfilter.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
-#include <libavutil/ffversion.h>
 #include <libavutil/log.h>
+#include <libavutil/ffversion.h>
+#include <libavfilter/avfilter.h>
+#include <libpostproc/postprocess.h>
 }
 
 #include <tuple>

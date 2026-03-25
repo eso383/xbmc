@@ -26,8 +26,6 @@ NATIVE= \
   openssl \
   pcre2 \
   perlmodule-parseyapp \
-  pythonmodule-pybind11 \
-  pythonmodule-setuptools \
   pkg-config \
   python3 \
   swig \
@@ -49,10 +47,6 @@ ifeq ($(OS),linux)
 
   ifeq ($(RENDER_SYSTEM),gles)
     NATIVE += MarkupSafe Mako
-  endif
-
-  ifeq ($(TARGET_PLATFORM),webos)
-    NATIVE += rustup cargo-c
   endif
 endif
 
@@ -85,14 +79,12 @@ libjpeg-turbo: cmake nasm
 libpng: zlib automake
 libtool: automake
 Mako: MarkupSafe
-meson: python3 pythonmodule-setuptools
+meson: python3
 ninja: meson
 openssl: zlib
 pcre2: cmake
-pkgconf: meson ninja
 pugixml: cmake
 python3: $(EXPAT) $(LIBFFI) pkg-config zlib openssl autoconf-archive
-pythonmodule-pybind11: pythonmodule-setuptools python3
 pythonmodule-setuptools: python3
 swig: bison cmake pcre2
 tar: xz automake

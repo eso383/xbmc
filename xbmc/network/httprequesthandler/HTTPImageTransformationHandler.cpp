@@ -17,7 +17,6 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
-#include <charconv>
 #include <map>
 
 #define TRANSFORMATION_OPTION_WIDTH             "width"
@@ -29,7 +28,7 @@ static const std::string ImageBasePath = "/image/";
 CHTTPImageTransformationHandler::CHTTPImageTransformationHandler()
   : m_url(),
     m_lastModified(),
-    m_buffer(NULL),
+    m_buffer(nullptr),
     m_responseData()
 { }
 
@@ -37,7 +36,7 @@ CHTTPImageTransformationHandler::CHTTPImageTransformationHandler(const HTTPReque
   : IHTTPRequestHandler(request),
     m_url(),
     m_lastModified(),
-    m_buffer(NULL),
+    m_buffer(nullptr),
     m_responseData()
 {
   m_url = m_request.pathUrl.substr(ImageBasePath.size());
@@ -79,7 +78,7 @@ CHTTPImageTransformationHandler::CHTTPImageTransformationHandler(const HTTPReque
 #else
   time = localtime((time_t *)&statBuffer.st_mtime);
 #endif
-  if (time == NULL)
+  if (time == nullptr)
     return;
 
   m_lastModified = *time;
@@ -89,21 +88,21 @@ CHTTPImageTransformationHandler::~CHTTPImageTransformationHandler()
 {
   m_responseData.clear();
   delete m_buffer;
-  m_buffer = NULL;
+  m_buffer = nullptr;
 }
 
 bool CHTTPImageTransformationHandler::CanHandleRequest(const HTTPRequest &request) const
 {
   if ((request.method != GET && request.method != HEAD) ||
-      !request.pathUrl.starts_with(ImageBasePath) || request.pathUrl.size() <= ImageBasePath.size())
+    request.pathUrl.find(ImageBasePath) != 0 || request.pathUrl.size() <= ImageBasePath.size())
     return false;
 
   // get the transformation options
   std::map<std::string, std::string> options;
   HTTPRequestHandlerUtils::GetRequestHeaderValues(request.connection, MHD_GET_ARGUMENT_KIND, options);
 
-  return (options.contains(TRANSFORMATION_OPTION_WIDTH) ||
-          options.contains(TRANSFORMATION_OPTION_HEIGHT));
+  return (options.find(TRANSFORMATION_OPTION_WIDTH) != options.end() ||
+          options.find(TRANSFORMATION_OPTION_HEIGHT) != options.end());
 }
 
 MHD_RESULT CHTTPImageTransformationHandler::HandleRequest()
@@ -115,31 +114,29 @@ MHD_RESULT CHTTPImageTransformationHandler::HandleRequest()
   std::map<std::string, std::string> options;
   HTTPRequestHandlerUtils::GetRequestHeaderValues(m_request.connection, MHD_GET_ARGUMENT_KIND, options);
 
-  unsigned int width = 0;
+  std::vector<std::string> urlOptions;
   std::map<std::string, std::string>::const_iterator option = options.find(TRANSFORMATION_OPTION_WIDTH);
   if (option != options.end())
-  {
-    const std::string& str = option->second;
-    std::from_chars(str.data(), str.data() + str.size(), width);
-  }
+    urlOptions.push_back(TRANSFORMATION_OPTION_WIDTH "=" + option->second);
 
-  unsigned int height = 0;
   option = options.find(TRANSFORMATION_OPTION_HEIGHT);
   if (option != options.end())
-  {
-    const std::string& str = option->second;
-    std::from_chars(str.data(), str.data() + str.size(), height);
-  }
+    urlOptions.push_back(TRANSFORMATION_OPTION_HEIGHT "=" + option->second);
 
-  auto scalingAlgorithm{CPictureScalingAlgorithm::NoAlgorithm};
   option = options.find(TRANSFORMATION_OPTION_SCALING_ALGORITHM);
   if (option != options.end())
-    scalingAlgorithm = CPictureScalingAlgorithm::FromString(option->second);
+    urlOptions.push_back(TRANSFORMATION_OPTION_SCALING_ALGORITHM "=" + option->second);
+
+  std::string imagePath = m_url;
+  if (!urlOptions.empty())
+  {
+    imagePath += "?";
+    imagePath += StringUtils::Join(urlOptions, "&");
+  }
 
   // resize the image into the local buffer
   size_t bufferSize;
-  if (!CTextureCacheJob::ResizeTexture(m_url, height, width, scalingAlgorithm, m_buffer,
-                                       bufferSize))
+  if (!CTextureCacheJob::ResizeTexture(imagePath, m_buffer, bufferSize))
   {
     m_response.status = MHD_HTTP_INTERNAL_SERVER_ERROR;
     m_response.type = HTTPError;
@@ -157,7 +154,7 @@ MHD_RESULT CHTTPImageTransformationHandler::HandleRequest()
     return MHD_YES;
   }
 
-  for (HttpRanges::const_iterator range = m_request.ranges.Begin(); range != m_request.ranges.End(); ++range)
+  for (auto range = m_request.ranges.Begin(); range != m_request.ranges.End(); ++range)
     m_responseData.emplace_back(m_buffer + range->GetFirstPosition(), range->GetFirstPosition(),
                                 range->GetLastPosition());
 

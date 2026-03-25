@@ -33,8 +33,6 @@ bool COverlayCodecWebVTT::Open(CDVDStreamInfo& hints, CDVDCodecOptions& options)
   if (!Initialize())
     return false;
 
-  m_isDataPacket = (hints.flags & FLAG_WEBVTT_DATA_PACKETS) != 0;
-
   if (!m_webvttHandler.Initialize())
     return false;
 
@@ -64,7 +62,7 @@ OverlayMessage COverlayCodecWebVTT::Decode(DemuxPacket* pPacket)
   if (!pPacket)
     return OverlayMessage::OC_ERROR;
 
-  const char* data = reinterpret_cast<const char*>(pPacket->pData);
+  auto data = reinterpret_cast<const char*>(pPacket->pData);
   std::vector<subtitleData> subtitleList;
 
   m_webvttHandler.Reset();
@@ -94,17 +92,8 @@ OverlayMessage COverlayCodecWebVTT::Decode(DemuxPacket* pPacket)
   }
   else
   {
-    if (m_isDataPacket)
-    {
-      // Specific case ffmpeg D_WEBVTT which extracts the CUE payload from the data
-      // it does not include signatures, CUE timing or settings, the timing is related to the packet
-      m_webvttHandler.InitDecoderCue(pPacket->dts, pPacket->dts + pPacket->duration);
-    }
-    else
-    {
-      if (!m_webvttHandler.CheckSignature(data))
-        return OverlayMessage::OC_ERROR;
-    }
+    if (!m_webvttHandler.CheckSignature(data))
+      return OverlayMessage::OC_ERROR;
 
     CCharArrayParser charArrayParser;
     charArrayParser.Reset(data, pPacket->iSize);

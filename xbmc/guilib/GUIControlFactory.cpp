@@ -41,19 +41,16 @@
 #include "GUISpinControlEx.h"
 #include "GUITextBox.h"
 #include "GUIToggleButtonControl.h"
-#include "GUIUtils.h"
 #include "GUIVideoControl.h"
 #include "GUIVisualisationControl.h"
 #include "GUIWrappingListContainer.h"
-#include "ServiceBroker.h"
+#include "LocalizeStrings.h"
 #include "addons/Skin.h"
 #include "cores/RetroPlayer/guicontrols/GUIGameControl.h"
 #include "games/controllers/guicontrols/GUIGameController.h"
 #include "games/controllers/guicontrols/GUIGameControllerList.h"
 #include "input/actions/ActionIDs.h"
 #include "pvr/guilib/GUIEPGGridContainer.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/CharsetConverter.h"
 #include "utils/RssManager.h"
 #include "utils/StringUtils.h"
@@ -185,7 +182,7 @@ bool CGUIControlFactory::GetFloatRange(const TiXmlNode* pRootNode,
 
 float CGUIControlFactory::ParsePosition(const char* pos, const float parentSize)
 {
-  char* end = NULL;
+  char* end = nullptr;
   float value = pos ? (float)strtod(pos, &end) : 0;
   if (end)
   {
@@ -331,13 +328,13 @@ bool CGUIControlFactory::GetAspectRatio(const TiXmlNode* pRootNode,
 
   ratio = node->FirstChild()->Value();
   if (StringUtils::EqualsNoCase(ratio, "keep"))
-    aspect.ratio = CAspectRatio::KEEP;
+    aspect.ratio = CAspectRatio::AR_KEEP;
   else if (StringUtils::EqualsNoCase(ratio, "scale"))
-    aspect.ratio = CAspectRatio::SCALE;
+    aspect.ratio = CAspectRatio::AR_SCALE;
   else if (StringUtils::EqualsNoCase(ratio, "center"))
-    aspect.ratio = CAspectRatio::CENTER;
+    aspect.ratio = CAspectRatio::AR_CENTER;
   else if (StringUtils::EqualsNoCase(ratio, "stretch"))
-    aspect.ratio = CAspectRatio::STRETCH;
+    aspect.ratio = CAspectRatio::AR_STRETCH;
 
   const char* attribute = node->Attribute("align");
   if (attribute)
@@ -494,7 +491,7 @@ bool CGUIControlFactory::GetConditionalVisibility(const TiXmlNode* control,
       conditions.emplace_back(node->FirstChild()->Value());
     node = node->NextSiblingElement("visible");
   }
-  if (conditions.empty())
+  if (!conditions.size())
     return false;
   if (conditions.size() == 1)
     condition = conditions[0];
@@ -614,7 +611,7 @@ bool CGUIControlFactory::GetScroller(const TiXmlNode* control,
 
 bool CGUIControlFactory::GetColor(const TiXmlNode* control,
                                   const char* strTag,
-                                  KODI::UTILS::COLOR::Color& value)
+                                  UTILS::COLOR::Color& value)
 {
   const TiXmlElement* node = control->FirstChildElement(strTag);
   if (node && node->FirstChild())
@@ -646,7 +643,7 @@ void CGUIControlFactory::GetInfoLabel(const TiXmlNode* pControlNode,
 {
   std::vector<GUIINFO::CGUIInfoLabel> labels;
   GetInfoLabels(pControlNode, labelTag, labels, parentID);
-  if (!labels.empty())
+  if (labels.size())
     infoLabel = labels[0];
 }
 
@@ -663,10 +660,9 @@ bool CGUIControlFactory::GetInfoLabelFromElement(const TiXmlElement* element,
 
   std::string fallback = XMLUtils::GetAttribute(element, "fallback");
   if (StringUtils::IsNaturalNumber(label))
-    label = CGUIUtils::GetLocalizedString(std::atoi(label.c_str()));
-
+    label = g_localizeStrings.Get(atoi(label.c_str()));
   if (StringUtils::IsNaturalNumber(fallback))
-    fallback = CGUIUtils::GetLocalizedString(std::atoi(fallback.c_str()));
+    fallback = g_localizeStrings.Get(atoi(fallback.c_str()));
   else
     g_charsetConverter.unknownToUTF8(fallback);
   infoLabel.SetLabel(label, fallback, parentID);
@@ -702,7 +698,7 @@ void CGUIControlFactory::GetInfoLabels(const TiXmlNode* pControlNode,
   if (infoNode)
   { // <info> nodes override <label>'s (backward compatibility)
     std::string fallback;
-    if (!infoLabels.empty())
+    if (infoLabels.size())
       fallback = infoLabels[0].GetLabel(0);
     infoLabels.clear();
     while (infoNode)
@@ -722,7 +718,7 @@ std::string CGUIControlFactory::FilterLabel(const std::string& label)
 {
   std::string viewLabel = label;
   if (StringUtils::IsNaturalNumber(viewLabel))
-    viewLabel = CGUIUtils::GetLocalizedString(std::atoi(label.c_str()));
+    viewLabel = g_localizeStrings.Get(atoi(label.c_str()));
   else
     g_charsetConverter.unknownToUTF8(viewLabel);
   return viewLabel;
@@ -735,7 +731,7 @@ bool CGUIControlFactory::GetString(const TiXmlNode* pRootNode,
   if (!XMLUtils::GetString(pRootNode, strTag, text))
     return false;
   if (StringUtils::IsNaturalNumber(text))
-    text = CGUIUtils::GetLocalizedString(std::atoi(text.c_str()));
+    text = g_localizeStrings.Get(atoi(text.c_str()));
   return true;
 }
 
@@ -747,10 +743,9 @@ std::string CGUIControlFactory::GetType(const TiXmlElement* pControlNode)
   return type;
 }
 
-bool CGUIControlFactory::GetMovingSpeedConfig(
-    const TiXmlNode* pRootNode,
-    const char* strTag,
-    KODI::UTILS::MOVING_SPEED::MapEventConfig& movingSpeedCfg)
+bool CGUIControlFactory::GetMovingSpeedConfig(const TiXmlNode* pRootNode,
+                                              const char* strTag,
+                                              UTILS::MOVING_SPEED::MapEventConfig& movingSpeedCfg)
 {
   const TiXmlElement* msNode = pRootNode->FirstChildElement(strTag);
   if (!msNode)
@@ -762,13 +757,14 @@ bool CGUIControlFactory::GetMovingSpeedConfig(
       StringUtils::ToUint32(XMLUtils::GetAttribute(msNode, "resettimeout"))};
   float globalDelta{StringUtils::ToFloat(XMLUtils::GetAttribute(msNode, "delta"))};
 
-  for (const TiXmlElement* configElement{msNode->FirstChildElement("eventconfig")}; configElement;
-       configElement = configElement->NextSiblingElement("eventconfig"))
+  const TiXmlElement* configElement{msNode->FirstChildElement("eventconfig")};
+  while (configElement)
   {
     const char* eventType = configElement->Attribute("type");
     if (!eventType)
     {
       CLog::LogF(LOGERROR, "Failed to parse XML \"eventconfig\" tag missing \"type\" attribute");
+      configElement = configElement->NextSiblingElement("eventconfig");
       continue;
     }
 
@@ -785,8 +781,10 @@ bool CGUIControlFactory::GetMovingSpeedConfig(
     const char* deltaStr{configElement->Attribute("delta")};
     float delta = deltaStr ? StringUtils::ToFloat(deltaStr) : globalDelta;
 
-    KODI::UTILS::MOVING_SPEED::EventCfg eventCfg{acceleration, maxVelocity, resetTimeout, delta};
-    movingSpeedCfg.emplace(KODI::UTILS::MOVING_SPEED::ParseEventType(eventType), eventCfg);
+    UTILS::MOVING_SPEED::EventCfg eventCfg{acceleration, maxVelocity, resetTimeout, delta};
+    movingSpeedCfg.emplace(UTILS::MOVING_SPEED::ParseEventType(eventType), eventCfg);
+
+    configElement = configElement->NextSiblingElement("eventconfig");
   }
   return true;
 }
@@ -907,7 +905,6 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
   int focusPosition = 0;
   int scrollTime = 200;
   int timeBlocks = 36;
-  unsigned int minutesPerTimeBlock{CGUIEPGGridContainer::DEFAULT_MINUTES_PER_BLOCK};
   int rulerUnit = 12;
   bool useControlCoords = false;
   bool renderFocusedLast = false;
@@ -920,7 +917,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
   bool bPassword = false;
   std::string visibleCondition;
 
-  KODI::UTILS::MOVING_SPEED::MapEventConfig movingSpeedCfg;
+  UTILS::MOVING_SPEED::MapEventConfig movingSpeedCfg;
 
   /////////////////////////////////////////////////////////////////////////////
   // Read control properties from XML
@@ -1139,7 +1136,6 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
 
   XMLUtils::GetBoolean(pControlNode, "pulseonselect", bPulse);
   XMLUtils::GetInt(pControlNode, "timeblocks", timeBlocks);
-  XMLUtils::GetUInt(pControlNode, "minspertimeblock", minutesPerTimeBlock);
   XMLUtils::GetInt(pControlNode, "rulerunit", rulerUnit);
   GetTexture(pControlNode, "progresstexture", textureProgressIndicator);
 
@@ -1180,23 +1176,20 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
   // view type
   VIEW_TYPE viewType = VIEW_TYPE_NONE;
   std::string viewLabel;
-
-  const auto& localizeStrings = CServiceBroker::GetResourcesComponent().GetLocalizeStrings();
-
   if (type == CGUIControl::GUICONTAINER_PANEL)
   {
     viewType = VIEW_TYPE_ICON;
-    viewLabel = localizeStrings.Get(536);
+    viewLabel = g_localizeStrings.Get(536);
   }
   else if (type == CGUIControl::GUICONTAINER_LIST)
   {
     viewType = VIEW_TYPE_LIST;
-    viewLabel = localizeStrings.Get(535);
+    viewLabel = g_localizeStrings.Get(535);
   }
   else
   {
     viewType = VIEW_TYPE_WRAP;
-    viewLabel = localizeStrings.Get(541);
+    viewLabel = g_localizeStrings.Get(541);
   }
   TiXmlElement* itemElement = pControlNode->FirstChildElement("viewtype");
   if (itemElement && itemElement->FirstChild())
@@ -1250,7 +1243,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
   // Instantiate a new control using the properties gathered above
   //
 
-  CGUIControl* control = NULL;
+  CGUIControl* control = nullptr;
   switch (type)
   {
     case CGUIControl::GUICONTROL_GROUP:
@@ -1363,7 +1356,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
     {
       control = new CGUIRSSControl(parentID, id, posX, posY, width, height, labelInfo, textColor3,
                                    headlineColor, strRSSTags);
-      RssUrls::const_iterator iter = CRssManager::GetInstance().GetUrls().find(iUrlSet);
+      auto iter = CRssManager::GetInstance().GetUrls().find(iUrlSet);
       if (iter != CRssManager::GetInstance().GetUrls().end())
         static_cast<CGUIRSSControl*>(control)->SetUrlSet(iUrlSet);
 
@@ -1374,7 +1367,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
       control = new CGUIButtonControl(parentID, id, posX, posY, width, height, textureFocus,
                                       textureNoFocus, labelInfo, wrapMultiLine);
 
-      CGUIButtonControl* bcontrol = static_cast<CGUIButtonControl*>(control);
+      auto bcontrol = static_cast<CGUIButtonControl*>(control);
       bcontrol->SetLabel(strLabel);
       bcontrol->SetLabel2(strLabel2);
       bcontrol->SetMinWidth(minWidth);
@@ -1390,7 +1383,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
                                             textureNoFocus, textureAltFocus, textureAltNoFocus,
                                             labelInfo, wrapMultiLine);
 
-      CGUIToggleButtonControl* tcontrol = static_cast<CGUIToggleButtonControl*>(control);
+      auto tcontrol = static_cast<CGUIToggleButtonControl*>(control);
       tcontrol->SetLabel(strLabel);
       tcontrol->SetAltLabel(altLabel);
       tcontrol->SetMinWidth(minWidth);
@@ -1409,7 +1402,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
           textureRadioOnFocus, textureRadioOnNoFocus, textureRadioOffFocus, textureRadioOffNoFocus,
           textureRadioOnDisabled, textureRadioOffDisabled);
 
-      CGUIRadioButtonControl* rcontrol = static_cast<CGUIRadioButtonControl*>(control);
+      auto rcontrol = static_cast<CGUIRadioButtonControl*>(control);
       rcontrol->SetLabel(strLabel);
       rcontrol->SetLabel2(strLabel2);
       rcontrol->SetRadioDimensions(radioPosX, radioPosY, radioWidth, radioHeight);
@@ -1426,7 +1419,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
                                     textureUpFocus, textureDownFocus, textureUpDisabled,
                                     textureDownDisabled, labelInfo, iType);
 
-      CGUISpinControl* scontrol = static_cast<CGUISpinControl*>(control);
+      auto scontrol = static_cast<CGUISpinControl*>(control);
       scontrol->SetReverse(bReverse);
 
       if (iType == SPIN_CONTROL_TYPE_INT)
@@ -1503,20 +1496,10 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
       else
         control = new CGUIBorderedImage(parentID, id, posX, posY, width, height, texture,
                                         borderTexture, borderSize);
-      CGUIImage* icontrol = static_cast<CGUIImage*>(control);
+      auto icontrol = static_cast<CGUIImage*>(control);
       icontrol->SetInfo(textureFile);
       icontrol->SetAspectRatio(aspect);
       icontrol->SetCrossFade(fadeTime);
-
-      // Set image filter
-      GUIINFO::CGUIInfoLabel imageFilter;
-      GetInfoLabel(pControlNode, "imagefilter", imageFilter, parentID);
-      icontrol->SetImageFilter(imageFilter);
-
-      // Set diffuse filter
-      GUIINFO::CGUIInfoLabel diffuseFilter;
-      GetInfoLabel(pControlNode, "diffusefilter", diffuseFilter, parentID);
-      icontrol->SetDiffuseFilter(diffuseFilter);
 
       break;
     }
@@ -1536,7 +1519,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
 
       control = new CGUIListContainer(parentID, id, posX, posY, width, height, orientation,
                                       scroller, preloadItems);
-      CGUIListContainer* lcontrol = static_cast<CGUIListContainer*>(control);
+      auto lcontrol = static_cast<CGUIListContainer*>(control);
       lcontrol->LoadLayout(pControlNode);
       lcontrol->LoadListProvider(pControlNode, defaultControl, defaultAlways);
       lcontrol->SetType(viewType, viewLabel);
@@ -1556,7 +1539,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
 
       control = new CGUIWrappingListContainer(parentID, id, posX, posY, width, height, orientation,
                                               scroller, preloadItems, focusPosition);
-      CGUIWrappingListContainer* wcontrol = static_cast<CGUIWrappingListContainer*>(control);
+      auto wcontrol = static_cast<CGUIWrappingListContainer*>(control);
       wcontrol->LoadLayout(pControlNode);
       wcontrol->LoadListProvider(pControlNode, defaultControl, defaultAlways);
       wcontrol->SetType(viewType, viewLabel);
@@ -1571,9 +1554,9 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
     }
     case CGUIControl::GUICONTAINER_EPGGRID:
     {
-      auto* epgGridContainer = new CGUIEPGGridContainer(
-          parentID, id, posX, posY, width, height, orientation, scrollTime, preloadItems,
-          timeBlocks, minutesPerTimeBlock, rulerUnit, textureProgressIndicator);
+      auto epgGridContainer =
+          new CGUIEPGGridContainer(parentID, id, posX, posY, width, height, orientation, scrollTime,
+                                   preloadItems, timeBlocks, rulerUnit, textureProgressIndicator);
       control = epgGridContainer;
       epgGridContainer->LoadLayout(pControlNode);
       epgGridContainer->SetRenderOffset(offset);
@@ -1589,7 +1572,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
 
       control = new CGUIFixedListContainer(parentID, id, posX, posY, width, height, orientation,
                                            scroller, preloadItems, focusPosition, iMovementRange);
-      CGUIFixedListContainer* fcontrol = static_cast<CGUIFixedListContainer*>(control);
+      auto fcontrol = static_cast<CGUIFixedListContainer*>(control);
       fcontrol->LoadLayout(pControlNode);
       fcontrol->LoadListProvider(pControlNode, defaultControl, defaultAlways);
       fcontrol->SetType(viewType, viewLabel);
@@ -1609,7 +1592,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
 
       control = new CGUIPanelContainer(parentID, id, posX, posY, width, height, orientation,
                                        scroller, preloadItems);
-      CGUIPanelContainer* pcontrol = static_cast<CGUIPanelContainer*>(control);
+      auto pcontrol = static_cast<CGUIPanelContainer*>(control);
       pcontrol->LoadLayout(pControlNode);
       pcontrol->LoadListProvider(pControlNode, defaultControl, defaultAlways);
       pcontrol->SetType(viewType, viewLabel);
@@ -1632,10 +1615,10 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
       control = new CGUITextBox(parentID, id, posX, posY, width, height, labelInfo, scrollTime,
                                 strMonoFont.empty() ? nullptr : &labelInfoMono);
 
-      CGUITextBox* tcontrol = static_cast<CGUITextBox*>(control);
+      auto tcontrol = static_cast<CGUITextBox*>(control);
 
       tcontrol->SetPageControl(pageControl);
-      if (!infoLabels.empty())
+      if (infoLabels.size())
         tcontrol->SetInfo(infoLabels[0]);
       tcontrol->SetAutoScrolling(pControlNode);
       tcontrol->SetMinHeight(minHeight);
@@ -1661,7 +1644,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
                                       textureUp, textureDown, textureUpFocus, textureDownFocus,
                                       textureUpDisabled, textureDownDisabled, labelInfo, iType);
 
-      CGUISpinControlEx* scontrol = static_cast<CGUISpinControlEx*>(control);
+      auto scontrol = static_cast<CGUISpinControlEx*>(control);
       scontrol->SetSpinPosition(spinPosX);
       scontrol->SetText(strLabel);
       scontrol->SetReverse(bReverse);
@@ -1682,7 +1665,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
     {
       control = new GAME::CGUIGameController(parentID, id, posX, posY, width, height, texture);
 
-      GAME::CGUIGameController* gcontrol = static_cast<GAME::CGUIGameController*>(control);
+      auto gcontrol = static_cast<GAME::CGUIGameController*>(control);
 
       // Set texture
       gcontrol->SetInfo(textureFile);
@@ -1725,7 +1708,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
       control = new GAME::CGUIGameControllerList(parentID, id, posX, posY, width, height,
                                                  orientation, labelInfo.align, scroller);
 
-      GAME::CGUIGameControllerList* lcontrol = static_cast<GAME::CGUIGameControllerList*>(control);
+      auto lcontrol = static_cast<GAME::CGUIGameControllerList*>(control);
 
       lcontrol->LoadLayout(pControlNode);
       lcontrol->LoadListProvider(pControlNode, defaultControl, defaultAlways);
@@ -1745,7 +1728,7 @@ CGUIControl* CGUIControlFactory::Create(int parentID,
                                            textureNoFocus, labelInfo, textureColorMask,
                                            textureColorDisabledMask);
 
-      CGUIColorButtonControl* rcontrol = static_cast<CGUIColorButtonControl*>(control);
+      auto rcontrol = static_cast<CGUIColorButtonControl*>(control);
       rcontrol->SetLabel(strLabel);
       rcontrol->SetImageBoxColor(colorBox);
       rcontrol->SetColorDimensions(colorPosX, colorPosY, colorWidth, colorHeight);

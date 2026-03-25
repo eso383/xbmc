@@ -18,13 +18,13 @@ using namespace XFILE;
 
 static int vfs_file_read(void *h, uint8_t* buf, int size)
 {
-  CFile* pFile = static_cast<CFile*>(h);
+  auto pFile = static_cast<CFile*>(h);
   return pFile->Read(buf, size);
 }
 
 static int64_t vfs_file_seek(void *h, int64_t pos, int whence)
 {
-  CFile* pFile = static_cast<CFile*>(h);
+  auto pFile = static_cast<CFile*>(h);
   if (whence == AVSEEK_SIZE)
     return pFile->GetLength();
   else
@@ -47,21 +47,21 @@ bool CMusicInfoTagLoaderFFmpeg::Load(const std::string& strFileName, CMusicInfoT
   int blockSize = file.GetChunkSize();
   if (blockSize > 1)
     bufferSize = blockSize;
-  uint8_t* buffer = (uint8_t*)av_malloc(bufferSize);
+  auto buffer = (uint8_t*)av_malloc(bufferSize);
   AVIOContext* ioctx = avio_alloc_context(buffer, bufferSize, 0,
-                                          &file, vfs_file_read, NULL,
+                                          &file, vfs_file_read, nullptr,
                                           vfs_file_seek);
 
   AVFormatContext* fctx = avformat_alloc_context();
   fctx->pb = ioctx;
 
-  if (file.IoControl(IOControl::SEEK_POSSIBLE, NULL) != 1)
+  if (file.IoControl(IOCTRL_SEEK_POSSIBLE, nullptr) != 1)
     ioctx->seekable = 0;
 
   const AVInputFormat* iformat = nullptr;
-  av_probe_input_buffer(ioctx, &iformat, strFileName.c_str(), NULL, 0, 0);
+  av_probe_input_buffer(ioctx, &iformat, strFileName.c_str(), nullptr, 0, 0);
 
-  if (avformat_open_input(&fctx, strFileName.c_str(), iformat, NULL) < 0)
+  if (avformat_open_input(&fctx, strFileName.c_str(), iformat, nullptr) < 0)
   {
     if (fctx)
       avformat_close_input(&fctx);

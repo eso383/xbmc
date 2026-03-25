@@ -8,7 +8,6 @@
 
 #include "PVRClientUID.h"
 
-#include "pvr/PVRConstants.h" // PVR_CLIENT_INVALID_UID
 #include "pvr/PVRDatabase.h"
 #include "utils/log.h"
 
@@ -21,7 +20,7 @@ using namespace PVR;
 namespace
 {
 using ClientUIDParts = std::pair<std::string, ADDON::AddonInstanceId>;
-std::map<ClientUIDParts, int> s_idMap;
+static std::map<ClientUIDParts, int> s_idMap;
 } // unnamed namespace
 
 int CPVRClientUID::GetUID() const
@@ -41,17 +40,17 @@ int CPVRClientUID::GetUID() const
       if (!db.Open())
       {
         CLog::LogF(LOGERROR, "Unable to open TV database!");
-        return PVR_CLIENT_INVALID_UID;
+        return -1;
       }
 
       m_uid = db.GetClientID(m_addonID, m_instanceID);
-      if (m_uid == PVR_CLIENT_INVALID_UID)
+      if (m_uid == -1)
       {
         CLog::LogF(LOGERROR, "Unable to get client id from TV database!");
-        return PVR_CLIENT_INVALID_UID;
+        return -1;
       }
 
-      s_idMap.try_emplace({m_addonID, m_instanceID}, m_uid);
+      s_idMap.insert({{m_addonID, m_instanceID}, m_uid});
     }
     m_uidCreated = true;
   }
@@ -73,9 +72,4 @@ int CPVRClientUID::GetLegacyUID() const
     uid = -uid;
 
   return uid;
-}
-
-void CPVRClientUID::ClearCache()
-{
-  s_idMap.clear();
 }

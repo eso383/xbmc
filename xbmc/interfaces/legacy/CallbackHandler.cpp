@@ -38,17 +38,18 @@ namespace XBMCAddon
   void RetardedAsyncCallbackHandler::invokeCallback(Callback* cb)
   {
     XBMC_TRACE;
-    std::unique_lock lock(critSection);
+    std::lock_guard lock(critSection);
+
     g_callQueue.push_back(new AsyncCallbackMessage(cb,this));
   }
 
   RetardedAsyncCallbackHandler::~RetardedAsyncCallbackHandler()
   {
     XBMC_TRACE;
-    std::unique_lock lock(critSection);
+    std::lock_guard lock(critSection);
 
     // find any messages that might be there because of me ... and remove them
-    CallbackQueue::iterator iter = g_callQueue.begin();
+    auto iter = g_callQueue.begin();
     while (iter != g_callQueue.end())
     {
       if ((*iter)->handler.get() == this) // then this message is because of me
@@ -65,7 +66,8 @@ namespace XBMCAddon
   {
     XBMC_TRACE;
     std::unique_lock lock(critSection);
-    CallbackQueue::iterator iter = g_callQueue.begin();
+
+    auto iter = g_callQueue.begin();
     while (iter != g_callQueue.end())
     {
       AddonClass::Ref<AsyncCallbackMessage> p(*iter);
@@ -94,7 +96,9 @@ namespace XBMCAddon
 #endif
           AddonClass* obj = (p->cb->getObject());
           AddonClass::Ref<AddonClass> ref(obj);
-          std::unique_lock lock2(*obj);
+
+          std::lock_guard lock2(*obj);
+
           if (!p->cb->getObject()->isDeallocating())
           {
             try
@@ -113,7 +117,7 @@ namespace XBMCAddon
 
         // since the state of the iterator may have been corrupted by
         //  the changing state of the list from another thread during
-        //  the releasing of the lock in the immediately preceding
+        //  the releasing fo the lock in the immediately preceeding
         //  codeblock, we need to reset it before continuing the loop
         iter = g_callQueue.begin();
       }
@@ -125,8 +129,9 @@ namespace XBMCAddon
   void RetardedAsyncCallbackHandler::clearPendingCalls(void* userData)
   {
     XBMC_TRACE;
-    std::unique_lock lock(critSection);
-    CallbackQueue::iterator iter = g_callQueue.begin();
+    std::lock_guard lock(critSection);
+
+    auto iter = g_callQueue.begin();
     while (iter != g_callQueue.end())
     {
       AddonClass::Ref<AsyncCallbackMessage> p(*iter);

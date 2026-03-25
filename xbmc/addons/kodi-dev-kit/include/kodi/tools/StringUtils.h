@@ -611,7 +611,7 @@ public:
 
     while (true)
     {
-      char* cstr = reinterpret_cast<char*>(malloc(sizeof(char) * size));
+      auto cstr = reinterpret_cast<char*>(malloc(sizeof(char) * size));
       if (!cstr)
         return "";
 
@@ -665,7 +665,7 @@ public:
 
     while (true)
     {
-      wchar_t* cstr = reinterpret_cast<wchar_t*>(malloc(sizeof(wchar_t) * size));
+      auto cstr = reinterpret_cast<wchar_t*>(malloc(sizeof(wchar_t) * size));
       if (!cstr)
         return L"";
 
@@ -1221,7 +1221,7 @@ public:
   ///
   inline static std::string& RemoveDuplicatedSpacesAndTabs(std::string& str)
   {
-    std::string::iterator it = str.begin();
+    auto it = str.begin();
     bool onSpace = false;
     while (it != str.end())
     {
@@ -1274,7 +1274,7 @@ public:
   inline static int Replace(std::string& str, char oldChar, char newChar)
   {
     int replacedChars = 0;
-    for (std::string::iterator it = str.begin(); it != str.end(); ++it)
+    for (auto it = str.begin(); it != str.end(); ++it)
     {
       if (*it == oldChar)
       {
@@ -1453,7 +1453,10 @@ public:
   /// EXPECT_STREQ(refstr.c_str(), varstr.c_str());
   /// ~~~~~~~~~~~~~
   ///
-  inline static void RemoveCRLF(std::string& strLine) { StringUtils::TrimRight(strLine, "\n\r"); }
+  inline static void RemoveCRLF(std::string& strLine)
+  {
+    StringUtils::TrimRight(strLine, "\n\r");
+  }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -1465,8 +1468,7 @@ public:
   /// --------------------------------------------------------------------------
   /// Example:
   /// ~~~~~~~~~~~~~{.cpp}
-  /// std::string ref;
-  /// std::string var;
+  /// std::string ref, var;
   ///
   /// ref = "8378 787464";
   /// var = "test string";
@@ -1595,7 +1597,7 @@ public:
       c2 = *s2++;
       // This includes the possibility that one of the characters is the null-terminator,
       // which implies a string mismatch.
-      if (c1 != c2 && ToLowerAscii(c1) != ToLowerAscii(c2))
+      if (c1 != c2 && ::tolower(c1) != ::tolower(c2))
         return false;
     } while (c2 != '\0'); // At this point, we know c1 == c2, so there's no need to test them both.
     return true;
@@ -1645,8 +1647,8 @@ public:
       index++;
       // This includes the possibility that one of the characters is the null-terminator,
       // which implies a string mismatch.
-      if (c1 != c2 && ToLowerAscii(c1) != ToLowerAscii(c2))
-        return ToLowerAscii(c1) - ToLowerAscii(c2);
+      if (c1 != c2 && ::tolower(c1) != ::tolower(c2))
+        return ::tolower(c1) - ::tolower(c2);
     } while (c2 != '\0' &&
              index != n); // At this point, we know c1 == c2, so there's no need to test them both.
     return 0;
@@ -1780,7 +1782,7 @@ public:
   {
     while (*s2 != '\0')
     {
-      if (ToLowerAscii(*s1) != ToLowerAscii(*s2))
+      if (::tolower(*s1) != ::tolower(*s2))
         return false;
       s1++;
       s2++;
@@ -1871,7 +1873,7 @@ public:
     const char* s2 = str2.c_str();
     while (*s2 != '\0')
     {
-      if (ToLowerAscii(*s1) != ToLowerAscii(*s2))
+      if (::tolower(*s1) != ::tolower(*s2))
         return false;
       s1++;
       s2++;
@@ -1897,7 +1899,7 @@ public:
     const char* s1 = str1.c_str() + str1.size() - len2;
     while (*s2 != '\0')
     {
-      if (ToLowerAscii(*s1) != ToLowerAscii(*s2))
+      if (::tolower(*s1) != ::tolower(*s2))
         return false;
       s1++;
       s2++;
@@ -2026,7 +2028,10 @@ public:
   /// @param[in] c Character to check
   /// @return true if space, false otherwise
   ///
-  inline static int IsSpace(char c) { return (c & 0x80) == 0 && ::isspace(c); }
+  inline static int IsSpace(char c)
+  {
+    return (c & 0x80) == 0 && ::isspace(c);
+  }
   //----------------------------------------------------------------------------
 
   //============================================================================
@@ -2313,12 +2318,12 @@ public:
   inline static size_t FindWords(const char* str, const char* wordLowerCase)
   {
     // NOTE: This assumes word is lowercase!
-    const unsigned char* s = (const unsigned char*)str;
+    auto s = (const unsigned char*)str;
     do
     {
       // start with a compare
       const unsigned char* c = s;
-      const unsigned char* w = (const unsigned char*)wordLowerCase;
+      auto w = (const unsigned char*)wordLowerCase;
       bool same = true;
       while (same && *c && *w)
       {
@@ -2926,8 +2931,7 @@ public:
   /// ~~~~~~~~~~~~~{.cpp}
   /// #include <kodi/tools/StringUtils.h>
   ///
-  /// std::string ref;
-  /// std::string var;
+  /// std::string ref, var;
   ///
   /// ref = "21:30:55";
   /// var = kodi::tools::StringUtils::SecondsToTimeString(77455);
@@ -2937,24 +2941,24 @@ public:
   inline static std::string SecondsToTimeString(long seconds,
                                                 TIME_FORMAT format = TIME_FORMAT_GUESS)
   {
-    const bool isNegative = seconds < 0;
+    bool isNegative = seconds < 0;
     seconds = std::abs(seconds);
 
     std::string strHMS;
     if (format == TIME_FORMAT_SECS)
       strHMS = std::to_string(seconds);
     else if (format == TIME_FORMAT_MINS)
-      strHMS = std::to_string(std::lrintf(static_cast<float>(seconds) / 60.0f));
+      strHMS = std::to_string(lrintf(static_cast<float>(seconds) / 60.0f));
     else if (format == TIME_FORMAT_HOURS)
-      strHMS = std::to_string(std::lrintf(static_cast<float>(seconds) / 3600.0f));
+      strHMS = std::to_string(lrintf(static_cast<float>(seconds) / 3600.0f));
     else if (format & TIME_FORMAT_M)
       strHMS += std::to_string(seconds % 3600 / 60);
     else
     {
-      const long hh = seconds / 3600;
+      int hh = seconds / 3600;
       seconds = seconds % 3600;
-      const long mm = seconds / 60;
-      unsigned int ss = seconds % 60;
+      int mm = seconds / 60;
+      int ss = seconds % 60;
 
       if (format == TIME_FORMAT_GUESS)
         format = (hh >= 1) ? TIME_FORMAT_HH_MM_SS : TIME_FORMAT_MM_SS;
@@ -3026,13 +3030,9 @@ private:
     return 0;
   }
 
-  inline static char ToLowerAscii(char c) { return 'A' <= c && c <= 'Z' ? c - 'A' + 'a' : c; }
-
-  inline static char ToUpperAscii(char c) { return 'a' <= c && c <= 'z' ? c - 'a' + 'A' : c; }
-
   inline static wchar_t tolowerUnicode(const wchar_t& c)
   {
-    wchar_t* p =
+    auto p =
         static_cast<wchar_t*>(bsearch(&c, unicode_uppers, sizeof(unicode_uppers) / sizeof(wchar_t),
                                       sizeof(wchar_t), compareWchar));
     if (p)
@@ -3043,7 +3043,7 @@ private:
 
   inline static wchar_t toupperUnicode(const wchar_t& c)
   {
-    wchar_t* p =
+    auto p =
         static_cast<wchar_t*>(bsearch(&c, unicode_lowers, sizeof(unicode_lowers) / sizeof(wchar_t),
                                       sizeof(wchar_t), compareWchar));
     if (p)

@@ -9,7 +9,6 @@
 #include "SmartPlaylistFileItemListModifier.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "playlists/SmartPlayList.h"
 #include "utils/StringUtils.h"
@@ -19,9 +18,6 @@
 #define URL_OPTION_XSP              "xsp"
 #define PROPERTY_SORT_ORDER         "sort.order"
 #define PROPERTY_SORT_ASCENDING     "sort.ascending"
-
-namespace KODI::PLAYLIST
-{
 
 bool CSmartPlaylistFileItemListModifier::CanModify(const CFileItemList &items) const
 {
@@ -43,7 +39,7 @@ bool CSmartPlaylistFileItemListModifier::Modify(CFileItemList &items) const
     return false;
 
   items.SetProperty(PROPERTY_SORT_ORDER, (int)xsp.GetOrder());
-  items.SetProperty(PROPERTY_SORT_ASCENDING, xsp.GetOrderDirection() == SortOrder::ASCENDING);
+  items.SetProperty(PROPERTY_SORT_ASCENDING, xsp.GetOrderDirection() == SortOrderAscending);
 
   return true;
 }
@@ -56,5 +52,3 @@ std::string CSmartPlaylistFileItemListModifier::GetUrlOption(const std::string &
   CURL url(path);
   return url.GetOption(option);
 }
-
-} // namespace KODI::PLAYLIST

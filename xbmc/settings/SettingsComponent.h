@@ -14,10 +14,13 @@ class CAdvancedSettings;
 class CProfileManager;
 class CSettings;
 
-namespace KODI::SUBTITLES
+namespace KODI
+{
+namespace SUBTITLES
 {
 class CSubtitlesSettings;
-} // namespace KODI::SUBTITLES
+} // namespace SUBTITLES
+} // namespace KODI
 
 class CSettingsComponent
 {
@@ -45,27 +48,32 @@ public:
    * @brief Get access to the settings subcomponent.
    * @return the settings subcomponent.
    */
-  std::shared_ptr<CSettings> GetSettings() const;
+  std::shared_ptr<CSettings> GetSettings();
 
   /*!
    * @brief Get access to the advanced settings subcomponent.
    * @return the advanced settings subcomponent.
    */
-  std::shared_ptr<CAdvancedSettings> GetAdvancedSettings() const;
+  std::shared_ptr<CAdvancedSettings> GetAdvancedSettings();
 
   /*!
    * @brief Get access to the subtitles settings subcomponent.
    * @return the subtiltles settings subcomponent.
    */
-  std::shared_ptr<KODI::SUBTITLES::CSubtitlesSettings> GetSubtitlesSettings() const;
+  std::shared_ptr<KODI::SUBTITLES::CSubtitlesSettings> GetSubtitlesSettings();
 
   /*!
    * @brief Get access to the profiles manager subcomponent.
    * @return the profiles manager subcomponent.
    */
-  std::shared_ptr<CProfileManager> GetProfileManager() const;
+  std::shared_ptr<CProfileManager> GetProfileManager();
 
 private:
+  bool InitDirectoriesLinux(bool bPlatformDirectories) const;
+  bool InitDirectoriesOSX(bool bPlatformDirectories);
+  bool InitDirectoriesWin32(bool bPlatformDirectories);
+  void CreateUserDirs() const;
+
   enum class State
   {
     DEINITED,

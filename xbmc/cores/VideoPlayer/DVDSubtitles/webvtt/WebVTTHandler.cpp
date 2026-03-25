@@ -36,8 +36,8 @@ using namespace KODI::SUBTITLES::STYLE;
 namespace
 {
 // WebVTT signature
-constexpr const char* signatureCharsBOM = "\xEF\xBB\xBF\x57\x45\x42\x56\x54\x54";
-constexpr const char* signatureChars = "\x57\x45\x42\x56\x54\x54";
+constexpr auto signatureCharsBOM = "\xEF\xBB\xBF\x57\x45\x42\x56\x54\x54";
+constexpr auto signatureChars = "\x57\x45\x42\x56\x54\x54";
 constexpr char signatureLastChars[] = {'\x0A', '\x0D', '\x20', '\x09'};
 
 constexpr char tagPattern[] = "<(\\/)?([^a-zA-Z >]+)?([^\\d:. >]+)?(\\.[^ >]+)?(?> ([^>]+))?>";
@@ -182,10 +182,10 @@ void TranslateEscapeChars(std::string& text)
     // U+200E for "&lrm;" and U+200F for "&rlm;"
     // but libass rendering assume the text as left-to-right,
     // to display text in the right order we have to use embedded codes
-    StringUtils::Replace(text, "&lrm;", "\u202a");
-    StringUtils::Replace(text, "&rlm;", "\u202b");
-    StringUtils::Replace(text, "&#x2068;", "\u2068");
-    StringUtils::Replace(text, "&#x2069;", "\u2069");
+    StringUtils::Replace(text, "&lrm;", u8"\u202a");
+    StringUtils::Replace(text, "&rlm;", u8"\u202b");
+    StringUtils::Replace(text, "&#x2068;", u8"\u2068");
+    StringUtils::Replace(text, "&#x2069;", u8"\u2069");
     StringUtils::Replace(text, "&amp;", "&");
     StringUtils::Replace(text, "&lt;", "<");
     StringUtils::Replace(text, "&gt;", ">");
@@ -216,14 +216,14 @@ bool CWebVTTHandler::Initialize()
     return false;
   for (auto const& item : cuePropsPatterns)
   {
-    CRegExp reg = CRegExp();
+    auto reg = CRegExp();
     if (!reg.RegComp(item.second))
       return false;
     m_cuePropsMapRegex.insert({item.first, reg});
   }
   for (auto const& item : cueCssPatterns)
   {
-    CRegExp reg = CRegExp();
+    auto reg = CRegExp();
     if (!reg.RegComp(item.second))
       return false;
     m_cueCssStyleMapRegex.insert({item.first, reg});
@@ -256,24 +256,6 @@ bool CWebVTTHandler::CheckSignature(const std::string& data)
 
   CLog::LogF(LOGERROR, "WebVTT signature not valid");
   return false;
-}
-
-void CWebVTTHandler::InitDecoderCue(double startTime, double endTime)
-{
-  // Prepare for a new subtitle data
-  m_subtitleData = subtitleData();
-
-  m_subtitleData.startTime = startTime + m_offset;
-  m_subtitleData.stopTime = endTime + m_offset;
-
-  // Load default settings by parsing an empty string
-  std::string settings;
-  GetCueSettings(settings);
-
-  // From the next lines we should have the text area
-  // so set the section to CUE_TEXT to prepare decoder
-  // to read the text area with DecodeLine method
-  m_currentSection = WebvttSection::CUE_TEXT;
 }
 
 void CWebVTTHandler::DecodeLine(std::string line, std::vector<subtitleData>* subList)
@@ -498,11 +480,12 @@ void CWebVTTHandler::DecodeLine(std::string line, std::vector<subtitleData>* sub
 
         auto colorInfo =
             std::find_if(m_CSSColors.begin(), m_CSSColors.end(),
-                         [&](const std::pair<std::string, KODI::UTILS::COLOR::ColorInfo>& item)
-                         { return StringUtils::CompareNoCase(item.first, colorName) == 0; });
+                         [&](const std::pair<std::string, UTILS::COLOR::ColorInfo>& item) {
+                           return StringUtils::CompareNoCase(item.first, colorName) == 0;
+                         });
         if (colorInfo != m_CSSColors.end())
         {
-          const uint32_t color = KODI::UTILS::COLOR::ConvertToBGR(colorInfo->second.colorARGB);
+          const uint32_t color = UTILS::COLOR::ConvertToBGR(colorInfo->second.colorARGB);
           m_feedCssStyle.m_color = StringUtils::Format("{:6x}", color);
         }
       }
@@ -510,7 +493,7 @@ void CWebVTTHandler::DecodeLine(std::string line, std::vector<subtitleData>* sub
       if (!colorRGB.empty()) // From CSS Color numeric R,G,B values
       {
         const auto intValues = StringUtils::Split(colorRGB, ",");
-        uint32_t color = KODI::UTILS::COLOR::ConvertIntToRGB(
+        uint32_t color = UTILS::COLOR::ConvertIntToRGB(
             std::stoi(intValues[2]), std::stoi(intValues[1]), std::stoi(intValues[0]));
         m_feedCssStyle.m_color = StringUtils::Format("{:6x}", color);
       }

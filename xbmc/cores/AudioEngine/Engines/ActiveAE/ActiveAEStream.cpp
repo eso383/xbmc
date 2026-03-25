@@ -25,7 +25,7 @@ CActiveAEStream::CActiveAEStream(AEAudioFormat* format, unsigned int streamid, C
   m_activeAE = ae;
   m_id = streamid;
   m_bufferedTime = 0;
-  m_currentBuffer = NULL;
+  m_currentBuffer = nullptr;
   m_drain = false;
   m_paused = false;
   m_rgain = 1.0;
@@ -39,7 +39,7 @@ CActiveAEStream::CActiveAEStream(AEAudioFormat* format, unsigned int streamid, C
   m_streamFreeBuffers = 0;
   m_streamIsBuffering = false;
   m_streamIsFlushed = false;
-  m_streamSlave = NULL;
+  m_streamSlave = nullptr;
   m_leftoverBytes = 0;
   m_forceResampler = false;
   m_streamResampleRatio = 1.0;
@@ -47,7 +47,7 @@ CActiveAEStream::CActiveAEStream(AEAudioFormat* format, unsigned int streamid, C
   m_profile = 0;
   m_matrixEncoding = AV_MATRIX_ENCODING_NONE;
   m_audioServiceType = AV_AUDIO_SERVICE_TYPE_MAIN;
-  m_pClock = NULL;
+  m_pClock = nullptr;
   m_lastPts = 0;
   m_lastPtsJump = 0;
   m_clockSpeed = 1.0;
@@ -55,19 +55,22 @@ CActiveAEStream::CActiveAEStream(AEAudioFormat* format, unsigned int streamid, C
 
 void CActiveAEStream::IncFreeBuffers()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   m_streamFreeBuffers++;
 }
 
 void CActiveAEStream::DecFreeBuffers()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   m_streamFreeBuffers--;
 }
 
 void CActiveAEStream::ResetFreeBuffers()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   m_streamFreeBuffers = 0;
 }
 
@@ -201,8 +204,7 @@ double CActiveAEStream::CalcResampleRatio(double error)
   return ret;
 }
 
-std::chrono::milliseconds CActiveAEStream::GetErrorInterval()
-{
+std::chrono::milliseconds CActiveAEStream::GetErrorInterval() const {
   std::chrono::milliseconds ret = m_errorInterval;
   double rr = m_processingBuffers->GetRR();
   if (rr > 1.02 || rr < 0.98)
@@ -212,7 +214,8 @@ std::chrono::milliseconds CActiveAEStream::GetErrorInterval()
 
 unsigned int CActiveAEStream::GetSpace()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   if (m_format.m_dataFormat == AE_FMT_RAW)
     return m_streamFreeBuffers;
   else
@@ -286,7 +289,8 @@ unsigned int CActiveAEStream::AddData(const uint8_t* const *data, unsigned int o
 
       bool rawPktComplete = false;
       {
-        std::unique_lock lock(m_statsLock);
+        std::lock_guard lock(m_statsLock);
+
         if (m_format.m_dataFormat != AE_FMT_RAW)
         {
           m_currentBuffer->pkt->nb_samples += minFrames;
@@ -353,7 +357,8 @@ CAESyncInfo CActiveAEStream::GetSyncInfo()
 
 bool CActiveAEStream::IsBuffering()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   return m_streamIsBuffering;
 }
 
@@ -385,7 +390,7 @@ void CActiveAEStream::Resume()
 void CActiveAEStream::Drain(bool wait)
 {
   Message *msg;
-  CActiveAEStream *stream = this;
+  auto stream = this;
 
   m_streamDraining = true;
   m_streamDrained = false;
@@ -409,7 +414,7 @@ void CActiveAEStream::Drain(bool wait)
     msgData.stream = this;
     RemapBuffer();
     m_streamPort->SendOutMessage(CActiveAEDataProtocol::STREAMSAMPLE, &msgData, sizeof(MsgStreamSample));
-    m_currentBuffer = NULL;
+    m_currentBuffer = nullptr;
   }
 
   if (wait)
@@ -445,13 +450,15 @@ void CActiveAEStream::Drain(bool wait)
 
 bool CActiveAEStream::IsDraining()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   return m_streamDraining;
 }
 
 bool CActiveAEStream::IsDrained()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   return m_streamDrained;
 }
 
@@ -459,7 +466,7 @@ void CActiveAEStream::Flush()
 {
   if (!m_streamIsFlushed)
   {
-    m_currentBuffer = NULL;
+    m_currentBuffer = nullptr;
     m_leftoverBytes = 0;
 
     // Seeking/skipping can cause PTS discontinuities. Reset the PTS tracking and
@@ -542,7 +549,8 @@ void CActiveAEStream::FadeVolume(float from, float target, unsigned int time)
 
 bool CActiveAEStream::IsFading()
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   return m_streamFading;
 }
 
@@ -576,7 +584,8 @@ void CActiveAEStream::UnRegisterAudioCallback()
 
 void CActiveAEStream::RegisterSlave(IAEStream *slave)
 {
-  std::unique_lock lock(m_streamLock);
+  std::lock_guard lock(m_streamLock);
+
   m_streamSlave = slave;
 }
 
@@ -598,8 +607,7 @@ CActiveAEStreamBuffers::~CActiveAEStreamBuffers()
 {
 }
 
-bool CActiveAEStreamBuffers::HasInputLevel(int level)
-{
+bool CActiveAEStreamBuffers::HasInputLevel(int level) const {
   if ((m_inputSamples.size() + m_resampleBuffers->m_inputSamples.size()) >
       (m_resampleBuffers->m_allSamples.size() * level / 100))
     return true;
@@ -668,8 +676,7 @@ void CActiveAEStreamBuffers::ConfigureResampler(bool normalizelevels,
   m_resampleBuffers->ConfigureResampler(normalizelevels, stereoupmix, quality, sublevel);
 }
 
-float CActiveAEStreamBuffers::GetDelay()
-{
+float CActiveAEStreamBuffers::GetDelay() const {
   float delay = 0;
 
   for (auto &buf : m_inputSamples)
@@ -705,14 +712,12 @@ void CActiveAEStreamBuffers::Flush()
   }
 }
 
-void CActiveAEStreamBuffers::SetDrain(bool drain)
-{
+void CActiveAEStreamBuffers::SetDrain(bool drain) const {
   m_resampleBuffers->SetDrain(drain);
   m_atempoBuffers->SetDrain(drain);
 }
 
-bool CActiveAEStreamBuffers::IsDrained()
-{
+bool CActiveAEStreamBuffers::IsDrained() const {
   if (m_resampleBuffers->m_inputSamples.empty() &&
       m_resampleBuffers->m_outputSamples.empty() &&
       m_atempoBuffers->m_inputSamples.empty() &&
@@ -724,8 +729,7 @@ bool CActiveAEStreamBuffers::IsDrained()
     return false;
 }
 
-void CActiveAEStreamBuffers::SetRR(double rr, double atempoThreshold)
-{
+void CActiveAEStreamBuffers::SetRR(double rr, double atempoThreshold) const {
   if (fabs(rr - 1.0) < atempoThreshold)
   {
     m_resampleBuffers->SetRR(rr);
@@ -738,26 +742,22 @@ void CActiveAEStreamBuffers::SetRR(double rr, double atempoThreshold)
   }
 }
 
-double CActiveAEStreamBuffers::GetRR()
-{
+double CActiveAEStreamBuffers::GetRR() const {
   double tempo = m_resampleBuffers->GetRR();
   tempo /= static_cast<double>(m_atempoBuffers->GetTempo());
   return tempo;
 }
 
-void CActiveAEStreamBuffers::FillBuffer()
-{
+void CActiveAEStreamBuffers::FillBuffer() const {
   m_resampleBuffers->FillBuffer();
   m_atempoBuffers->FillBuffer();
 }
 
-bool CActiveAEStreamBuffers::DoesNormalize()
-{
+bool CActiveAEStreamBuffers::DoesNormalize() const {
   return m_resampleBuffers->DoesNormalize();
 }
 
-void CActiveAEStreamBuffers::ForceResampler(bool force)
-{
+void CActiveAEStreamBuffers::ForceResampler(bool force) const {
   m_resampleBuffers->ForceResampler(force);
 }
 
@@ -771,8 +771,7 @@ std::unique_ptr<CActiveAEBufferPool> CActiveAEStreamBuffers::GetAtempoBuffers()
   return std::move(m_atempoBuffers);
 }
 
-bool CActiveAEStreamBuffers::HasWork()
-{
+bool CActiveAEStreamBuffers::HasWork() const {
   if (!m_inputSamples.empty())
     return true;
   if (!m_outputSamples.empty())

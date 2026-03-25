@@ -82,7 +82,7 @@ typedef enum
   VOLUME_CHANGE_MUTE
 } CecVolumeChange;
 
-// CEC Wake Up flags from u-boot 2019
+// CEC Wake Up flags from u-boot(bl301)
 typedef enum
 {
   CEC_FUNC_MASK = 0,
@@ -102,8 +102,7 @@ public:
   CPeripheralCecAdapter(CPeripherals& manager,
                         const PeripheralScanResult& scanResult,
                         CPeripheralBus* bus);
-
-  void Deinitialize(void) override;
+  ~CPeripheralCecAdapter(void) override;
 
   void Announce(ANNOUNCEMENT::AnnouncementFlag flag,
                 const std::string& sender,
@@ -111,7 +110,7 @@ public:
                 const CVariant& data) override;
 
   // audio control
-  bool HasAudioControl(void);
+  bool HasAudioControl(void) const;
   CDateTime m_ScreensaverStandbySent;
   void VolumeUp(void);
   void VolumeDown(void);
@@ -162,8 +161,8 @@ private:
   void GetNextKey(void);
 
   void SetAudioSystemConnected(bool bSetTo);
-  void SetMenuLanguage(const char* strLanguage);
-  void OnTvStandby(void);
+  void SetMenuLanguage(const char* strLanguage) const;
+  void OnTvStandby(void) const;
 
   // callbacks from libCEC
   static void CecLogMessage(void* cbParam, const CEC::cec_log_message* message);
@@ -177,7 +176,7 @@ private:
                                  const uint8_t activated);
   static void CecKeyPress(void* cbParam, const CEC::cec_keypress* key);
 
-  CEC::ICECAdapter* m_cecAdapter{nullptr};
+  CEC::ICECAdapter* m_cecAdapter;
   bool m_bStarted;
   bool m_bHasButton;
   bool m_bIsReady;
@@ -225,8 +224,8 @@ public:
   bool UpdateConfiguration(CEC::libcec_configuration* configuration);
 
 protected:
-  void UpdateMenuLanguage(void);
-  std::string UpdateAudioSystemStatus(void);
+  void UpdateMenuLanguage(void) const;
+  std::string UpdateAudioSystemStatus(void) const;
   bool WaitReady(void);
   bool SetInitialConfiguration(void);
   void Process(void) override;

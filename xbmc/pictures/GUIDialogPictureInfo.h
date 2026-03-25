@@ -10,8 +10,6 @@
 
 #include "guilib/GUIDialog.h"
 
-#include <memory>
-
 class CFileItemList;
 
 class CGUIDialogPictureInfo :
@@ -19,7 +17,7 @@ class CGUIDialogPictureInfo :
 {
 public:
   CGUIDialogPictureInfo(void);
-  ~CGUIDialogPictureInfo(void) = default;
+  ~CGUIDialogPictureInfo(void) override;
   void SetPicture(CFileItem *item);
   void FrameMove() override;
 
@@ -29,6 +27,6 @@ protected:
   bool OnAction(const CAction& action) override;
   void UpdatePictureInfo();
 
-  std::unique_ptr<CFileItemList> m_pictureInfo;
+  CFileItemList* m_pictureInfo;
   std::string    m_currentPicture;
 };

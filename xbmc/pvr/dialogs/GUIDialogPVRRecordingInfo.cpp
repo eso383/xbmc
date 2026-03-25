@@ -13,29 +13,25 @@
 #include "guilib/GUIMessage.h"
 #include "pvr/PVRManager.h"
 #include "pvr/guilib/PVRGUIActionsEPG.h"
-#include "video/guilib/VideoPlayActionProcessor.h"
+#include "pvr/guilib/PVRGUIRecordingsPlayActionProcessor.h"
 
 using namespace PVR;
 
-namespace
-{
-constexpr unsigned int CONTROL_BTN_FIND = 4;
-constexpr unsigned int CONTROL_BTN_OK = 7;
-constexpr unsigned int CONTROL_BTN_PLAY_RECORDING = 8;
-
-} // unnamed namespace
+#define CONTROL_BTN_FIND 4
+#define CONTROL_BTN_OK 7
+#define CONTROL_BTN_PLAY_RECORDING 8
 
 CGUIDialogPVRRecordingInfo::CGUIDialogPVRRecordingInfo()
-  : CGUIDialog(WINDOW_DIALOG_PVR_RECORDING_INFO, "DialogPVRInfo.xml"),
-    m_recordItem(std::make_shared<CFileItem>())
+  : CGUIDialog(WINDOW_DIALOG_PVR_RECORDING_INFO, "DialogPVRInfo.xml"), m_recordItem(new CFileItem)
 {
 }
 
 bool CGUIDialogPVRRecordingInfo::OnMessage(CGUIMessage& message)
 {
-  if (message.GetMessage() == GUI_MSG_CLICKED)
+  switch (message.GetMessage())
   {
-    return OnClickButtonOK(message) || OnClickButtonPlay(message) || OnClickButtonFind(message);
+    case GUI_MSG_CLICKED:
+      return OnClickButtonOK(message) || OnClickButtonPlay(message) || OnClickButtonFind(message);
   }
 
   return CGUIDialog::OnMessage(message);
@@ -64,9 +60,9 @@ bool CGUIDialogPVRRecordingInfo::OnClickButtonPlay(const CGUIMessage& message)
 
     if (m_recordItem)
     {
-      KODI::VIDEO::GUILIB::CVideoPlayActionProcessor proc{m_recordItem};
+      CGUIPVRRecordingsPlayActionProcessor proc{m_recordItem};
       proc.ProcessDefaultAction();
-      if (proc.GetUserCancelled())
+      if (proc.UserCancelled())
         Open();
     }
 

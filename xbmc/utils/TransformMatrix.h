@@ -259,22 +259,17 @@ public:
     return m[2][0] * x + m[2][1] * y + m[2][2] * z + m[2][3];
   }
 
-  inline KODI::UTILS::COLOR::Color TransformAlpha(KODI::UTILS::COLOR::Color color) const
-      XBMC_FORCE_INLINE
+  inline UTILS::COLOR::Color TransformAlpha(UTILS::COLOR::Color color) const XBMC_FORCE_INLINE
   {
-    return static_cast<KODI::UTILS::COLOR::Color>(color * alpha);
+    return static_cast<UTILS::COLOR::Color>(color * alpha);
   }
 
-  inline KODI::UTILS::COLOR::Color TransformColor(KODI::UTILS::COLOR::Color color) const
-      XBMC_FORCE_INLINE
+  inline UTILS::COLOR::Color TransformColor(UTILS::COLOR::Color color) const XBMC_FORCE_INLINE
   {
-    KODI::UTILS::COLOR::Color a =
-        static_cast<KODI::UTILS::COLOR::Color>(((color >> 24) & 0xff) * alpha);
-    KODI::UTILS::COLOR::Color r =
-        static_cast<KODI::UTILS::COLOR::Color>(((color >> 16) & 0xff) * red);
-    KODI::UTILS::COLOR::Color g =
-        static_cast<KODI::UTILS::COLOR::Color>(((color >> 8) & 0xff) * green);
-    KODI::UTILS::COLOR::Color b = static_cast<KODI::UTILS::COLOR::Color>(((color) & 0xff) * blue);
+    UTILS::COLOR::Color a = static_cast<UTILS::COLOR::Color>(((color >> 24) & 0xff) * alpha);
+    UTILS::COLOR::Color r = static_cast<UTILS::COLOR::Color>(((color >> 16) & 0xff) * red);
+    UTILS::COLOR::Color g = static_cast<UTILS::COLOR::Color>(((color >> 8) & 0xff) * green);
+    UTILS::COLOR::Color b = static_cast<UTILS::COLOR::Color>(((color)&0xff) * blue);
     if (a > 255)
       a = 255;
     if (r > 255)

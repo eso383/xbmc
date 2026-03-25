@@ -13,9 +13,7 @@
 #include "addons/Skin.h"
 #include "dialogs/GUIDialogYesNo.h"
 #include "games/controllers/Controller.h"
-#include "games/controllers/ControllerLayout.h"
 #include "games/controllers/ControllerManager.h"
-#include "games/controllers/guicontrols/GUIGameController.h"
 #include "guilib/GUIMessage.h"
 #include "peripherals/Peripherals.h"
 #include "settings/SettingAddon.h"
@@ -30,20 +28,18 @@
 using namespace KODI;
 using namespace PERIPHERALS;
 
-namespace
-{
-constexpr const int CONTROL_ID_PERIPHERAL_ICON = 100;
-} // namespace
+// Settings for peripherals
+constexpr std::string_view SETTING_APPEARANCE = "appearance";
 
 CGUIDialogPeripheralSettings::CGUIDialogPeripheralSettings()
   : CGUIDialogSettingsManualBase(WINDOW_DIALOG_PERIPHERAL_SETTINGS, "DialogSettings.xml"),
-    m_item(NULL)
+    m_item(nullptr)
 {
 }
 
 CGUIDialogPeripheralSettings::~CGUIDialogPeripheralSettings()
 {
-  if (m_item != NULL)
+  if (m_item != nullptr)
     delete m_item;
 
   m_settingsMap.clear();
@@ -61,12 +57,6 @@ bool CGUIDialogPeripheralSettings::OnMessage(CGUIMessage& message)
   return CGUIDialogSettingsManualBase::OnMessage(message);
 }
 
-void CGUIDialogPeripheralSettings::OnDeinitWindow(int nextWindowID)
-{
-  UpdateIcon({});
-  CGUIDialogSettingsManualBase::OnDeinitWindow(nextWindowID);
-}
-
 void CGUIDialogPeripheralSettings::RegisterPeripheralManager(CPeripherals& manager)
 {
   m_manager = &manager;
@@ -79,10 +69,10 @@ void CGUIDialogPeripheralSettings::UnregisterPeripheralManager()
 
 void CGUIDialogPeripheralSettings::SetFileItem(const CFileItem* item)
 {
-  if (item == NULL)
+  if (item == nullptr)
     return;
 
-  if (m_item != NULL)
+  if (m_item != nullptr)
     delete m_item;
 
   m_item = new CFileItem(*item);
@@ -90,7 +80,7 @@ void CGUIDialogPeripheralSettings::SetFileItem(const CFileItem* item)
 
 void CGUIDialogPeripheralSettings::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingChanged(setting);
@@ -99,7 +89,7 @@ void CGUIDialogPeripheralSettings::OnSettingChanged(const std::shared_ptr<const 
 
   // we need to copy the new value of the setting from the copy to the
   // original setting
-  std::map<std::string, std::shared_ptr<CSetting>>::iterator itSetting =
+  auto itSetting =
       m_settingsMap.find(settingId);
   if (itSetting == m_settingsMap.end())
     return;
@@ -114,27 +104,33 @@ void CGUIDialogPeripheralSettings::OnSettingChanged(const std::shared_ptr<const 
   if (!peripheral)
     return;
 
-  if (peripheral->SetSetting(settingId, setting->ToString()))
-    peripheral->OnSettingChanged(settingId);
+  peripheral->OnSettingChanged(setting->GetId());
 
-  // Refresh peripheral icon
-  UpdateIcon(peripheral->ControllerProfile());
+  if (settingId == SETTING_APPEARANCE)
+  {
+    // Get the controller profile of the new appearance
+    GAME::ControllerPtr controller;
 
-  // Persist settings so that the new setting takes effect immediately
-  Save();
-}
+    if (setting->GetType() == SettingType::String)
+    {
+      std::shared_ptr<const CSettingString> settingString =
+          std::static_pointer_cast<const CSettingString>(setting);
+      const std::string& addonId = settingString->GetValue();
 
-void CGUIDialogPeripheralSettings::UpdateIcon(const GAME::ControllerPtr& controller)
-{
-  GAME::CGUIGameController* control =
-      dynamic_cast<GAME::CGUIGameController*>(GetControl(CONTROL_ID_PERIPHERAL_ICON));
-  if (control != nullptr)
-    control->SetFileName(controller ? controller->Layout().ImagePath() : "");
+      if (m_manager != nullptr)
+        controller = m_manager->GetControllerProfiles().GetController(addonId);
+    }
+
+    if (controller)
+      peripheral->SetControllerProfile(controller);
+  }
+
+  peripheral->OnSettingChanged(settingId);
 }
 
 bool CGUIDialogPeripheralSettings::Save()
 {
-  if (m_item == NULL || m_initialising)
+  if (m_item == nullptr || m_initialising)
     return true;
 
   PeripheralPtr peripheral = CServiceBroker::GetPeripherals().GetByPath(m_item->GetPath());
@@ -148,7 +144,7 @@ bool CGUIDialogPeripheralSettings::Save()
 
 void CGUIDialogPeripheralSettings::OnResetSettings()
 {
-  if (m_item == NULL)
+  if (m_item == nullptr)
     return;
 
   PeripheralPtr peripheral = CServiceBroker::GetPeripherals().GetByPath(m_item->GetPath());
@@ -163,9 +159,6 @@ void CGUIDialogPeripheralSettings::OnResetSettings()
 
   // re-create all settings and their controls
   SetupView();
-
-  // Persist settings so that resetting takes effect immediately
-  Save();
 }
 
 void CGUIDialogPeripheralSettings::SetupView()
@@ -176,31 +169,18 @@ void CGUIDialogPeripheralSettings::SetupView()
   SET_CONTROL_LABEL(CONTROL_SETTINGS_OKAY_BUTTON, 186);
   SET_CONTROL_LABEL(CONTROL_SETTINGS_CANCEL_BUTTON, 222);
   SET_CONTROL_LABEL(CONTROL_SETTINGS_CUSTOM_BUTTON, 409);
-
-  // Set peripheral icon
-  GAME::ControllerPtr controller;
-
-  if (m_item != nullptr)
-  {
-    PeripheralPtr peripheral = CServiceBroker::GetPeripherals().GetByPath(m_item->GetPath());
-    if (peripheral)
-      controller = peripheral->ControllerProfile();
-  }
-
-  UpdateIcon(controller);
 }
 
 void CGUIDialogPeripheralSettings::InitializeSettings()
 {
-  if (m_item == NULL)
+  if (m_item == nullptr)
   {
     m_initialising = false;
     return;
   }
 
   m_initialising = true;
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  const bool usePopup = skin && skin->HasSkinFile("DialogSlider.xml");
+  bool usePopup = g_SkinInfo->HasSkinFile("DialogSlider.xml");
 
   PeripheralPtr peripheral = CServiceBroker::GetPeripherals().GetByPath(m_item->GetPath());
   if (!peripheral)
@@ -214,14 +194,14 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
   CGUIDialogSettingsManualBase::InitializeSettings();
 
   const std::shared_ptr<CSettingCategory> category = AddCategory("peripheralsettings", -1);
-  if (category == NULL)
+  if (category == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogPeripheralSettings: unable to setup settings");
     return;
   }
 
   const std::shared_ptr<CSettingGroup> group = AddGroup(category);
-  if (group == NULL)
+  if (group == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogPeripheralSettings: unable to setup settings");
     return;
@@ -230,7 +210,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
   std::vector<SettingPtr> settings = peripheral->GetSettings();
   for (auto& setting : settings)
   {
-    if (setting == NULL)
+    if (setting == nullptr)
       continue;
 
     if (!setting->IsVisible())
@@ -246,7 +226,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
     {
       case SettingType::Boolean:
       {
-        std::shared_ptr<CSettingBool> settingBool = std::make_shared<CSettingBool>(
+        auto settingBool = std::make_shared<CSettingBool>(
             setting->GetId(), *std::static_pointer_cast<CSettingBool>(setting));
         settingBool->SetControl(GetCheckmarkControl());
 
@@ -256,7 +236,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
 
       case SettingType::Integer:
       {
-        std::shared_ptr<CSettingInt> settingInt = std::make_shared<CSettingInt>(
+        auto settingInt = std::make_shared<CSettingInt>(
             setting->GetId(), *std::static_pointer_cast<CSettingInt>(setting));
         if (settingInt->GetTranslatableOptions().empty())
           settingInt->SetControl(GetSliderControl("integer", false, -1, usePopup, -1, "{:d}"));
@@ -269,7 +249,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
 
       case SettingType::Number:
       {
-        std::shared_ptr<CSettingNumber> settingNumber = std::make_shared<CSettingNumber>(
+        auto settingNumber = std::make_shared<CSettingNumber>(
             setting->GetId(), *std::static_pointer_cast<CSettingNumber>(setting));
         settingNumber->SetControl(GetSliderControl("number", false, -1, usePopup, -1, "{:2.2f}"));
 
@@ -281,7 +261,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
       {
         if (auto settingAsAddon = std::dynamic_pointer_cast<const CSettingAddon>(setting))
         {
-          std::shared_ptr<CSettingAddon> settingAddon =
+          auto settingAddon =
               std::make_shared<CSettingAddon>(setting->GetId(), *settingAsAddon);
 
           // Control properties
@@ -305,7 +285,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
         }
         else
         {
-          std::shared_ptr<CSettingString> settingString = std::make_shared<CSettingString>(
+          auto settingString = std::make_shared<CSettingString>(
               setting->GetId(), *std::static_pointer_cast<CSettingString>(setting));
           settingString->SetControl(GetEditControl("string"));
 
@@ -320,7 +300,7 @@ void CGUIDialogPeripheralSettings::InitializeSettings()
         break;
     }
 
-    if (settingCopy != NULL && settingCopy->GetControl() != NULL)
+    if (settingCopy != nullptr && settingCopy->GetControl() != nullptr)
     {
       settingCopy->SetLevel(SettingLevel::Basic);
       group->AddSetting(settingCopy);

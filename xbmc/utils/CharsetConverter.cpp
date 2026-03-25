@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -9,10 +9,8 @@
 #include "CharsetConverter.h"
 
 #include "LangInfo.h"
-#include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "log.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/lib/Setting.h"
 #include "settings/lib/SettingDefinitions.h"
@@ -95,8 +93,8 @@ public:
 
   void Reset(void);
   void ReinitTo(const std::string& sourceCharset, const std::string& targetCharset, unsigned int targetSingleCharMaxLen = 1);
-  const std::string& GetSourceCharset() const { return m_sourceCharset; }
-  const std::string& GetTargetCharset() const { return m_targetCharset; }
+  std::string GetSourceCharset(void) const  { return m_sourceCharset; }
+  std::string GetTargetCharset(void) const  { return m_targetCharset; }
   unsigned int GetTargetSingleCharMaxLen(void) const  { return m_targetSingleCharMaxLen; }
 
 private:
@@ -163,6 +161,7 @@ CConverterType::CConverterType(const CConverterType& other) : CCriticalSection()
 CConverterType::~CConverterType()
 {
   std::unique_lock lock(*this);
+
   if (m_iconv != NO_ICONV)
     iconv_close(m_iconv);
   lock.unlock(); // ensure unlocking before final destruction
@@ -193,7 +192,8 @@ iconv_t CConverterType::GetConverter(std::unique_lock<CCriticalSection>& convert
 
 void CConverterType::Reset(void)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
+
   if (m_iconv != NO_ICONV)
   {
     iconv_close(m_iconv);
@@ -209,7 +209,8 @@ void CConverterType::Reset(void)
 
 void CConverterType::ReinitTo(const std::string& sourceCharset, const std::string& targetCharset, unsigned int targetSingleCharMaxLen /*= 1*/)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
+
   if (sourceCharset != m_sourceCharset || targetCharset != m_targetCharset)
   {
     if (m_iconv != NO_ICONV)
@@ -329,6 +330,7 @@ bool CCharsetConverter::CInnerConverter::stdConvert(StdConversionType convertTyp
     return false;
 
   CConverterType& convType = m_stdConversion[convertType];
+
   std::unique_lock<CCriticalSection> converterLock(convType);
 
   return convert(convType.GetConverter(converterLock), convType.GetTargetSingleCharMaxLen(), strSource, strDest, failOnInvalidChar);
@@ -362,10 +364,8 @@ struct charPtrPtrAdapter
   const char** pointer;
   explicit charPtrPtrAdapter(const char** p) :
     pointer(p) { }
-  operator char**()
-  { return const_cast<char**>(pointer); }
-  operator const char**()
-  { return pointer; }
+  operator char**() const { return const_cast<char**>(pointer); }
+  operator const char**() const { return pointer; }
 };
 
 template<class INPUT,class OUTPUT>
@@ -376,12 +376,12 @@ bool CCharsetConverter::CInnerConverter::convert(iconv_t type, int multiplier, c
 
   //input buffer for iconv() is the buffer from strSource
   size_t      inBufSize  = (strSource.length() + 1) * sizeof(typename INPUT::value_type);
-  const char* inBuf      = (const char*)strSource.c_str();
+  auto inBuf      = (const char*)strSource.c_str();
 
   //allocate output buffer for iconv()
   size_t      outBufSize = (strSource.length() + 1) * sizeof(typename OUTPUT::value_type) * multiplier;
-  char*       outBuf     = (char*)malloc(outBufSize);
-  if (outBuf == NULL)
+  auto outBuf     = (char*)malloc(outBufSize);
+  if (outBuf == nullptr)
   {
     CLog::Log(LOGFATAL, "{}: malloc failed", __FUNCTION__);
     return false;
@@ -407,7 +407,7 @@ bool CCharsetConverter::CInnerConverter::convert(iconv_t type, int multiplier, c
 
         //make buffer twice as big
         outBufSize   *= 2;
-        char* newBuf  = (char*)realloc(outBuf, outBufSize);
+        auto newBuf  = (char*)realloc(outBuf, outBufSize);
         if (!newBuf)
         {
           CLog::Log(LOGFATAL, "{} realloc failed with errno={}({})", __FUNCTION__, errno,
@@ -451,7 +451,7 @@ bool CCharsetConverter::CInnerConverter::convert(iconv_t type, int multiplier, c
   }
 
   //complete the conversion (reset buffers), otherwise the current data will prefix the data on the next call
-  if (iconv(type, NULL, NULL, &outBufStart, &outBytesAvail) == (size_t)-1)
+  if (iconv(type, nullptr, nullptr, &outBufStart, &outBytesAvail) == (size_t)-1)
     CLog::Log(LOGERROR, "{} failed cleanup errno={}({})", __FUNCTION__, errno, strerror(errno));
 
   if (returnV == (size_t)-1)
@@ -491,7 +491,8 @@ bool CCharsetConverter::CInnerConverter::logicalToVisualBiDi(
   size_t lineStart = 0;
 
   // libfribidi is not threadsafe, so make sure we make it so
-  std::unique_lock lock(m_critSectionFriBiDi);
+  std::lock_guard lock(m_critSectionFriBiDi);
+
   do
   {
     size_t lineEnd = stringSrc.find('\n', lineStart);
@@ -502,8 +503,8 @@ bool CCharsetConverter::CInnerConverter::logicalToVisualBiDi(
 
     const size_t lineLen = lineEnd - lineStart;
 
-    FriBidiChar* visual = (FriBidiChar*) malloc((lineLen + 1) * sizeof(FriBidiChar));
-    if (visual == NULL)
+    auto visual = (FriBidiChar*) malloc((lineLen + 1) * sizeof(FriBidiChar));
+    if (visual == nullptr)
     {
       free(visual);
       CLog::Log(LOGFATAL, "{}: can't allocate memory", __FUNCTION__);
@@ -546,7 +547,7 @@ bool CCharsetConverter::CInnerConverter::isBidiDirectionRTL(const std::string& s
     return false;
 
   int lineLen = static_cast<int>(str.size());
-  FriBidiCharType* charTypes = new FriBidiCharType[lineLen];
+  auto charTypes = new FriBidiCharType[lineLen];
   fribidi_get_bidi_types(reinterpret_cast<const FriBidiChar*>(converted.c_str()),
                          (FriBidiStrIndex)lineLen, charTypes);
   FriBidiCharType charType = fribidi_get_par_direction(charTypes, (FriBidiStrIndex)lineLen);
@@ -583,14 +584,14 @@ static struct SCharsetMapping
   , { "SHIFT_JIS", "Japanese (Shift-JIS)" }
   , { "CP949", "Korean" }
   , { "BIG5-HKSCS", "Hong Kong (Big5-HKSCS)" }
-  , { NULL, NULL }
+  , {nullptr, nullptr}
 };
 
 CCharsetConverter::CCharsetConverter() = default;
 
 void CCharsetConverter::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   const std::string& settingId = setting->GetId();
@@ -900,16 +901,13 @@ bool CCharsetConverter::utf8IsRTLBidiDirection(const std::string& utf8String)
 
 void CCharsetConverter::SettingOptionsCharsetsFiller(const SettingConstPtr& setting,
                                                      std::vector<StringSettingOption>& list,
-                                                     std::string& current)
+                                                     std::string& current,
+                                                     void* data)
 {
   std::vector<std::string> vecCharsets = g_charsetConverter.getCharsetLabels();
   sort(vecCharsets.begin(), vecCharsets.end(), sortstringbyname());
 
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13278),
-                    "DEFAULT"); // "Default"
-  for (auto& label : vecCharsets)
-  {
-    std::string name = g_charsetConverter.getCharsetNameByLabel(label);
-    list.emplace_back(std::move(label), std::move(name));
-  }
+  list.emplace_back(g_localizeStrings.Get(13278), "DEFAULT"); // "Default"
+  for (int i = 0; i < (int) vecCharsets.size(); ++i)
+    list.emplace_back(vecCharsets[i], g_charsetConverter.getCharsetNameByLabel(vecCharsets[i]));
 }

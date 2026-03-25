@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "windowing/OSScreenSaver.h"
+#include "xbmc/windowing/OSScreenSaver.h"
 
 #include <webos-helpers/libhelpers.h>
 

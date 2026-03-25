@@ -79,15 +79,15 @@ extern "C"
   typedef struct PVR_PROVIDER
   {
     unsigned int iUniqueId;
-    const char* strName;
+    char strName[PVR_ADDON_NAME_STRING_LENGTH];
     enum PVR_PROVIDER_TYPE type;
-    const char* strIconPath;
+    char strIconPath[PVR_ADDON_URL_STRING_LENGTH];
     //! @brief ISO 3166 country codes, separated by PROVIDER_STRING_TOKEN_SEPARATOR
     /// (e.g 'GB,IE,FR,CA'), an empty string means this value is undefined
-    const char* strCountries;
+    char strCountries[PVR_ADDON_COUNTRIES_STRING_LENGTH];
     //! @brief RFC 5646 language codes, separated by PROVIDER_STRING_TOKEN_SEPARATOR
     /// (e.g. 'en_GB,fr_CA'), an empty string means this value is undefined
-    const char* strLanguages;
+    char strLanguages[PVR_ADDON_LANGUAGES_STRING_LENGTH];
   } PVR_PROVIDER;
 
 #ifdef __cplusplus

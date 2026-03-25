@@ -17,8 +17,8 @@
 #include <libudev.h>
 
 CALSADeviceMonitor::CALSADeviceMonitor() :
-  m_udev(NULL),
-  m_udevMonitor(NULL)
+  m_udev(nullptr),
+  m_udevMonitor(nullptr)
 {
 }
 
@@ -47,7 +47,7 @@ void CALSADeviceMonitor::Start()
       goto err_unref_udev;
     }
 
-    err = udev_monitor_filter_add_match_subsystem_devtype(m_udevMonitor, "sound", NULL);
+    err = udev_monitor_filter_add_match_subsystem_devtype(m_udevMonitor, "sound", nullptr);
     if (err)
     {
       CLog::Log(LOGERROR, "CALSADeviceMonitor::Start - udev_monitor_filter_add_match_subsystem_devtype() failed");
@@ -71,10 +71,10 @@ void CALSADeviceMonitor::Start()
 
 err_unref_monitor:
   udev_monitor_unref(m_udevMonitor);
-  m_udevMonitor = NULL;
+  m_udevMonitor = nullptr;
 err_unref_udev:
   udev_unref(m_udev);
-  m_udev = NULL;
+  m_udev = nullptr;
 }
 
 void CALSADeviceMonitor::Stop()
@@ -85,19 +85,19 @@ void CALSADeviceMonitor::Stop()
     eventMonitor->RemoveFD(m_fdMonitorId);
 
     udev_monitor_unref(m_udevMonitor);
-    m_udevMonitor = NULL;
+    m_udevMonitor = nullptr;
     udev_unref(m_udev);
-    m_udev = NULL;
+    m_udev = nullptr;
   }
 }
 
 void CALSADeviceMonitor::FDEventCallback(int id, int fd, short revents, void *data)
 {
-  struct udev_monitor *udevMonitor = (struct udev_monitor *)data;
+  auto udevMonitor = (struct udev_monitor *)data;
   bool audioDevicesChanged = false;
   struct udev_device *device;
 
-  while ((device = udev_monitor_receive_device(udevMonitor)) != NULL)
+  while ((device = udev_monitor_receive_device(udevMonitor)) != nullptr)
   {
     const char* action = udev_device_get_action(device);
     const char* soundInitialized = udev_device_get_property_value(device, "SOUND_INITIALIZED");

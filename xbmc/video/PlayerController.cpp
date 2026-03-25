@@ -18,10 +18,9 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUISliderControl.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/DisplaySettings.h"
 #include "settings/MediaSettings.h"
@@ -32,8 +31,6 @@
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "video/dialogs/GUIDialogAudioSettings.h"
-#include "video/guilib/VideoStreamSelectHelper.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 using namespace UTILS;
@@ -70,10 +67,8 @@ bool CPlayerController::OnAction(const CAction &action)
         if (appPlayer->GetSubtitleCount() == 0)
         {
           CGUIDialogKaiToast::QueueNotification(
-              CGUIDialogKaiToast::Info,
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(287),
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(10005), DisplTime,
-              false, MsgTime);
+              CGUIDialogKaiToast::Info, g_localizeStrings.Get(287), g_localizeStrings.Get(10005),
+              DisplTime, false, MsgTime);
           return true;
         }
 
@@ -86,25 +81,21 @@ bool CPlayerController::OnAction(const CAction &action)
           SubtitleStreamInfo info;
           appPlayer->GetSubtitleStreamInfo(CURRENT_STREAM, info);
           if (!g_LangCodeExpander.Lookup(info.language, lang))
-            lang =
-                CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13205); // Unknown
+            lang = g_localizeStrings.Get(13205); // Unknown
 
-          if (info.name.empty())
+          if (info.name.length() == 0)
             sub = lang;
           else
             sub = StringUtils::Format("{} - {}", lang, info.name);
         }
         else
-          sub = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1223);
-        CGUIDialogKaiToast::QueueNotification(
-            CGUIDialogKaiToast::Info,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(287), sub, DisplTime,
-            false, MsgTime);
+          sub = g_localizeStrings.Get(1223);
+        CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info,
+                                              g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
         return true;
       }
 
       case ACTION_NEXT_SUBTITLE:
-      case ACTION_PREV_SUBTITLE:
       case ACTION_CYCLE_SUBTITLE:
       {
         if (appPlayer->GetSubtitleCount() == 0)
@@ -115,11 +106,10 @@ bool CPlayerController::OnAction(const CAction &action)
 
         if (appPlayer->GetSubtitleVisible())
         {
-          currentSub += (action.GetID() == ACTION_PREV_SUBTITLE) ? -1 : 1;
-          if (currentSub < 0 || currentSub >= appPlayer->GetSubtitleCount())
+          if (++currentSub >= appPlayer->GetSubtitleCount())
           {
             currentSub = 0;
-            if (action.GetID() != ACTION_CYCLE_SUBTITLE)
+            if (action.GetID() == ACTION_NEXT_SUBTITLE)
             {
               appPlayer->SetSubtitleVisible(false);
               currentSubVisible = false;
@@ -127,13 +117,8 @@ bool CPlayerController::OnAction(const CAction &action)
           }
           appPlayer->SetSubtitle(currentSub);
         }
-        else if (action.GetID() != ACTION_CYCLE_SUBTITLE)
+        else if (action.GetID() == ACTION_NEXT_SUBTITLE)
         {
-          if (currentSub == 0 && action.GetID() == ACTION_PREV_SUBTITLE)
-          {
-            currentSub = appPlayer->GetSubtitleCount() - 1;
-            appPlayer->SetSubtitle(currentSub);
-          }
           appPlayer->SetSubtitleVisible(true);
         }
 
@@ -143,110 +128,88 @@ bool CPlayerController::OnAction(const CAction &action)
           SubtitleStreamInfo info;
           appPlayer->GetSubtitleStreamInfo(currentSub, info);
           if (!g_LangCodeExpander.Lookup(info.language, lang))
-            lang =
-                CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13205); // Unknown
+            lang = g_localizeStrings.Get(13205); // Unknown
 
-          if (info.name.empty())
+          if (info.name.length() == 0)
             sub = lang;
           else
             sub = StringUtils::Format("{} - {}", lang, info.name);
         }
         else
-          sub = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1223);
-        CGUIDialogKaiToast::QueueNotification(
-            CGUIDialogKaiToast::Info,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(287), sub, DisplTime,
-            false, MsgTime);
-        return true;
-      }
-
-      case ACTION_DIALOG_SELECT_SUBTITLE:
-      {
-        VIDEO::GUILIB::OpenDialogSelectSubtitleStream();
+          sub = g_localizeStrings.Get(1223);
+        CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(287), sub, DisplTime, false, MsgTime);
         return true;
       }
 
       case ACTION_SUBTITLE_DELAY_MIN:
       {
         float videoSubsDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayRange;
-        float videoSubsDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayStep;
         CVideoSettings vs = appPlayer->GetVideoSettings();
-        vs.m_SubtitleDelay -= videoSubsDelayStep;
+        vs.m_SubtitleDelay -= 0.1f;
         if (vs.m_SubtitleDelay < -videoSubsDelayRange)
           vs.m_SubtitleDelay = -videoSubsDelayRange;
         appPlayer->SetSubTitleDelay(vs.m_SubtitleDelay);
 
         ShowSlider(action.GetID(), 22006, appPlayer->GetVideoSettings().m_SubtitleDelay,
-                   -videoSubsDelayRange, videoSubsDelayStep, videoSubsDelayRange);
+                   -videoSubsDelayRange, 0.1f, videoSubsDelayRange);
         return true;
       }
 
       case ACTION_SUBTITLE_DELAY_PLUS:
       {
         float videoSubsDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayRange;
-        float videoSubsDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayStep;
         CVideoSettings vs = appPlayer->GetVideoSettings();
-        vs.m_SubtitleDelay += videoSubsDelayStep;
+        vs.m_SubtitleDelay += 0.1f;
         if (vs.m_SubtitleDelay > videoSubsDelayRange)
           vs.m_SubtitleDelay = videoSubsDelayRange;
         appPlayer->SetSubTitleDelay(vs.m_SubtitleDelay);
 
         ShowSlider(action.GetID(), 22006, appPlayer->GetVideoSettings().m_SubtitleDelay,
-                   -videoSubsDelayRange, videoSubsDelayStep, videoSubsDelayRange);
+                   -videoSubsDelayRange, 0.1f, videoSubsDelayRange);
         return true;
       }
 
       case ACTION_SUBTITLE_DELAY:
       {
         float videoSubsDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayRange;
-        float videoSubsDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayStep;
         ShowSlider(action.GetID(), 22006, appPlayer->GetVideoSettings().m_SubtitleDelay,
-                   -videoSubsDelayRange, videoSubsDelayStep, videoSubsDelayRange, true);
+                   -videoSubsDelayRange, 0.1f, videoSubsDelayRange, true);
         return true;
       }
 
       case ACTION_AUDIO_DELAY:
       {
         float videoAudioDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayRange;
-        float videoAudioDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayStep;
         ShowSlider(action.GetID(), 297, appPlayer->GetVideoSettings().m_AudioDelay,
-                   -videoAudioDelayRange, videoAudioDelayStep, videoAudioDelayRange, true);
+                   -videoAudioDelayRange, AUDIO_DELAY_STEP, videoAudioDelayRange, true);
         return true;
       }
 
       case ACTION_AUDIO_DELAY_MIN:
       {
         float videoAudioDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayRange;
-        float videoAudioDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayStep;
         CVideoSettings vs = appPlayer->GetVideoSettings();
-        vs.m_AudioDelay -= videoAudioDelayStep;
+        vs.m_AudioDelay -= AUDIO_DELAY_STEP;
         if (vs.m_AudioDelay < -videoAudioDelayRange)
           vs.m_AudioDelay = -videoAudioDelayRange;
         appPlayer->SetAVDelay(vs.m_AudioDelay);
 
         ShowSlider(action.GetID(), 297, appPlayer->GetVideoSettings().m_AudioDelay,
-                   -videoAudioDelayRange, videoAudioDelayStep, videoAudioDelayRange);
+                   -videoAudioDelayRange, AUDIO_DELAY_STEP, videoAudioDelayRange);
         return true;
       }
 
       case ACTION_AUDIO_DELAY_PLUS:
       {
         float videoAudioDelayRange = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayRange;
-        float videoAudioDelayStep =
-            CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayStep;
         CVideoSettings vs = appPlayer->GetVideoSettings();
-        vs.m_AudioDelay += videoAudioDelayStep;
+        vs.m_AudioDelay += AUDIO_DELAY_STEP;
         if (vs.m_AudioDelay > videoAudioDelayRange)
           vs.m_AudioDelay = videoAudioDelayRange;
         appPlayer->SetAVDelay(vs.m_AudioDelay);
 
         ShowSlider(action.GetID(), 297, appPlayer->GetVideoSettings().m_AudioDelay,
-                   -videoAudioDelayRange, videoAudioDelayStep, videoAudioDelayRange);
+                   -videoAudioDelayRange, AUDIO_DELAY_STEP, videoAudioDelayRange);
         return true;
       }
 
@@ -266,7 +229,7 @@ bool CPlayerController::OnAction(const CAction &action)
         AudioStreamInfo info;
         appPlayer->GetAudioStreamInfo(currentAudio, info);
         if (!g_LangCodeExpander.Lookup(info.language, lan))
-          lan = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13205); // Unknown
+          lan = g_localizeStrings.Get(13205); // Unknown
 
         std::string textInfo = lan;
         if (!info.name.empty())
@@ -274,16 +237,10 @@ bool CPlayerController::OnAction(const CAction &action)
         if (!info.codecDesc.empty())
           textInfo += " (" + info.codecDesc + ")";
 
-        std::string caption = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(460);
+        std::string caption = g_localizeStrings.Get(460);
         caption += StringUtils::Format(" ({}/{})", currentAudio + 1, audioStreamCount);
         CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, caption, textInfo,
                                               DisplTime, false, MsgTime);
-        return true;
-      }
-
-      case ACTION_DIALOG_SELECT_AUDIO:
-      {
-        VIDEO::GUILIB::OpenDialogSelectAudioStream();
         return true;
       }
 
@@ -300,16 +257,9 @@ bool CPlayerController::OnAction(const CAction &action)
         appPlayer->SetVideoStream(currentVideo);
         VideoStreamInfo info;
         appPlayer->GetVideoStreamInfo(currentVideo, info);
-        std::string caption =
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38031);
+        std::string caption = g_localizeStrings.Get(38031);
         caption += StringUtils::Format(" ({}/{})", currentVideo + 1, videoStreamCount);
         CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, caption, info.name, DisplTime, false, MsgTime);
-        return true;
-      }
-
-      case ACTION_DIALOG_SELECT_VIDEO:
-      {
-        VIDEO::GUILIB::OpenDialogSelectVideoStream();
         return true;
       }
 
@@ -472,11 +422,8 @@ bool CPlayerController::OnAction(const CAction &action)
 
         settings->SetAlignment(align);
         CGUIDialogKaiToast::QueueNotification(
-            CGUIDialogKaiToast::Info,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21460),
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                21461 + static_cast<int>(align)),
-            TOAST_DISPLAY_TIME, false);
+            CGUIDialogKaiToast::Info, g_localizeStrings.Get(21460),
+            g_localizeStrings.Get(21461 + static_cast<int>(align)), TOAST_DISPLAY_TIME, false);
         return true;
       }
 
@@ -486,11 +433,10 @@ bool CPlayerController::OnAction(const CAction &action)
         // Don't allow change with passthrough audio
         if (appPlayer->IsPassthrough())
         {
-          CGUIDialogKaiToast::QueueNotification(
-              CGUIDialogKaiToast::Warning,
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(660),
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29802),
-              TOAST_DISPLAY_TIME, false);
+          CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Warning,
+                                                g_localizeStrings.Get(660),
+                                                g_localizeStrings.Get(29802),
+                                                TOAST_DISPLAY_TIME, false);
           return false;
         }
 
@@ -537,8 +483,7 @@ bool CPlayerController::OnAction(const CAction &action)
               playing = idx;
             idx++;
           }
-          dialog->SetHeading(
-              CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39109)});
+          dialog->SetHeading(CVariant{g_localizeStrings.Get(39109)});
           dialog->SetSelected(playing);
           dialog->Open();
           idx = dialog->GetSelectedItem();
@@ -567,8 +512,7 @@ bool CPlayerController::OnAction(const CAction &action)
               current = idx;
             idx++;
           }
-          dialog->SetHeading(
-              CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39110)});
+          dialog->SetHeading(CVariant{g_localizeStrings.Get(39110)});
           dialog->SetSelected(current);
           dialog->Open();
           idx = dialog->GetSelectedItem();
@@ -592,9 +536,7 @@ void CPlayerController::ShowSlider(int action, int label, float value, float min
 {
   m_sliderAction = action;
   if (modal)
-    CGUIDialogSlider::ShowAndGetInput(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(label), value, min, delta,
-        max, this);
+    CGUIDialogSlider::ShowAndGetInput(g_localizeStrings.Get(label), value, min, delta, max, this);
   else
     CGUIDialogSlider::Display(label, value, min, delta, max, this);
 }
@@ -621,21 +563,9 @@ void CPlayerController::OnSliderChange(void *data, CGUISliderControl *slider)
           m_sliderAction == ACTION_VOLAMP_DOWN ||
           m_sliderAction == ACTION_VOLAMP)
     slider->SetTextValue(CGUIDialogAudioSettings::FormatDecibel(slider->GetFloatValue()));
-  else if (m_sliderAction == ACTION_SUBTITLE_DELAY || m_sliderAction == ACTION_SUBTITLE_DELAY_MIN ||
-           m_sliderAction == ACTION_SUBTITLE_DELAY_PLUS)
-  {
-    float videoSubsDelayStep =
-        CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoSubsDelayStep;
-    slider->SetTextValue(
-        CGUIDialogAudioSettings::FormatDelay(slider->GetFloatValue(), videoSubsDelayStep));
-  }
   else
-  {
-    float videoAudioDelayStep =
-        CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAudioDelayStep;
     slider->SetTextValue(
-        CGUIDialogAudioSettings::FormatDelay(slider->GetFloatValue(), videoAudioDelayStep));
-  }
+        CGUIDialogAudioSettings::FormatDelay(slider->GetFloatValue(), AUDIO_DELAY_STEP));
 
   auto& components = CServiceBroker::GetAppComponents();
   const auto appPlayer = components.GetComponent<CApplicationPlayer>();

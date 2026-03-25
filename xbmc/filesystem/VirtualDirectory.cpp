@@ -11,7 +11,6 @@
 #include "Directory.h"
 #include "DirectoryFactory.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "SourcesDirectory.h"
 #include "URL.h"
@@ -35,12 +34,12 @@ CVirtualDirectory::~CVirtualDirectory(void) = default;
 
 /*!
  \brief Add shares to the virtual directory
- \param std::vector<CMediaSource> Shares to add
- \sa CMediaSource, std::vector<CMediaSource>
+ \param VECSOURCES Shares to add
+ \sa CMediaSource, VECSOURCES
  */
-void CVirtualDirectory::SetSources(const std::vector<CMediaSource>& sources)
+void CVirtualDirectory::SetSources(const VECSOURCES& vecSources)
 {
-  m_sources = sources;
+  m_vecSources = vecSources;
 }
 
 /*!
@@ -82,7 +81,7 @@ bool CVirtualDirectory::GetDirectory(const CURL& url, CFileItemList &items, bool
   items.SetPath(strPath);
 
   // grab our shares
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   GetSources(shares);
   CSourcesDirectory dir;
   return dir.GetDirectory(shares, items);
@@ -101,9 +100,7 @@ void CVirtualDirectory::CancelDirectory()
  \note The parameter \e strPath can not be a share with directory. Eg. "iso9660://dir" will return \e false.
     It must be "iso9660://".
  */
-bool CVirtualDirectory::IsSource(const std::string& strPath,
-                                 std::vector<CMediaSource>* sources,
-                                 std::string* name) const
+bool CVirtualDirectory::IsSource(const std::string& strPath, VECSOURCES *sources, std::string *name) const
 {
   std::string strPathCpy = strPath;
   StringUtils::TrimRight(strPathCpy, "/\\");
@@ -114,7 +111,7 @@ bool CVirtualDirectory::IsSource(const std::string& strPath,
   if(URIUtils::IsDOSPath(strPathCpy))
     StringUtils::Replace(strPathCpy, '/', '\\');
 
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   if (sources)
     shares = *sources;
   else
@@ -146,7 +143,7 @@ bool CVirtualDirectory::IsSource(const std::string& strPath,
 bool CVirtualDirectory::IsInSource(const std::string &path) const
 {
   bool isSourceName;
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   GetSources(shares);
   int iShare = CUtil::GetMatchingSource(path, shares, isSourceName);
   if (URIUtils::IsOnDVD(path))
@@ -165,9 +162,9 @@ bool CVirtualDirectory::IsInSource(const std::string &path) const
   return (iShare > -1);
 }
 
-void CVirtualDirectory::GetSources(std::vector<CMediaSource>& shares) const
+void CVirtualDirectory::GetSources(VECSOURCES &shares) const
 {
-  shares = m_sources;
+  shares = m_vecSources;
   // add our plug n play shares
 
   if (m_allowNonLocalSources)
@@ -178,7 +175,7 @@ void CVirtualDirectory::GetSources(std::vector<CMediaSource>& shares) const
   for (unsigned int i = 0; i < shares.size(); ++i)
   {
     CMediaSource& share = shares[i];
-    if (share.m_iDriveType == SourceType::OPTICAL_DISC)
+    if (share.m_iDriveType == CMediaSource::SOURCE_TYPE_DVD)
     {
       if (CServiceBroker::GetMediaManager().IsAudio(share.strPath))
       {
@@ -190,7 +187,7 @@ void CVirtualDirectory::GetSources(std::vector<CMediaSource>& shares) const
       {
         share.strStatus = CServiceBroker::GetMediaManager().GetDiskLabel(share.strPath);
         share.strDiskUniqueId = CServiceBroker::GetMediaManager().GetDiskUniqueId(share.strPath);
-        if (share.strPath.empty()) // unmounted CD
+        if (!share.strPath.length()) // unmounted CD
         {
           if (CServiceBroker::GetMediaManager().GetDiscPath() == "iso9660://")
             share.strPath = "iso9660://";

@@ -10,12 +10,11 @@
 
 #include "dataset.h"
 
-#include <string>
-
+#include <stdio.h>
 #ifdef HAS_MYSQL
 #include <mysql/mysql.h>
 #elif defined(HAS_MARIADB)
-#include <mysql.h>
+#include <mariadb/mysql.h>
 #endif
 
 namespace dbiplus
@@ -29,8 +28,9 @@ class MysqlDatabase : public Database
 {
 protected:
   /* connect descriptor */
-  MYSQL* conn{nullptr};
-  bool _in_transaction{false};
+  MYSQL* conn;
+  bool _in_transaction;
+  int last_err;
 
 public:
   /* default constructor */
@@ -38,10 +38,10 @@ public:
   /* destructor */
   ~MysqlDatabase() override;
 
-  Dataset* CreateDataset() override;
+  Dataset* CreateDataset() const override;
 
   /* func. returns connection handle with MySQL-server */
-  MYSQL* getHandle() { return conn; }
+  MYSQL* getHandle() const { return conn; }
   /* func. returns current status about MySQL-server connection */
   int status() override;
   int setErr(int err_code, const char* qry) override;
@@ -63,7 +63,7 @@ public:
   int copy(const char* backup_name) override;
 
   /* \brief drop all extra analytics from database */
-  int drop_analytics() override;
+  int drop_analytics(void) override;
 
   long nextid(const char* seq_name) override;
 
@@ -74,14 +74,22 @@ public:
   void rollback_transaction() override;
 
   /* virtual methods for formatting */
-  std::string vprepare(std::string_view format, va_list args) override;
+  std::string vprepare(const char* format, va_list args) override;
 
   bool in_transaction() override { return _in_transaction; }
   int query_with_reconnect(const char* query);
   void configure_connection();
 
 private:
-  char et_getdigit(double* val, int* cnt) const;
+  typedef struct StrAccum StrAccum;
+
+  char et_getdigit(double* val, int* cnt);
+  void appendSpace(StrAccum* pAccum, int N);
+  void mysqlVXPrintf(StrAccum* pAccum, int useExtended, const char* fmt, va_list ap);
+  bool mysqlStrAccumAppend(StrAccum* p, const char* z, int N);
+  char* mysqlStrAccumFinish(StrAccum* p);
+  void mysqlStrAccumReset(StrAccum* p);
+  void mysqlStrAccumInit(StrAccum* p, char* zBase, int n, int mx);
   std::string mysql_vmprintf(const char* zFormat, va_list ap);
 };
 
@@ -94,7 +102,7 @@ private:
 class MysqlDataset : public Dataset
 {
 protected:
-  MYSQL* handle();
+  MYSQL* handle() const;
 
   /* Makes direct queries to database */
   virtual void make_query(StringList& _sql);
@@ -113,7 +121,8 @@ protected:
 
 public:
   /* constructor */
-  using Dataset::Dataset;
+  MysqlDataset();
+  explicit MysqlDataset(MysqlDatabase* newDb);
 
   /* destructor */
   ~MysqlDataset() override;
@@ -132,7 +141,7 @@ or insert() operations default = false) */
   /* as open, but with our query exec Sql */
   bool query(const std::string& query) override;
   /* func. closes a query */
-  void close() override;
+  void close(void) override;
   /* Cancel changes, made in insert or edit states of dataset */
   void cancel() override;
   /* last insert id */

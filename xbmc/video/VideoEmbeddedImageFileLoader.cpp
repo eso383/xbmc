@@ -10,15 +10,13 @@
 
 #include "FileItem.h"
 #include "guilib/Texture.h"
-#include "imagefiles/ImageFileURL.h"
 #include "utils/EmbeddedArt.h"
 #include "utils/StringUtils.h"
 #include "video/VideoInfoTag.h"
 #include "video/tags/IVideoInfoTagLoader.h"
 #include "video/tags/VideoInfoTagLoaderFactory.h"
 
-namespace KODI::VIDEO
-{
+using namespace VIDEO;
 
 bool CVideoEmbeddedImageFileLoader::CanLoad(const std::string& specialType) const
 {
@@ -30,15 +28,12 @@ namespace
 bool GetEmbeddedThumb(const std::string& path, const std::string& type, EmbeddedArt& art)
 {
   CFileItem item(path, false);
+  std::unique_ptr<IVideoInfoTagLoader> loader(
+      CVideoInfoTagLoaderFactory::CreateLoader(item, ADDON::ScraperPtr(), false));
+  CVideoInfoTag tag;
   std::vector<EmbeddedArt> artv;
-
-  if (const std::unique_ptr<IVideoInfoTagLoader> loader{
-          CVideoInfoTagLoaderFactory::CreateLoader(item, ADDON::ScraperPtr(), false)};
-      loader)
-  {
-    CVideoInfoTag tag;
+  if (loader)
     loader->Load(tag, false, &artv);
-  }
 
   for (const auto& it : artv)
   {
@@ -52,13 +47,14 @@ bool GetEmbeddedThumb(const std::string& path, const std::string& type, Embedded
 }
 } // namespace
 
-std::unique_ptr<CTexture> CVideoEmbeddedImageFileLoader::Load(
-    const IMAGE_FILES::CImageFileURL& imageFile) const
+std::unique_ptr<CTexture> CVideoEmbeddedImageFileLoader::Load(const std::string& specialType,
+                                                              const std::string& filePath,
+                                                              unsigned int preferredWidth,
+                                                              unsigned int preferredHeight) const
 {
   EmbeddedArt art;
-  if (GetEmbeddedThumb(imageFile.GetTargetFile(), imageFile.GetSpecialType().substr(6), art))
-    return CTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime);
+  if (GetEmbeddedThumb(filePath, specialType.substr(6), art))
+    return CTexture::LoadFromFileInMemory(art.m_data.data(), art.m_size, art.m_mime, preferredWidth,
+                                          preferredHeight);
   return {};
 }
-
-} // namespace KODI::VIDEO

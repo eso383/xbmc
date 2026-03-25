@@ -9,20 +9,15 @@
 #pragma once
 
 #include "addons/IAddon.h"
-#include "utils/Artwork.h"
-#include "utils/Locale.h"
 
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class CDateTime;
-
-namespace tinyxml2
-{
-class XMLElement;
-} // namespace tinyxml2
+class TiXmlElement;
 
 namespace ADDON
 {
@@ -43,38 +38,32 @@ class CAddonInfoBuilder
 public:
   static AddonInfoPtr Generate(const std::string& id, AddonType type);
   static AddonInfoPtr Generate(const std::string& addonPath, bool platformCheck = true);
-  static AddonInfoPtr Generate(const tinyxml2::XMLElement* baseElement,
+  static AddonInfoPtr Generate(const TiXmlElement* baseElement,
                                const RepositoryDirInfo& repo,
                                bool platformCheck = true);
-  static AddonInfoPtr Generate(IAddon& addon);
 
   /*!
     * @brief Parts used from CAddonDatabase
     */
   //@{
-  static void SetInstallData(const AddonInfoPtr& addon,
-                             const CDateTime& installDate,
-                             const CDateTime& lastUpdated,
-                             const CDateTime& lastUsed,
-                             std::string_view origin);
+  static void SetInstallData(const AddonInfoPtr& addon, const CDateTime& installDate,
+                             const CDateTime& lastUpdated, const CDateTime& lastUsed, const std::string& origin);
   //@}
 
 private:
   static bool ParseXML(const AddonInfoPtr& addon,
-                       const tinyxml2::XMLElement* element,
+                       const TiXmlElement* element,
                        const std::string& addonPath);
   static bool ParseXML(const AddonInfoPtr& addon,
-                       const tinyxml2::XMLElement* element,
+                       const TiXmlElement* element,
                        const std::string& addonPath,
                        const RepositoryDirInfo& repo);
   static bool ParseXMLTypes(CAddonType& addonType,
                             const AddonInfoPtr& info,
-                            const tinyxml2::XMLElement* child);
-  static bool ParseXMLExtension(CAddonExtensions& addonExt, const tinyxml2::XMLElement* element);
-  static bool GetTextList(const tinyxml2::XMLElement* element,
-                          const std::string& tag,
-                          CLocale::LocalizedStringsMap& translatedValues);
-  static const char* GetPlatformLibraryName(const tinyxml2::XMLElement* element);
+                            const TiXmlElement* child);
+  static bool ParseXMLExtension(CAddonExtensions& addonExt, const TiXmlElement* element);
+  static bool GetTextList(const TiXmlElement* element, const std::string& tag, std::unordered_map<std::string, std::string>& translatedValues);
+  static const char* GetPlatformLibraryName(const TiXmlElement* element);
   static bool PlatformSupportsAddon(const AddonInfoPtr& addon);
 };
 
@@ -83,36 +72,36 @@ class CAddonInfoBuilderFromDB
 public:
   CAddonInfoBuilderFromDB();
 
-  void SetId(std::string id);
-  void SetName(std::string name);
-  void SetLicense(std::string license);
-  void SetSummary(std::string summary);
-  void SetDescription(std::string description);
-  void SetDisclaimer(std::string disclaimer);
-  void SetAuthor(std::string author);
-  void SetSource(std::string source);
-  void SetWebsite(std::string website);
-  void SetForum(std::string forum);
-  void SetEMail(std::string email);
-  void SetIcon(std::string icon);
-  void SetArt(const std::string& type, std::string value);
-  void SetArt(KODI::ART::Artwork art);
-  void SetScreenshots(std::vector<std::string> screenshots);
-  void SetChangelog(std::string changelog);
-  void SetLifecycleState(AddonLifecycleState state, std::string description);
-  void SetPath(std::string path);
-  void SetLibName(std::string libname);
-  void SetVersion(CAddonVersion version);
-  void SetDependencies(std::vector<DependencyInfo> dependencies);
-  void SetExtrainfo(InfoMap extrainfo);
-  void SetInstallDate(const CDateTime& installDate);
-  void SetLastUpdated(const CDateTime& lastUpdated);
-  void SetLastUsed(const CDateTime& lastUsed);
-  void SetOrigin(std::string origin);
-  void SetPackageSize(uint64_t size);
-  void SetExtensions(CAddonType addonType);
+  void SetId(std::string id) const;
+  void SetName(std::string name) const;
+  void SetLicense(std::string license) const;
+  void SetSummary(std::string summary) const;
+  void SetDescription(std::string description) const;
+  void SetDisclaimer(std::string disclaimer) const;
+  void SetAuthor(std::string author) const;
+  void SetSource(std::string source) const;
+  void SetWebsite(std::string website) const;
+  void SetForum(std::string forum) const;
+  void SetEMail(std::string email) const;
+  void SetIcon(std::string icon) const;
+  void SetArt(const std::string& type, std::string value) const;
+  void SetArt(std::map<std::string, std::string> art) const;
+  void SetScreenshots(std::vector<std::string> screenshots) const;
+  void SetChangelog(std::string changelog) const;
+  void SetLifecycleState(AddonLifecycleState state, std::string description) const;
+  void SetPath(std::string path) const;
+  void SetLibName(std::string libname) const;
+  void SetVersion(CAddonVersion version) const;
+  void SetDependencies(std::vector<DependencyInfo> dependencies) const;
+  void SetExtrainfo(InfoMap extrainfo) const;
+  void SetInstallDate(const CDateTime& installDate) const;
+  void SetLastUpdated(const CDateTime& lastUpdated) const;
+  void SetLastUsed(const CDateTime& lastUsed) const;
+  void SetOrigin(std::string origin) const;
+  void SetPackageSize(uint64_t size) const;
+  void SetExtensions(CAddonType addonType) const;
 
-  const AddonInfoPtr& get() const { return m_addonInfo; }
+  const AddonInfoPtr& get() { return m_addonInfo; }
 
 private:
   AddonInfoPtr m_addonInfo;

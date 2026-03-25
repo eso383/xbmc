@@ -54,14 +54,14 @@ void Interface_GUIControlSpin::set_visible(KODI_HANDLE kodiBase,
                                            KODI_GUI_CONTROL_HANDLE handle,
                                            bool visible)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -72,14 +72,14 @@ void Interface_GUIControlSpin::set_enabled(KODI_HANDLE kodiBase,
                                            KODI_GUI_CONTROL_HANDLE handle,
                                            bool enabled)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -90,14 +90,15 @@ void Interface_GUIControlSpin::set_text(KODI_HANDLE kodiBase,
                                         KODI_GUI_CONTROL_HANDLE handle,
                                         const char* text)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control || !text)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "text='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(text), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "text='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(text),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -108,14 +109,14 @@ void Interface_GUIControlSpin::set_text(KODI_HANDLE kodiBase,
 
 void Interface_GUIControlSpin::reset(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -127,14 +128,14 @@ void Interface_GUIControlSpin::set_type(KODI_HANDLE kodiBase,
                                         KODI_GUI_CONTROL_HANDLE handle,
                                         int type)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -146,15 +147,15 @@ void Interface_GUIControlSpin::add_string_label(KODI_HANDLE kodiBase,
                                                 const char* label,
                                                 const char* value)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control || !label || !value)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "label='{}', value='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(label), static_cast<const void*>(value),
-               addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "label='{}', value='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(label),
+              static_cast<const void*>(value), addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -165,14 +166,15 @@ void Interface_GUIControlSpin::set_string_value(KODI_HANDLE kodiBase,
                                                 KODI_GUI_CONTROL_HANDLE handle,
                                                 const char* value)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control || !value)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "value='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(value), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "value='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(value),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -182,14 +184,14 @@ void Interface_GUIControlSpin::set_string_value(KODI_HANDLE kodiBase,
 char* Interface_GUIControlSpin::get_string_value(KODI_HANDLE kodiBase,
                                                  KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return nullptr;
   }
 
@@ -201,14 +203,15 @@ void Interface_GUIControlSpin::add_int_label(KODI_HANDLE kodiBase,
                                              const char* label,
                                              int value)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control || !label)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "label='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(label), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "label='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(label),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -220,14 +223,14 @@ void Interface_GUIControlSpin::set_int_range(KODI_HANDLE kodiBase,
                                              int start,
                                              int end)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -238,14 +241,14 @@ void Interface_GUIControlSpin::set_int_value(KODI_HANDLE kodiBase,
                                              KODI_GUI_CONTROL_HANDLE handle,
                                              int value)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -254,14 +257,14 @@ void Interface_GUIControlSpin::set_int_value(KODI_HANDLE kodiBase,
 
 int Interface_GUIControlSpin::get_int_value(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return -1;
   }
 
@@ -273,14 +276,14 @@ void Interface_GUIControlSpin::set_float_range(KODI_HANDLE kodiBase,
                                                float start,
                                                float end)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -291,14 +294,14 @@ void Interface_GUIControlSpin::set_float_value(KODI_HANDLE kodiBase,
                                                KODI_GUI_CONTROL_HANDLE handle,
                                                float value)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -308,14 +311,14 @@ void Interface_GUIControlSpin::set_float_value(KODI_HANDLE kodiBase,
 float Interface_GUIControlSpin::get_float_value(KODI_HANDLE kodiBase,
                                                 KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return 0.0f;
   }
 
@@ -326,14 +329,14 @@ void Interface_GUIControlSpin::set_float_interval(KODI_HANDLE kodiBase,
                                                   KODI_GUI_CONTROL_HANDLE handle,
                                                   float interval)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUISpinControlEx*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUISpinControlEx*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlSpin::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 

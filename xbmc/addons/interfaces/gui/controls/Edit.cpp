@@ -41,14 +41,14 @@ void Interface_GUIControlEdit::set_visible(KODI_HANDLE kodiBase,
                                            KODI_GUI_CONTROL_HANDLE handle,
                                            bool visible)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -59,14 +59,14 @@ void Interface_GUIControlEdit::set_enabled(KODI_HANDLE kodiBase,
                                            KODI_GUI_CONTROL_HANDLE handle,
                                            bool enable)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -78,15 +78,15 @@ void Interface_GUIControlEdit::set_input_type(KODI_HANDLE kodiBase,
                                               int type,
                                               const char* heading)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control || !heading)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "heading='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(heading),
-               addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "heading='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(heading),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -135,14 +135,15 @@ void Interface_GUIControlEdit::set_label(KODI_HANDLE kodiBase,
                                          KODI_GUI_CONTROL_HANDLE handle,
                                          const char* label)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control || !label)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "label='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(label), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "label='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(label),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -151,14 +152,14 @@ void Interface_GUIControlEdit::set_label(KODI_HANDLE kodiBase,
 
 char* Interface_GUIControlEdit::get_label(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return nullptr;
   }
 
@@ -169,14 +170,15 @@ void Interface_GUIControlEdit::set_text(KODI_HANDLE kodiBase,
                                         KODI_GUI_CONTROL_HANDLE handle,
                                         const char* text)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control || !text)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}', "
-               "text='{}') on addon '{}'",
-               kodiBase, handle, static_cast<const void*>(text), addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}', "
+              "text='{}') on addon '{}'",
+              __func__, kodiBase, handle, static_cast<const void*>(text),
+              addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -185,14 +187,14 @@ void Interface_GUIControlEdit::set_text(KODI_HANDLE kodiBase,
 
 char* Interface_GUIControlEdit::get_text(KODI_HANDLE kodiBase, KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return nullptr;
   }
 
@@ -203,14 +205,14 @@ void Interface_GUIControlEdit::set_cursor_position(KODI_HANDLE kodiBase,
                                                    KODI_GUI_CONTROL_HANDLE handle,
                                                    unsigned int position)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  auto* control = static_cast<CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return;
   }
 
@@ -220,14 +222,14 @@ void Interface_GUIControlEdit::set_cursor_position(KODI_HANDLE kodiBase,
 unsigned int Interface_GUIControlEdit::get_cursor_position(KODI_HANDLE kodiBase,
                                                            KODI_GUI_CONTROL_HANDLE handle)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
-  const auto* control = static_cast<const CGUIEditControl*>(handle);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
+  auto control = static_cast<CGUIEditControl*>(handle);
   if (!addon || !control)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (kodiBase='{}', handle='{}') "
-               "on addon '{}'",
-               kodiBase, handle, addon ? addon->ID() : "unknown");
+    CLog::Log(LOGERROR,
+              "Interface_GUIControlEdit::{} - invalid handler data (kodiBase='{}', handle='{}') "
+              "on addon '{}'",
+              __func__, kodiBase, handle, addon ? addon->ID() : "unknown");
     return 0;
   }
 

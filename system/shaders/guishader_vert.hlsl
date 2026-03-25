@@ -24,7 +24,6 @@ PS_INPUT VS(VS_INPUT input)
 {
   PS_INPUT output = (PS_INPUT)0;
   output.pos   = mul(input.pos, worldViewProj);
-  output.pos.z = depth * output.pos.w;
   output.color = input.color;
   output.tex   = input.tex;
   output.tex2  = input.tex2;

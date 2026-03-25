@@ -24,12 +24,8 @@ public:
    * @param groups The channel groups for which the channel icons shall be updated.
    * @param bUpdateDb If true, persist the changed values in the PVR database.
    */
-  CPVRGUIChannelIconUpdater(const std::vector<std::shared_ptr<CPVRChannelGroup>>& groups,
-                            bool bUpdateDb)
-    : m_groups(groups),
-      m_bUpdateDb(bUpdateDb)
-  {
-  }
+  CPVRGUIChannelIconUpdater(const std::vector<std::shared_ptr<CPVRChannelGroup>>& groups, bool bUpdateDb)
+  : m_groups(groups), m_bUpdateDb(bUpdateDb) {}
 
   CPVRGUIChannelIconUpdater() = delete;
   CPVRGUIChannelIconUpdater(const CPVRGUIChannelIconUpdater&) = delete;
@@ -47,4 +43,4 @@ private:
   const bool m_bUpdateDb = false;
 };
 
-} // namespace PVR
+}

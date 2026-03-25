@@ -214,6 +214,14 @@
 					<width>420</width>
 					<label>$LOCALIZE[12389]</label>
 				</control>
+				<control type="button" id="101">
+					<description>Button "Thank you!"</description>
+					<include content="DefaultSettingButton">
+						<param name="height" value="85" />
+					</include>
+					<width>420</width>
+					<label>$LOCALIZE[12396]</label>
+				</control>
 			</control>
 		</control>
 		<include content="TopBar">

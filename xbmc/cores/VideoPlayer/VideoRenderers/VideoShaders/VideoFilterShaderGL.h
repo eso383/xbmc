@@ -74,10 +74,7 @@ protected:
   class ConvolutionFilterShader : public BaseVideoFilterShader
   {
   public:
-    ConvolutionFilterShader(ESCALINGMETHOD method,
-                            bool stretch,
-                            bool gammaCorrection,
-                            GLSLOutput* output = NULL);
+    ConvolutionFilterShader(ESCALINGMETHOD method, bool stretch, GLSLOutput *output=NULL);
     ~ConvolutionFilterShader() override;
     void OnCompiledAndLinked() override;
     bool OnEnabled() override;

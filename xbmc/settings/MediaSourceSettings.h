@@ -12,7 +12,6 @@
 #include "settings/lib/ISettingsHandler.h"
 
 #include <string>
-#include <string_view>
 
 class CProfileManager;
 
@@ -37,20 +36,14 @@ public:
   bool Save(const std::string &file) const;
   void Clear();
 
-  std::vector<CMediaSource>* GetSources(std::string_view type);
-  const std::string& GetDefaultSource(std::string_view type) const;
-  void SetDefaultSource(std::string_view type, std::string_view source);
+  VECSOURCES* GetSources(const std::string &type);
+  const std::string& GetDefaultSource(const std::string &type) const;
+  void SetDefaultSource(const std::string &type, const std::string &source);
 
-  bool UpdateSource(std::string_view strType,
-                    std::string_view strOldName,
-                    std::string_view strUpdateChild,
-                    const std::string& strUpdateValue);
-  bool DeleteSource(std::string_view strType,
-                    std::string_view strName,
-                    std::string_view strPath,
-                    bool virtualSource = false);
-  bool AddShare(std::string_view type, const CMediaSource& share);
-  bool UpdateShare(std::string_view type, std::string_view oldName, const CMediaSource& share);
+  bool UpdateSource(const std::string &strType, const std::string &strOldName, const std::string &strUpdateChild, const std::string &strUpdateValue);
+  bool DeleteSource(const std::string &strType, const std::string &strName, const std::string &strPath, bool virtualSource = false);
+  bool AddShare(const std::string &type, const CMediaSource &share);
+  bool UpdateShare(const std::string &type, const std::string &oldName, const CMediaSource &share);
 
 protected:
   CMediaSourceSettings();
@@ -59,24 +52,22 @@ protected:
   ~CMediaSourceSettings() override;
 
 private:
-  bool GetSource(const std::string& category,
-                 const tinyxml2::XMLNode* source,
-                 CMediaSource& share) const;
+  bool GetSource(const std::string& category, const tinyxml2::XMLNode* source, CMediaSource& share);
   void GetSources(const tinyxml2::XMLNode* rootElement,
                   const std::string& tagName,
-                  std::vector<CMediaSource>& items,
-                  std::string& defaultString) const;
+                  VECSOURCES& items,
+                  std::string& defaultString);
   bool SetSources(tinyxml2::XMLNode* rootNode,
                   const char* section,
-                  const std::vector<CMediaSource>& shares,
+                  const VECSOURCES& shares,
                   const std::string& defaultPath) const;
 
-  std::vector<CMediaSource> m_programSources;
-  std::vector<CMediaSource> m_pictureSources;
-  std::vector<CMediaSource> m_fileSources;
-  std::vector<CMediaSource> m_musicSources;
-  std::vector<CMediaSource> m_videoSources;
-  std::vector<CMediaSource> m_gameSources;
+  VECSOURCES m_programSources;
+  VECSOURCES m_pictureSources;
+  VECSOURCES m_fileSources;
+  VECSOURCES m_musicSources;
+  VECSOURCES m_videoSources;
+  VECSOURCES m_gameSources;
 
   std::string m_defaultProgramSource;
   std::string m_defaultMusicSource;

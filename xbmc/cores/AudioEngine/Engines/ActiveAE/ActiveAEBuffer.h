@@ -127,7 +127,7 @@ public:
   ~CActiveAEBufferPoolAtempo() override;
   bool Create(unsigned int totaltime) override;
   bool ProcessBuffers();
-  float GetDelay();
+  float GetDelay() const;
   void Flush();
   void SetTempo(float tempo);
   float GetTempo() const;

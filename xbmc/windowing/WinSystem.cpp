@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -25,23 +25,6 @@
 #include <mutex>
 
 const char* CWinSystemBase::SETTING_WINSYSTEM_IS_HDR_DISPLAY = "winsystem.ishdrdisplay";
-
-RESOLUTION_WHR::RESOLUTION_WHR(int newWidth,
-                               int newHeight,
-                               int screenWidth,
-                               int screenHeight,
-                               int newflags,
-                               int newIdx,
-                               std::string&& newId)
-  : width(newWidth),
-    height(newHeight),
-    m_screenWidth(screenWidth),
-    m_screenHeight(screenHeight),
-    flags(newflags),
-    ResInfo_Index(newIdx),
-    id(std::move(newId))
-{
-}
 
 CWinSystemBase::CWinSystemBase() : m_gfxContext(std::make_unique<CGraphicContext>())
 {
@@ -141,13 +124,13 @@ void CWinSystemBase::SetWindowResolution(int width, int height)
 
 static void AddResolution(std::vector<RESOLUTION_WHR> &resolutions, unsigned int addindex, float bestRefreshrate)
 {
-  // non-const for move
   RESOLUTION_INFO resInfo = CDisplaySettings::GetInstance().GetResolutionInfo(addindex);
   const int width = resInfo.iWidth;
   const int height = resInfo.iHeight;
   const int screenWidth = resInfo.iScreenWidth;
   const int screenHeight = resInfo.iScreenHeight;
-  const int flags = resInfo.dwFlags & D3DPRESENTFLAG_MODEMASK;
+  int flags  = resInfo.dwFlags & D3DPRESENTFLAG_MODEMASK;
+  const std::string id = resInfo.strId;
   float refreshrate = resInfo.fRefreshRate;
 
   // don't touch RES_DESKTOP
@@ -168,8 +151,9 @@ static void AddResolution(std::vector<RESOLUTION_WHR> &resolutions, unsigned int
     }
   }
 
-  resolutions.emplace_back(width, height, screenWidth, screenHeight, flags,
-                           static_cast<int>(addindex), std::move(resInfo.strId));
+  RESOLUTION_WHR res = {width, height, screenWidth, screenHeight, flags, static_cast<int>(addindex),
+                        id};
+  resolutions.emplace_back(res);
 }
 
 static bool resSortPredicate(const RESOLUTION_WHR& i, const RESOLUTION_WHR& j)
@@ -263,12 +247,6 @@ std::string CWinSystemBase::GetClipboardText(void)
   return "";
 }
 
-int CWinSystemBase::NoOfBuffers(void)
-{
-  int buffers = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOSCREEN_NOOFBUFFERS);
-  return buffers;
-}
-
 KODI::WINDOWING::COSScreenSaverManager* CWinSystemBase::GetOSScreenSaver()
 {
   if (!m_screenSaverManager)
@@ -286,13 +264,15 @@ KODI::WINDOWING::COSScreenSaverManager* CWinSystemBase::GetOSScreenSaver()
 
 void CWinSystemBase::RegisterRenderLoop(IRenderLoop *client)
 {
-  std::unique_lock lock(m_renderLoopSection);
+  std::lock_guard lock(m_renderLoopSection);
+
   m_renderLoopClients.push_back(client);
 }
 
 void CWinSystemBase::UnregisterRenderLoop(IRenderLoop *client)
 {
-  std::unique_lock lock(m_renderLoopSection);
+  std::lock_guard lock(m_renderLoopSection);
+
   auto i = find(m_renderLoopClients.begin(), m_renderLoopClients.end(), client);
   if (i != m_renderLoopClients.end())
     m_renderLoopClients.erase(i);
@@ -303,7 +283,8 @@ void CWinSystemBase::DriveRenderLoop()
   MessagePump();
 
   {
-    std::unique_lock lock(m_renderLoopSection);
+    std::lock_guard lock(m_renderLoopSection);
+
     for (auto i = m_renderLoopClients.begin(); i != m_renderLoopClients.end(); ++i)
       (*i)->FrameMove();
   }

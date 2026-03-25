@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -37,7 +37,7 @@ namespace PVR
 class CPVRManager;
 }
 
-namespace KODI::PLAYLIST
+namespace PLAYLIST
 {
 class CPlayListPlayer;
 }
@@ -70,7 +70,6 @@ class CPlayerCoreFactory;
 class CDatabaseManager;
 class CEventLog;
 class CGUIComponent;
-class CResourcesComponent;
 class CAppInboundProtocol;
 class CSettingsComponent;
 class CDecoderFilterManager;
@@ -81,7 +80,6 @@ class CPlatform;
 class CTextureCache;
 class CJobManager;
 class CSlideShowDelegator;
-class CDNSNameCache;
 
 namespace WSDiscovery
 {
@@ -122,16 +120,6 @@ namespace speech
 class ISpeechRecognition;
 }
 
-namespace XFILE
-{
-class CBlurayDiscCache;
-}
-
-namespace KODI::UTILS::I18N
-{
-class CSubTagRegistryManager;
-}
-
 class CServiceBroker
 {
 public:
@@ -164,7 +152,7 @@ public:
   static CContextMenuManager& GetContextMenuManager();
   static CDataCacheCore& GetDataCacheCore();
   static CPlatform& GetPlatform();
-  static KODI::PLAYLIST::CPlayListPlayer& GetPlaylistPlayer();
+  static PLAYLIST::CPlayListPlayer& GetPlaylistPlayer();
   static CSlideShowDelegator& GetSlideShowDelegator();
   static KODI::GAME::CControllerManager& GetGameControllerManager();
   static KODI::GAME::CGameServices& GetGameServices();
@@ -185,15 +173,10 @@ public:
   static CEventLog* GetEventLog();
   static CMediaManager& GetMediaManager();
   static CComponentContainer<IApplicationComponent>& GetAppComponents();
-  static KODI::UTILS::I18N::CSubTagRegistryManager& GetSubTagRegistry();
 
   static CGUIComponent* GetGUI();
   static void RegisterGUI(CGUIComponent* gui);
   static void UnregisterGUI();
-
-  static CResourcesComponent& GetResourcesComponent();
-  static void RegisterResourcesComponent(std::unique_ptr<CResourcesComponent> resources);
-  static void UnregisterResourcesComponent();
 
   static void RegisterSettingsComponent(const std::shared_ptr<CSettingsComponent>& settings);
   static void UnregisterSettingsComponent();
@@ -242,20 +225,11 @@ public:
   static void UnregisterSpeechRecognition();
   static std::shared_ptr<speech::ISpeechRecognition> GetSpeechRecognition();
 
-  static void RegisterDNSNameCache(std::shared_ptr<CDNSNameCache> cache);
-  static void UnregisterDNSNameCache();
-  static std::shared_ptr<CDNSNameCache> GetDNSNameCache();
-
-  static void RegisterBlurayDiscCache(const std::shared_ptr<XFILE::CBlurayDiscCache>& cache);
-  static void UnregisterBlurayDiscCache();
-  static std::shared_ptr<XFILE::CBlurayDiscCache> GetBlurayDiscCache();
-
 private:
   std::shared_ptr<CAppParams> m_appParams;
   std::unique_ptr<CLog> m_logging;
   std::shared_ptr<ANNOUNCEMENT::CAnnouncementManager> m_pAnnouncementManager;
   CGUIComponent* m_pGUI = nullptr;
-  std::unique_ptr<CResourcesComponent> m_pResourcesComponent;
   CWinSystemBase* m_pWinSystem = nullptr;
   IAE* m_pActiveAE = nullptr;
   std::shared_ptr<CAppInboundProtocol> m_pAppPort;
@@ -268,8 +242,6 @@ private:
   std::shared_ptr<KODI::KEYBOARD::CKeyboardLayoutManager> m_keyboardLayoutManager;
   std::shared_ptr<speech::ISpeechRecognition> m_speechRecognition;
   std::shared_ptr<CSlideShowDelegator> m_slideshowDelegator;
-  std::shared_ptr<CDNSNameCache> m_dnsNameCache;
-  std::shared_ptr<XFILE::CBlurayDiscCache> m_blurayDiscCache;
 };
 
 XBMC_GLOBAL_REF(CServiceBroker, g_serviceBroker);

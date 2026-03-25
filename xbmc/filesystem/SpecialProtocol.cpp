@@ -18,7 +18,6 @@
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include "PlatformDefs.h"
 #ifdef TARGET_POSIX
@@ -239,7 +238,7 @@ std::string CSpecialProtocol::TranslatePathConvertCase(const std::string& path)
       dir = opendir(result.c_str());
       if (dir)
       {
-        while ((de = readdir(dir)) != NULL)
+        while ((de = readdir(dir)) != nullptr)
         {
           // check if there's a file with same name but different case
           if (StringUtils::CompareNoCase(de->d_name, tokens[i]) == 0)
@@ -252,7 +251,7 @@ std::string CSpecialProtocol::TranslatePathConvertCase(const std::string& path)
 
         // if we did not find any file that somewhat matches, just
         // fallback but we know it's not gonna be a good ending
-        if (de == NULL)
+        if (de == nullptr)
           result += "/" + tokens[i];
 
         closedir(dir);
@@ -295,7 +294,7 @@ void CSpecialProtocol::SetPath(const std::string &key, const std::string &path)
 
 std::string CSpecialProtocol::GetPath(const std::string &key)
 {
-  std::map<std::string, std::string>::iterator it = m_pathMap.find(key);
+  auto it = m_pathMap.find(key);
   if (it != m_pathMap.end())
     return it->second;
 

@@ -9,37 +9,51 @@
 #pragma once
 
 #include "TextureManager.h"
-#include "TextureScaling.h"
 #include "guiinfo/GUIInfoColor.h"
-#include "guilib/AspectRatio.h"
 #include "utils/ColorUtils.h"
 #include "utils/Geometry.h"
 
 #include <functional>
 #include <optional>
 
+// image alignment for <aspect>keep</aspect>, <aspect>scale</aspect> or <aspect>center</aspect>
+#define ASPECT_ALIGN_CENTER  0
+#define ASPECT_ALIGN_LEFT    1
+#define ASPECT_ALIGN_RIGHT   2
+#define ASPECT_ALIGNY_CENTER 0
+#define ASPECT_ALIGNY_TOP    4
+#define ASPECT_ALIGNY_BOTTOM 8
+#define ASPECT_ALIGN_MASK    3
+#define ASPECT_ALIGNY_MASK  ~3
+
+class CAspectRatio
+{
+public:
+  enum ASPECT_RATIO { AR_STRETCH = 0, AR_SCALE, AR_KEEP, AR_CENTER };
+  CAspectRatio(ASPECT_RATIO aspect = AR_STRETCH)
+  {
+    ratio = aspect;
+    align = ASPECT_ALIGN_CENTER | ASPECT_ALIGNY_CENTER;
+    scaleDiffuse = true;
+  };
+  bool operator!=(const CAspectRatio &right) const
+  {
+    if (ratio != right.ratio) return true;
+    if (align != right.align) return true;
+    if (scaleDiffuse != right.scaleDiffuse) return true;
+    return false;
+  };
+
+  ASPECT_RATIO ratio;
+  uint32_t     align;
+  bool         scaleDiffuse;
+};
+
 class CTextureInfo
 {
 public:
   CTextureInfo();
   explicit CTextureInfo(const std::string &file);
-  CTextureInfo(bool large,
-               CRect bord,
-               bool fill,
-               int orient,
-               std::string diff,
-               KODI::GUILIB::GUIINFO::CGUIInfoColor color,
-               std::string f)
-    : useLarge(large),
-      border(bord),
-      m_infill(fill),
-      orientation(orient),
-      diffuse(std::move(diff)),
-      diffuseColor(color),
-      filename(std::move(f))
-  {
-  }
-
   bool       useLarge;
   CRect      border;          // scaled  - unneeded if we get rid of scale on load
   bool m_infill{
@@ -55,7 +69,7 @@ class CGUITexture;
 using CreateGUITextureFunc = std::function<CGUITexture*(
     float posX, float posY, float width, float height, const CTextureInfo& texture)>;
 using DrawQuadFunc = std::function<void(const CRect& coords,
-                                        KODI::UTILS::COLOR::Color color,
+                                        UTILS::COLOR::Color color,
                                         CTexture* texture,
                                         const CRect* texCoords,
                                         const float depth,
@@ -74,7 +88,7 @@ public:
   virtual CGUITexture* Clone() const = 0;
 
   static void DrawQuad(const CRect& coords,
-                       KODI::UTILS::COLOR::Color color,
+                       UTILS::COLOR::Color color,
                        CTexture* texture = nullptr,
                        const CRect* texCoords = nullptr,
                        const float depth = 1.0,
@@ -87,19 +101,16 @@ public:
   bool AllocResources();
   void FreeResources(bool immediately = false);
   void SetInvalid();
-  void OnWindowResize();
 
   bool SetVisible(bool visible);
   bool SetAlpha(unsigned char alpha);
-  bool SetDiffuseColor(KODI::UTILS::COLOR::Color color, const CGUIListItem* item = nullptr);
+  bool SetDiffuseColor(UTILS::COLOR::Color color, const CGUIListItem* item = nullptr);
   bool SetPosition(float x, float y);
   bool SetWidth(float width);
   bool SetHeight(float height);
   bool SetFileName(const std::string &filename);
   void SetUseCache(const bool useCache = true);
   bool SetAspectRatio(const CAspectRatio &aspect);
-  void SetScalingMethod(TEXTURE_SCALING scalingMethod);
-  void SetDiffuseScalingMethod(TEXTURE_SCALING scalingMethod);
 
   const std::string& GetFileName() const { return m_info.filename; }
   float GetTextureWidth() const { return m_frameWidth; }
@@ -152,7 +163,7 @@ protected:
   // functions that our implementation classes handle
   virtual void Allocate() {}; ///< called after our textures have been allocated
   virtual void Free() {};     ///< called after our textures have been freed
-  virtual void Begin(KODI::UTILS::COLOR::Color color) = 0;
+  virtual void Begin(UTILS::COLOR::Color color) = 0;
   virtual void Draw(float* x,
                     float* y,
                     float* z,
@@ -162,18 +173,13 @@ protected:
   virtual void End() = 0;
 
   bool m_visible;
-  KODI::UTILS::COLOR::Color m_diffuseColor;
+  UTILS::COLOR::Color m_diffuseColor;
 
   float m_posX;         // size of the frame
   float m_posY;
   float m_width;
   float m_height;
   float m_depth{0};
-
-  // size used to get and release image from LargeTextureManager
-  int m_requestWidth = REQUEST_SIZE_UNSET;
-  int m_requestHeight = REQUEST_SIZE_UNSET;
-  static constexpr int REQUEST_SIZE_UNSET = -1;
 
   CRect m_vertex;       // vertex coords to render
   bool m_invalid;       // if true, we need to recalculate
@@ -196,9 +202,6 @@ protected:
   bool m_allocateDynamically;
   enum ALLOCATE_TYPE { NO = 0, NORMAL, LARGE, NORMAL_FAILED, LARGE_FAILED };
   ALLOCATE_TYPE m_isAllocated;
-
-  TEXTURE_SCALING m_scalingMethod{TEXTURE_SCALING::UNKNOWN};
-  TEXTURE_SCALING m_diffuseScalingMethod{TEXTURE_SCALING::UNKNOWN};
 
   CTextureInfo m_info;
   CAspectRatio m_aspect;

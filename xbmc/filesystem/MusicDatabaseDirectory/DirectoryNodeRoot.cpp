@@ -11,12 +11,12 @@
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
 CDirectoryNodeRoot::CDirectoryNodeRoot(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::ROOT, strName, pParent)
+  : CDirectoryNode(NODE_TYPE_ROOT, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeRoot::GetChildType() const
+NODE_TYPE CDirectoryNodeRoot::GetChildType() const
 {
-  return NodeType::OVERVIEW;
+  return NODE_TYPE_OVERVIEW;
 }

@@ -10,8 +10,6 @@
 
 #include "utils/StringUtils.h"
 
-#include <algorithm>
-
 bool CCPUInfo::HasCoreId(int coreId) const
 {
   for (const auto& core : m_cores)
@@ -23,8 +21,7 @@ bool CCPUInfo::HasCoreId(int coreId) const
   return false;
 }
 
-const CoreInfo CCPUInfo::GetCoreInfo(int coreId)
-{
+const CoreInfo CCPUInfo::GetCoreInfo(int coreId) const {
   CoreInfo coreInfo;
 
   for (auto& core : m_cores)
@@ -78,23 +75,21 @@ std::string CCPUInfo::GetCoresUsageAltString()
       bool isFirst = true;
       for (const auto& core : m_cores)
       {
-        if (!isFirst)
-          strCores += " [COLOR FF404040]|[/COLOR] ";
-        else
-          isFirst = false;
+        // if (!isFirst) strCores += " [COLOR FF404040]|[/COLOR] ";
+        if (!isFirst) strCores += " | "; 
+        else isFirst = false;
 
-        const unsigned int cpu_percent =
-            static_cast<unsigned int>(std::min(99.99, core.m_usagePercent));
+        unsigned int cpu_percent = static_cast<unsigned int>(std::min(99.99, core.m_usagePercent));
 
-        if (cpu_percent == 0)
-          strCores += "[COLOR FF404040]00[/COLOR]";
-        else if (cpu_percent < 10)
-          strCores += StringUtils::Format(
-              "[COLOR FF404040]0[/COLOR][COLOR FF808080]{:1d}[/COLOR]", cpu_percent);
-        else if (cpu_percent < 100)
+        // if (cpu_percent == 0) 
+        //  strCores += "[COLOR FF404040]00[/COLOR]";
+        // else if (cpu_percent < 10)
+        //  strCores += StringUtils::Format("[COLOR FF404040]0[/COLOR][COLOR FF808080]{:1d}[/COLOR]", cpu_percent);
+        if (cpu_percent < 100) 
           strCores += StringUtils::Format("{:02d}", cpu_percent);
-        else
-          strCores += "[COLOR=FFFF0000]**[/COLOR]";
+        else 
+          strCores += "**";
+          // strCores += "[COLOR=FFFF0000]**[/COLOR]";
       }
     }
     else

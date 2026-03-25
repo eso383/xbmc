@@ -12,9 +12,6 @@
 
 #include <string>
 
-namespace KODI::PLAYLIST
-{
-
 class CSmartPlaylistFileItemListModifier : public IFileItemListModifier
 {
 public:
@@ -27,5 +24,3 @@ public:
 private:
   static std::string GetUrlOption(const std::string &path, const std::string &option);
 };
-
-} // namespace KODI::PLAYLIST

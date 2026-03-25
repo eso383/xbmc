@@ -14,12 +14,7 @@
 #include "input/mouse/interfaces/IMouseInputProvider.h"
 #include "peripherals/PeripheralTypes.h"
 
-#include <functional>
-#include <future>
 #include <map>
-#include <memory>
-#include <mutex>
-#include <queue>
 #include <set>
 #include <string>
 #include <vector>
@@ -29,11 +24,6 @@ class CSetting;
 
 namespace KODI
 {
-namespace GAME
-{
-class CAgentController;
-}
-
 namespace JOYSTICK
 {
 class IButtonMapper;
@@ -80,8 +70,7 @@ typedef enum
  */
 class CPeripheral : public KODI::JOYSTICK::IInputProvider,
                     public KODI::KEYBOARD::IKeyboardInputProvider,
-                    public KODI::MOUSE::IMouseInputProvider,
-                    public std::enable_shared_from_this<CPeripheral>
+                    public KODI::MOUSE::IMouseInputProvider
 {
   friend class CGUIDialogPeripheralSettings;
 
@@ -134,7 +123,7 @@ public:
 
   /*! \brief Called for the active peripheral device when unloaded, stick any cleanup here
 
-      This won't be needed for most implementations so we don't set it =0 but provide a default
+  This won't be needed for most implementations so we don't set it =0 but provide a default
       implementation.
   */
   virtual void Deinitialize(void) {}
@@ -226,8 +215,6 @@ public:
   virtual float GetSettingFloat(const std::string& strKey) const;
   virtual bool SetSetting(const std::string& strKey, float fValue);
 
-  virtual void SetAddonSetting(const std::string& strKey, const std::string& addonId);
-
   virtual void PersistSettings(bool bExiting = false);
   virtual void LoadPersistedSettings(void);
   virtual void ResetDefaultSettings(void);
@@ -292,13 +279,6 @@ public:
   virtual void SetLastActive(const CDateTime& lastActive);
 
   /*!
-   * \brief Return the current activity level of the peripheral
-   *
-   * \return The activity level, on a scale of 0.0 to 1.0
-   */
-  virtual float GetActivation() const;
-
-  /*!
    * \brief Get the controller profile that best represents this peripheral
    *
    * \return The controller profile, or empty if unknown
@@ -310,17 +290,13 @@ public:
    *
    * \param controller The new controller profile
    */
-  virtual void SetControllerProfile(const KODI::GAME::ControllerPtr& controller);
+  virtual void SetControllerProfile(const KODI::GAME::ControllerPtr& controller)
+  {
+    m_controllerProfile = controller;
+  }
 
 protected:
   virtual void ClearSettings(void);
-
-  // Helper functions
-  void InstallController(
-      const std::string& controllerId,
-      const std::function<void(const KODI::GAME::ControllerPtr& installedController)>& callback);
-  KODI::GAME::ControllerPtr InstallAsync(const std::string& controllerId);
-  static bool InstallSync(const std::string& controllerId);
 
   CPeripherals& m_manager;
   PeripheralType m_type;
@@ -352,9 +328,5 @@ protected:
       m_mouseHandlers;
   std::map<KODI::JOYSTICK::IButtonMapper*, std::unique_ptr<CAddonButtonMapping>> m_buttonMappers;
   KODI::GAME::ControllerPtr m_controllerProfile;
-  std::unique_ptr<KODI::GAME::CAgentController> m_controllerInput;
-  std::queue<std::string> m_controllersToInstall;
-  std::vector<std::future<void>> m_installTasks;
-  std::mutex m_controllerInstallMutex;
 };
 } // namespace PERIPHERALS

@@ -11,8 +11,6 @@
 
 #include <algorithm>
 #include <array>
-#include <functional>
-#include <optional>
 #include <stdexcept>
 
 /*!
@@ -28,24 +26,34 @@
  *        This class is useful for mapping enum values to strings that can be
  *        compile time checked. This also helps with heap usage.
  *
- *        Lookups have log(n) complexity if Key is comparable using std::less<>,
- *        otherwise it's linear.
+ *        Lookups have linear complexity, so should not be used for "big" maps.
  */
 template<typename Key, typename Value, size_t Size>
 class CMap
 {
 public:
   template<typename Iterable>
-  consteval CMap(Iterable begin, Iterable end)
+  constexpr CMap(Iterable begin, Iterable end)
   {
-    std::move(begin, end, m_map.begin());
-
-    if constexpr (requires(Key k) { std::less<>{}(k, k); })
+    size_t index = 0;
+    while (begin != end)
     {
-      std::sort(m_map.begin(), m_map.end(),
-                [](const auto& a, const auto& b) { return std::less<>{}(a.first, b.first); });
-      if (std::ranges::adjacent_find(m_map, {}, &std::pair<Key, Value>::first) != m_map.cend())
-        throw std::runtime_error("Keys are not unique");
+      // c++17 doesn't have constexpr assignment operator for std::pair
+      auto& first = m_map[index].first;
+      auto& second = m_map[index].second;
+      ++index;
+
+      first = std::move(begin->first);
+      second = std::move(begin->second);
+      ++begin;
+
+      //! @todo: c++20 can use constexpr assignment operator instead
+      // auto& p = data[index];
+      // ++index;
+
+      // p = std::move(*begin);
+      // ++begin;
+      //
     }
   }
 
@@ -66,40 +74,14 @@ public:
 
   constexpr auto find(const Key& key) const
   {
-    if constexpr (requires(Key k) { std::less<>{}(k, k); })
-    {
-      const auto iter =
-          std::lower_bound(m_map.cbegin(), m_map.cend(), key,
-                           [](const auto& a, const auto& b) { return std::less<>{}(a.first, b); });
-      if (iter != m_map.end() && !(key < iter->first))
-        return iter;
-      else
-        return m_map.end();
-    }
-    else
-    {
-      return std::find_if(m_map.cbegin(), m_map.cend(),
-                          [&key](const auto& pair) { return pair.first == key; });
-    }
+    return std::find_if(m_map.cbegin(), m_map.cend(),
+                        [&key](const auto& pair) { return pair.first == key; });
   }
 
-  std::optional<Value> get(const Key& key) const
-  {
-    auto iter = find(key);
-    if (iter != cend())
-      return iter->second;
-    else
-      return {};
-  }
-
-  constexpr bool contains(const Key& key) const { return find(key) != cend(); }
   constexpr size_t size() const { return Size; }
 
   constexpr auto cbegin() const { return m_map.cbegin(); }
   constexpr auto cend() const { return m_map.cend(); }
-
-  constexpr auto begin() const { return m_map.begin(); }
-  constexpr auto end() const { return m_map.end(); }
 
 private:
   CMap() = delete;
@@ -114,7 +96,7 @@ private:
  *
  */
 template<typename Key, typename Value, std::size_t Size>
-consteval auto make_map(std::pair<Key, Value> (&&m)[Size]) -> CMap<Key, Value, Size>
+constexpr auto make_map(std::pair<Key, Value>(&&m)[Size]) -> CMap<Key, Value, Size>
 {
   return CMap<Key, Value, Size>(std::begin(m), std::end(m));
 }

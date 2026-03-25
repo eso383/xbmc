@@ -54,7 +54,7 @@ protected:
 
   volatile bool m_bIsLoading{false};
   volatile bool m_bStop{true};
-  std::unique_ptr<CThread> m_thread{};
+  CThread* m_thread{nullptr};
 
   IBackgroundLoaderObserver* m_pObserver{nullptr};
   IProgressCallback* m_pProgressCallback{nullptr};

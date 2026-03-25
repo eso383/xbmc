@@ -31,11 +31,13 @@ protected:
   void AddVideoStreams(const std::shared_ptr<CSettingGroup>& group, const std::string& settingId);
   static void VideoStreamsOptionFiller(const std::shared_ptr<const CSetting>& setting,
                                        std::vector<IntegerSettingOption>& list,
-                                       int& current);
+                                       int& current,
+                                       void* data);
 
   static void VideoOrientationFiller(const std::shared_ptr<const CSetting>& setting,
                                      std::vector<IntegerSettingOption>& list,
-                                     int& current);
+                                     int& current,
+                                     void* data);
 
   static std::string FormatFlags(StreamFlags flags);
 

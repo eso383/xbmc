@@ -48,7 +48,7 @@ std::string CUrlOptions::GetOptionsString(bool withLeadingSeparator /* = false *
 
 void CUrlOptions::AddOption(const std::string &key, const char *value)
 {
-  if (key.empty() || value == NULL)
+  if (key.empty() || value == nullptr)
     return;
 
   return AddOption(key, std::string(value));
@@ -153,7 +153,7 @@ bool CUrlOptions::HasOption(const std::string &key) const
   if (key.empty())
     return false;
 
-  return m_options.contains(key);
+  return m_options.find(key) != m_options.end();
 }
 
 bool CUrlOptions::GetOption(const std::string &key, CVariant &value) const

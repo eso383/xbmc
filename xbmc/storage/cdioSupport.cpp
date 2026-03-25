@@ -92,7 +92,7 @@ cdio_log_handler (cdio_log_level_t level, const char message[])
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
-CLibcdio::CLibcdio(): s_defaultDevice(NULL)
+CLibcdio::CLibcdio(): s_defaultDevice(nullptr)
 {
   cdio_log_set_handler( cdio_log_handler );
 }
@@ -100,7 +100,7 @@ CLibcdio::CLibcdio(): s_defaultDevice(NULL)
 CLibcdio::~CLibcdio()
 {
   free(s_defaultDevice);
-  s_defaultDevice = NULL;
+  s_defaultDevice = nullptr;
 }
 
 void CLibcdio::ReleaseInstance()
@@ -119,35 +119,35 @@ std::shared_ptr<CLibcdio> CLibcdio::GetInstance()
 
 CdIo_t* CLibcdio::cdio_open(const char *psz_source, driver_id_t driver_id)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_open(psz_source, driver_id) );
 }
 
 CdIo_t* CLibcdio::cdio_open_win32(const char *psz_source)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_open_win32(psz_source) );
 }
 
 void CLibcdio::cdio_destroy(CdIo_t *p_cdio)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   ::cdio_destroy(p_cdio);
 }
 
 discmode_t CLibcdio::cdio_get_discmode(CdIo_t *p_cdio)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_get_discmode(p_cdio) );
 }
 
 CdioTrayStatus CLibcdio::mmc_get_tray_status(const CdIo_t* p_cdio)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   int status = ::mmc_get_tray_status(p_cdio);
   switch (status)
@@ -166,28 +166,28 @@ CdioTrayStatus CLibcdio::mmc_get_tray_status(const CdIo_t* p_cdio)
 
 driver_return_code_t CLibcdio::cdio_eject_media(CdIo_t** p_cdio)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_eject_media(p_cdio) );
 }
 
 track_t CLibcdio::cdio_get_last_track_num(const CdIo_t *p_cdio)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_get_last_track_num(p_cdio) );
 }
 
 lsn_t CLibcdio::cdio_get_track_lsn(const CdIo_t *p_cdio, track_t i_track)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_get_track_lsn(p_cdio, i_track) );
 }
 
 lsn_t CLibcdio::cdio_get_track_last_lsn(const CdIo_t *p_cdio, track_t i_track)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_get_track_last_lsn(p_cdio, i_track) );
 }
@@ -195,14 +195,14 @@ lsn_t CLibcdio::cdio_get_track_last_lsn(const CdIo_t *p_cdio, track_t i_track)
 driver_return_code_t CLibcdio::cdio_read_audio_sectors(
     const CdIo_t *p_cdio, void *p_buf, lsn_t i_lsn, uint32_t i_blocks)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   return( ::cdio_read_audio_sectors(p_cdio, p_buf, i_lsn, i_blocks) );
 }
 
 driver_return_code_t CLibcdio::cdio_close_tray(const char* psz_source, driver_id_t* driver_id)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
   return (::cdio_close_tray(psz_source, driver_id));
 }
 
@@ -213,25 +213,25 @@ const char* CLibcdio::cdio_driver_errmsg(driver_return_code_t drc)
 
 char* CLibcdio::GetDeviceFileName()
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   // If We don't have a DVD device initially present (Darwin or a USB DVD drive),
   // We have to keep checking in case one appears.
   if (s_defaultDevice && strlen(s_defaultDevice) == 0)
   {
     free(s_defaultDevice);
-    s_defaultDevice = NULL;
+    s_defaultDevice = nullptr;
   }
 
-  if (s_defaultDevice == NULL)
+  if (s_defaultDevice == nullptr)
   {
     std::string strEnvDvd = CEnvironment::getenv("KODI_DVD_DEVICE");
     if (!strEnvDvd.empty())
       s_defaultDevice = strdup(strEnvDvd.c_str());
     else
     {
-      CdIo_t *p_cdio = ::cdio_open(NULL, DRIVER_UNKNOWN);
-      if (p_cdio != NULL)
+      CdIo_t *p_cdio = ::cdio_open(nullptr, DRIVER_UNKNOWN);
+      if (p_cdio != nullptr)
       {
         s_defaultDevice = strdup(::cdio_get_arg(p_cdio, "source"));
         ::cdio_destroy(p_cdio);
@@ -275,9 +275,8 @@ bool CCdIoSupport::CloseTray()
   return false;
 }
 
-HANDLE CCdIoSupport::OpenCDROM()
-{
-  std::unique_lock lock(*m_cdio);
+HANDLE CCdIoSupport::OpenCDROM() const {
+  std::lock_guard lock(*m_cdio);
 
   char* source_name = m_cdio->GetDeviceFileName();
   CdIo* cdio = ::cdio_open(source_name, DRIVER_UNKNOWN);
@@ -285,21 +284,19 @@ HANDLE CCdIoSupport::OpenCDROM()
   return reinterpret_cast<HANDLE>(cdio);
 }
 
-HANDLE CCdIoSupport::OpenIMAGE( std::string& strFilename )
-{
-  std::unique_lock lock(*m_cdio);
+HANDLE CCdIoSupport::OpenIMAGE( std::string& strFilename ) const {
+  std::lock_guard lock(*m_cdio);
 
   CdIo* cdio = ::cdio_open(strFilename.c_str(), DRIVER_UNKNOWN);
 
   return reinterpret_cast<HANDLE>(cdio);
 }
 
-int CCdIoSupport::ReadSector(HANDLE hDevice, DWORD dwSector, char* lpczBuffer)
-{
-  std::unique_lock lock(*m_cdio);
+int CCdIoSupport::ReadSector(HANDLE hDevice, DWORD dwSector, char* lpczBuffer) const {
+  std::lock_guard lock(*m_cdio);
 
   CdIo* cdio = (CdIo*) hDevice;
-  if ( cdio == NULL )
+  if ( cdio == nullptr)
     return -1;
 
   if ( ::cdio_read_mode1_sector( cdio, lpczBuffer, dwSector, false ) == 0 )
@@ -308,12 +305,11 @@ int CCdIoSupport::ReadSector(HANDLE hDevice, DWORD dwSector, char* lpczBuffer)
   return -1;
 }
 
-int CCdIoSupport::ReadSectorMode2(HANDLE hDevice, DWORD dwSector, char* lpczBuffer)
-{
-  std::unique_lock lock(*m_cdio);
+int CCdIoSupport::ReadSectorMode2(HANDLE hDevice, DWORD dwSector, char* lpczBuffer) const {
+  std::lock_guard lock(*m_cdio);
 
   CdIo* cdio = (CdIo*) hDevice;
-  if ( cdio == NULL )
+  if ( cdio == nullptr)
     return -1;
 
   if ( ::cdio_read_mode2_sector( cdio, lpczBuffer, dwSector, false ) == 0 )
@@ -322,12 +318,11 @@ int CCdIoSupport::ReadSectorMode2(HANDLE hDevice, DWORD dwSector, char* lpczBuff
   return -1;
 }
 
-int CCdIoSupport::ReadSectorCDDA(HANDLE hDevice, DWORD dwSector, char* lpczBuffer)
-{
-  std::unique_lock lock(*m_cdio);
+int CCdIoSupport::ReadSectorCDDA(HANDLE hDevice, DWORD dwSector, char* lpczBuffer) const {
+  std::lock_guard lock(*m_cdio);
 
   CdIo* cdio = (CdIo*) hDevice;
-  if ( cdio == NULL )
+  if ( cdio == nullptr)
     return -1;
 
   if ( ::cdio_read_audio_sector( cdio, lpczBuffer, dwSector ) == 0 )
@@ -336,13 +331,12 @@ int CCdIoSupport::ReadSectorCDDA(HANDLE hDevice, DWORD dwSector, char* lpczBuffe
   return -1;
 }
 
-void CCdIoSupport::CloseCDROM(HANDLE hDevice)
-{
-  std::unique_lock lock(*m_cdio);
+void CCdIoSupport::CloseCDROM(HANDLE hDevice) const {
+  std::lock_guard lock(*m_cdio);
 
   CdIo* cdio = (CdIo*) hDevice;
 
-  if ( cdio == NULL )
+  if ( cdio == nullptr)
     return ;
 
   ::cdio_destroy( cdio );
@@ -471,7 +465,7 @@ void CCdIoSupport::PrintAnalysis(int fs, int num_audio)
 
 int CCdIoSupport::ReadBlock(int superblock, uint32_t offset, uint8_t bufnum, track_t track_num)
 {
-  std::unique_lock lock(*m_cdio);
+  std::lock_guard lock(*m_cdio);
 
   unsigned int track_sec_count = ::cdio_get_track_sec_count(cdio, track_num);
   memset(buffer[bufnum], 0, CDIO_CD_FRAMESIZE);
@@ -502,8 +496,7 @@ int CCdIoSupport::ReadBlock(int superblock, uint32_t offset, uint8_t bufnum, tra
   return 0;
 }
 
-bool CCdIoSupport::IsIt(int num)
-{
+bool CCdIoSupport::IsIt(int num) const {
   signature_t *sigp = &sigs[num];
   int len = strlen(sigp->sig_str);
 
@@ -511,40 +504,34 @@ bool CCdIoSupport::IsIt(int num)
   return 0 == memcmp(&buffer[sigp->buf_num][sigp->offset], sigp->sig_str, len);
 }
 
-int CCdIoSupport::IsHFS(void)
-{
+int CCdIoSupport::IsHFS(void) const {
   return (0 == memcmp(&buffer[1][512], "PM", 2)) ||
          (0 == memcmp(&buffer[1][512], "TS", 2)) ||
          (0 == memcmp(&buffer[1][1024], "BD", 2));
 }
 
-int CCdIoSupport::Is3DO(void)
-{
+int CCdIoSupport::Is3DO(void) const {
   return (0 == memcmp(&buffer[1][0], "\x01\x5a\x5a\x5a\x5a\x5a\x01", 7)) &&
          (0 == memcmp(&buffer[1][40], "CD-ROM", 6));
 }
 
-int CCdIoSupport::IsJoliet(void)
-{
+int CCdIoSupport::IsJoliet(void) const {
   return 2 == buffer[3][0] && buffer[3][88] == 0x25 && buffer[3][89] == 0x2f;
 }
 
-int CCdIoSupport::IsUDF(void)
-{
+int CCdIoSupport::IsUDF(void) const {
   return 2 == ((uint16_t)buffer[5][0] | ((uint16_t)buffer[5][1] << 8));
 }
 
 /* ISO 9660 volume space in M2F1_SECTOR_SIZE byte units */
-int CCdIoSupport::GetSize(void)
-{
+int CCdIoSupport::GetSize(void) const {
   return ((buffer[0][80] & 0xff) |
           ((buffer[0][81] & 0xff) << 8) |
           ((buffer[0][82] & 0xff) << 16) |
           ((buffer[0][83] & 0xff) << 24));
 }
 
-int CCdIoSupport::GetJolietLevel( void )
-{
+int CCdIoSupport::GetJolietLevel( void ) const {
   switch (buffer[3][90])
   {
   case 0x40:
@@ -562,7 +549,7 @@ int CCdIoSupport::GetJolietLevel( void )
 
 int CCdIoSupport::GuessFilesystem(int start_session, track_t track_num)
 {
-  std::unique_lock lock(*m_cdio);
+  std::lock_guard lock(*m_cdio);
 
   int ret = FS_UNKNOWN;
   cdio_iso_analysis_t anal;
@@ -639,22 +626,21 @@ int CCdIoSupport::GuessFilesystem(int start_session, track_t track_num)
   return ret;
 }
 
-void CCdIoSupport::GetCdTextInfo(xbmc_cdtext_t &xcdt, int trackNum)
-{
+void CCdIoSupport::GetCdTextInfo(xbmc_cdtext_t &xcdt, int trackNum) const {
   // cdtext disabled for windows as some setup doesn't like mmc commands
   // and stall for over a minute in cdio_get_cdtext 83
 #if !defined(TARGET_WINDOWS)
-  std::unique_lock lock(*m_cdio);
+  std::lock_guard lock(*m_cdio);
 
   // Get the CD-Text , if any
 #if defined(LIBCDIO_VERSION_NUM) && (LIBCDIO_VERSION_NUM >= 84)
-  cdtext_t *pcdtext = static_cast<cdtext_t*>( cdio_get_cdtext(cdio) );
+  auto pcdtext = static_cast<cdtext_t*>( cdio_get_cdtext(cdio) );
 #else
   //! @todo - remove after Ubuntu 16.04 (Xenial) is EOL
   cdtext_t *pcdtext = (cdtext_t *)::cdio_get_cdtext(cdio, trackNum);
 #endif
 
-  if (pcdtext == NULL)
+  if (pcdtext == nullptr)
     return ;
 
 #if defined(LIBCDIO_VERSION_NUM) && (LIBCDIO_VERSION_NUM >= 84)
@@ -673,19 +659,19 @@ void CCdIoSupport::GetCdTextInfo(xbmc_cdtext_t &xcdt, int trackNum)
 
 CCdInfo* CCdIoSupport::GetCdInfo(char* cDeviceFileName)
 {
-  std::unique_lock lock(*m_cdio);
+  std::lock_guard lock(*m_cdio);
 
   char* source_name;
-  if(cDeviceFileName == NULL)
+  if(cDeviceFileName == nullptr)
     source_name = m_cdio->GetDeviceFileName();
   else
     source_name = cDeviceFileName;
 
   cdio = ::cdio_open(source_name, DRIVER_UNKNOWN);
-  if (cdio == NULL)
+  if (cdio == nullptr)
   {
     CLog::Log(LOGERROR, "{}: Error in automatically selecting driver with input", __FUNCTION__);
-    return NULL;
+    return nullptr;
   }
 
   bool bIsCDRom = true;
@@ -695,7 +681,7 @@ CCdInfo* CCdIoSupport::GetCdInfo(char* cDeviceFileName)
   {
 #if !defined(TARGET_DARWIN)
     ::cdio_destroy(cdio);
-    return NULL;
+    return nullptr;
 #else
     m_nFirstTrackNum = 1;
     bIsCDRom = false;
@@ -707,14 +693,14 @@ CCdInfo* CCdIoSupport::GetCdInfo(char* cDeviceFileName)
   {
 #if !defined(TARGET_DARWIN)
     ::cdio_destroy(cdio);
-    return NULL;
+    return nullptr;
 #else
     m_nNumTracks = 1;
     bIsCDRom = false;
 #endif
   }
 
-  CCdInfo* info = new CCdInfo;
+  auto info = new CCdInfo;
   info->SetFirstTrack( m_nFirstTrackNum );
   info->SetTrackCount( m_nNumTracks );
 
@@ -735,7 +721,7 @@ CCdInfo* CCdIoSupport::GetCdInfo(char* cDeviceFileName)
       CLog::Log(LOGDEBUG, "cdio_track_msf for track {} failed, I give up.", i);
       delete info;
       ::cdio_destroy(cdio);
-      return NULL;
+      return nullptr;
     }
 
     trackinfo ti;
@@ -919,9 +905,8 @@ int CCdIoSupport::CddbDecDigitSum(int n)
 }
 
 // Return the number of seconds (discarding frame portion) of an MSF
-unsigned int CCdIoSupport::MsfSeconds(msf_t *msf)
-{
-  std::unique_lock lock(*m_cdio);
+unsigned int CCdIoSupport::MsfSeconds(msf_t *msf) const {
+  std::lock_guard lock(*m_cdio);
 
   return ::cdio_from_bcd8(msf->m)*60 + ::cdio_from_bcd8(msf->s);
 }
@@ -935,7 +920,7 @@ unsigned int CCdIoSupport::MsfSeconds(msf_t *msf)
 
 uint32_t CCdIoSupport::CddbDiscId()
 {
-  std::unique_lock lock(*m_cdio);
+  std::lock_guard lock(*m_cdio);
 
   int i, t, n = 0;
   msf_t start_msf;

@@ -28,13 +28,13 @@ bool CVideoLibraryScanningJob::Cancel()
   return true;
 }
 
-bool CVideoLibraryScanningJob::Equals(const CJob* job) const
+bool CVideoLibraryScanningJob::operator==(const CJob* job) const
 {
   if (strcmp(job->GetType(), GetType()) != 0)
     return false;
 
-  const CVideoLibraryScanningJob* scanningJob = dynamic_cast<const CVideoLibraryScanningJob*>(job);
-  if (scanningJob == NULL)
+  auto scanningJob = dynamic_cast<const CVideoLibraryScanningJob*>(job);
+  if (scanningJob == nullptr)
     return false;
 
   return m_directory == scanningJob->m_directory &&

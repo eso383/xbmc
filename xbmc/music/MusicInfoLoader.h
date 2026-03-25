@@ -32,12 +32,11 @@ protected:
   void OnLoaderStart() override;
   void OnLoaderFinish() override;
   void LoadCache(const std::string& strFileName, CFileItemList& items);
-  void SaveCache(const std::string& strFileName, const CFileItemList& items);
-
+  void SaveCache(const std::string& strFileName, CFileItemList& items);
 protected:
   std::string m_strCacheFileName;
   CFileItemList* m_mapFileItems;
-  std::map<std::string, std::vector<CSong>> m_songsMap;
+  MAPSONGS m_songsMap;
   std::string m_strPrevPath;
   CMusicDatabase m_musicDatabase;
   unsigned int m_databaseHits = 0;

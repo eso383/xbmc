@@ -81,11 +81,11 @@ private:
   bool ShouldNavigateToGridContainer(int iAction);
 
   void StartRefreshTimelineItemsThread();
-  void StopRefreshTimelineItemsThread();
+  void StopRefreshTimelineItemsThread() const;
 
   void RefreshView(CGUIMessage& message, bool bInitGridControl);
 
-  int GetCurrentListItemIndex(const std::shared_ptr<const CFileItem>& item) const;
+  int GetCurrentListItemIndex(const std::shared_ptr<const CFileItem>& item);
 
   std::unique_ptr<CPVRRefreshTimelineItemsThread> m_refreshTimelineItemsThread;
   std::atomic_bool m_bRefreshTimelineItems{false};
@@ -100,14 +100,14 @@ class CGUIWindowPVRTVGuide : public CGUIWindowPVRGuideBase
 {
 public:
   CGUIWindowPVRTVGuide() : CGUIWindowPVRGuideBase(false, WINDOW_TV_GUIDE, "MyPVRGuide.xml") {}
-  std::string GetRootPath() override;
+  std::string GetRootPath() const override;
 };
 
 class CGUIWindowPVRRadioGuide : public CGUIWindowPVRGuideBase
 {
 public:
   CGUIWindowPVRRadioGuide() : CGUIWindowPVRGuideBase(true, WINDOW_RADIO_GUIDE, "MyPVRGuide.xml") {}
-  std::string GetRootPath() override;
+  std::string GetRootPath() const override;
 };
 
 class CPVRRefreshTimelineItemsThread : public CThread
@@ -122,8 +122,8 @@ public:
   void Stop();
 
 private:
-  CGUIWindowPVRGuideBase* m_pGuideWindow{nullptr};
-  CEvent m_ready{true};
-  CEvent m_done{false};
+  CGUIWindowPVRGuideBase* m_pGuideWindow;
+  CEvent m_ready;
+  CEvent m_done;
 };
 } // namespace PVR

@@ -10,7 +10,6 @@
 
 #include "AEPackIEC61937.h"
 #include "AEStreamInfo.h"
-#include "PackerMAT.h"
 #include "utils/log.h"
 
 #include <array>
@@ -83,15 +82,6 @@ bool CAEBitstreamPacker::PackPause(CAEStreamInfo &info, unsigned int millis, boo
   switch (info.m_type)
   {
     case CAEStreamInfo::STREAM_TYPE_TRUEHD:
-    {
-      const auto& trueHDSilence = CPackerMAT::GenerateIECSilenceBurst();
-      memcpy(m_packedBuffer, trueHDSilence.data(), trueHDSilence.size());
-      m_dataSize = static_cast<unsigned int>(trueHDSilence.size());
-      m_pauseDuration = millis;
-      logM(LOGDEBUG, "TrueHD pause burst: millis=[{}], iecBursts=[{}], size=[{}]",
-                     millis, iecBursts, m_dataSize);
-      break;
-    }
     case CAEStreamInfo::STREAM_TYPE_EAC3:
       m_dataSize = CAEPackIEC61937::PackPause(m_packedBuffer, millis, GetOutputChannelMap(info).Count() * 2, GetOutputRate(info), 4, info.m_sampleRate);
       m_pauseDuration = millis;
@@ -114,11 +104,7 @@ bool CAEBitstreamPacker::PackPause(CAEStreamInfo &info, unsigned int millis, boo
 
   if (!iecBursts)
   {
-    // For TrueHD, never zero the MAT silence frame - the whole point is to
-    // maintain the MAT frame structure so receivers keep their Atmos lock.
-    // For other codecs, zeroing is fine as it just produces digital silence.
-    if (info.m_type != CAEStreamInfo::STREAM_TYPE_TRUEHD)
-      memset(m_packedBuffer, 0, m_dataSize);
+    memset(m_packedBuffer, 0, m_dataSize);
   }
 
   return true;
@@ -181,7 +167,7 @@ void CAEBitstreamPacker::PackEAC3(CAEStreamInfo &info, uint8_t* data, int size)
   {
     /* multiple frames needed to achieve 6 blocks as required by IEC 61937-3:2007 */
 
-    if (m_eac3.empty())
+    if (m_eac3.size() == 0)
       m_eac3.resize(EAC3_MAX_BURST_PAYLOAD_SIZE);
 
     unsigned int newsize = m_eac3Size + size;

@@ -9,11 +9,10 @@
 #include "AppTranslator.h"
 
 #include "input/keyboard/KeyIDs.h"
-#include "utils/Map.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
-#include <string_view>
+#include <map>
 
 using namespace KODI;
 using namespace KEYMAP;
@@ -21,11 +20,11 @@ using namespace KEYMAP;
 namespace
 {
 
-using ActionName = std::string_view;
+using ActionName = std::string;
 using CommandID = uint32_t;
 
 #ifdef TARGET_WINDOWS
-constexpr auto AppCommands = make_map<ActionName, CommandID>({
+static const std::map<ActionName, CommandID> AppCommands = {
     {"browser_back", APPCOMMAND_BROWSER_BACKWARD},
     {"browser_forward", APPCOMMAND_BROWSER_FORWARD},
     {"browser_refresh", APPCOMMAND_BROWSER_REFRESH},
@@ -49,8 +48,7 @@ constexpr auto AppCommands = make_map<ActionName, CommandID>({
     {"fastforward", APPCOMMAND_MEDIA_FAST_FORWARD},
     {"rewind", APPCOMMAND_MEDIA_REWIND},
     {"channelup", APPCOMMAND_MEDIA_CHANNEL_UP},
-    {"channeldown", APPCOMMAND_MEDIA_CHANNEL_DOWN},
-});
+    {"channeldown", APPCOMMAND_MEDIA_CHANNEL_DOWN}};
 #endif
 
 } // anonymous namespace

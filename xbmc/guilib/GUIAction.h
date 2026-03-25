@@ -43,7 +43,7 @@ public:
     * Get the condition of this executable action (may be empty)
     * @return condition - The condition that dictates the action execution (or an empty string)
     */
-    const std::string& GetCondition() const { return m_condition; }
+    std::string GetCondition() const;
 
     /**
     * Checks if the executable action has any condition
@@ -55,18 +55,13 @@ public:
     * Get the action string of this executable action
     * @return action - The action string
     */
-    const std::string& GetAction() const { return m_action; }
+    std::string GetAction() const;
 
     /**
     * Sets/Replaces the action string of this executable action
     * @param action - The action string
     */
     void SetAction(const std::string& action);
-
-    bool operator==(const CExecutableAction& right) const
-    {
-      return m_condition == right.m_condition && m_action == right.m_action;
-    }
 
   private:
     /**
@@ -127,11 +122,6 @@ public:
    * Prune any executable actions stored in the CGUIAction
    */
   void Reset();
-
-  bool operator==(const CGUIAction& rhs) const
-  {
-    return m_actions == rhs.m_actions && m_sendThreadMessages == rhs.m_sendThreadMessages;
-  }
 
 private:
   std::vector<CExecutableAction> m_actions;

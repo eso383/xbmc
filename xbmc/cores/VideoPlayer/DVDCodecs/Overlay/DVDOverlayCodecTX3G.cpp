@@ -41,7 +41,7 @@ struct StyleRecord
   uint16_t fontID;
   uint8_t faceStyleFlags; // FaceStyleFlag
   uint8_t fontSize;
-  KODI::UTILS::COLOR::Color textColorARGB;
+  UTILS::COLOR::Color textColorARGB;
   unsigned int textColorAlphaCh;
 };
 
@@ -56,13 +56,13 @@ void ConvertStyleToTags(std::string& strUTF8, const StyleRecord& style, bool clo
     strUTF8.append(closingTags ? "{\\i0}" : "{\\i1}");
   if (style.faceStyleFlags & UNDERLINE)
     strUTF8.append(closingTags ? "{\\u0}" : "{\\u1}");
-  if (style.textColorARGB != KODI::UTILS::COLOR::WHITE)
+  if (style.textColorARGB != UTILS::COLOR::WHITE)
   {
     if (closingTags)
       strUTF8 += "{\\c}";
     else
     {
-      KODI::UTILS::COLOR::Color color = KODI::UTILS::COLOR::ConvertToBGR(style.textColorARGB);
+      UTILS::COLOR::Color color = UTILS::COLOR::ConvertToBGR(style.textColorARGB);
       strUTF8 += StringUtils::Format("{{\\c&H{:06x}&}}", color);
     }
   }
@@ -98,7 +98,7 @@ OverlayMessage CDVDOverlayCodecTX3G::Decode(DemuxPacket* pPacket)
 
   CDVDOverlayCodec::GetAbsoluteTimes(PTSStartTime, PTSStopTime, pPacket);
 
-  char* data = reinterpret_cast<char*>(pPacket->pData);
+  auto data = reinterpret_cast<char*>(pPacket->pData);
 
   // Parse the packet as a TX3G TextSample.
   CCharArrayParser sampleData;
@@ -137,7 +137,7 @@ OverlayMessage CDVDOverlayCodecTX3G::Decode(DemuxPacket* pPacket)
     else if (boxType == BOX_TYPE_STYL)
     {
       // Parse the contained StyleRecords
-      if (!styleRecords.empty())
+      if (styleRecords.size() != 0)
       {
         CLog::Log(LOGDEBUG, "{} - Found additional TextStyleBox, skipping", __FUNCTION__);
         sampleData.SkipChars(boxSize - MP4_BOX_HEADER_SIZE);
@@ -171,8 +171,7 @@ OverlayMessage CDVDOverlayCodecTX3G::Decode(DemuxPacket* pPacket)
         styleRec.fontID = sampleData.ReadNextUnsignedShort();
         styleRec.faceStyleFlags = sampleData.ReadNextUnsignedChar();
         styleRec.fontSize = sampleData.ReadNextUnsignedChar();
-        styleRec.textColorARGB =
-            KODI::UTILS::COLOR::ConvertToARGB(sampleData.ReadNextUnsignedInt());
+        styleRec.textColorARGB = UTILS::COLOR::ConvertToARGB(sampleData.ReadNextUnsignedInt());
         styleRec.textColorAlphaCh = (styleRec.textColorARGB & 0xFF000000) >> 24;
         // clamp bgnChar/bgnChar to textLength, we alloc enough space above and
         // this fixes broken encoders that do not handle endChar correctly.

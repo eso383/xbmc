@@ -9,15 +9,11 @@
 #include "VideoDbUrl.h"
 
 #include "filesystem/VideoDatabaseDirectory.h"
-#include "filesystem/VideoDatabaseDirectory/DirectoryNode.h"
-#include "filesystem/VideoDatabaseDirectory/QueryParams.h"
 #include "playlists/SmartPlayList.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 
-using namespace KODI;
 using namespace XFILE;
-using namespace VIDEODATABASEDIRECTORY;
 
 CVideoDbUrl::CVideoDbUrl()
   : CDbUrl()
@@ -32,33 +28,33 @@ bool CVideoDbUrl::parse()
     return false;
 
   std::string path = m_url.Get();
-  const auto dirType = CVideoDatabaseDirectory::GetDirectoryType(path);
-  const auto childType = CVideoDatabaseDirectory::GetDirectoryChildType(path);
+  VIDEODATABASEDIRECTORY::NODE_TYPE dirType = CVideoDatabaseDirectory::GetDirectoryType(path);
+  VIDEODATABASEDIRECTORY::NODE_TYPE childType = CVideoDatabaseDirectory::GetDirectoryChildType(path);
 
   switch (dirType)
   {
-    case NodeType::MOVIES_OVERVIEW:
-    case NodeType::RECENTLY_ADDED_MOVIES:
-    case NodeType::TITLE_MOVIES:
-    case NodeType::SETS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MOVIES_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_MOVIES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_MOVIES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_SETS:
       m_type = "movies";
       break;
 
-    case NodeType::TVSHOWS_OVERVIEW:
-    case NodeType::TITLE_TVSHOWS:
-    case NodeType::SEASONS:
-    case NodeType::EPISODES:
-    case NodeType::RECENTLY_ADDED_EPISODES:
-    case NodeType::INPROGRESS_TVSHOWS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TVSHOWS_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_TVSHOWS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_SEASONS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_EPISODES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_EPISODES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_INPROGRESS_TVSHOWS:
       m_type = "tvshows";
       break;
 
-    case NodeType::MUSICVIDEOS_OVERVIEW:
-    case NodeType::RECENTLY_ADDED_MUSICVIDEOS:
-    case NodeType::TITLE_MUSICVIDEOS:
-    case NodeType::MUSICVIDEOS_ALBUM:
+
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MUSICVIDEOS_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_MUSICVIDEOS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_MUSICVIDEOS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MUSICVIDEOS_ALBUM:
       m_type = "musicvideos";
-      break;
 
     default:
       break;
@@ -66,85 +62,81 @@ bool CVideoDbUrl::parse()
 
   switch (childType)
   {
-    case NodeType::MOVIES_OVERVIEW:
-    case NodeType::TITLE_MOVIES:
-    case NodeType::RECENTLY_ADDED_MOVIES:
-    case NodeType::MOVIE_ASSET_TYPES:
-    case NodeType::MOVIE_ASSETS:
-    case NodeType::MOVIE_ASSETS_VERSIONS:
-    case NodeType::MOVIE_ASSETS_EXTRAS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MOVIES_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_MOVIES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_MOVIES:
       m_type = "movies";
       m_itemType = "movies";
       break;
 
-    case NodeType::TVSHOWS_OVERVIEW:
-    case NodeType::TITLE_TVSHOWS:
-    case NodeType::INPROGRESS_TVSHOWS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TVSHOWS_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_TVSHOWS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_INPROGRESS_TVSHOWS:
       m_type = "tvshows";
       m_itemType = "tvshows";
       break;
 
-    case NodeType::SEASONS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_SEASONS:
       m_type = "tvshows";
       m_itemType = "seasons";
       break;
 
-    case NodeType::EPISODES:
-    case NodeType::RECENTLY_ADDED_EPISODES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_EPISODES:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_EPISODES:
       m_type = "tvshows";
       m_itemType = "episodes";
       break;
 
-    case NodeType::MUSICVIDEOS_OVERVIEW:
-    case NodeType::RECENTLY_ADDED_MUSICVIDEOS:
-    case NodeType::TITLE_MUSICVIDEOS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MUSICVIDEOS_OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_RECENTLY_ADDED_MUSICVIDEOS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TITLE_MUSICVIDEOS:
       m_type = "musicvideos";
       m_itemType = "musicvideos";
       break;
 
-    case NodeType::GENRE:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_GENRE:
       m_itemType = "genres";
       break;
 
-    case NodeType::ACTOR:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_ACTOR:
       m_itemType = "actors";
       break;
 
-    case NodeType::YEAR:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_YEAR:
       m_itemType = "years";
       break;
 
-    case NodeType::DIRECTOR:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_DIRECTOR:
       m_itemType = "directors";
       break;
 
-    case NodeType::STUDIO:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_STUDIO:
       m_itemType = "studios";
       break;
 
-    case NodeType::COUNTRY:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_COUNTRY:
       m_itemType = "countries";
       break;
 
-    case NodeType::SETS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_SETS:
       m_itemType = "sets";
       break;
 
-    case NodeType::MUSICVIDEOS_ALBUM:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_MUSICVIDEOS_ALBUM:
       m_type = "musicvideos";
       m_itemType = "albums";
       break;
 
-    case NodeType::TAGS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_TAGS:
       m_itemType = "tags";
       break;
 
-    case NodeType::VIDEOVERSIONS:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_VIDEOVERSIONS:
       m_itemType = "videoversions";
       break;
 
-    case NodeType::ROOT:
-    case NodeType::OVERVIEW:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_ROOT:
+    case VIDEODATABASEDIRECTORY::NODE_TYPE_OVERVIEW:
     default:
       return false;
   }
@@ -153,7 +145,7 @@ bool CVideoDbUrl::parse()
     return false;
 
   // parse query params
-  CQueryParams queryParams;
+  VIDEODATABASEDIRECTORY::CQueryParams queryParams;
   if (!CVideoDatabaseDirectory::GetQueryParams(path, queryParams))
     return false;
 
@@ -195,10 +187,6 @@ bool CVideoDbUrl::parse()
     AddOption("year", (int)queryParams.GetYear());
   if (queryParams.GetVideoVersionId() != -1)
     AddOption("videoversionid", (int)queryParams.GetVideoVersionId());
-  if (queryParams.GetVideoAssetType() != -1)
-    AddOption("assetType", static_cast<int>(queryParams.GetVideoAssetType()));
-  if (queryParams.GetVideoAssetId() != -1)
-    AddOption("assetid", static_cast<int>(queryParams.GetVideoAssetId()));
 
   return true;
 }
@@ -216,7 +204,7 @@ bool CVideoDbUrl::validateOption(const std::string &key, const CVariant &value)
   if (!value.isString())
     return false;
 
-  PLAYLIST::CSmartPlaylist xspFilter;
+  CSmartPlaylist xspFilter;
   if (!xspFilter.LoadFromJson(value.asString()))
     return false;
 

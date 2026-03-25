@@ -40,5 +40,5 @@ protected:
   bool MoveCurrentPlayListItem(int iItem, int iAction, bool bUpdate = true);
 
   int m_movingFrom;
-  std::vector<CMediaSource> m_shares;
+  VECSOURCES m_shares;
 };

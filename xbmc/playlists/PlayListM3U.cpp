@@ -12,20 +12,16 @@
 #include "URL.h"
 #include "Util.h"
 #include "filesystem/File.h"
-#include "music/MusicFileItemClassify.h"
 #include "music/tags/MusicInfoTag.h"
 #include "utils/CharsetConverter.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
-#include "video/VideoFileItemClassify.h"
 #include "video/VideoInfoTag.h"
 
 #include <inttypes.h>
 
+using namespace PLAYLIST;
 using namespace XFILE;
-
-namespace KODI::PLAYLIST
-{
 
 const char* CPlayListM3U::StartMarker = "#EXTCPlayListM3U::M3U";
 const char* CPlayListM3U::InfoMarker = "#EXTINF";
@@ -64,6 +60,7 @@ CPlayListM3U::~CPlayListM3U(void) = default;
 
 bool CPlayListM3U::Load(const std::string& strFileName)
 {
+  char szLine[4096];
   std::string strLine;
   std::string strInfo;
   std::vector<std::pair<std::string, std::string> > properties;
@@ -88,8 +85,9 @@ bool CPlayListM3U::Load(const std::string& strFileName)
     return false;
   }
 
-  while (file.ReadLine(strLine))
+  while (file.ReadString(szLine, 4095))
   {
+    strLine = szLine;
     StringUtils::Trim(strLine);
 
     if (StringUtils::StartsWith(strLine, InfoMarker))
@@ -145,38 +143,38 @@ bool CPlayListM3U::Load(const std::string& strFileName)
              !StringUtils::StartsWith(strLine, ArtistMarker) &&
              !StringUtils::StartsWith(strLine, AlbumMarker))
     {
-      std::string filePath = strLine;
+      std::string strFileName = strLine;
 
-      if (!filePath.empty() && filePath[0] == '#')
+      if (!strFileName.empty() && strFileName[0] == '#')
         continue; // assume a comment or something else we don't support
 
       // Skip self - do not load playlist recursively
       // We compare case-less in case user has input incorrect case of the current playlist
-      if (StringUtils::EqualsNoCase(URIUtils::GetFileName(filePath), m_strPlayListName))
+      if (StringUtils::EqualsNoCase(URIUtils::GetFileName(strFileName), m_strPlayListName))
         continue;
 
-      if (!filePath.empty())
+      if (strFileName.length() > 0)
       {
         if (!utf8)
-          g_charsetConverter.unknownToUTF8(filePath);
+          g_charsetConverter.unknownToUTF8(strFileName);
 
         // If no info was read from from the extended tag information, use the file name
-        if (strInfo.empty())
+        if (strInfo.length() == 0)
         {
-          strInfo = URIUtils::GetFileName(filePath);
+          strInfo = URIUtils::GetFileName(strFileName);
         }
 
         // should substitution occur before or after charset conversion??
-        filePath = URIUtils::SubstitutePath(filePath);
+        strFileName = URIUtils::SubstitutePath(strFileName);
 
         // Get the full path file name and add it to the the play list
-        CUtil::GetQualifiedFilename(m_strBasePath, filePath);
+        CUtil::GetQualifiedFilename(m_strBasePath, strFileName);
         CFileItemPtr newItem(new CFileItem(strInfo));
-        newItem->SetPath(filePath);
+        newItem->SetPath(strFileName);
         if (iStartOffset != 0 || iEndOffset != 0)
         {
           newItem->SetStartOffset(iStartOffset);
-          newItem->SetStartPartNumber(1);
+          newItem->m_lStartPartNumber = 1;
           newItem->SetProperty("item_start", iStartOffset);
           newItem->SetEndOffset(iEndOffset);
           // Prevent load message from file and override offset set here
@@ -185,10 +183,9 @@ bool CPlayListM3U::Load(const std::string& strFileName)
           if (iEndOffset)
             lDuration = static_cast<int>(CUtil::ConvertMilliSecsToSecsIntRounded(iEndOffset - iStartOffset));
         }
-        if (VIDEO::IsVideo(*newItem) &&
-            !newItem->HasVideoInfoTag()) // File is a video and needs a VideoInfoTag
+        if (newItem->IsVideo() && !newItem->HasVideoInfoTag()) // File is a video and needs a VideoInfoTag
           newItem->GetVideoInfoTag()->Reset(); // Force VideoInfoTag creation
-        if (lDuration && MUSIC::IsAudio(*newItem))
+        if (lDuration && newItem->IsAudio())
           newItem->GetMusicInfoTag()->SetDuration(lDuration);
         for (auto &prop : properties)
         {
@@ -218,7 +215,7 @@ bool CPlayListM3U::Load(const std::string& strFileName)
 
 void CPlayListM3U::Save(const std::string& strFileName) const
 {
-  if (m_vecItems.empty())
+  if (!m_vecItems.size())
     return;
   bool utf8 = false;
   if (URIUtils::GetExtension(strFileName) == ".m3u8")
@@ -273,7 +270,7 @@ std::map< std::string, std::string > CPlayListM3U::ParseStreamLine(const std::st
 
   // separate the parameters
   std::vector<std::string> vecParams = StringUtils::Split(strParams, ",");
-  for (std::vector<std::string>::iterator i = vecParams.begin(); i != vecParams.end(); ++i)
+  for (auto i = vecParams.begin(); i != vecParams.end(); ++i)
   {
     // split the param, ensure there was an =
     StringUtils::Trim(*i);
@@ -290,4 +287,3 @@ std::map< std::string, std::string > CPlayListM3U::ParseStreamLine(const std::st
   return params;
 }
 
-} // namespace KODI::PLAYLIST

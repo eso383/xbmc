@@ -18,8 +18,7 @@ using namespace KODI;
 using namespace GAME;
 
 CAgentMouse::CAgentMouse(PERIPHERALS::PeripheralPtr peripheral)
-  : m_peripheral(std::move(peripheral)),
-    m_mouseActivity(std::make_unique<CControllerActivity>())
+  : m_peripheral(std::move(peripheral)), m_mouseActivity(std::make_unique<CControllerActivity>())
 {
 }
 
@@ -49,8 +48,7 @@ void CAgentMouse::Deinitialize()
   m_controllerAppearance.reset();
 }
 
-void CAgentMouse::ClearButtonState()
-{
+void CAgentMouse::ClearButtonState() const {
   return m_mouseActivity->ClearButtonState();
 }
 

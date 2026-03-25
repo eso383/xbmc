@@ -31,7 +31,6 @@ CVideoPlayerSubtitle::~CVideoPlayerSubtitle()
   CloseStream(true);
 }
 
-
 void CVideoPlayerSubtitle::Flush()
 {
   SendMessage(std::make_shared<CDVDMsg>(CDVDMsg::GENERAL_FLUSH), 0);
@@ -54,7 +53,7 @@ std::shared_ptr<CDVDOverlayGroup> InitialiseNewOverlayGroup(std::shared_ptr<CDVD
 
 void CVideoPlayerSubtitle::SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priority)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (pMsg->IsType(CDVDMsg::DEMUXER_PACKET))
   {
@@ -102,7 +101,7 @@ void CVideoPlayerSubtitle::SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priori
     for (int i = 0; i < 16; i++)
     {
       uint8_t* color = m_dvdspus.m_clut[i];
-      uint8_t* t = (uint8_t*)pData->m_data[i];
+      auto t = (uint8_t*)pData->m_data[i];
 
 // pData->m_data[i] points to an uint32_t
 // Byte swapping is needed between big and little endian systems
@@ -139,7 +138,7 @@ void CVideoPlayerSubtitle::SendMessage(std::shared_ptr<CDVDMsg> pMsg, int priori
 
 bool CVideoPlayerSubtitle::OpenStream(CDVDStreamInfo &hints, std::string &filename)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   CloseStream(false);
   m_streaminfo = hints;
@@ -184,7 +183,7 @@ bool CVideoPlayerSubtitle::OpenStream(CDVDStreamInfo &hints, std::string &filena
 
 void CVideoPlayerSubtitle::CloseStream(bool bWaitForBuffers)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   m_pSubtitleFileParser.reset();
   m_pOverlayCodec.reset();
@@ -197,7 +196,7 @@ void CVideoPlayerSubtitle::CloseStream(bool bWaitForBuffers)
 
 void CVideoPlayerSubtitle::Process(double pts, double offset)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (m_pSubtitleFileParser)
   {

@@ -15,7 +15,6 @@
 #include "windowing/Resolution.h"
 #include "windowing/gbm/GBMUtils.h"
 
-#include <utility>
 #include <vector>
 
 #include <gbm.h>
@@ -30,7 +29,7 @@ namespace GBM
 
 struct drm_fb
 {
-  struct gbm_bo* bo = nullptr;
+  struct gbm_bo *bo = nullptr;
   uint32_t fb_id;
   uint32_t format;
 };
@@ -40,12 +39,11 @@ class CDRMUtils
 public:
   CDRMUtils() = default;
   virtual ~CDRMUtils();
-  virtual void FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, bool async) {}
+  virtual void FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer) {}
   virtual bool SetVideoMode(const RESOLUTION_INFO& res, struct gbm_bo* bo) { return false; }
   virtual bool SetActive(bool active) { return false; }
   virtual bool InitDrm();
   virtual void DestroyDrm();
-  virtual bool SupportsFencing() { return false; }
 
   int GetFileDescriptor() const { return m_fd; }
   int GetRenderNodeFileDescriptor() const { return m_renderFd; }
@@ -64,16 +62,9 @@ public:
   static uint32_t FourCCWithAlpha(uint32_t fourcc);
   static uint32_t FourCCWithoutAlpha(uint32_t fourcc);
 
-  void SetInFenceFd(int fd) { m_inFenceFd = fd; }
-  int TakeOutFenceFd()
-  {
-    int fd{-1};
-    return std::exchange(m_outFenceFd, fd);
-  }
-
 protected:
   bool OpenDrm(bool needConnector);
-  drm_fb* DrmFbGetFromBo(struct gbm_bo* bo);
+  drm_fb* DrmFbGetFromBo(struct gbm_bo *bo);
 
   int m_fd;
   CDRMConnector* m_connector{nullptr};
@@ -82,13 +73,10 @@ protected:
   CDRMCrtc* m_orig_crtc{nullptr};
   CDRMPlane* m_video_plane{nullptr};
   CDRMPlane* m_gui_plane{nullptr};
-  drmModeModeInfo* m_mode = nullptr;
+  drmModeModeInfo *m_mode = nullptr;
 
   int m_width = 0;
   int m_height = 0;
-
-  int m_inFenceFd{-1};
-  int m_outFenceFd{-1};
 
   std::vector<std::unique_ptr<CDRMPlane>> m_planes;
 
@@ -110,6 +98,6 @@ private:
   std::vector<std::unique_ptr<CDRMCrtc>> m_crtcs;
 };
 
-} // namespace GBM
-} // namespace WINDOWING
-} // namespace KODI
+}
+}
+}

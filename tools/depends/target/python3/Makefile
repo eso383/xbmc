@@ -1,11 +1,8 @@
 include ../../Makefile.include PYTHON3-VERSION ../../download-files.include
 DEPS = ../../Makefile.include Makefile PYTHON3-VERSION ../../download-files.include \
                                  apple.patch \
-                                 process-vm-ready.patch \
-                                 static-compile.patch \
                                  10-android-modules.patch \
-                                 11-android-ctypes.patch \
-                                 12-android-arm.patch
+                                 11-android-ctypes.patch
 
 ifeq ($(findstring apple-darwin, $(HOST)), apple-darwin)
   ifeq ($(OS), darwin_embedded)
@@ -25,11 +22,17 @@ ifeq ($(findstring apple-darwin, $(HOST)), apple-darwin)
   EXTRA_CONFIGURE+= ac_cv_lib_intl_textdomain=yes
 endif
 
+ifeq ($(OS),android)
+  LIBS=-liconv
+endif
+
 ifeq ($(OS), linux)
   EXTRA_CONFIGURE=ac_cv_pthread=yes
   ifeq ($(TARGET_PLATFORM),webos)
     # Force intl check to succeed
     EXTRA_CONFIGURE+=ac_cv_lib_intl_textdomain=yes
+    # Export iconv as LIBS for link ordering (After -lintl from configure search)
+    LIBS=-liconv
   endif
 endif
 
@@ -42,6 +45,7 @@ PY_MODULES = py_cv_module_grp=n/a \
              py_cv_module_readline=n/a \
              py_cv_module__curses=n/a \
              py_cv_module__curses_panel=n/a \
+             py_cv_module__scproxy=n/a \
              py_cv_module_xx=n/a \
              py_cv_module_xxlimited=n/a \
              py_cv_module_xxlimited_35=n/a \
@@ -61,8 +65,7 @@ PY_MODULES+= py_cv_module__decimal=n/a \
 
 
 ifeq ($(OS), darwin_embedded)
-  PY_MODULES+= py_cv_module__posixsubprocess=n/a \
-               py_cv_module__scproxy=n/a
+  PY_MODULES+= py_cv_module__posixsubprocess=n/a
 endif
 
 # configuration settings
@@ -79,9 +82,8 @@ CONFIGURE=./configure --prefix=$(PREFIX) \
                       $(PY_MODULES) \
                       $(EXTRA_CONFIGURE)
 
-# Use LIBS as some platforms (webos) require iconv to be late on the linker line
-# appending to LDFLAGS puts the iconv link argument too early, causing link failures
-export LIBS=$(LINK_ICONV)
+export LDFLAGS
+export LIBS
 
 LIBDYLIB=$(PLATFORM)/libpython$(PYTHON_VERSION).a
 
@@ -91,13 +93,10 @@ $(PLATFORM): $(DEPS) | $(TARBALLS_LOCATION)/$(ARCHIVE).$(HASH_TYPE)
 	rm -rf $(PLATFORM)/*; mkdir -p $(PLATFORM)
 	cd $(PLATFORM); $(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
 	cd $(PLATFORM); patch -p1 -i ../apple.patch
-	cd $(PLATFORM); patch -p1 -i ../static-compile.patch
-	cd $(PLATFORM); patch -p1 -i ../process-vm-ready.patch
 
 ifeq ($(OS),android)
 	cd $(PLATFORM); patch -p1 -i ../10-android-modules.patch
 	cd $(PLATFORM); patch -p1 -i ../11-android-ctypes.patch
-	cd $(PLATFORM); patch -p1 -i ../12-android-arm.patch
 endif
 	cd $(PLATFORM); $(AUTORECONF)
 	cd $(PLATFORM); $(CONFIGURE)

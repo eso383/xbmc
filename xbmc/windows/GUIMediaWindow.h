@@ -19,9 +19,10 @@
 
 class CFileItemList;
 class CGUIViewState;
-enum class SourceType;
-
-class TiXmlElement;
+namespace
+{
+class CGetDirectoryItems;
+}
 
 // base class for all media windows
 class CGUIMediaWindow : public CGUIWindow
@@ -50,7 +51,7 @@ public:
   virtual bool IsFiltered();
   virtual bool IsSameStartFolder(const std::string &dir);
 
-  virtual std::string GetRootPath() { return ""; }
+  virtual std::string GetRootPath() const { return ""; }
 
   const CFileItemList &CurrentDirectory() const;
   const CGUIViewState *GetViewState() const;
@@ -105,7 +106,7 @@ protected:
   virtual void OnCacheFileItems(CFileItemList &items);
   virtual void GetGroupedItems(CFileItemList &items) { }
 
-  void ClearFileItems();
+  void ClearFileItems() const;
   virtual void SortItems(CFileItemList &items);
 
   /*! \brief Check if the given list can be advance filtered or not
@@ -144,7 +145,7 @@ protected:
   virtual bool GetAdvanceFilteredItems(CFileItemList &items);
 
   // check for a disc or connection
-  virtual bool HaveDiscOrConnection(const std::string& strPath, SourceType iDriveType);
+  virtual bool HaveDiscOrConnection(const std::string& strPath, int iDriveType);
   void ShowShareErrorMessage(CFileItem* pItem) const;
 
   void SaveSelectedItemInHistory();
@@ -202,7 +203,7 @@ protected:
   int m_iLastControl;
   std::string m_startDirectory;
 
-  KODI::PLAYLIST::CSmartPlaylist m_filter;
+  CSmartPlaylist m_filter;
   bool m_canFilterAdvanced;
   /*! \brief Contains the path used for filtering (including any active filter)
 

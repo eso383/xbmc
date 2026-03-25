@@ -9,7 +9,6 @@
 #pragma once
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
@@ -129,9 +128,9 @@ namespace XFILE
       // convert the entry into a CFileItem
       CFileItemPtr item = converter(entry.second, label, itemPath, isFolder);
       item->SetPath(itemPath);
-      item->SetFolder(isFolder);
+      item->m_bIsFolder = isFolder;
       if (isFolder)
-        item->SetSize(0);
+        item->m_dwSize = 0;
 
       items.Add(item);
     }

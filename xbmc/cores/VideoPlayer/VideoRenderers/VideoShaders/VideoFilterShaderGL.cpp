@@ -11,7 +11,6 @@
 
 #include "ConvolutionKernels.h"
 #include "ServiceBroker.h"
-#include "rendering/GLExtensions.h"
 #include "rendering/RenderSystem.h"
 #include "utils/GLUtils.h"
 #include "utils/log.h"
@@ -49,17 +48,14 @@ BaseVideoFilterShader::~BaseVideoFilterShader()
 // ConvolutionFilterShader - base class for video filter shaders
 //////////////////////////////////////////////////////////////////////
 
-ConvolutionFilterShader::ConvolutionFilterShader(ESCALINGMETHOD method,
-                                                 bool stretch,
-                                                 bool gammaCorrection,
-                                                 GLSLOutput* output)
+ConvolutionFilterShader::ConvolutionFilterShader(ESCALINGMETHOD method, bool stretch, GLSLOutput *output)
 {
   m_method = method;
 
   std::string shadername;
   std::string defines;
 
-  m_floattex = CGLExtensions::IsExtensionSupported(CGLExtensions::ARB_texture_float);
+  m_floattex = CServiceBroker::GetRenderSystem()->IsExtSupported("GL_ARB_texture_float");
 
   if (m_method == VS_SCALINGMETHOD_CUBIC_B_SPLINE ||
       m_method == VS_SCALINGMETHOD_CUBIC_MITCHELL ||
@@ -96,9 +92,6 @@ ConvolutionFilterShader::ConvolutionFilterShader(ESCALINGMETHOD method,
     defines += "#define XBMC_STRETCH 1\n";
   else
     defines += "#define XBMC_STRETCH 0\n";
-
-  if (gammaCorrection)
-    defines += "#define KODI_GAMMA_LINEARIZATION_FAST\n";
 
   // get defines from the output stage if used
   m_glslOutput = output;

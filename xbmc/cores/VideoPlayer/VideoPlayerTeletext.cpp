@@ -140,9 +140,8 @@ void CDVDTeletextData::CloseStream(bool bWaitForBuffers)
 }
 
 
-void CDVDTeletextData::ResetTeletextCache()
-{
-  std::unique_lock lock(m_TXTCache->m_critSection);
+void CDVDTeletextData::ResetTeletextCache() const {
+  std::lock_guard lock(m_TXTCache->m_critSection);
 
   /* Reset Data structures */
   for (auto& pages : m_TXTCache->astCachetable)
@@ -168,7 +167,7 @@ void CDVDTeletextData::ResetTeletextCache()
           free(p->ext);
         }
         delete page;
-        page = 0;
+        page = nullptr;
       }
     }
   }
@@ -186,7 +185,7 @@ void CDVDTeletextData::ResetTeletextCache()
           free(d26);
       }
       free(m_TXTCache->astP29[i]);
-      m_TXTCache->astP29[i] = 0;
+      m_TXTCache->astP29[i] = nullptr;
     }
     m_TXTCache->CurrentPage[i]    = -1;
     m_TXTCache->CurrentSubPage[i] = -1;
@@ -250,7 +249,7 @@ void CDVDTeletextData::Process()
 
     if (pMsg->IsType(CDVDMsg::DEMUXER_PACKET))
     {
-      std::unique_lock lock(m_TXTCache->m_critSection);
+      std::lock_guard lock(m_TXTCache->m_critSection);
 
       DemuxPacket* pPacket = std::static_pointer_cast<CDVDMsgDemuxerPacket>(pMsg)->GetPacket();
       uint8_t *Datai       = pPacket->pData;
@@ -416,7 +415,7 @@ void CDVDTeletextData::Process()
               /* pointer to current info struct */
               if (packet_number <= 25)
               {
-                unsigned char *p = NULL;
+                unsigned char *p = nullptr;
                 if (packet_number < 24)
                 {
                   p = pagedata[magazine] + 40*(packet_number-1);
@@ -714,9 +713,9 @@ void CDVDTeletextData::Decode_p2829(unsigned char *vtxt_row, TextExtData_t **ptE
   (*ptExtData)->ColorTableRemapping = t2 & 0x07;
 }
 
-void CDVDTeletextData::SavePage(int p, int sp, unsigned char* buffer)
-{
-  std::unique_lock lock(m_TXTCache->m_critSection);
+void CDVDTeletextData::SavePage(int p, int sp, unsigned char* buffer) const {
+  std::lock_guard lock(m_TXTCache->m_critSection);
+
   TextCachedPage_t* pg = m_TXTCache->astCachetable[p][sp];
   if (!pg)
   {
@@ -727,9 +726,9 @@ void CDVDTeletextData::SavePage(int p, int sp, unsigned char* buffer)
   memcpy(pg->data, buffer, 23*40);
 }
 
-void CDVDTeletextData::LoadPage(int p, int sp, unsigned char* buffer)
-{
-  std::unique_lock lock(m_TXTCache->m_critSection);
+void CDVDTeletextData::LoadPage(int p, int sp, unsigned char* buffer) const {
+  std::lock_guard lock(m_TXTCache->m_critSection);
+
   TextCachedPage_t* pg = m_TXTCache->astCachetable[p][sp];
   if (!pg)
   {
@@ -740,9 +739,9 @@ void CDVDTeletextData::LoadPage(int p, int sp, unsigned char* buffer)
   memcpy(buffer, pg->data, 23*40);
 }
 
-void CDVDTeletextData::ErasePage(int magazine)
-{
-  std::unique_lock lock(m_TXTCache->m_critSection);
+void CDVDTeletextData::ErasePage(int magazine) const {
+  std::lock_guard lock(m_TXTCache->m_critSection);
+
   TextCachedPage_t* pg = m_TXTCache->astCachetable[m_TXTCache->CurrentPage[magazine]][m_TXTCache->CurrentSubPage[magazine]];
   if (pg)
   {
@@ -755,7 +754,7 @@ void CDVDTeletextData::ErasePage(int magazine)
 void CDVDTeletextData::AllocateCache(int magazine)
 {
   /* check cachetable and allocate memory if needed */
-  if (m_TXTCache->astCachetable[m_TXTCache->CurrentPage[magazine]][m_TXTCache->CurrentSubPage[magazine]] == 0)
+  if (m_TXTCache->astCachetable[m_TXTCache->CurrentPage[magazine]][m_TXTCache->CurrentSubPage[magazine]] == nullptr)
   {
     m_TXTCache->astCachetable[m_TXTCache->CurrentPage[magazine]][m_TXTCache->CurrentSubPage[magazine]] = new TextCachedPage_t;
     if (m_TXTCache->astCachetable[m_TXTCache->CurrentPage[magazine]][m_TXTCache->CurrentSubPage[magazine]] )

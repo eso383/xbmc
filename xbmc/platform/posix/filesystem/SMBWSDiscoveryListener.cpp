@@ -37,7 +37,7 @@ namespace WSDiscovery
 {
 
 // Templates for SOAPXML messages for WS-Discovery messages
-static constexpr std::string_view soap_msg_templ =
+static const std::string soap_msg_templ =
     "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
     "<soap:Envelope "
     "xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\" "
@@ -57,41 +57,41 @@ static constexpr std::string_view soap_msg_templ =
     "{}"
     "</soap:Envelope>\n";
 
-static constexpr std::string_view hello_body = "<soap:Body>\n"
-                                               "<wsd:Hello>\n"
-                                               "<wsa:EndpointReference>\n"
-                                               "<wsa:Address>urn:uuid:{}</wsa:Address>\n"
-                                               "</wsa:EndpointReference>\n"
-                                               "<wsd:Types>wsdp:Device pub:Computer</wsd:Types>\n"
-                                               "<wsd:MetadataVersion>1</wsd:MetadataVersion>\n"
-                                               "</wsd:Hello>\n"
-                                               "</soap:Body>\n";
+static const std::string hello_body = "<soap:Body>\n"
+                                      "<wsd:Hello>\n"
+                                      "<wsa:EndpointReference>\n"
+                                      "<wsa:Address>urn:uuid:{}</wsa:Address>\n"
+                                      "</wsa:EndpointReference>\n"
+                                      "<wsd:Types>wsdp:Device pub:Computer</wsd:Types>\n"
+                                      "<wsd:MetadataVersion>1</wsd:MetadataVersion>\n"
+                                      "</wsd:Hello>\n"
+                                      "</soap:Body>\n";
 
-static constexpr std::string_view bye_body = "<soap:Body>\n"
-                                             "<wsd:Bye>\n"
-                                             "<wsa:EndpointReference>\n"
-                                             "<wsa:Address>urn:uuid:{}</wsa:Address>\n"
-                                             "</wsa:EndpointReference>\n"
-                                             "<wsd:Types>wsdp:Device pub:Computer</wsd:Types>\n"
-                                             "<wsd:MetadataVersion>2</wsd:MetadataVersion>\n"
-                                             "</wsd:Bye>\n"
-                                             "</soap:Body>\n";
+static const std::string bye_body = "<soap:Body>\n"
+                                    "<wsd:Bye>\n"
+                                    "<wsa:EndpointReference>\n"
+                                    "<wsa:Address>urn:uuid:{}</wsa:Address>\n"
+                                    "</wsa:EndpointReference>\n"
+                                    "<wsd:Types>wsdp:Device pub:Computer</wsd:Types>\n"
+                                    "<wsd:MetadataVersion>2</wsd:MetadataVersion>\n"
+                                    "</wsd:Bye>\n"
+                                    "</soap:Body>\n";
 
-static constexpr std::string_view probe_body = "<soap:Body>\n"
-                                               "<wsd:Probe>\n"
-                                               "<wsd:Types>wsdp:Device</wsd:Types>\n"
-                                               "</wsd:Probe>\n"
-                                               "</soap:Body>\n";
+static const std::string probe_body = "<soap:Body>\n"
+                                      "<wsd:Probe>\n"
+                                      "<wsd:Types>wsdp:Device</wsd:Types>\n"
+                                      "</wsd:Probe>\n"
+                                      "</soap:Body>\n";
 
-static constexpr std::string_view resolve_body = "<soap:Body>\n"
-                                                 "<wsd:Resolve>\n"
-                                                 "<wsa:EndpointReference>\n"
-                                                 "<wsa:Address>"
-                                                 "{}"
-                                                 "</wsa:Address>\n"
-                                                 "</wsa:EndpointReference>\n"
-                                                 "</wsd:Resolve>\n"
-                                                 "</soap:Body>\n";
+static const std::string resolve_body = "<soap:Body>\n"
+                                        "<wsd:Resolve>\n"
+                                        "<wsa:EndpointReference>\n"
+                                        "<wsa:Address>"
+                                        "{}"
+                                        "</wsa:Address>\n"
+                                        "</wsa:EndpointReference>\n"
+                                        "</wsd:Resolve>\n"
+                                        "</soap:Body>\n";
 
 // These are the only actions we concern ourselves with for our WS-D implementation
 static const std::string WSD_ACT_HELLO = "http://schemas.xmlsoap.org/ws/2005/04/discovery/Hello";
@@ -123,7 +123,7 @@ static const std::array<std::pair<std::string, std::string>, 1> address_tag{
 static const std::array<std::pair<std::string, std::string>, 1> types_tag{
     {{"<wsd:Types>", "</wsd:Types>"}}};
 
-static constexpr std::string_view get_msg =
+static const std::string get_msg =
     "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
     "<soap:Envelope "
     "xmlns:pnpx=\"http://schemas.microsoft.com/windows/pnpx/2005/10\" "
@@ -173,7 +173,7 @@ void CWSDiscoveryListenerUDP::Start()
   // Clear existing data. We dont know how long service has been down, so we may not
   // have correct services that may have sent BYE actions
   m_vecWSDInfo.clear();
-  CWSDiscoveryPosix& WSInstance =
+  auto &WSInstance =
       dynamic_cast<CWSDiscoveryPosix&>(CServiceBroker::GetWSDiscovery());
   WSInstance.SetItems(m_vecWSDInfo);
 
@@ -260,7 +260,7 @@ void CWSDiscoveryListenerUDP::Process()
     FD_SET(fd, &rset);
     timeout.tv_sec = 3;
     timeout.tv_usec = 0;
-    nready = select((fd + 1), &rset, NULL, NULL, &timeout);
+    nready = select((fd + 1), &rset, nullptr, nullptr, &timeout);
 
     if (nready < 0)
       break;
@@ -294,8 +294,7 @@ void CWSDiscoveryListenerUDP::Process()
   return;
 }
 
-void CWSDiscoveryListenerUDP::Cleanup(bool aborted)
-{
+void CWSDiscoveryListenerUDP::Cleanup(bool aborted) const {
   close(fd);
 
   if (aborted)
@@ -322,8 +321,9 @@ bool CWSDiscoveryListenerUDP::DispatchCommand()
 {
   Command sendCommand;
   {
-    std::unique_lock lock(crit_commandqueue);
-    if (m_commandbuffer.empty())
+    std::lock_guard lock(crit_commandqueue);
+
+    if (m_commandbuffer.size() <= 0)
       return false;
 
     auto it = m_commandbuffer.begin();
@@ -355,7 +355,7 @@ void CWSDiscoveryListenerUDP::AddCommand(const std::string& message,
                                          const std::string& extraparameter /* = "" */)
 {
 
-  std::unique_lock lock(crit_commandqueue);
+  std::lock_guard lock(crit_commandqueue);
 
   std::string msg{};
 
@@ -447,13 +447,14 @@ void CWSDiscoveryListenerUDP::ParseBuffer(const std::string& buffer)
   }
 
   {
-    std::unique_lock lock(crit_wsdqueue);
+    std::lock_guard lock(crit_wsdqueue);
+    
     auto searchitem = std::find_if(m_vecWSDInfo.begin(), m_vecWSDInfo.end(),
                                    [info](const wsd_req_info& item) { return item == info; });
 
     if (searchitem == m_vecWSDInfo.end())
     {
-      CWSDiscoveryPosix& WSInstance =
+      auto &WSInstance =
           dynamic_cast<CWSDiscoveryPosix&>(CServiceBroker::GetWSDiscovery());
       if (info.action != WSD_ACT_BYE)
       {
@@ -494,14 +495,13 @@ void CWSDiscoveryListenerUDP::ParseBuffer(const std::string& buffer)
 
 bool CWSDiscoveryListenerUDP::buildSoapMessage(const std::string& action,
                                                std::string& msg,
-                                               const std::string& extraparameter)
-{
+                                               const std::string& extraparameter) const {
   auto msg_uuid = StringUtils::CreateUUID();
   std::string body;
   std::string relatesTo; // Not implemented, may not be needed for our limited usage
   int messagenumber = 1;
 
-  CWSDiscoveryPosix& WSInstance =
+  auto &WSInstance =
       dynamic_cast<CWSDiscoveryPosix&>(CServiceBroker::GetWSDiscovery());
   long long wsd_instance_id = WSInstance.GetInstanceID();
 

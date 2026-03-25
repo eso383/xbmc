@@ -9,8 +9,7 @@
 
 include(FindPackageHandleStandardArgs)
 
-find_program(NASM_EXECUTABLE nasm
-                             HINTS ${NATIVEPREFIX}/bin)
+find_program(NASM_EXECUTABLE nasm)
 
 if(NASM_EXECUTABLE)
   execute_process(COMMAND ${NASM_EXECUTABLE} -version

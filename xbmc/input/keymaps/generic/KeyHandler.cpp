@@ -151,7 +151,8 @@ CAction CKeyHandler::ProcessActions(std::vector<const KeymapAction*> actions,
   CAction dispatchAction;
 
   // Filter out actions without pressed hotkeys
-  actions.erase(std::remove_if(actions.begin(), actions.end(), [this](const KeymapAction* action)
+  actions.erase(std::remove_if(actions.begin(), actions.end(),
+                               [this](const KeymapAction* action)
                                { return !m_keymapHandler->HotkeysPressed(action->hotkeys); }),
                 actions.end());
 
@@ -196,7 +197,7 @@ CAction CKeyHandler::ProcessActions(std::vector<const KeymapAction*> actions,
   return dispatchAction;
 }
 
-CAction CKeyHandler::ProcessRelease(const std::vector<const KeymapAction*>& actions, int windowId)
+CAction CKeyHandler::ProcessRelease(std::vector<const KeymapAction*> actions, int windowId)
 {
   CAction dispatchAction;
 
@@ -264,8 +265,7 @@ CAction CKeyHandler::ProcessAction(const KeymapAction& action,
   return dispatchAction;
 }
 
-bool CKeyHandler::SendRepeatAction(unsigned int holdTimeMs)
-{
+bool CKeyHandler::SendRepeatAction(unsigned int holdTimeMs) const {
   bool bSendRepeat = true;
 
   // Don't send a repeat action if the last key has changed

@@ -6,8 +6,9 @@
  *  See LICENSES/README.md for more information.
  */
 
+
 #include "cores/VideoPlayer/VideoRenderers/VideoShaders/ConversionMatrix.h"
-#include "utils/MathUtils.h"
+#include "xbmc/utils/MathUtils.h"
 
 #include <iomanip>
 #include <iostream>

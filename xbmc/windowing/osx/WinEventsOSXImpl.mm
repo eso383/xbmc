@@ -54,7 +54,8 @@
 
 - (void)MessagePush:(XBMC_Event*)newEvent
 {
-  std::unique_lock lock(m_inputlock);
+  std::lock_guard lock(m_inputlock);
+
   events.emplace(*newEvent);
 }
 
@@ -71,7 +72,8 @@
     // deeper message loop and call the deeper MessagePump from there.
     XBMC_Event pumpEvent = {};
     {
-      std::unique_lock lock(m_inputlock);
+      std::lock_guard lock(m_inputlock);
+
       if (events.size() == 0)
         return ret;
       pumpEvent = events.front();
@@ -86,7 +88,8 @@
 
 - (size_t)GetQueueSize
 {
-  std::unique_lock lock(m_inputlock);
+  std::lock_guard lock(m_inputlock);
+
   return events.size();
 }
 
@@ -312,7 +315,7 @@
     case NSEventTypeScrollWheel:
     {
       // very strange, real scrolls have non-zero deltaY followed by same number of events
-      // with a zero deltaY. This reverses our scroll which is WTF? annoying. Trap them out here.
+      // with a zero deltaY. This reverses our scroll which is WTF? anoying. Trap them out here.
       if (nsEvent.deltaY != 0.0)
       {
         auto button = nsEvent.scrollingDeltaY > 0 ? XBMC_BUTTON_WHEELUP : XBMC_BUTTON_WHEELDOWN;
@@ -321,7 +324,7 @@
                             mouseEventType:XBMC_MOUSEBUTTONDOWN
                                 buttonCode:button])
         {
-          // scrollwhell need a subsequent button press with no button code
+          // scrollwhell need a subsquent button press with no button code
           [self SendXBMCMouseButtonEvent:nsEvent
                                xbmcEvent:newEvent
                           mouseEventType:XBMC_MOUSEBUTTONUP

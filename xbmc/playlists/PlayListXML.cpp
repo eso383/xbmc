@@ -15,10 +15,10 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-#include "utils/XBMCTinyXML2.h"
 #include "utils/XMLUtils.h"
 #include "utils/log.h"
 
+using namespace PLAYLIST;
 using namespace XFILE;
 
 /*
@@ -53,14 +53,13 @@ using namespace XFILE;
 </streams>
 */
 
-namespace KODI::PLAYLIST
-{
 
 CPlayListXML::CPlayListXML(void) = default;
 
 CPlayListXML::~CPlayListXML(void) = default;
 
-static inline std::string GetString(const tinyxml2::XMLElement* pRootElement, const char* tagName)
+
+static inline std::string GetString( const TiXmlElement* pRootElement, const char *tagName )
 {
   std::string strValue;
   if ( XMLUtils::GetString(pRootElement, tagName, strValue) )
@@ -71,7 +70,7 @@ static inline std::string GetString(const tinyxml2::XMLElement* pRootElement, co
 
 bool CPlayListXML::Load( const std::string& strFileName )
 {
-  CXBMCTinyXML2 xmlDoc;
+  CXBMCTinyXML xmlDoc;
 
   m_strPlayListName = URIUtils::GetFileName(strFileName);
   URIUtils::GetParentPath(strFileName, m_strBasePath);
@@ -85,7 +84,7 @@ bool CPlayListXML::Load( const std::string& strFileName )
     return false;
   }
 
-  auto* pRootElement = xmlDoc.RootElement();
+  TiXmlElement *pRootElement = xmlDoc.RootElement();
 
   // If the stream does not contain "streams", still ok. Not an error.
   if (!pRootElement || StringUtils::CompareNoCase(pRootElement->Value(), "streams"))
@@ -94,7 +93,7 @@ bool CPlayListXML::Load( const std::string& strFileName )
     return false;
   }
 
-  auto* pSet = pRootElement->FirstChildElement("stream");
+  TiXmlElement* pSet = pRootElement->FirstChildElement("stream");
 
   while ( pSet )
   {
@@ -138,7 +137,9 @@ bool CPlayListXML::Load( const std::string& strFileName )
 
        if ( !lockpass.empty() )
        {
-         newItem->GetLockInfo().Set(LockMode::NUMERIC, lockpass, LOCK_STATE_LOCKED);
+         newItem->m_strLockCode = lockpass;
+         newItem->m_iHasLock = LOCK_STATE_LOCKED;
+         newItem->m_iLockMode = LOCK_MODE_NUMERIC;
        }
 
        Add(newItem);
@@ -155,8 +156,7 @@ bool CPlayListXML::Load( const std::string& strFileName )
 
 void CPlayListXML::Save(const std::string& strFileName) const
 {
-  if (m_vecItems.empty())
-    return;
+  if (!m_vecItems.size()) return ;
   std::string strPlaylist = CUtil::MakeLegalPath(strFileName);
   CFile file;
   if (!file.OpenForWrite(strPlaylist, true))
@@ -185,9 +185,8 @@ void CPlayListXML::Save(const std::string& strFileName) const
       write += StringUtils::Format("    <channel>{}</channel>",
                                    item->GetProperty("remotechannel").asString());
 
-    if (item->GetLockInfo().GetState() > LOCK_STATE_NO_LOCK)
-      write +=
-          StringUtils::Format("    <lockpassword>{}<lockpassword>", item->GetLockInfo().GetCode());
+    if (item->m_iHasLock > LOCK_STATE_NO_LOCK)
+      write += StringUtils::Format("    <lockpassword>{}<lockpassword>", item->m_strLockCode);
 
     write += StringUtils::Format("  </stream>\n\n" );
   }
@@ -196,5 +195,3 @@ void CPlayListXML::Save(const std::string& strFileName) const
   file.Write(write.c_str(), write.size());
   file.Close();
 }
-
-} // namespace KODI::PLAYLIST

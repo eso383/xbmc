@@ -11,10 +11,11 @@
 #include "addons/kodi-dev-kit/include/kodi/c-api/gui/dialogs/filebrowser.h"
 
 #include <string>
-#include <string_view>
 #include <vector>
 
 class CMediaSource;
+
+typedef std::vector<CMediaSource> VECSOURCES;
 
 extern "C"
 {
@@ -106,8 +107,8 @@ extern "C"
     //@}
 
   private:
-    static void GetVECShares(std::vector<CMediaSource>& vecShares,
-                             std::string_view strShares,
+    static void GetVECShares(VECSOURCES& vecShares,
+                             const std::string& strShares,
                              const std::string& strPath);
   };
 

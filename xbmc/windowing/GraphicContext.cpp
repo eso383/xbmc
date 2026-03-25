@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -28,8 +28,6 @@
 
 #include <cassert>
 #include <mutex>
-
-using KODI::UTILS::COLOR::Color;
 
 CGraphicContext::CGraphicContext() = default;
 CGraphicContext::~CGraphicContext() = default;
@@ -253,25 +251,25 @@ CPoint CGraphicContext::StereoCorrection(const CPoint &point) const
 {
   CPoint res(point);
 
-  if (m_stereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
+  if(m_stereoMode == RENDER_STEREO_MODE_SPLIT_HORIZONTAL)
   {
     const RESOLUTION_INFO info = GetResInfo();
 
-    if (m_stereoView == RenderStereoView::RIGHT)
+    if(m_stereoView == RENDER_STEREO_VIEW_RIGHT)
       res.y += info.iHeight + info.iBlanking;
   }
-  if (m_stereoMode == RenderStereoMode::HARDWAREBASED)
+  if (m_stereoMode == RENDER_STEREO_MODE_HARDWAREBASED)
   {
     const RESOLUTION_INFO info = GetResInfo();
 
-    if(m_stereoView == RenderStereoView::RIGHT)
+    if(m_stereoView == RENDER_STEREO_VIEW_RIGHT)
       res.y += info.iHeight + info.iBlanking;
   }
-  if(m_stereoMode == RenderStereoMode::SPLIT_VERTICAL)
+  if(m_stereoMode == RENDER_STEREO_MODE_SPLIT_VERTICAL)
   {
     const RESOLUTION_INFO info = GetResInfo();
 
-    if (m_stereoView == RenderStereoView::RIGHT)
+    if(m_stereoView == RENDER_STEREO_VIEW_RIGHT)
       res.x += info.iWidth  + info.iBlanking;
   }
   return res;
@@ -327,7 +325,7 @@ void CGraphicContext::SetViewWindow(float left, float top, float right, float bo
 
 void CGraphicContext::SetFullScreenVideo(bool bOnOff)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   m_bFullScreenVideo = bOnOff;
 
@@ -434,7 +432,7 @@ void CGraphicContext::SetVideoResolutionInternal(RESOLUTION res, bool forceUpdat
     m_bFullScreenRoot = false;
   }
 
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   // FIXME Wayland windowing needs some way to "deny" resolution updates since what Kodi
   // requests might not get actually set by the compositor.
@@ -448,9 +446,9 @@ void CGraphicContext::SetVideoResolutionInternal(RESOLUTION res, bool forceUpdat
 
   UpdateInternalStateWithResolution(res);
   RESOLUTION_INFO info_org  = CDisplaySettings::GetInstance().GetResolutionInfo(res);
-  const RenderStereoMode stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
+  RENDER_STEREO_MODE stereo_mode = CServiceBroker::GetWinSystem()->GetGfxContext().GetStereoMode();
 
-  if (stereo_mode == RenderStereoMode::HARDWAREBASED)
+  if (stereo_mode == RENDER_STEREO_MODE_HARDWAREBASED)
     info_org.iHeight = info_org.iScreenHeight * 2 + info_org.iBlanking;
 
   bool switched = false;
@@ -473,7 +471,7 @@ void CGraphicContext::SetVideoResolutionInternal(RESOLUTION res, bool forceUpdat
     m_scissors.SetRect(0, 0, (float)m_iScreenWidth, (float)m_iScreenHeight);
 
     // make sure all stereo stuff are correctly setup
-    SetStereoView(RenderStereoView::OFF);
+    SetStereoView(RENDER_STEREO_VIEW_OFF);
 
     // update anyone that relies on sizing information
     CServiceBroker::GetInputManager().SetMouseResolution(info_org.iWidth, info_org.iHeight, 1, 1);
@@ -524,14 +522,14 @@ void CGraphicContext::ApplyVideoResolution(RESOLUTION res)
     m_bFullScreenRoot = false;
   }
 
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   UpdateInternalStateWithResolution(res);
 
   m_scissors.SetRect(0, 0, (float)m_iScreenWidth, (float)m_iScreenHeight);
 
   // make sure all stereo stuff are correctly setup
-  SetStereoView(RenderStereoView::OFF);
+  SetStereoView(RENDER_STEREO_VIEW_OFF);
 
   // update anyone that relies on sizing information
   RESOLUTION_INFO info_org  = CDisplaySettings::GetInstance().GetResolutionInfo(res);
@@ -575,8 +573,7 @@ void CGraphicContext::ResetOverscan(RESOLUTION_INFO &res)
   res.Overscan.bottom = res.iHeight;
 }
 
-void CGraphicContext::ResetOverscan(RESOLUTION res, OVERSCAN &overscan)
-{
+void CGraphicContext::ResetOverscan(RESOLUTION res, OVERSCAN &overscan) const {
   overscan.left = 0;
   overscan.top = 0;
 
@@ -601,7 +598,7 @@ void CGraphicContext::Clear()
   CServiceBroker::GetRenderSystem()->InvalidateColorBuffer();
 }
 
-void CGraphicContext::Clear(Color color)
+void CGraphicContext::Clear(UTILS::COLOR::Color color)
 {
   CServiceBroker::GetRenderSystem()->ClearBuffers(color);
 }
@@ -620,7 +617,7 @@ const RESOLUTION_INFO CGraphicContext::GetResInfo(RESOLUTION res) const
 {
   RESOLUTION_INFO info = CDisplaySettings::GetInstance().GetResolutionInfo(res);
 
-  if (m_stereoMode == RenderStereoMode::SPLIT_HORIZONTAL)
+  if(m_stereoMode == RENDER_STEREO_MODE_SPLIT_HORIZONTAL)
   {
     if((info.dwFlags & D3DPRESENTFLAG_MODE3DTB) == D3DPRESENTFLAG_MODE3DTB)
     {
@@ -633,7 +630,7 @@ const RESOLUTION_INFO CGraphicContext::GetResInfo(RESOLUTION res) const
     }
   }
 
-  if (m_stereoMode == RenderStereoMode::HARDWAREBASED)
+  if (m_stereoMode == RENDER_STEREO_MODE_HARDWAREBASED)
   {
     if((info.dwFlags & D3DPRESENTFLAG_MODE3DFP) == D3DPRESENTFLAG_MODE3DFP)
     {
@@ -642,7 +639,7 @@ const RESOLUTION_INFO CGraphicContext::GetResInfo(RESOLUTION res) const
     }
   }
 
-  if(m_stereoMode == RenderStereoMode::SPLIT_VERTICAL)
+  if(m_stereoMode == RENDER_STEREO_MODE_SPLIT_VERTICAL)
   {
     if((info.dwFlags & D3DPRESENTFLAG_MODE3DSBS) == D3DPRESENTFLAG_MODE3DSBS)
     {
@@ -691,8 +688,7 @@ const RESOLUTION_INFO CGraphicContext::GetResInfo() const
   return GetResInfo(m_Resolution);
 }
 
-void CGraphicContext::GetGUIScaling(const RESOLUTION_INFO &res, float &scaleX, float &scaleY, TransformMatrix *matrix /* = NULL */)
-{
+void CGraphicContext::GetGUIScaling(const RESOLUTION_INFO &res, float &scaleX, float &scaleY, TransformMatrix *matrix /* = NULL */) const {
   if (m_Resolution != RES_INVALID)
   {
     // calculate necessary scalings
@@ -760,13 +756,13 @@ void CGraphicContext::SetScalingResolution(const RESOLUTION_INFO &res, bool need
 
 void CGraphicContext::SetRenderingResolution(const RESOLUTION_INFO &res, bool needsScaling)
 {
-  std::unique_lock lock(*this);
+  std::unique_lock<CCriticalSection> lock(*this);
 
   SetScalingResolution(res, needsScaling);
   UpdateCameraPosition(m_cameras.top(), m_stereoFactors.top());
 }
 
-void CGraphicContext::SetStereoView(RenderStereoView view)
+void CGraphicContext::SetStereoView(RENDER_STEREO_VIEW view)
 {
   m_stereoView = view;
 
@@ -906,17 +902,17 @@ CRect CGraphicContext::GenerateAABB(const CRect &rect) const
 //       the camera has changed, and if so, changes it.  Similarly, it could set
 //       the world transform at that point as well (or even combine world + view
 //       to cut down on one setting)
-void CGraphicContext::UpdateCameraPosition(const CPoint &camera, const float &factor)
-{
+void CGraphicContext::UpdateCameraPosition(const CPoint &camera, const float &factor) const {
   float stereoFactor = 0.f;
-  if (m_stereoMode != RenderStereoMode::OFF && m_stereoMode != RenderStereoMode::MONO &&
-      m_stereoView != RenderStereoView::OFF)
+  if ( m_stereoMode != RENDER_STEREO_MODE_OFF
+    && m_stereoMode != RENDER_STEREO_MODE_MONO
+    && m_stereoView != RENDER_STEREO_VIEW_OFF)
   {
     RESOLUTION_INFO res = GetResInfo();
     RESOLUTION_INFO desktop = GetResInfo(RES_DESKTOP);
     float scaleRes = (static_cast<float>(res.iWidth) / static_cast<float>(desktop.iWidth));
     float scaleX = static_cast<float>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_LOOKANDFEEL_STEREOSTRENGTH)) * scaleRes;
-    stereoFactor = factor * (m_stereoView == RenderStereoView::LEFT ? scaleX : -scaleX);
+    stereoFactor = factor * (m_stereoView == RENDER_STEREO_VIEW_LEFT ? scaleX : -scaleX);
   }
   CServiceBroker::GetRenderSystem()->SetCameraPosition(camera, m_iScreenWidth, m_iScreenHeight, stereoFactor);
 }
@@ -944,14 +940,14 @@ float CGraphicContext::GetGUIScaleY() const
   return m_finalTransform.scaleY;
 }
 
-Color CGraphicContext::MergeAlpha(Color color) const
+UTILS::COLOR::Color CGraphicContext::MergeAlpha(UTILS::COLOR::Color color) const
 {
-  Color alpha = m_finalTransform.matrix.TransformAlpha((color >> 24) & 0xff);
+  UTILS::COLOR::Color alpha = m_finalTransform.matrix.TransformAlpha((color >> 24) & 0xff);
   if (alpha > 255) alpha = 255;
   return ((alpha << 24) & 0xff000000) | (color & 0xffffff);
 }
 
-Color CGraphicContext::MergeColor(Color color) const
+UTILS::COLOR::Color CGraphicContext::MergeColor(UTILS::COLOR::Color color) const
 {
   return m_finalTransform.matrix.TransformColor(color);
 }
@@ -983,7 +979,7 @@ float CGraphicContext::GetDisplayLatency() const
   if (latency < 0.0f)
   {
     // fallback
-    latency = (CServiceBroker::GetWinSystem()->NoOfBuffers() + 1) / GetFPS() * 1000.0f;
+    latency = 1 / GetFPS() * 1000.0f;
   }
 
   return latency;
@@ -1048,11 +1044,11 @@ void CGraphicContext::SetRenderOrder(RENDER_ORDER renderOrder)
 {
   m_renderOrder = renderOrder;
   if (renderOrder == RENDER_ORDER_ALL_BACK_TO_FRONT)
-    CServiceBroker::GetRenderSystem()->SetDepthCulling(DepthCulling::OFF);
+    CServiceBroker::GetRenderSystem()->SetDepthCulling(DEPTH_CULLING_OFF);
   else if (renderOrder == RENDER_ORDER_BACK_TO_FRONT)
-    CServiceBroker::GetRenderSystem()->SetDepthCulling(DepthCulling::BACK_TO_FRONT);
+    CServiceBroker::GetRenderSystem()->SetDepthCulling(DEPTH_CULLING_BACK_TO_FRONT);
   else if (renderOrder == RENDER_ORDER_FRONT_TO_BACK)
-    CServiceBroker::GetRenderSystem()->SetDepthCulling(DepthCulling::FRONT_TO_BACK);
+    CServiceBroker::GetRenderSystem()->SetDepthCulling(DEPTH_CULLING_FRONT_TO_BACK);
 }
 
 uint32_t CGraphicContext::GetDepth(uint32_t addLayers)

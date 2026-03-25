@@ -9,14 +9,13 @@
 #include "FileItemHandler.h"
 
 #include "AudioLibrary.h"
-#include "FileItemList.h"
 #include "FileOperations.h"
 #include "ServiceBroker.h"
+#include "TextureDatabase.h"
 #include "Util.h"
 #include "VideoLibrary.h"
 #include "addons/kodi-dev-kit/include/kodi/c-api/addon-instance/pvr/pvr_epg.h" // EPG_TAG_INVALID_UID
 #include "filesystem/Directory.h"
-#include "imagefiles/ImageFileURL.h"
 #include "music/MusicThumbLoader.h"
 #include "music/tags/MusicInfoTag.h"
 #include "pictures/PictureInfoTag.h"
@@ -28,7 +27,6 @@
 #include "pvr/recordings/PVRRecordings.h"
 #include "pvr/timers/PVRTimerInfoTag.h"
 #include "pvr/timers/PVRTimers.h"
-#include "utils/Artwork.h"
 #include "utils/FileUtils.h"
 #include "utils/ISerializable.h"
 #include "utils/SortUtils.h"
@@ -190,12 +188,12 @@ bool CFileItemHandler::GetField(const std::string& field,
         fetchedArt = true;
       }
 
-      const KODI::ART::Artwork& artMap = item->GetArt();
+      CGUIListItem::ArtMap artMap = item->GetArt();
       CVariant artObj(CVariant::VariantTypeObject);
       for (const auto& artIt : artMap)
       {
         if (!artIt.second.empty())
-          artObj[artIt.first] = IMAGE_FILES::URLFromFile(artIt.second);
+          artObj[artIt.first] = CTextureUtils::GetWrappedImageURL(artIt.second);
       }
 
       result["art"] = artObj;
@@ -204,17 +202,17 @@ bool CFileItemHandler::GetField(const std::string& field,
 
     if (field == "thumbnail")
     {
-      if (thumbLoader != NULL && !item->HasArt("thumb") && !fetchedArt &&
+      if (thumbLoader != nullptr && !item->HasArt("thumb") && !fetchedArt &&
         ((item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_iDbId > -1) || (item->HasMusicInfoTag() && item->GetMusicInfoTag()->GetDatabaseId() > -1)))
       {
         thumbLoader->FillLibraryArt(*item);
         fetchedArt = true;
       }
       else if (item->HasPictureInfoTag() && !item->HasArt("thumb"))
-        item->SetArt("thumb", IMAGE_FILES::URLFromFile(item->GetPath()));
+        item->SetArt("thumb", CTextureUtils::GetWrappedThumbURL(item->GetPath()));
 
       if (item->HasArt("thumb"))
-        result["thumbnail"] = IMAGE_FILES::URLFromFile(item->GetArt("thumb"));
+        result["thumbnail"] = CTextureUtils::GetWrappedImageURL(item->GetArt("thumb"));
       else
         result["thumbnail"] = "";
 
@@ -223,7 +221,7 @@ bool CFileItemHandler::GetField(const std::string& field,
 
     if (field == "fanart")
     {
-      if (thumbLoader != NULL && !item->HasArt("fanart") && !fetchedArt &&
+      if (thumbLoader != nullptr && !item->HasArt("fanart") && !fetchedArt &&
         ((item->HasVideoInfoTag() && item->GetVideoInfoTag()->m_iDbId > -1) || (item->HasMusicInfoTag() && item->GetMusicInfoTag()->GetDatabaseId() > -1)))
       {
         thumbLoader->FillLibraryArt(*item);
@@ -231,7 +229,7 @@ bool CFileItemHandler::GetField(const std::string& field,
       }
 
       if (item->HasArt("fanart"))
-        result["fanart"] = IMAGE_FILES::URLFromFile(item->GetArt("fanart"));
+        result["fanart"] = CTextureUtils::GetWrappedImageURL(item->GetArt("fanart"));
       else
         result["fanart"] = "";
 
@@ -268,7 +266,7 @@ void CFileItemHandler::FillDetails(const ISerializable* info,
                                    CVariant& result,
                                    CThumbLoader* thumbLoader /* = NULL */)
 {
-  if (info == NULL || fields.empty())
+  if (info == nullptr || fields.empty())
     return;
 
   CVariant serialization;
@@ -304,7 +302,7 @@ void CFileItemHandler::HandleFileItemList(const char *ID, bool allowFile, const 
     end = items.Size();
   }
 
-  CThumbLoader *thumbLoader = NULL;
+  CThumbLoader *thumbLoader = nullptr;
   if (end - start > 0)
   {
     if (items.Get(start)->HasVideoInfoTag())
@@ -312,7 +310,7 @@ void CFileItemHandler::HandleFileItemList(const char *ID, bool allowFile, const 
     else if (items.Get(start)->HasMusicInfoTag())
       thumbLoader = new CMusicThumbLoader();
 
-    if (thumbLoader != NULL)
+    if (thumbLoader != nullptr)
       thumbLoader->OnLoaderStart();
   }
 
@@ -370,7 +368,7 @@ void CFileItemHandler::HandleFileItem(const char* ID,
 
   if (item.get())
   {
-    std::set<std::string>::const_iterator fileField = fields.find("file");
+    auto fileField = fields.find("file");
     if (fileField != fields.end())
     {
       if (allowFile)
@@ -428,7 +426,7 @@ void CFileItemHandler::HandleFileItem(const char* ID,
           std::string type = item->GetMusicInfoTag()->GetType();
           if (type == MediaTypeAlbum || type == MediaTypeSong || type == MediaTypeArtist)
             object["type"] = type;
-          else if (!item->IsFolder())
+          else if (!item->m_bIsFolder)
             object["type"] = MediaTypeSong;
         }
         else if (item->HasVideoInfoTag() && !item->GetVideoInfoTag()->m_type.empty())
@@ -443,9 +441,9 @@ void CFileItemHandler::HandleFileItem(const char* ID,
         if (!object.isMember("type"))
           object["type"] = "unknown";
 
-        if (fields.contains("filetype"))
+        if (fields.find("filetype") != fields.end())
         {
-          if (item->IsFolder())
+          if (item->m_bIsFolder)
             object["filetype"] = "directory";
           else
             object["filetype"] = "file";
@@ -454,14 +452,14 @@ void CFileItemHandler::HandleFileItem(const char* ID,
     }
 
     bool deleteThumbloader = false;
-    if (thumbLoader == NULL)
+    if (thumbLoader == nullptr)
     {
       if (item->HasVideoInfoTag())
         thumbLoader = new CVideoThumbLoader();
       else if (item->HasMusicInfoTag())
         thumbLoader = new CMusicThumbLoader();
 
-      if (thumbLoader != NULL)
+      if (thumbLoader != nullptr)
       {
         deleteThumbloader = true;
         thumbLoader->OnLoaderStart();
@@ -527,7 +525,7 @@ bool CFileItemHandler::FillFileItemList(const CVariant &parameterObject, CFileIt
 
     if (!added)
     {
-      CFileItemPtr item = std::make_shared<CFileItem>(file, false);
+      auto item = std::make_shared<CFileItem>(file, false);
       if (item->IsPicture())
       {
         CPictureInfoTag picture;

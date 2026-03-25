@@ -27,13 +27,13 @@ void BitstreamIoWriter::write(bool v) {
     ensure_capacity(1);
     size_t byte_index = bit_position / 8;
     size_t bit_index = 7 - (bit_position % 8);
-
+    
     if (v) {
         buffer[byte_index] |= (1 << bit_index);
     } else {
         buffer[byte_index] &= ~(1 << bit_index);
     }
-
+    
     bit_position++;
 }
 
@@ -116,7 +116,6 @@ size_t BitstreamIoWriter::as_slice_size() const {
 }
 
 std::vector<uint8_t> BitstreamIoWriter::into_inner() {
-    buffer.resize(size());
     return std::move(buffer);
 }
 

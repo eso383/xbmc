@@ -28,35 +28,35 @@ const std::string VALID_ADDON_VERSION_CHARACTERS =
 namespace ADDON
 {
 CAddonVersion::CAddonVersion(const std::string& version)
-  : m_epoch(0), m_upstream(version.empty() ? "0.0.0" : [&version] {
+  : mEpoch(0), mUpstream(version.empty() ? "0.0.0" : [&version] {
       auto versionLowerCase = std::string(version);
       StringUtils::ToLower(versionLowerCase);
       return versionLowerCase;
     }())
 {
-  size_t pos = m_upstream.find(':');
+  size_t pos = mUpstream.find(':');
   if (pos != std::string::npos)
   {
-    m_epoch = std::strtol(m_upstream.c_str(), nullptr, 10);
-    m_upstream.erase(0, pos + 1);
+    mEpoch = strtol(mUpstream.c_str(), nullptr, 10);
+    mUpstream.erase(0, pos + 1);
   }
 
-  pos = m_upstream.find('-');
+  pos = mUpstream.find('-');
   if (pos != std::string::npos)
   {
-    m_revision = m_upstream.substr(pos + 1);
-    if (m_revision.find_first_not_of(VALID_ADDON_VERSION_CHARACTERS) != std::string::npos)
+    mRevision = mUpstream.substr(pos + 1);
+    if (mRevision.find_first_not_of(VALID_ADDON_VERSION_CHARACTERS) != std::string::npos)
     {
-      CLog::Log(LOGERROR, "AddonVersion: {} is not a valid revision number", m_revision);
-      m_revision = "";
+      CLog::Log(LOGERROR, "AddonVersion: {} is not a valid revision number", mRevision);
+      mRevision = "";
     }
-    m_upstream.erase(pos);
+    mUpstream.erase(pos);
   }
 
-  if (m_upstream.find_first_not_of(VALID_ADDON_VERSION_CHARACTERS) != std::string::npos)
+  if (mUpstream.find_first_not_of(VALID_ADDON_VERSION_CHARACTERS) != std::string::npos)
   {
-    CLog::Log(LOGERROR, "AddonVersion: {} is not a valid version", m_upstream);
-    m_upstream = "0.0.0";
+    CLog::Log(LOGERROR, "AddonVersion: {} is not a valid version", mUpstream);
+    mUpstream = "0.0.0";
   }
 }
 
@@ -72,7 +72,7 @@ int CAddonVersion::CompareComponent(const char* a, const char* b)
 {
   while (*a && *b)
   {
-    while (*a && *b && !std::isdigit(*a) && !std::isdigit(*b))
+    while (*a && *b && !isdigit(*a) && !isdigit(*b))
     {
       if (*a != *b)
       {
@@ -85,19 +85,18 @@ int CAddonVersion::CompareComponent(const char* a, const char* b)
       a++;
       b++;
     }
-    if (*a && *b && (!std::isdigit(*a) || !std::isdigit(*b)))
+    if (*a && *b && (!isdigit(*a) || !isdigit(*b)))
     {
       if (*a == '~')
         return -1;
       if (*b == '~')
         return 1;
-      return std::isdigit(*a) ? -1 : 1;
+      return isdigit(*a) ? -1 : 1;
     }
 
-    char* next_a;
-    char* next_b;
-    long num_a = std::strtol(a, &next_a, 10);
-    long num_b = std::strtol(b, &next_b, 10);
+    char *next_a, *next_b;
+    long int num_a = strtol(a, &next_a, 10);
+    long int num_b = strtol(b, &next_b, 10);
     if (num_a != num_b)
       return num_a < num_b ? -1 : 1;
 
@@ -114,14 +113,14 @@ int CAddonVersion::CompareComponent(const char* a, const char* b)
 
 bool CAddonVersion::operator<(const CAddonVersion& other) const
 {
-  if (m_epoch != other.m_epoch)
-    return m_epoch < other.m_epoch;
+  if (mEpoch != other.mEpoch)
+    return mEpoch < other.mEpoch;
 
-  int result = CompareComponent(m_upstream.c_str(), other.m_upstream.c_str());
+  int result = CompareComponent(mUpstream.c_str(), other.mUpstream.c_str());
   if (result)
     return (result < 0);
 
-  return (CompareComponent(m_revision.c_str(), other.m_revision.c_str()) < 0);
+  return (CompareComponent(mRevision.c_str(), other.mRevision.c_str()) < 0);
 }
 
 bool CAddonVersion::operator>(const CAddonVersion& other) const
@@ -131,9 +130,14 @@ bool CAddonVersion::operator>(const CAddonVersion& other) const
 
 bool CAddonVersion::operator==(const CAddonVersion& other) const
 {
-  return m_epoch == other.m_epoch &&
-         CompareComponent(m_upstream.c_str(), other.m_upstream.c_str()) == 0 &&
-         CompareComponent(m_revision.c_str(), other.m_revision.c_str()) == 0;
+  return mEpoch == other.mEpoch &&
+         CompareComponent(mUpstream.c_str(), other.mUpstream.c_str()) == 0 &&
+         CompareComponent(mRevision.c_str(), other.mRevision.c_str()) == 0;
+}
+
+bool CAddonVersion::operator!=(const CAddonVersion& other) const
+{
+  return !(*this == other);
 }
 
 bool CAddonVersion::operator<=(const CAddonVersion& other) const
@@ -148,17 +152,17 @@ bool CAddonVersion::operator>=(const CAddonVersion& other) const
 
 bool CAddonVersion::empty() const
 {
-  return m_epoch == 0 && m_upstream == "0.0.0" && m_revision.empty();
+  return mEpoch == 0 && mUpstream == "0.0.0" && mRevision.empty();
 }
 
 std::string CAddonVersion::asString() const
 {
   std::string out;
-  if (m_epoch)
-    out = StringUtils::Format("{}:", m_epoch);
-  out += m_upstream;
-  if (!m_revision.empty())
-    out += "-" + m_revision;
+  if (mEpoch)
+    out = StringUtils::Format("{}:", mEpoch);
+  out += mUpstream;
+  if (!mRevision.empty())
+    out += "-" + mRevision;
   return out;
 }
 
@@ -171,7 +175,7 @@ bool CAddonVersion::SplitFileName(std::string& ID,
     return false;
   ID = filename.substr(0, dpos);
   version = filename.substr(dpos + 1);
-  version.resize(version.size() - 4);
+  version = version.substr(0, version.size() - 4);
 
   return true;
 }

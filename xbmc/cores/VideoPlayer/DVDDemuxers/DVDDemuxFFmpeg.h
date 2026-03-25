@@ -21,7 +21,6 @@ extern "C" {
 }
 
 class CDVDDemuxFFmpeg;
-class CDVDInputStream;
 class CURL;
 
 enum class TRANSPORT_STREAM_STATE
@@ -96,7 +95,7 @@ public:
   DemuxPacket* Read() override;
   DemuxPacket* ReadInternal(bool keep);
 
-  bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override;
+  bool SeekTime(double time, bool backwards = false, double* startpts = nullptr) override;
   bool SeekByte(int64_t pos);
   int GetStreamLength() override;
   CDemuxStream* GetStream(int iStreamId) const override;
@@ -105,14 +104,14 @@ public:
   int GetPrograms(std::vector<ProgramInfo>& programs) override;
   void SetProgram(int progId) override;
 
-  bool SeekChapter(int chapter, double* startpts = NULL) override;
+  bool SeekChapter(int chapter, double* startpts = nullptr) override;
   int GetChapterCount() override;
   int GetChapter() override;
   void GetChapterName(std::string& strChapterName, int chapterIdx=-1) override;
-  std::chrono::milliseconds GetChapterPos(int chapterIdx = -1) override;
+  int64_t GetChapterPos(int chapterIdx = -1) override;
   std::string GetStreamCodecName(int iStreamId) override;
 
-  bool Aborted();
+  bool Aborted() const;
 
   AVFormatContext* m_pFormatContext;
   std::shared_ptr<CDVDInputStream> m_pInput;
@@ -130,18 +129,19 @@ protected:
   TRANSPORT_STREAM_STATE TransportStreamAudioState();
   TRANSPORT_STREAM_STATE TransportStreamVideoState();
   bool IsTransportStreamReady();
-  void ResetVideoStreams();
-  AVDictionary* GetFFMpegOptionsFromInput();
-  double ConvertTimestamp(int64_t pts, int den, int num);
+  void ResetVideoStreams() const;
+  AVDictionary* GetFFMpegOptionsFromInput() const;
+  double ConvertTimestamp(int64_t pts, int den, int num) const;
   bool IsProgramChange();
-  unsigned int HLSSelectProgram();
+  unsigned int HLSSelectProgram() const;
 
   std::string GetStereoModeFromMetadata(AVDictionary* pMetadata);
   std::string ConvertCodecToInternalStereoMode(const std::string& mode, const StereoModeConversionMap* conversionMap);
 
-  void GetL16Parameters(int& channels, int& samplerate);
-  double SelectAspect(AVStream* st, bool& forced);
+  void GetL16Parameters(int& channels, int& samplerate) const;
+  double SelectAspect(AVStream* st, bool& forced) const;
 
+  bool IsDoViP7DualLayer() const;
   StreamHdrType DetermineHdrType(AVStream* pStream);
 
   CCriticalSection m_critSection;

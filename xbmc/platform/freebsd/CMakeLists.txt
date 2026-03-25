@@ -15,12 +15,12 @@ set(HEADERS ../linux/AppParamParserLinux.cpp
             ../linux/TimeUtils.h
             PlatformFreebsd.h)
 
-if(TARGET ${APP_NAME_LC}::Alsa)
+if(TARGET ALSA::ALSA)
   list(APPEND SOURCES ../linux/FDEventMonitor.cpp)
   list(APPEND HEADERS ../linux/FDEventMonitor.h)
 endif()
 
-if(TARGET ${APP_NAME_LC}::DBus)
+if(TARGET DBus::DBus)
   list(APPEND SOURCES ../linux/DBusMessage.cpp
                       ../linux/DBusUtil.cpp)
   list(APPEND HEADERS ../linux/DBusMessage.h

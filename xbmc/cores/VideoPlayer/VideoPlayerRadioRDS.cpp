@@ -32,12 +32,11 @@
 #include "dialogs/GUIDialogKaiToast.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "interfaces/AnnouncementManager.h"
 #include "music/tags/MusicInfoTag.h"
 #include "pvr/channels/PVRChannel.h"
 #include "pvr/channels/PVRRadioRDSInfoTag.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/CharsetConverter.h"
@@ -445,7 +444,7 @@ static char *rds_entitychar(char *text)
 
   while (i < EntityChars)
   {
-    if ((temp = strstr(text, entitystr[i])) != NULL)
+    if ((temp = strstr(text, entitystr[i])) != nullptr)
     {
       l = strlen(entitystr[i]);
       lof = (temp-text);
@@ -514,7 +513,7 @@ CDVDRadioRDSData::~CDVDRadioRDSData()
 
 bool CDVDRadioRDSData::CheckStream(const CDVDStreamInfo& hints)
 {
-  if (hints.type == StreamType::RADIO_RDS)
+  if (hints.type == STREAM_RADIO_RDS)
     return true;
 
   return false;
@@ -525,7 +524,7 @@ bool CDVDRadioRDSData::OpenStream(CDVDStreamInfo hints)
   CloseStream(true);
 
   m_messageQueue.Init();
-  if (hints.type == StreamType::RADIO_RDS)
+  if (hints.type == STREAM_RADIO_RDS)
   {
     Flush();
     CLog::Log(LOGINFO, "Creating UECP (RDS) data thread");
@@ -553,7 +552,7 @@ void CDVDRadioRDSData::CloseStream(bool bWaitForBuffers)
 
 void CDVDRadioRDSData::ResetRDSCache()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   m_currentFileUpdate = false;
 
@@ -594,7 +593,7 @@ void CDVDRadioRDSData::ResetRDSCache()
   m_RTPlus_ItemToggle = 1;
   m_RTPlus_Title[0] = 0;
   m_RTPlus_Artist[0] = 0;
-  m_RTPlus_Starttime = time(NULL);
+  m_RTPlus_Starttime = time(nullptr);
   m_RTPlus_GenrePresent = false;
 
   m_currentInfoTag = std::make_shared<CPVRRadioRDSInfoTag>();
@@ -633,7 +632,7 @@ void CDVDRadioRDSData::Process()
 
     if (pMsg->IsType(CDVDMsg::DEMUXER_PACKET))
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
 
       DemuxPacket* pPacket = std::static_pointer_cast<CDVDMsgDemuxerPacket>(pMsg)->GetPacket();
 
@@ -655,7 +654,7 @@ void CDVDRadioRDSData::Flush()
 {
   if(!m_messageQueue.IsInited())
     return;
-  /* flush using message as this gets called from VideoPlayer thread */
+  /* flush using message as this get's called from VideoPlayer thread */
   /* and any demux packet that has been taken out of queue need to */
   /* be disposed of before we flush */
   m_messageQueue.Flush();
@@ -818,8 +817,7 @@ unsigned int CDVDRadioRDSData::DecodePI(const uint8_t* msgElement)
   return 5;
 }
 
-unsigned int CDVDRadioRDSData::DecodePS(uint8_t *msgElement)
-{
+unsigned int CDVDRadioRDSData::DecodePS(uint8_t *msgElement) const {
   uint8_t *text = msgElement+3;
 
   char decodedText[9] = {};
@@ -885,10 +883,7 @@ unsigned int CDVDRadioRDSData::DecodeTA_TP(const uint8_t* msgElement)
 
   if (traffic_announcement && !m_TA_TP_TrafficAdvisory && traffic_programme && dsn == 0 && CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool("pvrplayback.trafficadvisory"))
   {
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Warning,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19021),
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29930));
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Warning, g_localizeStrings.Get(19021), g_localizeStrings.Get(29930));
     m_TA_TP_TrafficAdvisory = true;
     auto& components = CServiceBroker::GetAppComponents();
     const auto appVolume = components.GetComponent<CApplicationVolumeHandling>();
@@ -983,23 +978,14 @@ unsigned int CDVDRadioRDSData::DecodePTY(const uint8_t* msgElement)
     // save info
     m_currentInfoTag->SetRadioStyle(pty_skin_info_table[m_PTY][m_RDS_IsRBDS].style_name);
     if (!m_RTPlus_GenrePresent && !m_PTYN_Present)
-      SetRadioStyle(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          pty_skin_info_table[m_PTY][m_RDS_IsRBDS].name));
+      SetRadioStyle(g_localizeStrings.Get(pty_skin_info_table[m_PTY][m_RDS_IsRBDS].name));
 
     if (m_PTY == RDS_PTY_ALARM_TEST)
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Info,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29931),
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29970),
-          TOAST_DISPLAY_TIME, false);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(29931), g_localizeStrings.Get(29970), TOAST_DISPLAY_TIME, false);
 
     if (m_PTY == RDS_PTY_ALARM)
     {
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Warning,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29931),
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(29971),
-          TOAST_DISPLAY_TIME * 2, true);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Warning, g_localizeStrings.Get(29931), g_localizeStrings.Get(29971), TOAST_DISPLAY_TIME*2, true);
     }
   }
 
@@ -1021,11 +1007,8 @@ unsigned int CDVDRadioRDSData::DecodePTYN(uint8_t *msgElement)
 
   if (!m_RTPlus_GenrePresent)
   {
-    std::string progTypeName =
-        StringUtils::Format("{}: {}",
-                            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                                pty_skin_info_table[m_PTY][m_RDS_IsRBDS].name),
-                            m_PTYN);
+    std::string progTypeName = StringUtils::Format(
+        "{}: {}", g_localizeStrings.Get(pty_skin_info_table[m_PTY][m_RDS_IsRBDS].name), m_PTYN);
     SetRadioStyle(progTypeName);
   }
 
@@ -1227,7 +1210,7 @@ unsigned int CDVDRadioRDSData::DecodeRTPlus(uint8_t *msgElement, unsigned int le
                 m_RTPlus_iDiffs = (int) m_RTPlus_iTime.GetElapsedSeconds();
               if (!m_RT_NewItem)
               {
-                m_RTPlus_Starttime = time(NULL);
+                m_RTPlus_Starttime = time(nullptr);
                 m_RTPlus_iTime.StartZero();
                 m_RTPlus_Artist[0] = 0;
               }
@@ -1255,7 +1238,7 @@ unsigned int CDVDRadioRDSData::DecodeRTPlus(uint8_t *msgElement, unsigned int le
                 m_RTPlus_iDiffs = (int) m_RTPlus_iTime.GetElapsedSeconds();
               if (!m_RT_NewItem)
               {
-                m_RTPlus_Starttime = time(NULL);
+                m_RTPlus_Starttime = time(nullptr);
                 m_RTPlus_iTime.StartZero();
                 m_RTPlus_Title[0] = 0;
               }
@@ -1412,7 +1395,7 @@ unsigned int CDVDRadioRDSData::DecodeRTPlus(uint8_t *msgElement, unsigned int le
       m_RTPlus_Show = false;
       m_RTPlus_TToggle = true;
       m_RTPlus_iDiffs = (int) m_RTPlus_iTime.GetElapsedSeconds();
-      m_RTPlus_Starttime = time(NULL);
+      m_RTPlus_Starttime = time(nullptr);
     }
     m_RT_NewItem = false;
   }

@@ -5,31 +5,35 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::Sqlite3 - The SQLite3 library
+#   SQLite3::SQLite3 - The SQLite3 library
 #
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+if(NOT TARGET SQLite3::SQLite3)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_SQLITE3 sqlite3 QUIET)
+  endif()
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC sqlite3)
+  find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h
+                                PATHS ${PC_SQLITE3_INCLUDEDIR}
+                                NO_CACHE)
+  find_library(SQLITE3_LIBRARY NAMES sqlite3
+                               PATHS ${PC_SQLITE3_LIBDIR}
+                               NO_CACHE)
 
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  set(SQLITE3_VERSION ${PC_SQLITE3_VERSION})
 
-  SETUP_BUILD_VARS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Sqlite3
+                                    REQUIRED_VARS SQLITE3_LIBRARY SQLITE3_INCLUDE_DIR
+                                    VERSION_VAR SQLITE3_VERSION)
 
-  SETUP_FIND_SPECS()
+  if(Sqlite3_FOUND)
+    add_library(SQLite3::SQLite3 UNKNOWN IMPORTED)
+    set_target_properties(SQLite3::SQLite3 PROPERTIES
+                                           IMPORTED_LOCATION "${SQLITE3_LIBRARY}"
+                                           INTERFACE_INCLUDE_DIRECTORIES "${SQLITE3_INCLUDE_DIR}")
 
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    if(TARGET sqlite3::sqlite3)
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS sqlite3::sqlite3)
-    elseif(TARGET PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-      add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-    endif()
-  else()
-    if(Sqlite3_FIND_REQUIRED)
-      message(FATAL_ERROR "SQLite3 library not found.")
-    endif()
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP SQLite3::SQLite3)
   endif()
 endif()

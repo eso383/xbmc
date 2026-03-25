@@ -34,14 +34,14 @@ CGUIControlProfilerItem::CGUIControlProfilerItem(CGUIControlProfiler* pProfiler,
 
 CGUIControlProfilerItem::~CGUIControlProfilerItem(void)
 {
-  Reset(NULL);
+  Reset(nullptr);
 }
 
 void CGUIControlProfilerItem::Reset(CGUIControlProfiler *pProfiler)
 {
   m_controlID = 0;
   m_ControlType = CGUIControl::GUICONTROL_UNKNOWN;
-  m_pControl = NULL;
+  m_pControl = nullptr;
 
   m_visTime = 0;
   m_renderTime = 0;
@@ -73,12 +73,11 @@ void CGUIControlProfilerItem::EndRender(void)
   m_renderTime += (unsigned int)(m_pProfiler->m_fPerfScale * (CurrentHostCounter() - m_i64RenderStart));
 }
 
-void CGUIControlProfilerItem::SaveToXML(TiXmlElement *parent)
-{
-  TiXmlElement *xmlControl = new TiXmlElement("control");
+void CGUIControlProfilerItem::SaveToXML(TiXmlElement *parent) const {
+  auto xmlControl = new TiXmlElement("control");
   parent->LinkEndChild(xmlControl);
 
-  const char *lpszType = NULL;
+  const char *lpszType = nullptr;
   switch (m_ControlType)
   {
   case CGUIControl::GUICONTROL_BUTTON:
@@ -163,9 +162,9 @@ void CGUIControlProfilerItem::SaveToXML(TiXmlElement *parent)
 
   if (!m_strDescription.empty())
   {
-    TiXmlElement *elem = new TiXmlElement("description");
+    auto elem = new TiXmlElement("description");
     xmlControl->LinkEndChild(elem);
-    TiXmlText *text = new TiXmlText(m_strDescription.c_str());
+    auto text = new TiXmlText(m_strDescription.c_str());
     elem->LinkEndChild(text);
   }
 
@@ -175,10 +174,10 @@ void CGUIControlProfilerItem::SaveToXML(TiXmlElement *parent)
   if (vis || rend)
   {
     std::string val;
-    TiXmlElement *elem = new TiXmlElement("rendertime");
+    auto elem = new TiXmlElement("rendertime");
     xmlControl->LinkEndChild(elem);
     val = std::to_string(rend);
-    TiXmlText *text = new TiXmlText(val.c_str());
+    auto text = new TiXmlText(val.c_str());
     elem->LinkEndChild(text);
 
     elem = new TiXmlElement("visibletime");
@@ -188,9 +187,9 @@ void CGUIControlProfilerItem::SaveToXML(TiXmlElement *parent)
     elem->LinkEndChild(text);
   }
 
-  if (!m_vecChildren.empty())
+  if (m_vecChildren.size())
   {
-    TiXmlElement *xmlChilds = new TiXmlElement("children");
+    auto xmlChilds = new TiXmlElement("children");
     xmlControl->LinkEndChild(xmlChilds);
     const unsigned int dwSize = m_vecChildren.size();
     for (unsigned int i=0; i<dwSize; ++i)
@@ -219,11 +218,11 @@ CGUIControlProfilerItem *CGUIControlProfilerItem::FindOrAddControl(CGUIControl *
   if (pControl->GetParentControl() == m_pControl)
     return AddControl(pControl);
 
-  return NULL;
+  return nullptr;
 }
 
 CGUIControlProfiler::CGUIControlProfiler(void)
-: m_ItemHead(NULL, NULL, NULL), m_pLastItem(NULL)
+: m_ItemHead(nullptr, nullptr, nullptr), m_pLastItem(nullptr)
 // m_bIsRunning(false), no isRunning because it is static
 {
   m_fPerfScale = 100000.0f / CurrentHostFrequency();
@@ -244,7 +243,7 @@ void CGUIControlProfiler::Start(void)
 {
   m_iFrameCount = 0;
   m_bIsRunning = true;
-  m_pLastItem = NULL;
+  m_pLastItem = nullptr;
   m_ItemHead.Reset(this);
 }
 
@@ -328,7 +327,7 @@ bool CGUIControlProfiler::SaveResults(void)
   TiXmlDeclaration decl("1.0", "", "yes");
   doc.InsertEndChild(decl);
 
-  TiXmlElement *root = new TiXmlElement("guicontrolprofiler");
+  auto root = new TiXmlElement("guicontrolprofiler");
   std::string str = std::to_string(m_iFrameCount);
   root->SetAttribute("framecount", str.c_str());
   root->SetAttribute("timeunit", "ms");

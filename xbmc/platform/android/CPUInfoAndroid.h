@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "utils/Temperature.h"
+
 #include "platform/posix/CPUInfoPosix.h"
 #include "platform/posix/filesystem/PosixFile.h"
 
@@ -27,7 +29,4 @@ public:
 
 private:
   std::unique_ptr<CPosixFile> m_posixFile;
-
-  int GetCPUCount();
-  bool HasNeon();
 };

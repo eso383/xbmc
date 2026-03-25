@@ -10,7 +10,6 @@
 
 #include "AudioLibrary.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "MediaSource.h"
 #include "ServiceBroker.h"
 #include "URL.h"
@@ -18,11 +17,9 @@
 #include "VideoLibrary.h"
 #include "filesystem/Directory.h"
 #include "media/MediaLockState.h"
-#include "playlists/PlayListFileItemClassify.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/Artwork.h"
 #include "utils/FileExtensionProvider.h"
 #include "utils/FileUtils.h"
 #include "utils/URIUtils.h"
@@ -31,23 +28,22 @@
 
 #include <memory>
 
-using namespace KODI;
-using namespace JSONRPC;
 using namespace XFILE;
+using namespace JSONRPC;
 
 JSONRPC_STATUS CFileOperations::GetRootDirectory(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
   std::string media = parameterObject["media"].asString();
   StringUtils::ToLower(media);
 
-  std::vector<CMediaSource>* sources = CMediaSourceSettings::GetInstance().GetSources(media);
+  VECSOURCES *sources = CMediaSourceSettings::GetInstance().GetSources(media);
   if (sources)
   {
     CFileItemList items;
     for (unsigned int i = 0; i < (unsigned int)sources->size(); i++)
     {
       // Do not show sources which are locked
-      if (sources->at(i).GetLockInfo().IsLocked())
+      if (sources->at(i).m_iHasLock == LOCK_STATE_LOCKED)
         continue;
 
       items.Add(std::make_shared<CFileItem>(sources->at(i)));
@@ -66,7 +62,7 @@ JSONRPC_STATUS CFileOperations::GetRootDirectory(const std::string &method, ITra
     param["properties"] = CVariant(CVariant::VariantTypeArray);
     param["properties"].append("file");
 
-    HandleFileItemList(NULL, true, "sources", items, param, result);
+    HandleFileItemList(nullptr, true, "sources", items, param, result);
   }
 
   return OK;
@@ -262,7 +258,7 @@ JSONRPC_STATUS CFileOperations::SetFileDetails(const std::string &method, ITrans
   CVideoLibrary::UpdateResumePoint(parameterObject, infos, videodatabase);
 
   videodatabase.GetFileInfo("", infos, fileId);
-  CJSONRPCUtils::NotifyItemUpdated(infos, KODI::ART::Artwork{});
+  CJSONRPCUtils::NotifyItemUpdated(infos, std::map<std::string, std::string>{});
   return ACK;
 }
 
@@ -295,7 +291,7 @@ bool CFileOperations::FillFileItem(
     const std::string& media /* = "" */,
     const CVariant& parameterObject /* = CVariant(CVariant::VariantTypeArray) */)
 {
-  if (originalItem.get() == NULL)
+  if (originalItem.get() == nullptr)
     return false;
 
   // copy all the available details
@@ -334,7 +330,7 @@ bool CFileOperations::FillFileItem(
 
         item->SetLabel(label);
         item->SetPath(strFilename);
-        item->SetFolder(isDir);
+        item->m_bIsFolder = isDir;
       }
       else
         *item = *originalItem;
@@ -381,9 +377,8 @@ bool CFileOperations::FillFileItemList(const CVariant &parameterObject, CFileIte
       {
         // Sort folders and files by filename to avoid reverse item order bug on some platforms,
         // but leave items from a playlist, smartplaylist or upnp container in order supplied
-        if (!PLAYLIST::IsPlayList(items) && !PLAYLIST::IsSmartPlayList(items) &&
-            !URIUtils::IsUPnP(items.GetPath()))
-          items.Sort(SortBy::FILE, SortOrder::ASCENDING);
+        if (!items.IsPlayList() && !items.IsSmartPlayList() && !URIUtils::IsUPnP(items.GetPath()))
+          items.Sort(SortByFile, SortOrderAscending);
 
         CFileItemList filteredDirectories;
         for (unsigned int i = 0; i < (unsigned int)items.Size(); i++)
@@ -391,7 +386,7 @@ bool CFileOperations::FillFileItemList(const CVariant &parameterObject, CFileIte
           if (CUtil::ExcludeFileOrFolder(items[i]->GetPath(), regexps))
             continue;
 
-          if (items[i]->IsFolder())
+          if (items[i]->m_bIsFolder)
             filteredDirectories.Add(items[i]);
           else if ((media == "video" && items[i]->HasVideoInfoTag()) ||
                    (media == "music" && items[i]->HasMusicInfoTag()))

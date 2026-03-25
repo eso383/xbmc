@@ -13,7 +13,6 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 
@@ -28,14 +27,18 @@ namespace XBMCAddon
     long getCurrentWindowId()
     {
       DelayedCallGuard dg;
-      std::unique_lock gl(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+      std::lock_guard gl(CServiceBroker::GetWinSystem()->GetGfxContext());
+
       return CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow();
     }
 
     long getCurrentWindowDialogId()
     {
       DelayedCallGuard dg;
-      std::unique_lock gl(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+      std::lock_guard gl(CServiceBroker::GetWinSystem()->GetGfxContext());
+
       return CServiceBroker::GetGUI()->GetWindowManager().GetTopmostModalDialog();
     }
 

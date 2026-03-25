@@ -39,7 +39,7 @@ CVideoSettings::CVideoSettings()
   m_StereoMode = 0;
   m_StereoInvert = false;
   m_VideoStream = -1;
-  m_ToneMapMethod = VS_TONEMAPMETHOD_OFF;
+  m_ToneMapMethod = VS_TONEMAPMETHOD_REINHARD;
   m_ToneMapParam = 1.0f;
   m_Orientation = 0;
   m_CenterMixLevel = 0;
@@ -89,52 +89,52 @@ CVideoSettingsLocked::CVideoSettingsLocked(CVideoSettings &vs, CCriticalSection 
 {
 }
 
-void CVideoSettingsLocked::SetSubtitleStream(int stream)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetSubtitleStream(int stream) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_SubtitleStream = stream;
 }
 
-void CVideoSettingsLocked::SetSubtitleVisible(bool visible)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetSubtitleVisible(bool visible) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_SubtitleOn = visible;
 }
 
-void CVideoSettingsLocked::SetAudioStream(int stream)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetAudioStream(int stream) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_AudioStream = stream;
 }
 
-void CVideoSettingsLocked::SetVideoStream(int stream)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetVideoStream(int stream) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_VideoStream = stream;
 }
 
-void CVideoSettingsLocked::SetAudioDelay(float delay)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetAudioDelay(float delay) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_AudioDelay = delay;
 }
 
-void CVideoSettingsLocked::SetSubtitleDelay(float delay)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetSubtitleDelay(float delay) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_SubtitleDelay = delay;
 }
 
-void CVideoSettingsLocked::SetSubtitleVerticalPosition(int value, bool save)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetSubtitleVerticalPosition(int value, bool save) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_subtitleVerticalPosition = value;
   m_videoSettings.m_subtitleVerticalPositionSave = save;
 }
 
-void CVideoSettingsLocked::SetViewMode(int mode, float zoom, float par, float shift, bool stretch)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetViewMode(int mode, float zoom, float par, float shift, bool stretch) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_ViewMode = mode;
   m_videoSettings.m_CustomZoomAmount = zoom;
   m_videoSettings.m_CustomPixelRatio = par;
@@ -142,8 +142,8 @@ void CVideoSettingsLocked::SetViewMode(int mode, float zoom, float par, float sh
   m_videoSettings.m_CustomNonLinStretch = stretch;
 }
 
-void CVideoSettingsLocked::SetVolumeAmplification(float amp)
-{
-  std::unique_lock lock(m_critSection);
+void CVideoSettingsLocked::SetVolumeAmplification(float amp) const {
+  std::lock_guard lock(m_critSection);
+
   m_videoSettings.m_VolumeAmplification = amp;
 }

@@ -8,19 +8,18 @@
 
 #include "RendererAML.h"
 
-#include "cores/VideoPlayer/DVDCodecs/Video/AMLCodec.h"
 #include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodecAmlogic.h"
+#include "cores/VideoPlayer/DVDCodecs/Video/AMLCodec.h"
+#include "utils/log.h"
+#include "utils/AMLUtils.h"
+#include "utils/ScreenshotAML.h"
+#include "settings/MediaSettings.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderCapture.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFactory.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFlags.h"
-#include "ServiceBroker.h"
 #include "settings/AdvancedSettings.h"
-#include "settings/MediaSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/AMLUtils.h"
-#include "utils/ScreenshotAML.h"
-#include "utils/log.h"
 #include "windowing/GraphicContext.h"
 #include "windowing/WinSystem.h"
 
@@ -179,7 +178,7 @@ void CRendererAML::RenderUpdate(int index, int index2, bool clear, unsigned int 
     if (pts != m_prevVPts)
     {
       amli->m_amlCodec->ReleaseFrame(amli->m_bufferIndex);
-      amli->m_amlCodec->SetVideoRect(m_destRect);
+      amli->m_amlCodec->SetVideoRect(m_sourceRect, m_destRect);
       amli->m_amlCodec = nullptr; //Mark frame as processed
       m_prevVPts = pts;
     }

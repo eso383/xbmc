@@ -9,25 +9,21 @@
 #pragma once
 
 #include "RPBaseRenderer.h"
+#include "cores/GameSettings.h"
+#include "cores/RetroPlayer/buffers/BaseRenderBufferPool.h"
+#include "cores/RetroPlayer/buffers/video/RenderBufferSysMem.h"
 #include "cores/RetroPlayer/process/RPProcessInfo.h"
 
-#include <map>
-#include <memory>
+#include <atomic>
 #include <stdint.h>
+#include <vector>
 
 #include "system_gl.h"
 
 namespace KODI
 {
-namespace SHADER
-{
-class CShaderTextureGLESRef;
-} // namespace SHADER
-
 namespace RETRO
 {
-class CRenderBufferOpenGLES;
-
 class CRendererFactoryOpenGLES : public IRendererFactory
 {
 public:
@@ -56,25 +52,6 @@ public:
   static bool SupportsScalingMethod(SCALINGMETHOD method);
 
 protected:
-  struct PackedVertex
-  {
-    float x, y, z;
-    float u1, v1;
-  };
-
-  struct Svertex
-  {
-    float x;
-    float y;
-    float z;
-  };
-
-  struct RenderBufferTextures
-  {
-    std::shared_ptr<SHADER::CShaderTextureGLESRef> source;
-    std::shared_ptr<SHADER::CShaderTextureGLESRef> target;
-  };
-
   // implementation of CRPBaseRenderer
   void RenderInternal(bool clear, uint8_t alpha) override;
   void FlushInternal() override;
@@ -82,7 +59,7 @@ protected:
   /*!
    * \brief Set the entire backbuffer to black
    */
-  void ClearBackBuffer();
+  void ClearBackBuffer() const;
 
   /*!
    * \brief Draw black bars around the video quad
@@ -90,19 +67,15 @@ protected:
    * This is more efficient than glClear() since it only sets pixels to
    * black that aren't going to be overwritten by the game.
    */
-  void DrawBlackBars();
+  void DrawBlackBars() const;
 
   virtual void Render(uint8_t alpha);
 
-  std::map<CRenderBufferOpenGLES*, std::unique_ptr<RenderBufferTextures>> m_RBTexturesMap;
-
   GLuint m_mainIndexVBO;
   GLuint m_mainVertexVBO;
-
   GLuint m_blackbarsVertexVBO;
-
   GLenum m_textureTarget = GL_TEXTURE_2D;
-  float m_clearColor = 0.0f;
+  float m_clearColour = 0.0f;
 };
 } // namespace RETRO
 } // namespace KODI

@@ -20,7 +20,7 @@ using namespace std::chrono_literals;
 
 CCircularCache::CCircularCache(size_t front, size_t back)
   : CCacheStrategy(),
-    m_buf(NULL),
+    m_buf(nullptr),
     m_size(front + back),
     m_size_back(back)
 #ifdef TARGET_WINDOWS
@@ -45,7 +45,7 @@ int CCircularCache::Open()
 #else
   m_buf = new uint8_t[m_size];
 #endif
-  if (m_buf == NULL)
+  if (m_buf == nullptr)
     return CACHE_RC_ERROR;
   m_beg = 0;
   m_end = 0;
@@ -64,12 +64,12 @@ void CCircularCache::Close()
 #else
   delete[] m_buf;
 #endif
-  m_buf = NULL;
+  m_buf = nullptr;
 }
 
 size_t CCircularCache::GetMaxWriteSize(const size_t& iRequestSize)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
 
   size_t back  = (size_t)(m_cur - m_beg); // Backbuffer size
   size_t front = (size_t)(m_end - m_cur); // Frontbuffer size
@@ -100,7 +100,7 @@ size_t CCircularCache::GetMaxWriteSize(const size_t& iRequestSize)
  */
 int CCircularCache::WriteToCache(const char *buf, size_t len)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
 
   // where are we in the buffer
   size_t pos   = m_end % m_size;
@@ -121,7 +121,7 @@ int CCircularCache::WriteToCache(const char *buf, size_t len)
   if(len == 0)
     return 0;
 
-  if (m_buf == NULL)
+  if (m_buf == nullptr)
     return 0;
 
   // write the data
@@ -144,7 +144,7 @@ int CCircularCache::WriteToCache(const char *buf, size_t len)
  */
 int CCircularCache::ReadFromCache(char *buf, size_t len)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
 
   size_t pos   = m_cur % m_size;
   size_t front = (size_t)(m_end - m_cur);
@@ -164,7 +164,7 @@ int CCircularCache::ReadFromCache(char *buf, size_t len)
   if(len == 0)
     return 0;
 
-  if (m_buf == NULL)
+  if (m_buf == nullptr)
     return 0;
 
   memcpy(buf, m_buf + pos, len);
@@ -182,6 +182,7 @@ int CCircularCache::ReadFromCache(char *buf, size_t len)
 int64_t CCircularCache::WaitForData(uint32_t minimum, std::chrono::milliseconds timeout)
 {
   std::unique_lock lock(m_sync);
+
   int64_t avail = m_end - m_cur;
 
   if (timeout == 0ms || IsEndOfInput())
@@ -237,7 +238,8 @@ int64_t CCircularCache::Seek(int64_t pos)
 
 bool CCircularCache::Reset(int64_t pos)
 {
-  std::unique_lock lock(m_sync);
+  std::lock_guard lock(m_sync);
+  
   if (IsCachedPosition(pos))
   {
     m_cur = pos;

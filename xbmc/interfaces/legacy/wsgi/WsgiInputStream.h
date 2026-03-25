@@ -33,7 +33,7 @@ namespace XBMCAddon
       /// Read a maximum of `<size>` bytes from the wsgi.input stream.
       ///
       /// @param size         [opt] bytes to read
-      /// @return             Returns the read string
+      /// @return             Returns the readed string
       ///
       read(...);
 #else
@@ -48,7 +48,7 @@ namespace XBMCAddon
       /// stream.
       ///
       /// @param size         [opt] bytes to read
-      /// @return             Returns the read string line
+      /// @return             Returns the readed string line
       ///
       read(...);
 #else
@@ -63,7 +63,7 @@ namespace XBMCAddon
       /// wsgi.input stream and return them as a list.
       ///
       /// @param sizehint      [opt] bytes to read
-      /// @return              Returns a list read string lines
+      /// @return              Returns a list readed string lines
       ///
       read(...);
 #else
@@ -74,7 +74,7 @@ namespace XBMCAddon
       WsgiInputStreamIterator(const String& data, bool end = false);
 
       WsgiInputStreamIterator& operator++();
-      bool operator==(const WsgiInputStreamIterator& rhs);
+      bool operator==(const WsgiInputStreamIterator& rhs) const;
       bool operator!=(const WsgiInputStreamIterator& rhs);
       String& operator*();
       inline bool end() const { return m_remaining <= 0; }
@@ -105,8 +105,8 @@ namespace XBMCAddon
       ~WsgiInputStream() override;
 
 #if !defined SWIG && !defined DOXYGEN_SHOULD_SKIP_THIS
-      WsgiInputStreamIterator* begin();
-      WsgiInputStreamIterator* end();
+      WsgiInputStreamIterator* begin() const;
+      WsgiInputStreamIterator* end() const;
 
       /**
        * Sets the given request.

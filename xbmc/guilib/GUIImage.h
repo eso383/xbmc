@@ -15,7 +15,6 @@
 
 #include "GUIControl.h"
 #include "GUITexture.h"
-#include "ImageSettings.h"
 #include "guilib/guiinfo/GUIInfoLabel.h"
 
 #include <vector>
@@ -60,7 +59,7 @@ public:
 
   void Process(unsigned int currentTime, CDirtyRegionList &dirtyregions) override;
   void Render() override;
-  void UpdateVisibility(const CGUIListItem *item = NULL) override;
+  void UpdateVisibility(const CGUIListItem *item = nullptr) override;
   bool OnAction(const CAction &action) override ;
   bool OnMessage(CGUIMessage& message) override;
   void AllocResources() override;
@@ -69,20 +68,16 @@ public:
   bool IsDynamicallyAllocated() override { return m_bDynamicResourceAlloc; }
   void SetInvalid() override;
   bool CanFocus() const override;
-  void UpdateInfo(const CGUIListItem *item = NULL) override;
+  void UpdateInfo(const CGUIListItem *item = nullptr) override;
 
   virtual void SetInfo(const KODI::GUILIB::GUIINFO::CGUIInfoLabel &info);
   virtual void SetFileName(const std::string& strFileName, bool setConstant = false, const bool useCache = true);
   virtual void SetAspectRatio(const CAspectRatio &aspect);
-  virtual void SetScalingMethod(TEXTURE_SCALING scalingMethod);
-  virtual void SetDiffuseScalingMethod(TEXTURE_SCALING scalingMethod);
   void SetWidth(float width) override;
   void SetHeight(float height) override;
   void SetPosition(float posX, float posY) override;
   std::string GetDescription() const override;
   void SetCrossFade(unsigned int time);
-  void SetImageFilter(const KODI::GUILIB::GUIINFO::CGUIInfoLabel& imageFilter);
-  void SetDiffuseFilter(const KODI::GUILIB::GUIINFO::CGUIInfoLabel& diffuseFilter);
 
   const std::string& GetFileName() const;
   float GetTextureWidth() const;
@@ -98,12 +93,7 @@ protected:
   virtual void FreeTextures(bool immediately = false);
   void FreeResourcesButNotAnims();
   unsigned char GetFadeLevel(unsigned int time) const;
-  std::string GetFallback(const std::string& currentName);
-  void ProcessState();
-  void ProcessAllocation();
-  void ProcessNoTransition(unsigned int currentTime);
-  void ProcessInstantTransition(unsigned int currentTime);
-  void ProcessFadingTransition(unsigned int currentTime);
+  bool ProcessFading(CFadingTexture *texture, unsigned int frameTime, unsigned int currentTime, bool &changed);
 
   /*!
    * \brief Update the diffuse color based on the current item infos
@@ -111,34 +101,22 @@ protected:
   */
   void UpdateDiffuseColor(const CGUIListItem* item);
 
-  void UpdateImageFilter(KODI::GUILIB::IMAGE_FILTER imageFilter);
-  void UpdateDiffuseFilter(KODI::GUILIB::IMAGE_FILTER diffuseFilter);
-
   bool m_bDynamicResourceAlloc;
 
   // border + conditional info
   CTextureInfo m_image;
   KODI::GUILIB::GUIINFO::CGUIInfoLabel m_info;
 
-  bool m_isTransitioning{false};
-  bool m_hasNewStagingTexture{false};
-
-  std::unique_ptr<CGUITexture> m_textureCurrent;
-  std::unique_ptr<CGUITexture> m_textureNext;
-
-  std::string m_nameCurrent{};
-  std::string m_nameNext{};
-  std::string m_nameStaging{};
-
+  std::unique_ptr<CGUITexture> m_texture;
+  std::vector<CFadingTexture *> m_fadingTextures;
+  std::string m_currentTexture;
   std::string m_currentFallback;
 
   unsigned int m_crossFadeTime;
   unsigned int m_currentFadeTime;
   unsigned int m_lastRenderTime;
 
-  KODI::GUILIB::GUIINFO::CGUIInfoLabel m_imageFilterInfo;
-  KODI::GUILIB::IMAGE_FILTER m_imageFilter{KODI::GUILIB::IMAGE_FILTER::UNKNOWN};
-
-  KODI::GUILIB::GUIINFO::CGUIInfoLabel m_diffuseFilterInfo;
-  KODI::GUILIB::IMAGE_FILTER m_diffuseFilter{KODI::GUILIB::IMAGE_FILTER::UNKNOWN};
+  // Cached diffuse color to avoid redundant UpdateDiffuseColor calls
+  UTILS::COLOR::Color m_lastDiffuseColor{0xFFFFFFFF};
 };
+

@@ -40,6 +40,7 @@ class CVariant;
 class IInputDeviceCallbacks;
 class IInputDeviceEventHandler;
 class CVideoSyncAndroid;
+class CJNIActivityManager;
 
 typedef struct _JNIEnv JNIEnv;
 
@@ -166,10 +167,19 @@ public:
                             const std::string& className = std::string());
   std::vector<androidPackage> GetApplications() const;
 
+  /*!
+   * \brief If external storage is available, it returns the path for the external storage (for the specified type)
+   * \param path will contain the path of the external storage (for the specified type)
+   * \param type optional type. Possible values are "", "files", "music", "videos", "pictures", "photos, "downloads"
+   * \return true if external storage is available and a valid path has been stored in the path parameter
+   */
+  static bool GetExternalStorage(std::string &path, const std::string &type = "");
+  static bool GetStorageUsage(const std::string &path, std::string &usage);
   static int GetMaxSystemVolume();
   static float GetSystemVolume();
   static void SetSystemVolume(float percent);
 
+  void SetRefreshRate(float rate);
   void SetDisplayMode(int mode, float rate);
   int GetDPI() const;
   void SetVideoLayoutBackgroundColor(const int color);
@@ -208,6 +218,8 @@ public:
   bool getVideosurfaceInUse();
   void setVideosurfaceInUse(bool videosurfaceInUse);
 
+  bool GetMemoryInfo(long& availMem, long& totalMem);
+
 protected:
   // limit who can access Volume
   friend class CAESinkAUDIOTRACK;
@@ -231,6 +243,7 @@ private:
   void run();
   void stop();
   void SetupEnv();
+  static void SetRefreshRateCallback(void* rateVariant);
   static void SetDisplayModeCallback(void* modeVariant);
   static void KeepScreenOnCallback(void* onVariant);
   static void SetViewBackgroundColorCallback(void* mapVariant);
@@ -264,6 +277,8 @@ private:
   CVideoSyncAndroid* m_syncImpl{nullptr};
   CEvent m_vsyncEvent;
   CEvent m_displayChangeEvent;
+
+  std::unique_ptr<CJNIActivityManager> m_activityManager;
 
   bool XBMC_DestroyDisplay();
   bool XBMC_SetupDisplay();

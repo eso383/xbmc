@@ -9,7 +9,6 @@
 #include "TestBasicEnvironment.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "ServiceManager.h"
 #include "TestUtils.h"
@@ -41,7 +40,7 @@ TestBasicEnvironment::TestBasicEnvironment() = default;
 void TestBasicEnvironment::SetUp()
 {
   const auto params = std::make_shared<CAppParams>();
-  params->SetUserDirectoriesLocation(UserDirectoriesLocation::TEST);
+  params->SetPlatformDirectories(false);
 
   CAppEnvironment::SetUp(params);
 
@@ -105,8 +104,7 @@ void TestBasicEnvironment::SetUp()
     exit(1);
 }
 
-void TestBasicEnvironment::TearDown()
-{
+void TestBasicEnvironment::TearDown() const {
   XFILE::CDirectory::RemoveRecursive(m_tempPath);
 
   g_application.m_ServiceManager->DeinitTesting();

@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 
 class CFileItem;
 
@@ -48,12 +49,6 @@ protected:
   void Remove() override;
 
 private:
-  enum class ReplaceExistingFile : bool
-  {
-    NO,
-    YES
-  };
-
   void SetDefaultVideoVersion(const CFileItem& version);
   /*!
    * \brief Prompt the user to select a file / movie to add as version
@@ -61,7 +56,7 @@ private:
    */
   bool AddVideoVersion();
   void SetDefault();
-  void UpdateDefaultVideoVersionSelection();
+  void UpdateDefaultVideoVersionSelection() const;
 
   /*!
    * \brief Ask the user to choose an item from the list of items, the version type of the item,
@@ -73,7 +68,7 @@ private:
    * to if role is Parent
    * \param[in] videoDb Database connection
    * \param[in] role NewVersion: dbId will be converted to a version of the movie chosen by
-   * the user from the whole library.
+   * the user from the whole libray.
    * Parent: dbId will have another movie chosen by the user from the whole library as a new version.
    *
    * \return True: success, a version was created and attached, false otherwise.
@@ -105,12 +100,12 @@ private:
   /*!
    * \brief Convert the movie into a version
    * \param itemMovie Movie to convert
-   * \return True for success, false otherwise
+   * \return True for success, false otherwse
    */
-  bool AddSimilarMovieAsVersion(const std::shared_ptr<CFileItem>& itemMovie);
+  bool AddSimilarMovieAsVersion(const std::shared_ptr<CFileItem>& itemMovie) const;
 
   /*!
-   * \brief Populates a list with all movies of the library, excluding the item provided as parameter.
+   * \brief Populates a list with all movies of the libray, excluding the item provided as parameter.
    * \param[in] item The item that will be excluded from the list
    * \param[out] list List to populate
    * \param[in] videoDb Database connection
@@ -127,17 +122,6 @@ private:
    * \return True for success, false otherwise.
    */
   static bool PostProcessList(CFileItemList& list, int dbId);
-
-  /*!
-   * \brief Prompts the user to choose a playlist from the current disc
-   * \param item the current CFileItem
-   * \param replaceExistingFile whether to replace the existing playlist in the database
-   * \return true for success, false otherwise.
-   */
-  bool ChoosePlaylist(const std::shared_ptr<CFileItem>& item,
-                      ReplaceExistingFile replaceExistingFile);
-
-  void RemovePartNumberFromTitle();
 
   std::shared_ptr<CFileItem> m_defaultVideoVersion;
 };

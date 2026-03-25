@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023-2025 Team Kodi
+ *  Copyright (C) 2023 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,57 +8,62 @@
 
 #include "VideoSelectActionProcessor.h"
 
-#include "ContextMenuManager.h"
 #include "FileItem.h"
 #include "ServiceBroker.h"
+#include "dialogs/GUIDialogSelect.h"
+#include "filesystem/Directory.h"
+#include "guilib/GUIComponent.h"
+#include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/StringUtils.h"
 #include "utils/Variant.h"
-#include "utils/guilib/GUIContentUtils.h"
-#include "video/VideoFileItemClassify.h"
-#include "video/guilib/VideoGUIUtils.h"
-#include "video/guilib/VideoPlayActionProcessor.h"
+#include "video/VideoUtils.h"
 
-namespace KODI::VIDEO::GUILIB
-{
+using namespace VIDEO::GUILIB;
 
-Action CVideoSelectActionProcessor::GetDefaultAction()
+Action CVideoSelectActionProcessorBase::GetDefaultSelectAction()
 {
-  auto settings{CServiceBroker::GetSettingsComponent()->GetSettings()};
-  Action action{static_cast<Action>(settings->GetInt(CSettings::SETTING_MYVIDEOS_SELECTACTION))};
-  if (action == ACTION_PLAY_OR_RESUME || action == ACTION_RESUME)
-  {
-    // Compat: The former settings value ACTION_PLAY_OR_RESUME and ACTION_RESUME are no longer
-    // valid for SETTING_MYVIDEOS_SELECTACTION. Migrate it to the new default setting value.
-    action = ACTION_PLAY;
-    settings->SetInt(CSettings::SETTING_MYVIDEOS_SELECTACTION, action);
-    settings->Save();
-  }
-  return action;
+  return static_cast<Action>(CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(
+      CSettings::SETTING_MYVIDEOS_SELECTACTION));
 }
 
-bool CVideoSelectActionProcessor::Process(Action action)
+Action CVideoSelectActionProcessorBase::GetDefaultAction()
 {
+  return GetDefaultSelectAction();
+}
+
+bool CVideoSelectActionProcessorBase::Process(Action action)
+{
+  if (CVideoPlayActionProcessorBase::Process(action))
+    return true;
+
   switch (action)
   {
-    case ACTION_PLAY:
-      return OnPlaySelected();
-
     case ACTION_CHOOSE:
       return OnChooseSelected();
+
+    case ACTION_PLAYPART:
+    {
+      const unsigned int part = ChooseStackItemPartNumber();
+      if (part < 1) // part numbers are 1-based
+        return false;
+
+      return OnPlayPartSelected(part);
+    }
 
     case ACTION_QUEUE:
       return OnQueueSelected();
 
     case ACTION_INFO:
     {
-      const auto item{GetItem()};
-      if (GetDefaultAction() == ACTION_INFO && !KODI::VIDEO::IsVideoDb(*item) &&
-          !item->IsPlugin() && !item->IsScript() && !item->IsPVR() &&
-          !KODI::VIDEO::UTILS::HasItemVideoDbInformation(*item))
+      if (GetDefaultAction() == ACTION_INFO && !m_item->IsVideoDb() && !m_item->IsPlugin() &&
+          !m_item->IsScript() && !m_item->IsPVR() &&
+          !VIDEO_UTILS::HasItemVideoDbInformation(*m_item))
       {
-        // For items without info fall back to default play action.
-        return Process(ACTION_PLAY);
+        // for items without info fall back to default play action
+        return Process(CVideoPlayActionProcessorBase::GetDefaultAction());
       }
 
       return OnInfoSelected();
@@ -70,28 +75,25 @@ bool CVideoSelectActionProcessor::Process(Action action)
   return false; // We did not handle the action.
 }
 
-bool CVideoSelectActionProcessor::OnPlaySelected()
+unsigned int CVideoSelectActionProcessorBase::ChooseStackItemPartNumber() const
 {
-  // Execute default play action.
-  CVideoPlayActionProcessor proc(GetItem());
-  return proc.ProcessDefaultAction();
-}
+  CFileItemList parts;
+  XFILE::CDirectory::GetDirectory(m_item->GetDynPath(), parts, "", XFILE::DIR_FLAG_DEFAULTS);
 
-bool CVideoSelectActionProcessor::OnQueueSelected()
-{
-  VIDEO::UTILS::QueueItem(GetItem(), VIDEO::UTILS::QueuePosition::POSITION_END);
-  return true;
-}
+  for (int i = 0; i < parts.Size(); ++i)
+    parts[i]->SetLabel(StringUtils::Format(g_localizeStrings.Get(23051), i + 1)); // Part #
 
-bool CVideoSelectActionProcessor::OnInfoSelected()
-{
-  return KODI::UTILS::GUILIB::CGUIContentUtils::ShowInfoForItem(*GetItem());
-}
+  CGUIDialogSelect* dialog =
+      CServiceBroker::GetGUI()->GetWindowManager().GetWindow<CGUIDialogSelect>(
+          WINDOW_DIALOG_SELECT);
 
-bool CVideoSelectActionProcessor::OnChooseSelected()
-{
-  CONTEXTMENU::ShowFor(GetItem(), CContextMenuManager::MAIN);
-  return true;
-}
+  dialog->Reset();
+  dialog->SetHeading(CVariant{20324}); // Play part...
+  dialog->SetItems(parts);
+  dialog->Open();
 
-} // namespace KODI::VIDEO::GUILIB
+  if (!dialog->IsConfirmed())
+    return 0; // User cancelled the dialog.
+
+  return dialog->GetSelectedItem() + 1; // part numbers are 1-based
+}

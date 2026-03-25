@@ -10,11 +10,9 @@
 
 #include "settings/lib/Setting.h"
 
-#include <string_view>
 #include <vector>
 
 class CFileExtensionProvider;
-class TiXmlNode;
 
 class CSettingPath : public CSettingString
 {
@@ -36,7 +34,7 @@ public:
   bool HideExtension() const { return m_hideExtension; }
   void SetHideExtension(bool hideExtension) { m_hideExtension = hideExtension; }
   std::string GetMasking(const CFileExtensionProvider& fileExtensionProvider) const;
-  void SetMasking(std::string_view masking) { m_masking = masking; }
+  void SetMasking(const std::string& masking) { m_masking = masking; }
 
 private:
   using CSettingString::copy;

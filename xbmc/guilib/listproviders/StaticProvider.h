@@ -13,13 +13,11 @@
 
 #include <vector>
 
-class TiXmlElement;
-
 class CStaticListProvider : public IListProvider
 {
 public:
-  CStaticListProvider(const TiXmlElement* element, int parentID);
-  explicit CStaticListProvider(const std::vector<CGUIStaticItemPtr>& items); // for python
+  CStaticListProvider(const TiXmlElement *element, int parentID);
+  explicit CStaticListProvider(const std::vector<CGUIStaticItemPtr> &items); // for python
   explicit CStaticListProvider(const CStaticListProvider& other);
   ~CStaticListProvider() override;
 
@@ -33,10 +31,9 @@ public:
   void SetDefaultItem(int item, bool always) override;
   int GetDefaultItem() const override;
   bool AlwaysFocusDefaultItem() const override;
-
 private:
-  int m_defaultItem{-1};
-  bool m_defaultAlways{false};
-  unsigned int m_updateTime{0};
+  int m_defaultItem;
+  bool m_defaultAlways;
+  unsigned int m_updateTime;
   std::vector<CGUIStaticItemPtr> m_items;
 };

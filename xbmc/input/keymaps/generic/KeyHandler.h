@@ -74,7 +74,7 @@ private:
    *
    * \return The action to dispatch, or action with ID ACTION_NONE if no action should be dispatched
    */
-  CAction ProcessRelease(const std::vector<const KeymapAction*>& actions, int windowId);
+  CAction ProcessRelease(std::vector<const KeymapAction*> actions, int windowId);
 
   /*!
    * \brief Process an action to see if it should be dispatched
@@ -92,7 +92,7 @@ private:
                         unsigned int holdTimeMs);
 
   // Check criteria for sending a repeat action
-  bool SendRepeatAction(unsigned int holdTimeMs);
+  bool SendRepeatAction(unsigned int holdTimeMs) const;
 
   // Helper function
   static bool IsPressed(float magnitude);

@@ -12,21 +12,11 @@
 #include "threads/Thread.h"
 
 #include <atomic>
-#include <chrono>
 
 namespace KODI
 {
 namespace RETRO
 {
-/*!
- * \brief Interface for the game loop callback
- *
- * The IGameLoopCallback interface provides the necessary methods for handling
- * frame events within the game loop.
- *
- * Implementers must define how the next frame (FrameEvent) and previous frame
- * (RewindEvent) are processed.
- */
 class IGameLoopCallback
 {
 public:
@@ -41,27 +31,8 @@ public:
    * \brief The prior frame is being shown
    */
   virtual void RewindEvent() = 0;
-
-  /*!
-   * \brief Called when the game loop has ended
-   *
-   * This gives implementers a chance to release resources or execute final
-   * actions once the thread finishes processing frames.
-   */
-  virtual void EndEvent() = 0;
 };
 
-/*!
- * \brief The game loop class
- *
- * CGameLoop is responsible for managing the timing and execution of frame
- * updates in a game or emulator.
- *
- * Inside the Process method, the loop checks for changes in the speed factor,
- * updates frame timing, and uses precise sleep intervals to maintain a
- * consistent frame rate while invoking the appropriate callbacks for frame
- * events.
- */
 class CGameLoop : protected CThread
 {
 public:
@@ -74,7 +45,7 @@ public:
 
   double FPS() const { return m_fps; }
 
-  double GetSpeed() const { return m_speedFactor.load(); }
+  double GetSpeed() const { return m_speedFactor; }
   void SetSpeed(double speedFactor);
   void PauseAsync();
 
@@ -83,14 +54,15 @@ protected:
   void Process() override;
 
 private:
-  std::chrono::microseconds FrameTimeUs() const;
-  std::chrono::microseconds NowUs() const;
+  double FrameTimeMs() const;
+  double SleepTimeMs() const;
+  double NowMs() const;
 
   IGameLoopCallback* const m_callback;
   const double m_fps;
-  std::atomic<double> m_speedFactor{0.0};
-  double m_loopSpeedFactor{0.0};
-  std::chrono::microseconds m_lastFrameUs{std::chrono::microseconds::zero()};
+  std::atomic<double> m_speedFactor;
+  double m_lastFrameMs = 0.0;
+  mutable double m_adjustTime = 0.0;
   CEvent m_sleepEvent;
 };
 } // namespace RETRO

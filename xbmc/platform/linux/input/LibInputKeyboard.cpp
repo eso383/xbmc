@@ -137,6 +137,7 @@ constexpr auto xkbMap = make_map<xkb_keysym_t, XBMCKey>({
     {XKB_KEY_XF86Blue, XBMCK_BLUE},
     // Unmapped: XBMCK_ZOOM, XBMCK_TEXT
     {XKB_KEY_XF86Favorites, XBMCK_FAVORITES},
+    {XKB_KEY_XF86HomePage, XBMCK_HOMEPAGE},
     // Unmapped: XBMCK_CONFIG, XBMCK_EPG
 
     // Media keys
@@ -158,6 +159,7 @@ constexpr auto logLevelMap = make_map<xkb_log_level, int>({{XKB_LOG_LEVEL_CRITIC
 
 constexpr auto XkbDeadKeyXBMCMapping =
     make_map<xkb_keycode_t, XBMCKey>({{XKB_KEY_dead_grave, XBMCK_GRAVE},
+                                      {XKB_KEY_dead_tilde, XBMCK_TILDE},
                                       {XKB_KEY_dead_acute, XBMCK_ACUTE},
                                       {XKB_KEY_dead_circumflex, XBMCK_CIRCUMFLEX},
                                       {XKB_KEY_dead_perispomeni, XBMCK_PERISPOMENI},
@@ -178,7 +180,9 @@ constexpr auto XkbDeadKeyXBMCMapping =
                                       {XKB_KEY_dead_horn, XBMCK_HORN},
                                       {XKB_KEY_dead_stroke, XBMCK_STROKE},
                                       {XKB_KEY_dead_abovecomma, XBMCK_ABOVECOMMA},
+                                      {XKB_KEY_dead_psili, XBMCK_ABOVECOMMA},
                                       {XKB_KEY_dead_abovereversedcomma, XBMCK_ABOVEREVERSEDCOMMA},
+                                      {XKB_KEY_dead_dasia, XBMCK_OGONEK},
                                       {XKB_KEY_dead_doublegrave, XBMCK_DOUBLEGRAVE},
                                       {XKB_KEY_dead_belowring, XBMCK_BELOWRING},
                                       {XKB_KEY_dead_belowmacron, XBMCK_BELOWMACRON},
@@ -213,8 +217,7 @@ static void xkbLogger(xkb_context* context,
                       const char* format,
                       va_list args)
 {
-  std::string message = StringUtils::FormatV(format, args);
-  StringUtils::TrimRight(message);
+  const std::string message = StringUtils::FormatV(format, args);
   auto logLevel = logLevelMap.find(priority);
   CLog::Log(logLevel != logLevelMap.cend() ? logLevel->second : LOGDEBUG, "[xkb] {}", message);
 }
@@ -329,16 +332,8 @@ void CLibInputKeyboard::ProcessKey(libinput_event_keyboard *e)
   if (!m_ctx || !m_keymap || !m_state)
     return;
 
-  const uint32_t evkey = libinput_event_keyboard_get_key(e);
-  const uint32_t xkbkey = evkey + 8;
+  const uint32_t xkbkey = libinput_event_keyboard_get_key(e) + 8;
   const xkb_keysym_t keysym = xkb_state_key_get_one_sym(m_state.get(), xkbkey);
-
-  char keyname[64];
-  if (xkb_keysym_get_name(keysym, keyname, sizeof(keyname)) < 0)
-    keyname[0] = 0;
-
-  CLog::LogF(LOGDEBUG, "libinput key: {:#02x}, xkb keysym: {:#04x} ({})", evkey, keysym, keyname);
-
   const bool pressed = libinput_event_keyboard_get_key_state(e) == LIBINPUT_KEY_STATE_PRESSED;
   xkb_state_update_key(m_state.get(), xkbkey, pressed ? XKB_KEY_DOWN : XKB_KEY_UP);
 
@@ -384,7 +379,7 @@ void CLibInputKeyboard::ProcessKey(libinput_event_keyboard *e)
 
   int mod = XBMCKMOD_NONE;
 
-  xkb_state_component modtype = xkb_state_component(XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
+  auto modtype = xkb_state_component(XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
   if (xkb_state_mod_index_is_active(m_state.get(), m_modindex[0], modtype) &&
       ((keysym != XBMCK_LCTRL) || !pressed))
     mod |= XBMCKMOD_CTRL;

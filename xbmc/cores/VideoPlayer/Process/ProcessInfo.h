@@ -10,7 +10,9 @@
 
 #include "cores/VideoPlayer/Buffers/VideoBuffer.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderInfo.h"
+#include "cores/VideoPlayer/DVDStreamInfo.h"
 #include "cores/VideoSettings.h"
+#include "cores/AudioEngine/Utils/AEStreamInfo.h"
 #include "cores/AudioEngine/Utils/AEChannelInfo.h"
 #include "threads/CriticalSection.h"
 
@@ -36,7 +38,7 @@ public:
   void ResetVideoCodecInfo();
   void SetVideoDecoderName(const std::string &name, bool isHw);
   std::string GetVideoDecoderName();
-  bool IsVideoHwDecoder();
+  bool IsVideoHwDecoder() const;
   void SetVideoDeintMethod(const std::string &method);
   std::string GetVideoDeintMethod();
   void SetVideoPixelFormat(const std::string &pixFormat);
@@ -44,13 +46,13 @@ public:
   void SetVideoStereoMode(const std::string &mode);
   std::string GetVideoStereoMode();
   void SetVideoDimensions(int width, int height);
-  void GetVideoDimensions(int &width, int &height);
+  void GetVideoDimensions(int &width, int &height) const;
   void SetVideoFps(float fps);
-  float GetVideoFps();
+  float GetVideoFps() const;
   void SetVideoDAR(float dar);
-  float GetVideoDAR();
+  float GetVideoDAR() const;
   void SetVideoInterlaced(bool interlaced);
-  bool GetVideoInterlaced();
+  bool GetVideoInterlaced() const;
   virtual EINTERLACEMETHOD GetFallbackDeintMethod();
   virtual void SetSwDeinterlacingMethods();
   void UpdateDeinterlacingMethods(std::list<EINTERLACEMETHOD> &methods);
@@ -106,8 +108,6 @@ public:
   bool IsTempoAllowed(float tempo);
   virtual float MinTempoPlatform();
   virtual float MaxTempoPlatform();
-  void SetLevelVQ(int level);
-  int GetLevelVQ();
   void SetGuiRender(bool gui);
   bool GetGuiRender();
   void SetVideoRender(bool video);
@@ -162,7 +162,6 @@ protected:
   // player states
   CCriticalSection m_stateSection;
   bool m_stateSeeking;
-  std::atomic_int m_levelVQ;
   std::atomic_bool m_renderGuiLayer;
   std::atomic_bool m_renderVideoLayer;
   float m_tempo;

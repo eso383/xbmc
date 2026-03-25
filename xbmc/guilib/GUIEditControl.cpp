@@ -12,6 +12,7 @@
 #include "GUIKeyboardFactory.h"
 #include "GUIUserMessages.h"
 #include "GUIWindowManager.h"
+#include "LocalizeStrings.h"
 #include "ServiceBroker.h"
 #include "XBDateTime.h"
 #include "dialogs/GUIDialogNumeric.h"
@@ -19,8 +20,6 @@
 #include "input/actions/ActionIDs.h"
 #include "input/keyboard/KeyIDs.h"
 #include "input/keyboard/XBMC_vkeys.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/CharsetConverter.h"
 #include "utils/ColorUtils.h"
 #include "utils/Digest.h"
@@ -81,15 +80,15 @@ void CGUIEditControl::DefaultConstructor()
   m_textOffset = 0;
   m_cursorPos = 0;
   m_cursorBlink = 0;
-  m_inputHeading = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(16028);
+  m_inputHeading = g_localizeStrings.Get(16028);
   m_inputType = INPUT_TYPE_TEXT;
   m_smsLastKey = 0;
   m_smsKeyIndex = 0;
   m_label2.GetLabelInfo().offsetX = 0;
   m_isMD5 = false;
   m_invalidInput = false;
-  m_inputValidator = NULL;
-  m_inputValidatorData = NULL;
+  m_inputValidator = nullptr;
+  m_inputValidatorData = nullptr;
   m_editLength = 0;
   m_editOffset = 0;
 }
@@ -336,8 +335,7 @@ void CGUIEditControl::OnClick()
       textChanged = CGUIDialogNumeric::ShowAndGetNumber(utf8, m_inputHeading);
       break;
     case INPUT_TYPE_SECONDS:
-      textChanged = CGUIDialogNumeric::ShowAndGetSeconds(
-          utf8, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21420));
+      textChanged = CGUIDialogNumeric::ShowAndGetSeconds(utf8, g_localizeStrings.Get(21420));
       break;
     case INPUT_TYPE_TIME:
     {
@@ -345,10 +343,7 @@ void CGUIEditControl::OnClick()
       dateTime.SetFromDBTime(utf8);
       KODI::TIME::SystemTime time;
       dateTime.GetAsSystemTime(time);
-      if (CGUIDialogNumeric::ShowAndGetTime(
-              time, !m_inputHeading.empty()
-                        ? m_inputHeading
-                        : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21420)))
+      if (CGUIDialogNumeric::ShowAndGetTime(time, !m_inputHeading.empty() ? m_inputHeading : g_localizeStrings.Get(21420)))
       {
         dateTime = CDateTime(time);
         utf8 = dateTime.GetAsLocalizedTime("", false);
@@ -358,17 +353,13 @@ void CGUIEditControl::OnClick()
     }
     case INPUT_TYPE_DATE:
     {
-      KODI::TIME::SystemTime date;
       CDateTime dateTime;
-      if (dateTime.SetFromDBDate(utf8))
-        dateTime.GetAsSystemTime(date);
-      else
-        KODI::TIME::GetLocalTime(&date);
-
-      if (CGUIDialogNumeric::ShowAndGetDate(
-              date, !m_inputHeading.empty()
-                        ? m_inputHeading
-                        : CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21420)))
+      dateTime.SetFromDBDate(utf8);
+      if (dateTime < CDateTime(2000,1, 1, 0, 0, 0))
+        dateTime = CDateTime(2000, 1, 1, 0, 0, 0);
+      KODI::TIME::SystemTime date;
+      dateTime.GetAsSystemTime(date);
+      if (CGUIDialogNumeric::ShowAndGetDate(date, !m_inputHeading.empty() ? m_inputHeading : g_localizeStrings.Get(21420)))
       {
         dateTime = CDateTime(date);
         utf8 = dateTime.GetAsDBDate();
@@ -428,9 +419,8 @@ void CGUIEditControl::SetInputType(CGUIEditControl::INPUT_TYPE type, const CVari
   if (heading.isString())
     m_inputHeading = heading.asString();
   else if (heading.isInteger() && heading.asInteger())
-    m_inputHeading = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-        static_cast<uint32_t>(heading.asInteger()));
-  ValidateInput();
+    m_inputHeading = g_localizeStrings.Get(static_cast<uint32_t>(heading.asInteger()));
+  //! @todo Verify the current input string?
 }
 
 void CGUIEditControl::RecalcRightLabelPosition()
@@ -609,10 +599,10 @@ bool CGUIEditControl::SetStyledText(const std::wstring &text)
   vecText styled;
   styled.reserve(text.size() + 1);
 
-  std::vector<KODI::UTILS::COLOR::Color> colors;
+  std::vector<UTILS::COLOR::Color> colors;
   colors.push_back(m_label.GetLabelInfo().textColor);
   colors.push_back(m_label.GetLabelInfo().disabledColor);
-  KODI::UTILS::COLOR::Color select = m_label.GetLabelInfo().selectedColor;
+  UTILS::COLOR::Color select = m_label.GetLabelInfo().selectedColor;
   if (!select)
     select = 0xFFFF0000;
   colors.push_back(select);
@@ -751,7 +741,7 @@ void CGUIEditControl::OnPasteClipboard()
   g_charsetConverter.utf8ToW(utf8_text, unicode_text, false);
 
   // Insert the pasted text at the current cursor position.
-  if (!unicode_text.empty())
+  if (unicode_text.length() > 0)
   {
     std::wstring left_end = m_text2.substr(0, m_cursorPos);
     std::wstring right_end = m_text2.substr(m_cursorPos);
@@ -777,10 +767,10 @@ void CGUIEditControl::SetInputValidation(StringValidation::Validator inputValida
 
 bool CGUIEditControl::ValidateInput(const std::wstring &data) const
 {
-  if (m_inputValidator == NULL)
+  if (m_inputValidator == nullptr)
     return true;
 
-  return m_inputValidator(GetLabel2(), m_inputValidatorData != NULL ? m_inputValidatorData : const_cast<void*>((const void*)this));
+  return m_inputValidator(GetLabel2(), m_inputValidatorData != nullptr ? m_inputValidatorData : const_cast<void*>((const void*)this));
 }
 
 void CGUIEditControl::ValidateInput()

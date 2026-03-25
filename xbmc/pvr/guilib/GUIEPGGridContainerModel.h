@@ -25,11 +25,7 @@ namespace PVR
 struct GridItem
 {
   GridItem(const std::shared_ptr<CFileItem>& _item, float _width, int _startBlock, int _endBlock)
-    : item(_item),
-      originWidth(_width),
-      width(_width),
-      startBlock(_startBlock),
-      endBlock(_endBlock)
+    : item(_item), originWidth(_width), width(_width), startBlock(_startBlock), endBlock(_endBlock)
   {
   }
 
@@ -50,17 +46,19 @@ class CPVREpgInfoTag;
 class CGUIEPGGridContainerModel
 {
 public:
-  explicit CGUIEPGGridContainerModel(unsigned int minutesPerBlock);
+  static constexpr int MINSPERBLOCK = 5; // minutes
+
+  CGUIEPGGridContainerModel() = default;
   virtual ~CGUIEPGGridContainerModel() = default;
 
-  void Initialize(const CFileItemList& items,
+  void Initialize(const std::unique_ptr<CFileItemList>& items,
                   const CDateTime& gridStart,
                   const CDateTime& gridEnd,
                   int iFirstChannel,
                   int iChannelsPerPage,
                   int iFirstBlock,
                   int iBlocksPerPage,
-                  int blocksPerRulerItem,
+                  int iRulerUnit,
                   float fBlockSize);
   void SetInvalid() const;
 
@@ -71,9 +69,9 @@ public:
                                 int& newChannelIndex,
                                 int& newBlockIndex) const;
 
-  void FreeChannelMemory(int keepStart, int keepEnd);
+  void FreeChannelMemory(int keepStart, int keepEnd) const;
   bool FreeProgrammeMemory(int firstChannel, int lastChannel, int firstBlock, int lastBlock);
-  void FreeRulerMemory(int keepStart, int keepEnd);
+  void FreeRulerMemory(int keepStart, int keepEnd) const;
 
   std::shared_ptr<CFileItem> GetChannelItem(int iIndex) const { return m_channelItems[iIndex]; }
   bool HasChannelItems() const { return !m_channelItems.empty(); }
@@ -94,7 +92,7 @@ public:
   CDateTime GetGridItemEndTime(int iChannel, int iBlock) const;
   float GetGridItemWidth(int iChannel, int iBlock) const;
   float GetGridItemOriginWidth(int iChannel, int iBlock) const;
-  void DecreaseGridItemWidth(int iChannel, int iBlock, float fSize);
+  void DecreaseGridItemWidth(int iChannel, int iBlock, float fSize) const;
 
   bool IsZeroGridDuration() const { return (m_gridEnd - m_gridStart) == CDateTimeSpan(0, 0, 0, 0); }
   const CDateTime& GetGridStart() const { return m_gridStart; }
@@ -114,8 +112,6 @@ public:
   std::unique_ptr<CFileItemList> GetCurrentTimeLineItems(int firstChannel, int numChannels) const;
 
 private:
-  CGUIEPGGridContainerModel() = delete;
-
   GridItem* GetGridItemPtr(int iChannel, int iBlock) const;
   std::shared_ptr<CFileItem> CreateGapItem(int iChannel) const;
   std::shared_ptr<CFileItem> GetItem(int iChannel, int iBlock) const;
@@ -134,7 +130,7 @@ private:
   using EpgTagsMap = std::unordered_map<int, EpgTags>;
 
   std::shared_ptr<CFileItem> CreateEpgTags(int iChannel, int iBlock) const;
-  std::shared_ptr<CFileItem> GetEpgTags(const EpgTagsMap::iterator& itEpg,
+  std::shared_ptr<CFileItem> GetEpgTags(EpgTagsMap::iterator& itEpg,
                                         int iChannel,
                                         int iBlock) const;
   std::shared_ptr<CFileItem> GetEpgTagsBefore(EpgTags& epgTags, int iChannel, int iBlock) const;
@@ -152,7 +148,10 @@ private:
   {
     GridCoordinates(int _channel, int _block) : channel(_channel), block(_block) {}
 
-    bool operator==(const GridCoordinates& other) const = default;
+    bool operator==(const GridCoordinates& other) const
+    {
+      return (channel == other.channel && block == other.block);
+    }
 
     int channel = 0;
     int block = 0;
@@ -169,7 +168,6 @@ private:
   mutable std::unordered_map<GridCoordinates, GridItem, GridCoordinatesHash> m_gridIndex;
 
   int m_blocks = 0;
-  const unsigned int m_minutesPerBlock{0};
   float m_fBlockSize = 0.0f;
 
   int m_firstActiveChannel = 0;

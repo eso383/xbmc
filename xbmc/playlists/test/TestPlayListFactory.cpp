@@ -15,23 +15,24 @@
 
 #include <gtest/gtest.h>
 
-using namespace KODI;
+using namespace PLAYLIST;
+
 
 TEST(TestPlayListFactory, XSPF)
 {
   std::string filename = XBMC_REF_FILE_PATH("/xbmc/playlists/test/newfile.xspf");
   CURL url("http://example.com/playlists/playlist.xspf");
-  PLAYLIST::CPlayList* playlist = nullptr;
+  CPlayList* playlist = nullptr;
 
-  EXPECT_TRUE(PLAYLIST::CPlayListFactory::IsPlaylist(url));
-  EXPECT_TRUE(PLAYLIST::CPlayListFactory::IsPlaylist(filename));
+  EXPECT_TRUE(CPlayListFactory::IsPlaylist(url));
+  EXPECT_TRUE(CPlayListFactory::IsPlaylist(filename));
 
-  playlist = PLAYLIST::CPlayListFactory::Create(filename);
+  playlist = CPlayListFactory::Create(filename);
   EXPECT_NE(playlist, nullptr);
 
   if (playlist)
   {
-    EXPECT_NE(dynamic_cast<PLAYLIST::CPlayListXSPF*>(playlist), nullptr);
+    EXPECT_NE(dynamic_cast<CPlayListXSPF*>(playlist), nullptr);
     delete playlist;
   }
 }

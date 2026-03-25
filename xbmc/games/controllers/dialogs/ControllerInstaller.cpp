@@ -9,7 +9,6 @@
 #include "ControllerInstaller.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "addons/Addon.h"
 #include "addons/AddonInstaller.h"
@@ -19,10 +18,9 @@
 #include "dialogs/GUIDialogSelect.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
@@ -75,7 +73,6 @@ void CControllerInstaller::Process()
   pSelectDialog->SetHeading(39020); // "The following additional add-ons will be installed"
   pSelectDialog->SetUseDetails(true);
   pSelectDialog->EnableButton(true, 186); // "OK""
-  pSelectDialog->SetButtonFocus(true);
   for (const auto& it : items)
     pSelectDialog->Add(*it);
   pSelectDialog->Open();
@@ -102,9 +99,7 @@ void CControllerInstaller::Process()
     const auto& addon = installableAddons[installedCount];
 
     // Set dialog text
-    const std::string& progressTemplate =
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            24057); // "Installing {0:s}..."
+    const std::string& progressTemplate = g_localizeStrings.Get(24057); // "Installing {0:s}..."
     const std::string progressText = StringUtils::Format(progressTemplate, addon->Name());
     pProgressDialog->SetLine(0, CVariant{progressText});
 

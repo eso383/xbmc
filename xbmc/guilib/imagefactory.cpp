@@ -45,8 +45,9 @@ IImage* ImageFactory::CreateLoaderFromMimeType(const std::string& strMimeType)
     if (addonInfo.first != ADDON::AddonType::IMAGEDECODER)
       continue;
 
-    std::unique_lock lock(m_createSec);
-    std::unique_ptr<CImageDecoder> result =
+    std::lock_guard lock(m_createSec);
+
+    auto result =
         std::make_unique<CImageDecoder>(addonInfo.second, strMimeType);
     if (!result->IsCreated())
     {

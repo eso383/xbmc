@@ -5,25 +5,34 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::LibUSB   - The USB library
+#   LibUSB::LibUSB   - The USB library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
+if(NOT TARGET LibUSB::LibUSB)
+  find_package(PkgConfig)
 
-  include(cmake/scripts/common/ModuleHelpers.cmake)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_LIBUSB libusb QUIET)
+  endif()
 
-  set(${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC libusb)
-  set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE_LC}_DISABLE_VERSION ON)
+  find_path(LIBUSB_INCLUDE_DIR usb.h
+                               PATHS ${PC_LIBUSB_INCLUDEDIR}
+                               NO_CACHE)
+  find_library(LIBUSB_LIBRARY NAMES usb
+                              PATHS ${PC_LIBUSB_INCLUDEDIR}
+                              NO_CACHE)
+  set(LIBUSB_VERSION ${PC_LIBUSB_VERSION})
 
-  SETUP_BUILD_VARS()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(LibUSB
+                                    REQUIRED_VARS LIBUSB_LIBRARY LIBUSB_INCLUDE_DIR
+                                    VERSION_VAR LIBUSB_VERSION)
 
-  SETUP_FIND_SPECS()
-
-  SEARCH_EXISTING_PACKAGES()
-
-  if(${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME}_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} ALIAS PkgConfig::${${CMAKE_FIND_PACKAGE_NAME}_SEARCH_NAME})
-
-    set(${${CMAKE_FIND_PACKAGE_NAME}_MODULE}_COMPILE_DEFINITIONS HAVE_LIBUSB)
-    ADD_TARGET_COMPILE_DEFINITION()
+  if(LIBUSB_FOUND)
+    add_library(LibUSB::LibUSB UNKNOWN IMPORTED)
+    set_target_properties(LibUSB::LibUSB PROPERTIES
+                                         IMPORTED_LOCATION "${LIBUSB_LIBRARY}"
+                                         INTERFACE_INCLUDE_DIRECTORIES "${LIBUSB_INCLUDE_DIR}"
+                                         INTERFACE_COMPILE_DEFINITIONS USE_LIBUSB=1)
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP LibUSB::LibUSB)
   endif()
 endif()

@@ -368,16 +368,12 @@
     {
       readyToRun = false;
       ELOG(@"%sUnable to create GUI", __PRETTY_FUNCTION__);
-      if (g_application.Stop(EXITCODE_QUIT))
-        g_application.Cleanup();
     }
 
     if (!g_application.Initialize())
     {
       readyToRun = false;
       ELOG(@"%sUnable to initialize application", __PRETTY_FUNCTION__);
-      if (g_application.Stop(EXITCODE_QUIT))
-        g_application.Cleanup();
     }
 
     if (readyToRun)

@@ -58,8 +58,7 @@ void CDebugRenderer::Dispose()
   }
 }
 
-void CDebugRenderer::SetInfo(DEBUG_INFO_PLAYER& info)
-{
+void CDebugRenderer::SetInfo(DEBUG_INFO_PLAYER& info) const {
   if (!m_isInitialized)
     return;
 
@@ -76,8 +75,7 @@ void CDebugRenderer::SetInfo(DEBUG_INFO_PLAYER& info)
   m_adapter->AddSubtitle(info.latency, 0., 5000000.);
 }
 
-void CDebugRenderer::SetInfo(DEBUG_INFO_VIDEO& video, DEBUG_INFO_RENDER& render)
-{
+void CDebugRenderer::SetInfo(DEBUG_INFO_VIDEO& video, DEBUG_INFO_RENDER& render) const {
   if (!m_isInitialized)
     return;
 
@@ -105,8 +103,7 @@ void CDebugRenderer::Render(CRect& src, CRect& dst, CRect& view)
   m_overlayRenderer.Render(0);
 }
 
-void CDebugRenderer::Flush()
-{
+void CDebugRenderer::Flush() const {
   if (!m_isInitialized)
     return;
 
@@ -120,7 +117,7 @@ CDebugRenderer::CRenderer::CRenderer() : OVERLAY::CRenderer()
 void CDebugRenderer::CRenderer::Render(int idx, float depth)
 {
   std::vector<SElement>& list = m_buffers[idx];
-  for (std::vector<SElement>::iterator it = list.begin(); it != list.end(); ++it)
+  for (auto it = list.begin(); it != list.end(); ++it)
   {
     if (it->overlay_dvd)
     {

@@ -4,20 +4,12 @@ DEPS = ../../Makefile.include Makefile RUSTUP-VERSION ../../download-files.inclu
 PREFIX=$(NATIVEPREFIX)
 PLATFORM=$(NATIVEPLATFORM)
 
-ifeq ($(CROSS_COMPILING),yes)
-  ifeq ($(TARGET_PLATFORM),webos)
-    RUST_TARGET = armv7-unknown-linux-gnueabi
-  else
-    RUST_TARGET = $(HOST)
-  endif
-endif
-
 APP=$(PLATFORM)/bin/$(APPNAME)
 
 export RUSTUP_HOME=$(PREFIX)/.rustup
 export CARGO_HOME=$(PREFIX)/.cargo
 
-RUST_TOOLCHAIN_VERSION=1.87.0
+RUST_TOOLCHAIN_VERSION=1.79.0
 RUSTUP_ENV_VARS = RUSTUP_HOME=$(PREFIX)/.rustup \
 	CARGO_HOME=$(PREFIX)/.cargo
 RUSTUP = $(RUSTUP_ENV_VARS) $(PREFIX)/bin/rustup
@@ -44,8 +36,8 @@ $(APP): $(PLATFORM)
 
 	$(RUSTUP) default $(RUST_TOOLCHAIN_VERSION)
 
-ifdef RUST_TARGET
-	$(RUSTUP) target add $(RUST_TARGET)
+ifeq ($(CROSS_COMPILING),yes)
+	$(RUSTUP) target add $(HOST)
 endif
 
 	touch $@

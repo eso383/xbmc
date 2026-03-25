@@ -8,11 +8,9 @@
 
 #pragma once
 
-#include "guilib/AspectRatio.h"
 #include "guilib/TextureManager.h"
-#include "jobs/IJobCallback.h"
-#include "jobs/Job.h"
 #include "threads/CriticalSection.h"
+#include "utils/Job.h"
 
 #include <memory>
 #include <string>
@@ -33,11 +31,7 @@ class CTexture;
 class CImageLoader : public CJob
 {
 public:
-  CImageLoader(const std::string& path,
-               unsigned int targetWidth,
-               unsigned int targetHeight,
-               CAspectRatio::AspectRatio aspectRatio,
-               const bool useCache);
+  CImageLoader(const std::string &path, const bool useCache);
   ~CImageLoader() override;
 
   /*!
@@ -48,11 +42,6 @@ public:
   bool          m_use_cache; ///< Whether or not to use any caching with this image
   std::string    m_path; ///< path of image to load
   std::unique_ptr<CTexture> m_texture; ///< Texture object to load the image into \sa CTexture.
-
-private:
-  unsigned int m_targetWidth; ///< target width of the image
-  unsigned int m_targetHeight; ///< target height of the image
-  CAspectRatio::AspectRatio m_aspectRatio; ///< aspect ratio mode of the image
 };
 
 /*!
@@ -88,20 +77,12 @@ public:
 
    \param path path of the image to load.
    \param texture texture object to hold the resulting texture
-   \param width target width of the image. 0 means original width.
-   \param height target height of the image. 0 means original height.
+   \param orientation orientation of resulting texture
    \param firstRequest true if this is the first time we are requesting this texture
-   \param useCache whether to load from image cache.
    \return true if the image exists, else false.
    \sa CGUITextureArray and CGUITexture
    */
-  bool GetImage(const std::string& path,
-                CTextureArray& texture,
-                unsigned int width,
-                unsigned int height,
-                CAspectRatio::AspectRatio aspectRatio,
-                bool firstRequest,
-                bool useCache = true);
+  bool GetImage(const std::string &path, CTextureArray &texture, bool firstRequest, bool useCache = true);
 
   /*!
    \brief Request a texture to be unloaded.
@@ -111,16 +92,10 @@ public:
    texture is still queued for loading, or is in the process of loading, the image load is cancelled.
 
    \param path path of the image to release.
-   \param width target width of the image to release.
-   \param height target height of the image to release.
    \param immediately if set true the image is immediately unloaded once its reference count reaches zero
                       rather than being unloaded after a delay.
    */
-  void ReleaseImage(const std::string& path,
-                    unsigned int width,
-                    unsigned int height,
-                    CAspectRatio::AspectRatio aspectRatio,
-                    bool immediately = false);
+  void ReleaseImage(const std::string &path, bool immediately = false);
 
   /*!
    \brief Cleanup images that are no longer in use.
@@ -134,54 +109,19 @@ public:
   void CleanupUnusedImages(bool immediately = false);
 
 private:
-  struct ImageKey
-  {
-    std::string path;
-    unsigned int width{0};
-    unsigned int height{0};
-    int aspectRatio{0};
-  };
-
-  struct ImageKeyHash
-  {
-    size_t operator()(const ImageKey& key) const noexcept
-    {
-      size_t h = std::hash<std::string>{}(key.path);
-      h ^= (std::hash<unsigned int>{}(key.width) + 0x9e3779b9 + (h << 6) + (h >> 2));
-      h ^= (std::hash<unsigned int>{}(key.height) + 0x9e3779b9 + (h << 6) + (h >> 2));
-      h ^= (std::hash<int>{}(key.aspectRatio) + 0x9e3779b9 + (h << 6) + (h >> 2));
-      return h;
-    }
-  };
-
-  struct ImageKeyEq
-  {
-    bool operator()(const ImageKey& a, const ImageKey& b) const noexcept
-    {
-      return a.width == b.width && a.height == b.height && a.aspectRatio == b.aspectRatio &&
-             a.path == b.path;
-    }
-  };
-
   class CLargeTexture
   {
   public:
-    explicit CLargeTexture(const std::string& path,
-                           unsigned int targetWidth,
-                           unsigned int targetHeight,
-                           CAspectRatio::AspectRatio aspectRatio);
+    explicit CLargeTexture(const std::string &path);
     virtual ~CLargeTexture();
 
     void AddRef();
     bool DecrRef(bool deleteImmediately);
-    bool DeleteIfRequired(bool deleteImmediately = false);
+    bool DeleteIfRequired(bool deleteImmediately = false) const;
     void SetTexture(std::unique_ptr<CTexture> texture);
 
     const std::string& GetPath() const { return m_path; }
     const CTextureArray& GetTexture() const { return m_texture; }
-    unsigned int GetTargetWidth() const { return m_targetWidth; }
-    unsigned int GetTargetHeight() const { return m_targetHeight; }
-    CAspectRatio::AspectRatio GetAspectRatio() const { return m_aspectRatio; }
 
   private:
     static const unsigned int TIME_TO_DELETE = 5000;
@@ -189,27 +129,19 @@ private:
     unsigned int m_refCount;
     std::string m_path;
     CTextureArray m_texture;
-    unsigned int m_targetWidth;
-    unsigned int m_targetHeight;
-    CAspectRatio::AspectRatio m_aspectRatio;
     unsigned int m_timeToDelete;
   };
 
-  static ImageKey MakeKey(const std::string& path,
-                          unsigned int width,
-                          unsigned int height,
-                          CAspectRatio::AspectRatio aspectRatio);
+  void QueueImage(const std::string &path, bool useCache = true);
 
-  void QueueImage(const std::string& path,
-                  unsigned int width,
-                  unsigned int height,
-                  CAspectRatio::AspectRatio aspectRatio,
-                  bool useCache = true);
+  std::vector< std::pair<unsigned int, CLargeTexture *> > m_queued;
+  std::vector<CLargeTexture *> m_allocated;
+  typedef std::vector<CLargeTexture *>::iterator listIterator;
+  typedef std::vector< std::pair<unsigned int, CLargeTexture *> >::iterator queueIterator;
 
-  std::unordered_map<ImageKey, CLargeTexture*, ImageKeyHash, ImageKeyEq> m_allocated;
-  std::unordered_map<ImageKey, CLargeTexture*, ImageKeyHash, ImageKeyEq> m_queued;
-  std::unordered_map<ImageKey, unsigned int, ImageKeyHash, ImageKeyEq> m_queuedJobByKey;
-  std::unordered_map<unsigned int, ImageKey> m_queuedKeyByJob;
+  // O(1) lookup maps for path-based searches
+  std::unordered_map<std::string, CLargeTexture*> m_allocatedLookup;
+  std::unordered_map<std::string, CLargeTexture*> m_queuedLookup;
 
   CCriticalSection m_listSection;
 };

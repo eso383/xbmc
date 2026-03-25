@@ -14,10 +14,9 @@
 #include "filesystem/Directory.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/helpers/DialogHelper.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/SettingUtils.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -52,19 +51,16 @@ bool CGUIDialogLibExportSettings::Show(CLibExportSettings& settings)
   // Get current export settings from service broker
   const std::shared_ptr<CSettings> pSettings = CServiceBroker::GetSettingsComponent()->GetSettings();
   dialog->m_settings.SetExportType(pSettings->GetInt(CSettings::SETTING_MUSICLIBRARY_EXPORT_FILETYPE));
-  dialog->m_settings.SetPath(pSettings->GetString(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER));
+  dialog->m_settings.m_strPath = pSettings->GetString(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER);
   dialog->m_settings.SetItemsToExport(pSettings->GetInt(CSettings::SETTING_MUSICLIBRARY_EXPORT_ITEMS));
-  dialog->m_settings.SetUnscraped(
-      pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED));
-  dialog->m_settings.SetArtwork(pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK));
-  dialog->m_settings.SetSkipNfo(pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO));
-  dialog->m_settings.SetOverwrite(
-      pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE));
+  dialog->m_settings.m_unscraped = pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED);
+  dialog->m_settings.m_artwork = pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK);
+  dialog->m_settings.m_skipnfo = pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO);
+  dialog->m_settings.m_overwrite = pSettings->GetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE);
 
   // Ensure NFO or art output enabled when albums exported (adjust old saved settings)
-  if (dialog->m_settings.IsItemExported(ELIBEXPORT_ALBUMS) &&
-      (dialog->m_settings.IsSkipNfo() && !dialog->m_settings.IsArtwork()))
-    dialog->m_settings.SetSkipNfo(false);
+  if (dialog->m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && (dialog->m_settings.m_skipnfo && !dialog->m_settings.m_artwork))
+    dialog->m_settings.m_skipnfo = false;
 
   dialog->m_destinationChecked = false;
   dialog->Open();
@@ -76,6 +72,11 @@ bool CGUIDialogLibExportSettings::Show(CLibExportSettings& settings)
     settings = dialog->m_settings;
   }
   return confirmed;
+}
+
+void CGUIDialogLibExportSettings::OnInitWindow()
+{
+  CGUIDialogSettingsManualBase::OnInitWindow();
 }
 
 void CGUIDialogLibExportSettings::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
@@ -95,18 +96,17 @@ void CGUIDialogLibExportSettings::OnSettingChanged(const std::shared_ptr<const C
   }
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER)
   {
-    m_settings.SetPath(std::static_pointer_cast<const CSettingString>(setting)->GetValue());
+    m_settings.m_strPath = std::static_pointer_cast<const CSettingString>(setting)->GetValue();
     UpdateButtons();
   }
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE)
-    m_settings.SetOverwrite(std::static_pointer_cast<const CSettingBool>(setting)->GetValue());
+    m_settings.m_overwrite = std::static_pointer_cast<const CSettingBool>(setting)->GetValue();
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_ITEMS)
   {
     m_settings.SetItemsToExport(GetExportItemsFromSetting(setting));
-    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) &&
-        (m_settings.IsSkipNfo() && !m_settings.IsArtwork()))
+    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && (m_settings.m_skipnfo && !m_settings.m_artwork))
     {
-      m_settings.SetSkipNfo(false);
+      m_settings.m_skipnfo = false;
       m_settingNFO->SetValue(true);
       UpdateToggles();
     }
@@ -114,24 +114,22 @@ void CGUIDialogLibExportSettings::OnSettingChanged(const std::shared_ptr<const C
   }
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK)
   {
-    m_settings.SetArtwork(std::static_pointer_cast<const CSettingBool>(setting)->GetValue());
-    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) &&
-        (m_settings.IsSkipNfo() && !m_settings.IsArtwork()))
+    m_settings.m_artwork = std::static_pointer_cast<const CSettingBool>(setting)->GetValue();
+    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && (m_settings.m_skipnfo && !m_settings.m_artwork))
     {
-      m_settings.SetSkipNfo(false);
+      m_settings.m_skipnfo = false;
       m_settingNFO->SetValue(true);
     }
     UpdateToggles();
   }
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED)
-    m_settings.SetUnscraped(std::static_pointer_cast<const CSettingBool>(setting)->GetValue());
+    m_settings.m_unscraped = std::static_pointer_cast<const CSettingBool>(setting)->GetValue();
   else if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO)
   {
-    m_settings.SetSkipNfo(!std::static_pointer_cast<const CSettingBool>(setting)->GetValue());
-    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) &&
-        (m_settings.IsSkipNfo() && !m_settings.IsArtwork()))
+    m_settings.m_skipnfo = !std::static_pointer_cast<const CSettingBool>(setting)->GetValue();
+    if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && (m_settings.m_skipnfo && !m_settings.m_artwork))
     {
-      m_settings.SetArtwork(true);
+      m_settings.m_artwork = true;
       m_settingArt->SetValue(true);
     }
     UpdateToggles();
@@ -140,7 +138,7 @@ void CGUIDialogLibExportSettings::OnSettingChanged(const std::shared_ptr<const C
 
 void CGUIDialogLibExportSettings::OnSettingAction(const std::shared_ptr<const CSetting>& setting)
 {
-  if (!setting)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingAction(setting);
@@ -150,11 +148,11 @@ void CGUIDialogLibExportSettings::OnSettingAction(const std::shared_ptr<const CS
   if (settingId == CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER && !m_settings.IsToLibFolders() &&
       !m_settings.IsArtistFoldersOnly())
   {
-    std::vector<CMediaSource> shares;
+    VECSOURCES shares;
     CServiceBroker::GetMediaManager().GetLocalDrives(shares);
     CServiceBroker::GetMediaManager().GetNetworkLocations(shares);
     CServiceBroker::GetMediaManager().GetRemovableDrives(shares);
-    std::string strDirectory = m_settings.GetPath();
+    std::string strDirectory = m_settings.m_strPath;
     if (!strDirectory.empty())
     {
       URIUtils::AddSlashAtEnd(strDirectory);
@@ -162,7 +160,7 @@ void CGUIDialogLibExportSettings::OnSettingAction(const std::shared_ptr<const CS
       if (CUtil::GetMatchingSource(strDirectory, shares, bIsSource) < 0) // path is outside shares - add it as a separate one
       {
         CMediaSource share;
-        share.strName = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(13278);
+        share.strName = g_localizeStrings.Get(13278);
         share.strPath = strDirectory;
         shares.push_back(share);
       }
@@ -170,15 +168,15 @@ void CGUIDialogLibExportSettings::OnSettingAction(const std::shared_ptr<const CS
     else
       strDirectory = "default location";
 
-    if (CGUIDialogFileBrowser::ShowAndGetDirectory(
-            shares, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(661),
-            strDirectory, true) &&
-        !strDirectory.empty())
+    if (CGUIDialogFileBrowser::ShowAndGetDirectory(shares, g_localizeStrings.Get(661), strDirectory, true))
     {
-      m_destinationChecked = true;
-      m_settings.SetPath(strDirectory);
-      SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, strDirectory);
-      SetFocus(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER);
+      if (!strDirectory.empty())
+      {
+        m_destinationChecked = true;
+        m_settings.m_strPath = strDirectory;
+        SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, strDirectory);
+        SetFocus(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER);
+      }
     }
     UpdateButtons();
   }
@@ -196,10 +194,8 @@ bool CGUIDialogLibExportSettings::OnMessage(CGUIMessage& message)
         OnOK();
         return true;
       }
-      break;
     }
-    default:
-      break;
+    break;
   }
   return CGUIDialogSettingsManualBase::OnMessage(message);
 }
@@ -228,7 +224,7 @@ void CGUIDialogLibExportSettings::OnOK()
   {
     // ELIBEXPORT_SINGLEFILE or LIBEXPORT_SEPARATEFILES
     // Check that destination folder exists
-    if (!XFILE::CDirectory::Exists(m_settings.GetPath()))
+    if (!XFILE::CDirectory::Exists(m_settings.m_strPath))
     {
       HELPERS::ShowOKDialogText(CVariant{ 38300 }, CVariant{ 38318 });
       return;
@@ -244,12 +240,12 @@ bool CGUIDialogLibExportSettings::Save()
   CLog::Log(LOGINFO, "CGUIDialogMusicExportSettings: Save() called");
   const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
   settings->SetInt(CSettings::SETTING_MUSICLIBRARY_EXPORT_FILETYPE, m_settings.GetExportType());
-  settings->SetString(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, m_settings.GetPath());
+  settings->SetString(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, m_settings.m_strPath);
   settings->SetInt(CSettings::SETTING_MUSICLIBRARY_EXPORT_ITEMS, m_settings.GetItemsToExport());
-  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, m_settings.IsUnscraped());
-  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, m_settings.IsOverwrite());
-  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK, m_settings.IsArtwork());
-  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, m_settings.IsSkipNfo());
+  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, m_settings.m_unscraped);
+  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, m_settings.m_overwrite);
+  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK, m_settings.m_artwork);
+  settings->SetBool(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, m_settings.m_skipnfo);
   settings->Save();
 
   return true;
@@ -275,7 +271,7 @@ void CGUIDialogLibExportSettings::UpdateButtons()
   bool enableExport(true);
   if (m_settings.IsSingleFile() ||
       m_settings.IsSeparateFiles())
-    enableExport = !m_settings.GetPath().empty();
+    enableExport = !m_settings.m_strPath.empty();
 
   CONTROL_ENABLE_ON_CONDITION(CONTROL_SETTINGS_OKAY_BUTTON, enableExport);
   if (!enableExport)
@@ -285,21 +281,18 @@ void CGUIDialogLibExportSettings::UpdateButtons()
 void CGUIDialogLibExportSettings::UpdateToggles()
 {
   if (m_settings.IsSeparateFiles())
-    ToggleState(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, !m_settings.IsSkipNfo());
+    ToggleState(CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, !m_settings.m_skipnfo);
 
-  if (!m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && m_settings.IsSkipNfo() &&
-      !m_settings.IsArtwork())
+  if (!m_settings.IsItemExported(ELIBEXPORT_ALBUMS) && m_settings.m_skipnfo && !m_settings.m_artwork)
   {
     //"Output information to NFO files (currently exporting artist folders only)"
-    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO,
-             CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38310));
+    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, g_localizeStrings.Get(38310));
     ToggleState(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, false);
   }
   else
   {
     //"Output information to NFO files"
-    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO,
-             CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38309));
+    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, g_localizeStrings.Get(38309));
     ToggleState(CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, true);
   }
 }
@@ -313,30 +306,25 @@ void CGUIDialogLibExportSettings::UpdateDescription()
     if (m_settings.IsItemExported(ELIBEXPORT_ALBUMS))
       if (m_settings.IsArtists())
         //"Artists exported to Artist Information Folder and albums to music folders"
-        SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER,
-                  CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38322));
+        SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, g_localizeStrings.Get(38322));
       else
         //"Albums exported to music folders"
-        SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER,
-                  CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38323));
+        SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, g_localizeStrings.Get(38323));
     else
       // "Artists exported to Artist Information Folder"
-      SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER,
-                CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38324));
+      SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, g_localizeStrings.Get(38324));
   }
   else if (m_settings.IsArtistFoldersOnly())
   {
     // Destination button is description of what artist folders means
     SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, "");
     //"Artists folders created in Artist Information Folder"
-    SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER,
-              CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38325));
+    SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, g_localizeStrings.Get(38325));
   }
   else
   {
-    SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, m_settings.GetPath());
-    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER,
-             CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(38305));
+    SetLabel2(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, m_settings.m_strPath);
+    SetLabel(CSettings::SETTING_MUSICLIBRARY_EXPORT_FOLDER, g_localizeStrings.Get(38305));
   }
 }
 
@@ -381,14 +369,14 @@ void CGUIDialogLibExportSettings::InitializeSettings()
   {
     // Only artists, not albums, at least album artists
     items = m_settings.GetLimitedItems(ELIBEXPORT_ALBUMARTISTS + ELIBEXPORT_SONGARTISTS + ELIBEXPORT_OTHERARTISTS);
-    if (items.empty())
+    if (items.size() == 0)
       items.emplace_back(ELIBEXPORT_ALBUMARTISTS);
   }
   else if (!m_settings.IsSingleFile())
   {
     // No songs unless single file export, at least album artists
     items = m_settings.GetLimitedItems(ELIBEXPORT_ALBUMS + ELIBEXPORT_ALBUMARTISTS + ELIBEXPORT_SONGARTISTS + ELIBEXPORT_OTHERARTISTS);
-    if (items.empty())
+    if (items.size() == 0)
       items.emplace_back(ELIBEXPORT_ALBUMARTISTS);
   }
   else
@@ -398,36 +386,32 @@ void CGUIDialogLibExportSettings::InitializeSettings()
 
   if (m_settings.IsToLibFolders() || m_settings.IsSeparateFiles())
   {
-    m_settingNFO = AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, 38309,
-                             SettingLevel::Basic, !m_settings.IsSkipNfo());
+    m_settingNFO = AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_SKIPNFO, 38309, SettingLevel::Basic, !m_settings.m_skipnfo);
     if (m_settings.IsSeparateFiles())
-      AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, 38308,
-                SettingLevel::Basic, m_settings.IsUnscraped());
-    m_settingArt = AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK, 38307,
-                             SettingLevel::Basic, m_settings.IsArtwork());
-    AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, 38311,
-              SettingLevel::Basic, m_settings.IsOverwrite());
+      AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_UNSCRAPED, 38308, SettingLevel::Basic, m_settings.m_unscraped);
+    m_settingArt = AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_ARTWORK, 38307, SettingLevel::Basic, m_settings.m_artwork);
+    AddToggle(groupDetails, CSettings::SETTING_MUSICLIBRARY_EXPORT_OVERWRITE, 38311, SettingLevel::Basic, m_settings.m_overwrite);
   }
 }
 
 void CGUIDialogLibExportSettings::SetLabel2(const std::string &settingid, const std::string &label)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
     SET_CONTROL_LABEL2(settingControl->GetID(), label);
 }
 
 void CGUIDialogLibExportSettings::SetLabel(const std::string &settingid, const std::string &label)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
     SetControlLabel(settingControl->GetID(), label);
 }
 
 void CGUIDialogLibExportSettings::ToggleState(const std::string & settingid, bool enabled)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
   {
     if (enabled)
       CONTROL_ENABLE(settingControl->GetID());
@@ -439,7 +423,7 @@ void CGUIDialogLibExportSettings::ToggleState(const std::string & settingid, boo
 void CGUIDialogLibExportSettings::SetFocus(const std::string &settingid)
 {
   BaseSettingControlPtr settingControl = GetSettingControl(settingid);
-  if (settingControl && settingControl->GetControl())
+  if (settingControl != nullptr && settingControl->GetControl() != nullptr)
     SET_CONTROL_FOCUS(settingControl->GetID(), 0);
 }
 
@@ -448,7 +432,7 @@ int CGUIDialogLibExportSettings::GetExportItemsFromSetting(const SettingConstPtr
   std::shared_ptr<const CSettingList> settingList = std::static_pointer_cast<const CSettingList>(setting);
   if (settingList->GetElementType() != SettingType::Integer)
   {
-    CLog::LogF(LOGERROR, "Wrong items element type");
+    CLog::Log(LOGERROR, "CGUIDialogLibExportSettings::{} - wrong items element type", __FUNCTION__);
     return 0;
   }
   int exportitems = 0;
@@ -457,7 +441,7 @@ int CGUIDialogLibExportSettings::GetExportItemsFromSetting(const SettingConstPtr
   {
     if (!value.isInteger())
     {
-      CLog::LogF(LOGERROR, "Wrong items value type");
+      CLog::Log(LOGERROR, "CGUIDialogLibExportSettings::{} - wrong items value type", __FUNCTION__);
       return 0;
     }
     exportitems += static_cast<int>(value.asInteger());

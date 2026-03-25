@@ -17,17 +17,14 @@
 #include "music/tags/MusicInfoTag.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/URIUtils.h"
 #include "utils/log.h"
 
 #include <cmath>
 #include <mutex>
 
-using namespace KODI;
-
 CAudioDecoder::CAudioDecoder()
 {
-  m_codec = NULL;
+  m_codec = nullptr;
   m_rawBuffer = nullptr;
 
   m_eof = false;
@@ -50,14 +47,15 @@ CAudioDecoder::~CAudioDecoder()
 
 void CAudioDecoder::Destroy()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_status = STATUS_NO_FILE;
 
   m_pcmBuffer.Destroy();
 
   if ( m_codec )
     delete m_codec;
-  m_codec = NULL;
+  m_codec = nullptr;
 
   m_canPlay = false;
 }
@@ -66,7 +64,7 @@ bool CAudioDecoder::Create(const CFileItem &file, int64_t seekOffset)
 {
   Destroy();
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   // reset our playback timing variables
   m_eof = false;
@@ -78,7 +76,7 @@ bool CAudioDecoder::Create(const CFileItem &file, int64_t seekOffset)
     filecache = settings->GetInt(CSettings::SETTING_CACHE_HARDDISK);
   else if ( file.IsOnDVD() )
     filecache = settings->GetInt(CSettings::SETTING_CACHEAUDIO_DVDROM);
-  else if (URIUtils::IsOnLAN(file.GetPath()))
+  else if ( file.IsOnLAN() )
     filecache = settings->GetInt(CSettings::SETTING_CACHEAUDIO_LAN);
 
   // create our codec
@@ -138,8 +136,7 @@ bool CAudioDecoder::Create(const CFileItem &file, int64_t seekOffset)
   return true;
 }
 
-AEAudioFormat CAudioDecoder::GetFormat()
-{
+AEAudioFormat CAudioDecoder::GetFormat() const {
   AEAudioFormat format;
   if (!m_codec)
     return format;
@@ -162,14 +159,12 @@ int64_t CAudioDecoder::Seek(int64_t time)
   return m_codec->Seek(time);
 }
 
-void CAudioDecoder::SetTotalTime(int64_t time)
-{
+void CAudioDecoder::SetTotalTime(int64_t time) const {
   if (m_codec)
     m_codec->m_TotalTime = time;
 }
 
-int64_t CAudioDecoder::TotalTime()
-{
+int64_t CAudioDecoder::TotalTime() const {
   if (m_codec)
     return m_codec->m_TotalTime;
   return 0;
@@ -206,7 +201,7 @@ void *CAudioDecoder::GetData(unsigned int samples)
   if (size > sizeof(m_outputBuffer))
   {
     CLog::Log(LOGERROR, "CAudioDecoder::GetData - More data was requested then we have space to buffer!");
-    return NULL;
+    return nullptr;
   }
 
   if (size > m_pcmBuffer.getMaxReadSize())
@@ -227,7 +222,7 @@ void *CAudioDecoder::GetData(unsigned int samples)
   }
 
   CLog::Log(LOGERROR, "CAudioDecoder::GetData() ReadBinary failed with {} samples", samples);
-  return NULL;
+  return nullptr;
 }
 
 uint8_t *CAudioDecoder::GetRawData(int &size)
@@ -254,7 +249,7 @@ int CAudioDecoder::ReadSamples(int numsamples)
     m_status = STATUS_PLAYING;
 
   // grab a lock to ensure the codec is created at this point.
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   if (m_codec->m_format.m_dataFormat != AE_FMT_RAW)
   {
@@ -338,16 +333,14 @@ int CAudioDecoder::ReadSamples(int numsamples)
   return RET_SLEEP; // nothing to do
 }
 
-bool CAudioDecoder::CanSeek()
-{
+bool CAudioDecoder::CanSeek() const {
   if (m_codec)
     return m_codec->CanSeek();
   else
     return false;
 }
 
-float CAudioDecoder::GetReplayGain(float &peakVal)
-{
+float CAudioDecoder::GetReplayGain(float &peakVal) const {
 #define REPLAY_GAIN_DEFAULT_LEVEL 89.0f
   auto& components = CServiceBroker::GetAppComponents();
   const auto appVolume = components.GetComponent<CApplicationVolumeHandling>();

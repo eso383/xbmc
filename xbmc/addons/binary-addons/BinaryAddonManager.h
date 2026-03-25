@@ -25,7 +25,10 @@ namespace ADDON
   using AddonInfoPtr = std::shared_ptr<CAddonInfo>;
 
   class CAddonDll;
+  typedef std::shared_ptr<CAddonDll> AddonDllPtr;
+
   class CBinaryAddonBase;
+  typedef std::shared_ptr<CBinaryAddonBase> BinaryAddonBasePtr;
 
   class CBinaryAddonManager
   {
@@ -48,9 +51,9 @@ namespace ADDON
      * @ref IAddonInstanceHandler, use nowhere else allowed!
      *
      */
-    std::shared_ptr<CBinaryAddonBase> GetAddonBase(const AddonInfoPtr& addonInfo,
-                                                   IAddonInstanceHandler* handler,
-                                                   std::shared_ptr<CAddonDll>& addon);
+    BinaryAddonBasePtr GetAddonBase(const AddonInfoPtr& addonInfo,
+                                    IAddonInstanceHandler* handler,
+                                    AddonDllPtr& addon);
 
     /*!
      * @brief Release a running addon instance handle base.
@@ -62,8 +65,7 @@ namespace ADDON
      * @param[in] handler related instance handle class
      *
      */
-    void ReleaseAddonBase(const std::shared_ptr<CBinaryAddonBase>& addonBase,
-                          IAddonInstanceHandler* handler);
+    void ReleaseAddonBase(const BinaryAddonBasePtr& addonBase, IAddonInstanceHandler* handler);
 
     /*!
      * @brief Get running addon base class for a given addon id.
@@ -72,7 +74,7 @@ namespace ADDON
      * @return running addon base class if found, nullptr otherwise.
      *
      */
-    std::shared_ptr<CBinaryAddonBase> GetRunningAddonBase(const std::string& addonId) const;
+    BinaryAddonBasePtr GetRunningAddonBase(const std::string& addonId) const;
 
     /*!
      * @brief Used from other addon manager to get active addon over a from him
@@ -87,7 +89,7 @@ namespace ADDON
   private:
     mutable CCriticalSection m_critSection;
 
-    std::map<std::string, std::shared_ptr<CBinaryAddonBase>, std::less<>> m_runningAddons;
+    std::map<std::string, BinaryAddonBasePtr> m_runningAddons;
   };
 
 } /* namespace ADDON */

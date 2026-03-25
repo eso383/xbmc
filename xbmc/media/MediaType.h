@@ -10,10 +10,8 @@
 
 #include <map>
 #include <string>
-#include <string_view>
 
 using MediaType = std::string;
-using MediaType_view = std::string_view;
 
 #define MediaTypeNone             ""
 #define MediaTypeMusic            "music"
@@ -29,12 +27,12 @@ using MediaType_view = std::string_view;
 #define MediaTypeEpisode          "episode"
 #define MediaTypeVideoVersion "videoversion"
 
-constexpr const char* MediaTypeVideoCollections = "sets";
-constexpr const char* MediaTypeMusicVideos = "musicvideos";
-constexpr const char* MediaTypeMovies = "movies";
-constexpr const char* MediaTypeTvShows = "tvshows";
-constexpr const char* MediaTypeSeasons = "seasons";
-constexpr const char* MediaTypeEpisodes = "episodes";
+constexpr auto MediaTypeVideoCollections = "sets";
+constexpr auto MediaTypeMusicVideos = "musicvideos";
+constexpr auto MediaTypeMovies = "movies";
+constexpr auto MediaTypeTvShows = "tvshows";
+constexpr auto MediaTypeSeasons = "seasons";
+constexpr auto MediaTypeEpisodes = "episodes";
 
 class CMediaTypes
 {

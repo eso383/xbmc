@@ -9,11 +9,9 @@
 #include "GUIButtonControl.h"
 
 #include "GUIFontManager.h"
-#include "ServiceBroker.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "input/mouse/MouseEvent.h"
-#include "windowing/WinSystem.h"
 
 using namespace KODI;
 
@@ -383,9 +381,9 @@ std::string CGUIButtonControl::GetLabel2() const
 
 void CGUIButtonControl::PythonSetLabel(const std::string& strFont,
                                        const std::string& strText,
-                                       KODI::UTILS::COLOR::Color textColor,
-                                       KODI::UTILS::COLOR::Color shadowColor,
-                                       KODI::UTILS::COLOR::Color focusedColor)
+                                       UTILS::COLOR::Color textColor,
+                                       UTILS::COLOR::Color shadowColor,
+                                       UTILS::COLOR::Color focusedColor)
 {
   m_label.GetLabelInfo().font = g_fontManager.GetFont(strFont);
   m_label.GetLabelInfo().textColor = textColor;
@@ -394,7 +392,7 @@ void CGUIButtonControl::PythonSetLabel(const std::string& strFont,
   SetLabel(strText);
 }
 
-void CGUIButtonControl::PythonSetDisabledColor(KODI::UTILS::COLOR::Color disabledColor)
+void CGUIButtonControl::PythonSetDisabledColor(UTILS::COLOR::Color disabledColor)
 {
   m_label.GetLabelInfo().disabledColor = disabledColor;
 }

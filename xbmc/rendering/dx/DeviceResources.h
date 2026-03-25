@@ -17,7 +17,6 @@
 
 #include <concrt.h>
 #include <dxgi1_5.h>
-#include <winrt/windows.foundation.h>
 #include <wrl.h>
 #include <wrl/client.h>
 

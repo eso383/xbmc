@@ -37,7 +37,7 @@ CGUIRSSControl::CGUIRSSControl(int parentID,
     m_headlineColor(headlineColor),
     m_scrollInfo(0, 0, labelInfo.scrollSpeed, "")
 {
-  m_pReader = NULL;
+  m_pReader = nullptr;
   m_rtl = false;
   m_stopped = false;
   m_urlset = 1;
@@ -55,7 +55,7 @@ CGUIRSSControl::CGUIRSSControl(const CGUIRSSControl& from)
     m_vecIntervals(),
     m_scrollInfo(from.m_scrollInfo)
 {
-  m_pReader = NULL;
+  m_pReader = nullptr;
   m_rtl = from.m_rtl;
   m_stopped = from.m_stopped;
   m_urlset = 1;
@@ -64,10 +64,11 @@ CGUIRSSControl::CGUIRSSControl(const CGUIRSSControl& from)
 
 CGUIRSSControl::~CGUIRSSControl(void)
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
+
   if (m_pReader)
-    m_pReader->SetObserver(NULL);
-  m_pReader = NULL;
+    m_pReader->SetObserver(nullptr);
+  m_pReader = nullptr;
 }
 
 void CGUIRSSControl::OnFocus()
@@ -99,12 +100,13 @@ void CGUIRSSControl::Process(unsigned int currentTime, CDirtyRegionList &dirtyre
   bool dirty = false;
   if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_LOOKANDFEEL_ENABLERSSFEEDS) && CRssManager::GetInstance().IsActive())
   {
-    std::unique_lock lock(m_criticalSection);
+    std::lock_guard lock(m_criticalSection);
+
     // Create RSS background/worker thread if needed
-    if (m_pReader == NULL)
+    if (m_pReader == nullptr)
     {
 
-      RssUrls::const_iterator iter = CRssManager::GetInstance().GetUrls().find(m_urlset);
+      auto iter = CRssManager::GetInstance().GetUrls().find(m_urlset);
       if (iter != CRssManager::GetInstance().GetUrls().end())
       {
         m_rtl = iter->second.rtl;
@@ -121,7 +123,7 @@ void CGUIRSSControl::Process(unsigned int currentTime, CDirtyRegionList &dirtyre
       }
       else
       {
-        if (!m_strRSSTags.empty())
+        if (m_strRSSTags != "")
         {
           std::vector<std::string> tags = StringUtils::Split(m_strRSSTags, ",");
           for (const std::string& i : tags)
@@ -163,7 +165,7 @@ void CGUIRSSControl::Render()
 
     if (m_label.font)
     {
-      std::vector<KODI::UTILS::COLOR::Color> colors;
+      std::vector<UTILS::COLOR::Color> colors;
       colors.push_back(m_label.textColor);
       colors.push_back(m_headlineColor);
       colors.push_back(m_channelColor);
@@ -188,14 +190,15 @@ CRect CGUIRSSControl::CalcRenderRegion() const
 
 void CGUIRSSControl::OnFeedUpdate(const vecText &feed)
 {
-  std::unique_lock lock(m_criticalSection);
+  std::lock_guard lock(m_criticalSection);
+  
   m_feed = feed;
   m_dirty = true;
 }
 
 void CGUIRSSControl::OnFeedRelease()
 {
-  m_pReader = NULL;
+  m_pReader = nullptr;
 }
 
 

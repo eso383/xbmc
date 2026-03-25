@@ -10,9 +10,8 @@
 
 #include "QueryParams.h"
 #include "ServiceBroker.h"
+#include "guilib/LocalizeStrings.h"
 #include "music/MusicDatabase.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -20,25 +19,25 @@
 using namespace XFILE::MUSICDATABASEDIRECTORY;
 
 CDirectoryNodeArtist::CDirectoryNodeArtist(const std::string& strName, CDirectoryNode* pParent)
-  : CDirectoryNode(NodeType::ARTIST, strName, pParent)
+  : CDirectoryNode(NODE_TYPE_ARTIST, strName, pParent)
 {
 
 }
 
-NodeType CDirectoryNodeArtist::GetChildType() const
+NODE_TYPE CDirectoryNodeArtist::GetChildType() const
 {
   if (!CServiceBroker::GetSettingsComponent()
            ->GetAdvancedSettings()
            ->m_bMusicLibraryArtistNavigatesToSongs)
-    return NodeType::ALBUM;
+    return NODE_TYPE_ALBUM;
   else
-    return NodeType::SONG;
+    return NODE_TYPE_SONG;
 }
 
 std::string CDirectoryNodeArtist::GetLocalizedName() const
 {
   if (GetID() == -1)
-    return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15103); // All Artists
+    return g_localizeStrings.Get(15103); // All Artists
   CMusicDatabase db;
   if (db.Open())
     return db.GetArtistById(GetID());
@@ -54,11 +53,7 @@ bool CDirectoryNodeArtist::GetContent(CFileItemList& items) const
   CQueryParams params;
   CollectQueryParams(params);
 
-  const auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
-  bool bSuccess = musicdatabase.GetArtistsNav(
-      BuildPath(), items, SortDescription(),
-      !settings->GetBool(CSettings::SETTING_MUSICLIBRARY_SHOWCOMPILATIONARTISTS),
-      params.GetGenreId());
+  bool bSuccess = musicdatabase.GetArtistsNav(BuildPath(), items, !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_MUSICLIBRARY_SHOWCOMPILATIONARTISTS), params.GetGenreId());
 
   musicdatabase.Close();
 

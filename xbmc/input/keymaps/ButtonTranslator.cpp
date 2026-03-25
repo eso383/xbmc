@@ -10,7 +10,6 @@
 
 #include "AppTranslator.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "filesystem/Directory.h"
 #include "guilib/WindowIDs.h"
 #include "input/WindowTranslator.h"
@@ -39,7 +38,7 @@ using namespace KEYMAP;
 bool CButtonTranslator::AddDevice(const std::string& strDevice)
 {
   // Only add the device if it isn't already in the list
-  if (m_deviceList.contains(strDevice))
+  if (m_deviceList.find(strDevice) != m_deviceList.end())
     return false;
 
   // Add the device
@@ -86,10 +85,10 @@ bool CButtonTranslator::Load()
       CFileItemList files;
       XFILE::CDirectory::GetDirectory(dir, files, ".xml", XFILE::DIR_FLAG_DEFAULTS);
       // Sort the list for filesystem based priorities, e.g. 01-keymap.xml, 02-keymap-overrides.xml
-      files.Sort(SortBy::FILE, SortOrder::ASCENDING);
+      files.Sort(SortByFile, SortOrderAscending);
       for (int fileIndex = 0; fileIndex < files.Size(); ++fileIndex)
       {
-        if (!files[fileIndex]->IsFolder())
+        if (!files[fileIndex]->m_bIsFolder)
           success |= LoadKeymap(files[fileIndex]->GetPath());
       }
 
@@ -105,10 +104,10 @@ bool CButtonTranslator::Load()
           XFILE::CDirectory::GetDirectory(devicedir, files, ".xml", XFILE::DIR_FLAG_DEFAULTS);
           // Sort the list for filesystem based priorities, e.g. 01-keymap.xml,
           // 02-keymap-overrides.xml
-          files.Sort(SortBy::FILE, SortOrder::ASCENDING);
+          files.Sort(SortByFile, SortOrderAscending);
           for (int fileIndex = 0; fileIndex < files.Size(); ++fileIndex)
           {
-            if (!files[fileIndex]->IsFolder())
+            if (!files[fileIndex]->m_bIsFolder)
               success |= LoadKeymap(files[fileIndex]->GetPath());
           }
         }
@@ -176,8 +175,7 @@ bool CButtonTranslator::LoadKeymap(const std::string& keymapPath)
   return true;
 }
 
-CAction CButtonTranslator::GetAction(int window, const CKey& key, bool fallback)
-{
+CAction CButtonTranslator::GetAction(int window, const CKey& key, bool fallback) const {
   std::string strAction;
 
   // handle virtual windows
@@ -213,10 +211,21 @@ bool CButtonTranslator::HasLongpressMapping_Internal(int window, const CKey& key
   {
     uint32_t code = key.GetButtonCode();
     code |= CKey::MODIFIER_LONG;
-    buttonMap::const_iterator it2 = (*it).second.find(code);
+    auto it2 = (*it).second.find(code);
 
     if (it2 != (*it).second.end())
       return it2->second.id != ACTION_NOOP;
+
+#ifdef TARGET_POSIX
+    // Some buttoncodes changed in Hardy
+    if ((code & KEY_VKEY) == KEY_VKEY && (code & 0x0F00))
+    {
+      code &= ~0x0F00;
+      it2 = (*it).second.find(code);
+      if (it2 != (*it).second.end())
+        return true;
+    }
+#endif
   }
 
   // no key mapping found for the current window do the fallback handling
@@ -240,11 +249,11 @@ unsigned int CButtonTranslator::GetActionCode(int window,
 {
   uint32_t code = key.GetButtonCode();
 
-  std::map<int, buttonMap>::const_iterator it = m_translatorMap.find(window);
+  auto it = m_translatorMap.find(window);
   if (it == m_translatorMap.end())
     return ACTION_NONE;
 
-  buttonMap::const_iterator it2 = (*it).second.find(code);
+  auto it2 = (*it).second.find(code);
   unsigned int action = ACTION_NONE;
   if (it2 == (*it).second.end() &&
       code & CKey::MODIFIER_LONG) // If long action not found, try short one
@@ -259,6 +268,21 @@ unsigned int CButtonTranslator::GetActionCode(int window,
     strAction = (*it2).second.strID;
   }
 
+#ifdef TARGET_POSIX
+  // Some buttoncodes changed in Hardy
+  if (action == ACTION_NONE && (code & KEY_VKEY) == KEY_VKEY && (code & 0x0F00))
+  {
+    CLog::Log(LOGDEBUG, "{}: Trying Hardy keycode for {:#04x}", __FUNCTION__, code);
+    code &= ~0x0F00;
+    it2 = (*it).second.find(code);
+    if (it2 != (*it).second.end())
+    {
+      action = (*it2).second.id;
+      strAction = (*it2).second.strID;
+    }
+  }
+#endif
+
   return action;
 }
 
@@ -270,7 +294,7 @@ void CButtonTranslator::MapAction(uint32_t buttonCode, const std::string& szActi
 
   // have a valid action, and a valid button - map it.
   // check to see if we've already got this (button,action) pair defined
-  buttonMap::iterator it = map.find(buttonCode);
+  auto it = map.find(buttonCode);
   if (it == map.end() || (*it).second.id != action || (*it).second.strID != szAction)
   {
     // NOTE: This multimap is only being used as a normal map at this point (no support
@@ -298,7 +322,7 @@ void CButtonTranslator::MapWindowActions(const tinyxml2::XMLNode* pWindow, int w
          pDevice = pDevice->NextSiblingElement(type.c_str()))
     {
       buttonMap map;
-      std::map<int, buttonMap>::iterator it = m_translatorMap.find(windowID);
+      auto it = m_translatorMap.find(windowID);
       if (it != m_translatorMap.end())
       {
         map = std::move(it->second);
@@ -330,7 +354,7 @@ void CButtonTranslator::MapWindowActions(const tinyxml2::XMLNode* pWindow, int w
             MapAction(buttonCode, pButton->FirstChild()->Value(), map);
           else
           {
-            buttonMap::iterator it = map.find(buttonCode);
+            auto it = map.find(buttonCode);
             while (it != map.end())
             {
               map.erase(it);

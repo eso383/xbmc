@@ -13,6 +13,7 @@
 #include "UPnP.h"
 
 #include "FileItem.h"
+#include "GUIUserMessages.h"
 #include "ServiceBroker.h"
 #include "UPnPInternal.h"
 #include "UPnPRenderer.h"
@@ -20,7 +21,8 @@
 #include "UPnPSettings.h"
 #include "URL.h"
 #include "cores/playercorefactory/PlayerCoreFactory.h"
-#include "interfaces/AnnouncementManager.h"
+#include "guilib/GUIComponent.h"
+#include "guilib/GUIWindowManager.h"
 #include "messaging/ApplicationMessenger.h"
 #include "network/Network.h"
 #include "profiles/ProfileManager.h"
@@ -119,7 +121,7 @@ namespace UPNP
 /*----------------------------------------------------------------------
 |   static
 +---------------------------------------------------------------------*/
-CUPnP* CUPnP::upnp = NULL;
+CUPnP* CUPnP::upnp = nullptr;
 static NPT_List<void*> g_UserData;
 static NPT_Mutex g_UserDataLock;
 
@@ -169,15 +171,19 @@ public:
   // PLT_MediaBrowser methods
   bool OnMSAdded(PLT_DeviceDataReference& device) override
   {
-    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Sources, "OnAdded",
-                                                       CVariant{"upnp://"});
+    CGUIMessage message(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE_PATH);
+    message.SetStringParam("upnp://");
+    CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(message);
 
     return PLT_SyncMediaBrowser::OnMSAdded(device);
   }
   void OnMSRemoved(PLT_DeviceDataReference& device) override
   {
-    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Sources, "OnRemoved",
-                                                       CVariant{"upnp://"});
+    PLT_SyncMediaBrowser::OnMSRemoved(device);
+
+    CGUIMessage message(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE_PATH);
+    message.SetStringParam("upnp://");
+    CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(message);
 
     PLT_SyncMediaBrowser::OnMSRemoved(device);
   }
@@ -196,8 +202,9 @@ public:
     }
 
     m_logger->debug("notified container update {}", (const char*)path);
-    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Sources, "OnUpdated",
-                                                       CVariant{path.GetChars()});
+    CGUIMessage message(GUI_MSG_NOTIFY_ALL, 0, 0, GUI_MSG_UPDATE_PATH);
+    message.SetStringParam(path.GetChars());
+    CServiceBroker::GetGUI()->GetWindowManager().SendThreadMessage(message);
   }
 
   bool MarkWatched(const CFileItem& item, const bool watched)
@@ -332,7 +339,7 @@ public:
     NPT_CHECK_LABEL(action->SetArgumentValue("ObjectID", url.GetFileName().c_str()), failed);
 
     // put together the current and the new value string
-    for (std::set<std::pair<NPT_String, NPT_String>>::const_iterator value = values.begin();
+    for (auto value = values.begin();
          value != values.end(); ++value)
     {
       if (!curr_value.IsEmpty())
@@ -479,7 +486,7 @@ public:
 
   bool OnMRAdded(PLT_DeviceDataReference& device) override
   {
-    if (device->GetUUID().IsEmpty() || device->GetUUID().GetChars() == NULL)
+    if (device->GetUUID().IsEmpty() || device->GetUUID().GetChars() == nullptr)
       return false;
 
     CPlayerCoreFactory& playerCoreFactory = CServiceBroker::GetPlayerCoreFactory();
@@ -493,7 +500,7 @@ public:
 
   void OnMRRemoved(PLT_DeviceDataReference& device) override
   {
-    if (device->GetUUID().IsEmpty() || device->GetUUID().GetChars() == NULL)
+    if (device->GetUUID().IsEmpty() || device->GetUUID().GetChars() == nullptr)
       return;
 
     std::string uuid(device->GetUUID().GetChars());
@@ -516,9 +523,9 @@ private:
 |   CUPnP::CUPnP
 +---------------------------------------------------------------------*/
 CUPnP::CUPnP()
-  : m_MediaBrowser(NULL),
-    m_MediaController(NULL),
-    m_LogHandler(NULL),
+  : m_MediaBrowser(nullptr),
+    m_MediaController(nullptr),
+    m_LogHandler(nullptr),
     m_ServerHolder(new CDeviceHostReferenceHolder()),
     m_RendererHolder(new CRendererReferenceHolder()),
     m_CtrlPointHolder(new CCtrlPointReferenceHolder())
@@ -585,7 +592,7 @@ void CUPnP::ReleaseInstance(bool bWait)
   if (upnp)
   {
     CUPnP* _upnp = upnp;
-    upnp = NULL;
+    upnp = nullptr;
 
     if (bWait)
     {
@@ -595,7 +602,7 @@ void CUPnP::ReleaseInstance(bool bWait)
     {
       // since it takes a while to clean up
       // starts a detached thread to do this
-      CUPnPCleaner* cleaner = new CUPnPCleaner(_upnp);
+      auto cleaner = new CUPnPCleaner(_upnp);
       cleaner->Start();
     }
   }
@@ -608,7 +615,7 @@ CUPnPServer* CUPnP::GetServer()
 {
   if (upnp)
     return static_cast<CUPnPServer*>(upnp->m_ServerHolder->m_Device.AsPointer());
-  return NULL;
+  return nullptr;
 }
 
 /*----------------------------------------------------------------------
@@ -619,7 +626,7 @@ bool CUPnP::MarkWatched(const CFileItem& item, const bool watched)
   if (upnp && upnp->m_MediaBrowser)
   {
     // dynamic_cast is safe here, avoids polluting CUPnP.h header file
-    CMediaBrowser* browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
+    auto browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
     if (browser)
       return browser->MarkWatched(item, watched);
   }
@@ -636,7 +643,7 @@ bool CUPnP::SaveFileState(const CFileItem& item,
   if (upnp && upnp->m_MediaBrowser)
   {
     // dynamic_cast is safe here, avoids polluting CUPnP.h header file
-    CMediaBrowser* browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
+    auto browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
     if (browser)
       return browser->SaveFileState(item, bookmark, updatePlayCount);
   }
@@ -646,8 +653,7 @@ bool CUPnP::SaveFileState(const CFileItem& item,
 /*----------------------------------------------------------------------
 |   CUPnP::CreateControlPoint
 +---------------------------------------------------------------------*/
-void CUPnP::CreateControlPoint()
-{
+void CUPnP::CreateControlPoint() const {
   if (!m_CtrlPointHolder->m_CtrlPoint.IsNull())
     return;
 
@@ -661,13 +667,12 @@ void CUPnP::CreateControlPoint()
 /*----------------------------------------------------------------------
 |   CUPnP::DestroyControlPoint
 +---------------------------------------------------------------------*/
-void CUPnP::DestroyControlPoint()
-{
+void CUPnP::DestroyControlPoint() const {
   if (m_CtrlPointHolder->m_CtrlPoint.IsNull())
     return;
 
   m_UPnP->RemoveCtrlPoint(m_CtrlPointHolder->m_CtrlPoint);
-  m_CtrlPointHolder->m_CtrlPoint = NULL;
+  m_CtrlPointHolder->m_CtrlPoint = nullptr;
 }
 
 /*----------------------------------------------------------------------
@@ -678,7 +683,7 @@ bool CUPnP::UpdateItem(const std::string& path, const CFileItem& item)
   if (upnp && upnp->m_MediaBrowser)
   {
     // dynamic_cast is safe here, avoids polluting CUPnP.h header file
-    CMediaBrowser* browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
+    auto browser = dynamic_cast<CMediaBrowser*>(upnp->m_MediaBrowser);
     if (browser)
       return browser->UpdateItem(path, item);
   }
@@ -690,8 +695,9 @@ bool CUPnP::UpdateItem(const std::string& path, const CFileItem& item)
 +---------------------------------------------------------------------*/
 void CUPnP::StartClient()
 {
-  std::unique_lock lock(m_lockMediaBrowser);
-  if (m_MediaBrowser != NULL)
+  std::lock_guard lock(m_lockMediaBrowser);
+
+  if (m_MediaBrowser != nullptr)
     return;
 
   CreateControlPoint();
@@ -705,12 +711,13 @@ void CUPnP::StartClient()
 +---------------------------------------------------------------------*/
 void CUPnP::StopClient()
 {
-  std::unique_lock lock(m_lockMediaBrowser);
-  if (m_MediaBrowser == NULL)
+  std::lock_guard lock(m_lockMediaBrowser);
+
+  if (m_MediaBrowser == nullptr)
     return;
 
   delete m_MediaBrowser;
-  m_MediaBrowser = NULL;
+  m_MediaBrowser = nullptr;
 
   if (!IsControllerStarted())
     DestroyControlPoint();
@@ -721,7 +728,7 @@ void CUPnP::StopClient()
 +---------------------------------------------------------------------*/
 void CUPnP::StartController()
 {
-  if (m_MediaController != NULL)
+  if (m_MediaController != nullptr)
     return;
 
   CreateControlPoint();
@@ -734,11 +741,11 @@ void CUPnP::StartController()
 +---------------------------------------------------------------------*/
 void CUPnP::StopController()
 {
-  if (m_MediaController == NULL)
+  if (m_MediaController == nullptr)
     return;
 
   delete m_MediaController;
-  m_MediaController = NULL;
+  m_MediaController = nullptr;
 
   if (!IsClientStarted())
     DestroyControlPoint();
@@ -747,12 +754,11 @@ void CUPnP::StopController()
 /*----------------------------------------------------------------------
 |   CUPnP::CreateServer
 +---------------------------------------------------------------------*/
-CUPnPServer* CUPnP::CreateServer(int port /* = 0 */)
-{
-  CUPnPServer* device = new CUPnPServer(CSysInfo::GetDeviceName().c_str(),
-                                        !CUPnPSettings::GetInstance().GetServerUUID().empty()
+CUPnPServer* CUPnP::CreateServer(int port /* = 0 */) const {
+  auto device = new CUPnPServer(CSysInfo::GetDeviceName().c_str(),
+                                        CUPnPSettings::GetInstance().GetServerUUID().length()
                                             ? CUPnPSettings::GetInstance().GetServerUUID().c_str()
-                                            : NULL,
+                                            : nullptr,
                                         port);
 
   // trying to set optional upnp values for XP UPnP UI Icons to detect us
@@ -831,25 +837,23 @@ bool CUPnP::StartServer()
 /*----------------------------------------------------------------------
 |   CUPnP::StopServer
 +---------------------------------------------------------------------*/
-void CUPnP::StopServer()
-{
+void CUPnP::StopServer() const {
   if (m_ServerHolder->m_Device.IsNull())
     return;
 
   m_UPnP->RemoveDevice(m_ServerHolder->m_Device);
-  m_ServerHolder->m_Device = NULL;
+  m_ServerHolder->m_Device = nullptr;
 }
 
 /*----------------------------------------------------------------------
 |   CUPnP::CreateRenderer
 +---------------------------------------------------------------------*/
-CUPnPRenderer* CUPnP::CreateRenderer(int port /* = 0 */)
-{
-  CUPnPRenderer* device =
+CUPnPRenderer* CUPnP::CreateRenderer(int port /* = 0 */) const {
+  auto device =
       new CUPnPRenderer(CSysInfo::GetDeviceName().c_str(), false,
-                        (!CUPnPSettings::GetInstance().GetRendererUUID().empty()
+                        (CUPnPSettings::GetInstance().GetRendererUUID().length()
                              ? CUPnPSettings::GetInstance().GetRendererUUID().c_str()
-                             : NULL),
+                             : nullptr),
                         port);
 
   device->m_PresentationURL =
@@ -909,20 +913,18 @@ bool CUPnP::StartRenderer()
 /*----------------------------------------------------------------------
 |   CUPnP::StopRenderer
 +---------------------------------------------------------------------*/
-void CUPnP::StopRenderer()
-{
+void CUPnP::StopRenderer() const {
   if (m_RendererHolder->m_Device.IsNull())
     return;
 
   m_UPnP->RemoveDevice(m_RendererHolder->m_Device);
-  m_RendererHolder->m_Device = NULL;
+  m_RendererHolder->m_Device = nullptr;
 }
 
 /*----------------------------------------------------------------------
 |   CUPnP::UpdateState
 +---------------------------------------------------------------------*/
-void CUPnP::UpdateState()
-{
+void CUPnP::UpdateState() const {
   if (!m_RendererHolder->m_Device.IsNull())
     static_cast<CUPnPRenderer*>(m_RendererHolder->m_Device.AsPointer())->UpdateState();
 }

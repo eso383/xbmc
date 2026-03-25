@@ -14,18 +14,13 @@
 #include "favourites/FavouritesService.h"
 #include "favourites/FavouritesURL.h"
 #include "favourites/FavouritesUtils.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-#include "utils/guilib/GUIBuiltinsUtils.h"
 #include "utils/guilib/GUIContentUtils.h"
 #include "video/VideoUtils.h"
-#include "video/guilib/VideoGUIUtils.h"
 
 using namespace CONTEXTMENU;
-using namespace KODI;
-using namespace KODI::UTILS::GUILIB;
 
 bool CFavouriteContextMenuAction::IsVisible(const CFileItem& item) const
 {
@@ -37,8 +32,9 @@ bool CFavouriteContextMenuAction::Execute(const std::shared_ptr<CFileItem>& item
   CFileItemList items;
   CServiceBroker::GetFavouritesService().GetAll(items);
 
-  const auto it = std::ranges::find_if(items, [&item](const auto& favourite)
-                                       { return favourite->GetPath() == item->GetPath(); });
+  const auto it = std::find_if(items.cbegin(), items.cend(), [&item](const auto& favourite) {
+    return favourite->GetPath() == item->GetPath();
+  });
 
   if ((it != items.cend()) && DoExecute(items, *it))
     return CServiceBroker::GetFavouritesService().Save(items);
@@ -125,14 +121,14 @@ bool CFavouritesTargetBrowse::IsVisible(const CFileItem& item) const
 
 bool CFavouritesTargetBrowse::Execute(const std::shared_ptr<CFileItem>& item) const
 {
-  return FAVOURITES_UTILS::ExecuteAction({*item, -1}, item);
+  return FAVOURITES_UTILS::ExecuteAction({*item, -1});
 }
 
 std::string CFavouritesTargetResume::GetLabel(const CFileItem& item) const
 {
   const std::shared_ptr<CFileItem> targetItem{ResolveFavouriteItem(item)};
   if (targetItem)
-    return VIDEO::UTILS::GetResumeString(*targetItem);
+    return VIDEO_UTILS::GetResumeString(*targetItem);
 
   return {};
 }
@@ -143,7 +139,7 @@ bool CFavouritesTargetResume::IsVisible(const CFileItem& item) const
   {
     const std::shared_ptr<CFileItem> targetItem{ResolveFavouriteItem(item)};
     if (targetItem)
-      return VIDEO::UTILS::GetItemResumeInformation(*targetItem).isResumable;
+      return VIDEO_UTILS::GetItemResumeInformation(*targetItem).isResumable;
   }
   return false;
 }
@@ -152,7 +148,7 @@ bool CFavouritesTargetResume::Execute(const std::shared_ptr<CFileItem>& item) co
 {
   const std::shared_ptr<CFileItem> targetItem{ResolveFavouriteItem(*item)};
   if (targetItem)
-    return CGUIBuiltinsUtils::ExecutePlayMediaTryResume(targetItem);
+    return FAVOURITES_UTILS::ExecuteAction({"PlayMedia", *targetItem, "resume"});
 
   return false;
 }
@@ -160,11 +156,10 @@ bool CFavouritesTargetResume::Execute(const std::shared_ptr<CFileItem>& item) co
 std::string CFavouritesTargetPlay::GetLabel(const CFileItem& item) const
 {
   const std::shared_ptr<CFileItem> targetItem{ResolveFavouriteItem(item)};
-  if (targetItem && VIDEO::UTILS::GetItemResumeInformation(*targetItem).isResumable)
-    return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-        12021); // Play from beginning
+  if (targetItem && VIDEO_UTILS::GetItemResumeInformation(*targetItem).isResumable)
+    return g_localizeStrings.Get(12021); // Play from beginning
 
-  return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(208); // Play
+  return g_localizeStrings.Get(208); // Play
 }
 
 bool CFavouritesTargetPlay::IsVisible(const CFileItem& item) const
@@ -176,7 +171,7 @@ bool CFavouritesTargetPlay::Execute(const std::shared_ptr<CFileItem>& item) cons
 {
   const std::shared_ptr<CFileItem> targetItem{ResolveFavouriteItem(*item)};
   if (targetItem)
-    return CGUIBuiltinsUtils::ExecutePlayMediaNoResume(targetItem);
+    return FAVOURITES_UTILS::ExecuteAction({"PlayMedia", *targetItem, "noresume"});
 
   return false;
 }

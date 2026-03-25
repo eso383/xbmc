@@ -10,7 +10,6 @@
 
 #include "DialogGameVideoSelect.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 
 namespace KODI
 {
@@ -34,29 +33,18 @@ protected:
   unsigned int GetFocusedItem() const override;
   void PostExit() override;
   bool OnClickAction() override;
-  void RefreshList() override;
 
 private:
-  void InitScalingMethods();
   void InitVideoFilters();
-  void InitGetMoreButton();
-  void OnGetMore();
-  void OnGetMoreComplete();
+
+  static void GetProperties(const CFileItem& item,
+                            std::string& videoFilter,
+                            std::string& description);
 
   CFileItemList m_items;
 
-  static std::string GetLocalizedString(uint32_t code);
-
-  struct VideoFilterProperties
-  {
-    std::string path;
-    std::string name;
-    std::string folder;
-  };
-
-  // GUI state
-  unsigned int m_focusedItemIndex{0};
-  bool m_regenerateList{false};
+  //! \brief Set to true when a description has first been set
+  bool m_bHasDescription = false;
 };
 } // namespace GAME
 } // namespace KODI

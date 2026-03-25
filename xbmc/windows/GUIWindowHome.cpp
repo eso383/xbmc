@@ -17,13 +17,15 @@
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "interfaces/AnnouncementManager.h"
-#include "jobs/JobManager.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
+#include "utils/JobManager.h"
 #include "utils/RecentlyAddedJob.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
+
+#include "utils/AMLUtils.h"
 
 #include <mutex>
 
@@ -32,8 +34,7 @@ CGUIWindowHome::CGUIWindowHome(void) : CGUIWindow(WINDOW_HOME, "Home.xml")
   m_updateRA = (Audio | Video | Totals);
   m_loadType = KEEP_IN_MEMORY;
 
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this, ANNOUNCEMENT::VideoLibrary |
-                                                                   ANNOUNCEMENT::AudioLibrary);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 }
 
 CGUIWindowHome::~CGUIWindowHome(void)
@@ -52,8 +53,10 @@ bool CGUIWindowHome::OnAction(const CAction &action)
     {
       CGUIComponent* gui = CServiceBroker::GetGUI();
       if (gui)
+      {
+        aml_reset_audio_from_window_home();
         gui->GetWindowManager().SwitchToFullScreen();
-
+      }
       return true;
     }
   }
@@ -81,6 +84,10 @@ void CGUIWindowHome::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
 
   CLog::Log(LOGDEBUG, LOGANNOUNCE, "GOT ANNOUNCEMENT, type: {}, from {}, message {}",
             AnnouncementFlagToString(flag), sender, message);
+
+  // we are only interested in library changes
+  if ((flag & (ANNOUNCEMENT::VideoLibrary | ANNOUNCEMENT::AudioLibrary)) == 0)
+    return;
 
   if (data.isMember("transaction") && data["transaction"].asBoolean())
     return;
@@ -114,6 +121,7 @@ void CGUIWindowHome::AddRecentlyAddedJobs(int flag)
   // and keeps track of the flag
   {
     std::unique_lock<CCriticalSection> lockMe(*this);
+
     if (!m_recentlyAddedRunning)
     {
       getAJob = true;

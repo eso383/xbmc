@@ -11,7 +11,9 @@
 #include <string>
 #include <vector>
 
-namespace KODI::ADDONS
+namespace KODI
+{
+namespace ADDONS
 {
 
 /*!
@@ -72,4 +74,5 @@ public:
       const std::string& addonId) = 0;
 };
 
-} // namespace KODI::ADDONS
+} /* namespace ADDONS */
+} /* namespace KODI */

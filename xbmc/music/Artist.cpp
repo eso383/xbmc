@@ -12,7 +12,6 @@
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "utils/Fanart.h"
-#include "utils/StringUtils.h"
 #include "utils/XMLUtils.h"
 
 #include <algorithm>
@@ -188,8 +187,7 @@ bool CArtist::Load(const TiXmlElement *artist, bool append, bool prioritise)
   return true;
 }
 
-bool CArtist::Save(TiXmlNode *node, const std::string &tag, const std::string& strPath)
-{
+bool CArtist::Save(TiXmlNode *node, const std::string &tag, const std::string& strPath) const {
   if (!node) return false;
 
   // we start with a <tag> tag
@@ -267,8 +265,3 @@ void CArtist::SetDateNew(const std::string& strDateNew)
   dateNew.SetFromDBDateTime(strDateNew);
 }
 
-bool CMusicRole::operator==(const CMusicRole& a) const
-{
-  return StringUtils::EqualsNoCase(m_strRole, a.m_strRole) &&
-         StringUtils::EqualsNoCase(m_strArtist, a.m_strArtist);
-}

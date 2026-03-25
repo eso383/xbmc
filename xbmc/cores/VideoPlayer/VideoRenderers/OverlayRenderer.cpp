@@ -21,7 +21,6 @@
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <algorithm>
 #include <mutex>
@@ -58,7 +57,7 @@ CRenderer::~CRenderer()
 
 void CRenderer::AddOverlay(std::shared_ptr<CDVDOverlay> o, double pts, int index)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   SElement   e;
   e.pts = pts;
@@ -87,7 +86,7 @@ void CRenderer::UnInit()
 
 void CRenderer::Flush()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   for (unsigned int i = 0; i < NUM_BUFFERS; ++i)
   {
@@ -108,7 +107,8 @@ void CRenderer::Reset()
 
 void CRenderer::Release(int idx)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   Release(m_buffers[idx]);
 
   m_overlayCount[idx].store(0, std::memory_order_relaxed);
@@ -150,12 +150,12 @@ void CRenderer::ReleaseUnused()
 
 void CRenderer::Render(int idx, float depth)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   const bool pruneCache = m_buffersChanged.exchange(false, std::memory_order_relaxed);
 
   std::vector<SElement>& list = m_buffers[idx];
-  for(std::vector<SElement>::iterator it = list.begin(); it != list.end(); ++it)
+  for(auto it = list.begin(); it != list.end(); ++it)
   {
     if (it->overlay_dvd)
     {
@@ -170,8 +170,7 @@ void CRenderer::Render(int idx, float depth)
     ReleaseUnused();
 }
 
-void CRenderer::Render(COverlay* o)
-{
+void CRenderer::Render(COverlay* o) const {
   SRenderState state;
   state.x = o->m_x;
   state.y = o->m_y;
@@ -256,71 +255,6 @@ void CRenderer::Render(COverlay* o)
 
   state.x += GetStereoscopicDepth(o->m_pgsSubtitle, o->m_3dSubtitleDepth);
 
-  if (m_forceInside)
-  {
-    // Keep overlays inside the current video destination rectangle.
-    // RenderManager may pass an adjusted dest rect (e.g. DV L5 active area).
-    const CRect& bounds = m_rd;
-    if (bounds.Width() > 0.0f && bounds.Height() > 0.0f && state.width > 0.0f && state.height > 0.0f)
-    {
-      // Libass glyph overlays (text/SSA) use a full-frame transform (ALIGN_SCREEN, POSITION_RELATIVE,
-      // width/height = 1.0) and the actual quad positions are baked into the vertex data.
-      // Clamping them as if (x,y) were a centered quad will shift the whole subtitle plane.
-      // Instead, remap the full-frame transform to the active-area bounds.
-      if (o->m_pos == COverlay::POSITION_RELATIVE && o->m_align == COverlay::ALIGN_SCREEN &&
-          o->m_width == 1.0f && o->m_height == 1.0f)
-      {
-        state.x = bounds.x1;
-        state.y = bounds.y1;
-        state.width = bounds.Width();
-        state.height = bounds.Height();
-      }
-      else
-      if (o->m_pos == COverlay::POSITION_RELATIVE)
-      {
-        const float halfW = state.width * 0.5f;
-        const float halfH = state.height * 0.5f;
-
-        const float minX = bounds.x1 + halfW;
-        const float maxX = bounds.x2 - halfW;
-        const float minY = bounds.y1 + halfH;
-        const float maxY = bounds.y2 - halfH;
-
-        if (minX <= maxX)
-        {
-          if (state.x < minX)
-            state.x = minX;
-          else if (state.x > maxX)
-            state.x = maxX;
-        }
-
-        if (minY <= maxY)
-        {
-          if (state.y < minY)
-            state.y = minY;
-          else if (state.y > maxY)
-            state.y = maxY;
-        }
-      }
-      else
-      {
-        if (state.x < bounds.x1)
-          state.x = bounds.x1;
-        if (state.y < bounds.y1)
-          state.y = bounds.y1;
-        if (state.x + state.width > bounds.x2)
-          state.x = bounds.x2 - state.width;
-        if (state.y + state.height > bounds.y2)
-          state.y = bounds.y2 - state.height;
-
-        if (state.x < bounds.x1)
-          state.x = bounds.x1;
-        if (state.y < bounds.y1)
-          state.y = bounds.y1;
-      }
-    }
-  }
-
   o->Render(state);
 }
 
@@ -350,14 +284,10 @@ void CRenderer::SetStereoMode(const std::string &stereomode)
   m_stereomode = stereomode;
 }
 
-void CRenderer::SetForceInside(bool forceInside)
-{
-  m_forceInside = forceInside;
-}
-
 void CRenderer::SetSubtitleVerticalPosition(const int value, bool save)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_subtitlePosition = value;
 
   if (save && m_subtitleAlign == SUBTITLES::Align::MANUAL)
@@ -468,7 +398,6 @@ void CRenderer::CreateSubtitlesStyle()
                        static_cast<double>(settings->GetVerticalMarginPerc()));
 
   m_overlayStyle->blur = settings->GetBlurSize();
-  m_overlayStyle->lineSpacing = settings->GetLineSpacing();
 }
 
 std::shared_ptr<COverlay> CRenderer::ConvertLibass(
@@ -583,12 +512,15 @@ std::shared_ptr<COverlay> CRenderer::ConvertLibass(
   if (!images)
     return nullptr;
 
-  if (o.m_textureid && changes == 0)
+  if (o.m_textureid)
   {
-    std::map<unsigned int, std::shared_ptr<COverlay>>::iterator it =
-        m_textureCache.find(o.m_textureid);
-    if (it != m_textureCache.end())
-      return it->second;
+    if (changes == 0)
+    {
+      auto it =
+          m_textureCache.find(o.m_textureid);
+      if (it != m_textureCache.end())
+        return it->second;
+    }
   }
 
   std::shared_ptr<COverlay> overlay = COverlay::Create(images, rOpts.frameWidth, rOpts.frameHeight);
@@ -601,11 +533,11 @@ std::shared_ptr<COverlay> CRenderer::ConvertLibass(
 
 std::shared_ptr<COverlay> CRenderer::Convert(CDVDOverlay& o, double pts)
 {
-  std::shared_ptr<COverlay> r = NULL;
+  std::shared_ptr<COverlay> r = nullptr;
 
   if (o.IsOverlayType(DVDOVERLAY_TYPE_TEXT) || o.IsOverlayType(DVDOVERLAY_TYPE_SSA))
   {
-    CDVDOverlayLibass& ovAss = static_cast<CDVDOverlayLibass&>(o);
+    auto &ovAss = static_cast<CDVDOverlayLibass&>(o);
     if (!ovAss.GetLibassHandler())
       return nullptr;
     bool updateStyle = !m_overlayStyle || m_isSettingsChanged;
@@ -623,7 +555,7 @@ std::shared_ptr<COverlay> CRenderer::Convert(CDVDOverlay& o, double pts)
   }
   else if (o.m_textureid)
   {
-    std::map<unsigned int, std::shared_ptr<COverlay>>::iterator it =
+    auto it =
         m_textureCache.find(o.m_textureid);
     if (it != m_textureCache.end())
       r = it->second;
@@ -657,7 +589,8 @@ void CRenderer::Notify(const Observable& obs, const ObservableMessage msg)
     }
     case ObservableMessagePositionChanged:
     {
-      std::unique_lock lock(m_section);
+      std::lock_guard lock(m_section);
+      
       m_subtitlePosResInfo = POSRESINFO_UNSET;
       break;
     }

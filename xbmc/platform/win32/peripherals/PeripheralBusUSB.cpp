@@ -57,7 +57,7 @@ bool CPeripheralBusUSB::PerformDeviceScan(const GUID *guid, const PeripheralType
   HDEVINFO const hDevHandle = SetupDiGetClassDevs(guid, 0, 0, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
   if (hDevHandle == INVALID_HANDLE_VALUE)
   {
-    CLog::LogF(LOGWARNING, "cannot query USB devices: invalid handle");
+    CLog::Log(LOGWARNING, "{} - cannot query USB devices: invalid handle", __FUNCTION__);
     return bReturn;
   }
 
@@ -68,7 +68,7 @@ bool CPeripheralBusUSB::PerformDeviceScan(const GUID *guid, const PeripheralType
   {
     free(devicedetailData);
     free(deviceProperty);
-    CLog::LogF(LOGFATAL, "memory allocation failed");
+    CLog::Log(LOGFATAL, "{}: memory allocation failed", __FUNCTION__);
     return false;
   }
 
@@ -102,7 +102,7 @@ bool CPeripheralBusUSB::PerformDeviceScan(const GUID *guid, const PeripheralType
         if (!devicedetailData)
         {
           free(deviceProperty);
-          CLog::LogF(LOGFATAL, "memory allocation failed");
+          CLog::Log(LOGFATAL, "{}: memory allocation failed", __FUNCTION__);
           return false;
         }
         devicedetailData->cbSize = sizeof(SP_INTERFACE_DEVICE_DETAIL_DATA);
@@ -120,7 +120,7 @@ bool CPeripheralBusUSB::PerformDeviceScan(const GUID *guid, const PeripheralType
           if (!deviceProperty)
           {
             free(devicedetailData);
-            CLog::LogF(LOGFATAL, "memory allocation failed");
+            CLog::Log(LOGFATAL, "{}: memory allocation failed", __FUNCTION__);
             return false;
           }
           nPropertyBufferSize = required;

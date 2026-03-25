@@ -16,7 +16,9 @@
 class CSettingRequirementCondition : public CSettingConditionItem
 {
 public:
-  using CSettingConditionItem::CSettingConditionItem;
+  explicit CSettingRequirementCondition(CSettingsManager *settingsManager = nullptr)
+    : CSettingConditionItem(settingsManager)
+  { }
   ~CSettingRequirementCondition() override = default;
 
   bool Check() const override;
@@ -25,7 +27,9 @@ public:
 class CSettingRequirementConditionCombination : public CSettingConditionCombination
 {
 public:
-  using CSettingConditionCombination::CSettingConditionCombination;
+  explicit CSettingRequirementConditionCombination(CSettingsManager *settingsManager = nullptr)
+    : CSettingConditionCombination(settingsManager)
+  { }
   ~CSettingRequirementConditionCombination() override = default;
 
   bool Check() const override;

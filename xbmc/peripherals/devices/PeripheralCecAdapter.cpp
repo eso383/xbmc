@@ -17,18 +17,17 @@
 #include "dialogs/GUIDialogKaiToast.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "input/remote/IRRemote.h"
-#include "interfaces/AnnouncementManager.h"
-#include "jobs/JobManager.h"
 #include "messaging/ApplicationMessenger.h"
 #include "pictures/GUIWindowSlideShow.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "utils/JobManager.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
-#include "interfaces/legacy/configini.h"
+#include "xbmc/interfaces/AnnouncementManager.h"
+#include "xbmc/interfaces/legacy/configini.h"
 
 #include <mutex>
 
@@ -70,18 +69,18 @@ using namespace XBMCAddon;
 CPeripheralCecAdapter::CPeripheralCecAdapter(CPeripherals& manager,
                                              const PeripheralScanResult& scanResult,
                                              CPeripheralBus* bus)
-  : CPeripheralHID(manager, scanResult, bus),
-    CThread("CECAdapter")
+  : CPeripheralHID(manager, scanResult, bus), CThread("CECAdapter"), m_cecAdapter(nullptr)
 {
   ResetMembers();
   m_features.push_back(FEATURE_CEC);
   m_strComPort = scanResult.m_strLocation;
 }
 
-void CPeripheralCecAdapter::Deinitialize(void)
+CPeripheralCecAdapter::~CPeripheralCecAdapter(void)
 {
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     CServiceBroker::GetAnnouncementManager()->RemoveAnnouncer(this);
     m_bStop = true;
   }
@@ -145,7 +144,8 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
   if (flag == ANNOUNCEMENT::System && sender == CAnnouncementManager::ANNOUNCEMENT_SENDER &&
       message == "OnQuit" && m_bIsReady)
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_iExitCode = static_cast<int>(data["exitcode"].asInteger(EXITCODE_QUIT));
     CServiceBroker::GetAnnouncementManager()->RemoveAnnouncer(this);
     StopThread(false);
@@ -197,7 +197,8 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
   {
     // this will also power off devices when we're the active source
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+
       m_bGoingToStandby = true;
     }
     UnregisterDevice();
@@ -205,7 +206,8 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
   else if (flag == ANNOUNCEMENT::System && sender == CAnnouncementManager::ANNOUNCEMENT_SENDER &&
            message == "OnWake")
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     if (m_bStarted)
     {
       CLog::Log(LOGDEBUG, "{} - reuse open CEC adapter connection after standby mode", __FUNCTION__);
@@ -221,7 +223,8 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
   else if (flag == ANNOUNCEMENT::Player && sender == CAnnouncementManager::ANNOUNCEMENT_SENDER &&
            message == "OnStop")
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_preventActivateSourceOnPlay = CDateTime::GetCurrentDateTime();
     m_bOnPlayReceived = false;
   }
@@ -231,7 +234,8 @@ void CPeripheralCecAdapter::Announce(ANNOUNCEMENT::AnnouncementFlag flag,
     // activate the source when playback started, and the option is enabled
     bool bActivateSource(false);
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+
       bActivateSource = (m_configuration.bActivateSource && !m_bOnPlayReceived &&
                          !m_cecAdapter->IsLibCECActiveSource() &&
                          (!m_preventActivateSourceOnPlay.IsValid() ||
@@ -277,11 +281,10 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
 
       // display warning: incompatible libCEC
       std::string strMessage = StringUtils::Format(
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36040),
-          m_cecAdapter ? m_configuration.serverVersion : -1, CEC_LIB_SUPPORTED_VERSION);
-      CGUIDialogKaiToast::QueueNotification(
-          CGUIDialogKaiToast::Error,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36000), strMessage);
+          g_localizeStrings.Get(36040), m_cecAdapter ? m_configuration.serverVersion : -1,
+          CEC_LIB_SUPPORTED_VERSION);
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000),
+                                            strMessage);
       m_bError = true;
       if (m_cecAdapter)
         CECDestroy(m_cecAdapter);
@@ -343,9 +346,7 @@ bool CPeripheralCecAdapter::OpenConnection(void)
       CLog::Log(LOGERROR, "{} - could not opening a connection to the CEC adapter", __FUNCTION__);
       if (!bConnectionFailedDisplayed)
         CGUIDialogKaiToast::QueueNotification(
-            CGUIDialogKaiToast::Error,
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36000),
-            CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36012));
+            CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), g_localizeStrings.Get(36012));
       bConnectionFailedDisplayed = true;
 
       CThread::Sleep(10000ms);
@@ -361,7 +362,8 @@ bool CPeripheralCecAdapter::OpenConnection(void)
     if (m_cecAdapter->GetCurrentConfiguration(&config))
     {
       // update the local configuration
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+
       SetConfigurationFromLibCEC(config);
     }
   }
@@ -375,15 +377,15 @@ void CPeripheralCecAdapter::Process(void)
     return;
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_iExitCode = EXITCODE_QUIT;
     m_bGoingToStandby = false;
     m_bIsRunning = true;
     m_bActiveSourceBeforeStandby = false;
   }
 
-  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(
-      this, ANNOUNCEMENT::System | ANNOUNCEMENT::GUI | ANNOUNCEMENT::Player);
+  CServiceBroker::GetAnnouncementManager()->AddAnnouncer(this);
 
   m_queryThread = new CPeripheralCecAdapterUpdateThread(this, &m_configuration);
   m_queryThread->Create(false);
@@ -412,21 +414,23 @@ void CPeripheralCecAdapter::Process(void)
   CLog::Log(LOGDEBUG, "{} - CEC adapter processor thread ended", __FUNCTION__);
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_bStarted = false;
     m_bIsRunning = false;
   }
 }
 
-bool CPeripheralCecAdapter::HasAudioControl(void)
-{
-  std::unique_lock lock(m_critSection);
+bool CPeripheralCecAdapter::HasAudioControl(void) const {
+  std::lock_guard lock(m_critSection);
+
   return m_bHasConnectedAudioSystem;
 }
 
 void CPeripheralCecAdapter::SetAudioSystemConnected(bool bSetTo)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bHasConnectedAudioSystem = bSetTo;
 }
 
@@ -435,7 +439,8 @@ void CPeripheralCecAdapter::ProcessVolumeChange(void)
   bool bSendRelease(false);
   CecVolumeChange pendingVolumeChange = VOLUME_CHANGE_NONE;
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     auto now = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastKeypress);
     if (!m_volumeChangeQueue.empty())
@@ -487,7 +492,8 @@ void CPeripheralCecAdapter::ProcessVolumeChange(void)
     case VOLUME_CHANGE_MUTE:
       m_cecAdapter->SendKeypress(CECDEVICE_AUDIOSYSTEM, CEC_USER_CONTROL_CODE_MUTE, false);
       {
-        std::unique_lock lock(m_critSection);
+        std::lock_guard lock(m_critSection);
+
         m_bIsMuted = !m_bIsMuted;
       }
       break;
@@ -502,7 +508,8 @@ void CPeripheralCecAdapter::VolumeUp(void)
 {
   if (HasAudioControl())
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_volumeChangeQueue.push(VOLUME_CHANGE_UP);
   }
 }
@@ -511,7 +518,8 @@ void CPeripheralCecAdapter::VolumeDown(void)
 {
   if (HasAudioControl())
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_volumeChangeQueue.push(VOLUME_CHANGE_DOWN);
   }
 }
@@ -520,7 +528,8 @@ void CPeripheralCecAdapter::ToggleMute(void)
 {
   if (HasAudioControl())
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_volumeChangeQueue.push(VOLUME_CHANGE_MUTE);
   }
 }
@@ -529,14 +538,14 @@ bool CPeripheralCecAdapter::IsMuted(void)
 {
   if (HasAudioControl())
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     return m_bIsMuted;
   }
   return false;
 }
 
-void CPeripheralCecAdapter::SetMenuLanguage(const char* strLanguage)
-{
+void CPeripheralCecAdapter::SetMenuLanguage(const char* strLanguage) const {
   if (StringUtils::EqualsNoCase(m_strMenuLanguage, strLanguage))
     return;
 
@@ -602,8 +611,7 @@ void CPeripheralCecAdapter::SetMenuLanguage(const char* strLanguage)
               strLanguage);
 }
 
-void CPeripheralCecAdapter::OnTvStandby(void)
-{
+void CPeripheralCecAdapter::OnTvStandby(void) const {
   int iActionOnTvStandby = GetSettingInt("standby_pc_on_tv_standby");
   switch (iActionOnTvStandby)
   {
@@ -640,7 +648,7 @@ void CPeripheralCecAdapter::OnTvStandby(void)
 
 void CPeripheralCecAdapter::CecCommand(void* cbParam, const cec_command* command)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!adapter)
     return;
 
@@ -705,11 +713,12 @@ void CPeripheralCecAdapter::CecCommand(void* cbParam, const cec_command* command
 
 void CPeripheralCecAdapter::CecConfiguration(void* cbParam, const libcec_configuration* config)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!adapter)
     return;
 
-  std::unique_lock lock(adapter->m_critSection);
+  std::lock_guard lock(adapter->m_critSection);
+
   adapter->SetConfigurationFromLibCEC(*config);
 }
 
@@ -717,7 +726,7 @@ void CPeripheralCecAdapter::CecAlert(void* cbParam,
                                      const libcec_alert alert,
                                      const libcec_parameter data)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!adapter)
     return;
 
@@ -748,13 +757,11 @@ void CPeripheralCecAdapter::CecAlert(void* cbParam,
   // display the alert
   if (iAlertString)
   {
-    std::string strLog(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(iAlertString));
+    std::string strLog(g_localizeStrings.Get(iAlertString));
     if (data.paramType == CEC_PARAMETER_TYPE_STRING && data.paramData)
       strLog += StringUtils::Format(" - {}", (const char*)data.paramData);
-    CGUIDialogKaiToast::QueueNotification(
-        CGUIDialogKaiToast::Info,
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36000), strLog);
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000),
+                                          strLog);
   }
 
   if (bReopenConnection)
@@ -768,18 +775,19 @@ void CPeripheralCecAdapter::CecAlert(void* cbParam,
 
 void CPeripheralCecAdapter::CecKeyPress(void* cbParam, const cec_keypress* key)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!!adapter)
     adapter->PushCecKeypress(*key);
 }
 
 void CPeripheralCecAdapter::GetNextKey(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bHasButton = false;
   if (m_bIsReady)
   {
-    std::vector<CecButtonPress>::iterator it = m_buttonQueue.begin();
+    auto it = m_buttonQueue.begin();
     if (it != m_buttonQueue.end())
     {
       m_currentButton = (*it);
@@ -794,7 +802,8 @@ void CPeripheralCecAdapter::PushCecKeypress(const CecButtonPress& key)
   CLog::Log(LOGDEBUG, "{} - received key {:2x} duration {}", __FUNCTION__, key.iButton,
             key.iDuration);
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   // avoid the queue getting too long
   if (m_configuration.iButtonRepeatRateMs && m_buttonQueue.size() > 5)
     return;
@@ -810,7 +819,7 @@ void CPeripheralCecAdapter::PushCecKeypress(const CecButtonPress& key)
     }
     // if we received a keypress with a duration set, try to find the same one without a duration
     // set, and replace it
-    for (std::vector<CecButtonPress>::reverse_iterator it = m_buttonQueue.rbegin();
+    for (auto it = m_buttonQueue.rbegin();
          it != m_buttonQueue.rend(); ++it)
     {
       if ((*it).iButton == key.iButton)
@@ -902,7 +911,7 @@ void CPeripheralCecAdapter::PushCecKeypress(const cec_keypress& key)
       PushCecKeypress(xbmcKey);
       break;
     case CEC_USER_CONTROL_CODE_FAVORITE_MENU:
-      xbmcKey.iButton = XINPUT_IR_REMOTE_FAVORITE_MENU;
+      xbmcKey.iButton = XINPUT_IR_REMOTE_MENU;
       PushCecKeypress(xbmcKey);
       break;
     case CEC_USER_CONTROL_CODE_EXIT:
@@ -922,7 +931,7 @@ void CPeripheralCecAdapter::PushCecKeypress(const cec_keypress& key)
       PushCecKeypress(xbmcKey);
       break;
     case CEC_USER_CONTROL_CODE_PREVIOUS_CHANNEL:
-      xbmcKey.iButton = XINPUT_IR_REMOTE_LAST;
+      xbmcKey.iButton = XINPUT_IR_REMOTE_TELETEXT;
       PushCecKeypress(xbmcKey);
       break;
     case CEC_USER_CONTROL_CODE_SOUND_SELECT:
@@ -1111,7 +1120,8 @@ void CPeripheralCecAdapter::PushCecKeypress(const cec_keypress& key)
 
 int CPeripheralCecAdapter::GetButton(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_bHasButton)
     GetNextKey();
 
@@ -1120,7 +1130,8 @@ int CPeripheralCecAdapter::GetButton(void)
 
 unsigned int CPeripheralCecAdapter::GetHoldTime(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!m_bHasButton)
     GetNextKey();
 
@@ -1129,7 +1140,8 @@ unsigned int CPeripheralCecAdapter::GetHoldTime(void)
 
 void CPeripheralCecAdapter::ResetButton(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bHasButton = false;
 
   // wait for the key release if the duration isn't 0
@@ -1167,8 +1179,20 @@ void CPeripheralCecAdapter::OnSettingChanged(const std::string& strChangedSettin
     m_iCec_func_config &= ~(1 << ACTIVE_SOURCE_MASK);
     m_iCec_func_config |= ((int)GetSettingBool("wakeup_cec_active_route") << ACTIVE_SOURCE_MASK);
 
-    XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
+    auto config_ini = new XBMCAddon::xbmcvfs::configini();
     config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
+    delete(config_ini);
+  }
+  else if (StringUtils::EqualsNoCase(strChangedSetting, "device_name"))
+  {
+    auto config_ini = new XBMCAddon::xbmcvfs::configini();
+    std::string device_name = GetSettingString("device_name");
+    if (device_name.length() > 14)
+    {
+      device_name = StringUtils::Left(device_name, 14);
+      SetSetting("device_name", device_name);
+    }
+    config_ini->set("cec_osd_name", device_name.c_str());
     delete(config_ini);
   }
   else if (IsRunning())
@@ -1192,7 +1216,7 @@ void CPeripheralCecAdapter::CecSourceActivated(void* cbParam,
                                                const CEC::cec_logical_address address,
                                                const uint8_t activated)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!adapter)
     return;
 
@@ -1250,7 +1274,7 @@ void CPeripheralCecAdapter::CecSourceActivated(void* cbParam,
 
 void CPeripheralCecAdapter::CecLogMessage(void* cbParam, const cec_log_message* message)
 {
-  CPeripheralCecAdapter* adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
+  auto adapter = static_cast<CPeripheralCecAdapter*>(cbParam);
   if (!adapter)
     return;
 
@@ -1416,7 +1440,7 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
     SetSetting("pause_playback_on_deactivate", false);
   }
 
-  XBMCAddon::xbmcvfs::configini* config_ini = new XBMCAddon::xbmcvfs::configini();
+  auto config_ini = new XBMCAddon::xbmcvfs::configini();
   std::string cec_func_config = config_ini->get("cec_func_config", "7f");
   m_iCec_func_config = std::stoul(cec_func_config, nullptr, 16);
 
@@ -1425,6 +1449,8 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
     m_iCec_func_config ^= (1 << CEC_FUNC_MASK);
     config_ini->set("cec_func_config", StringUtils::Format("{:x}", m_iCec_func_config));
   }
+
+  config_ini->set("cec_osd_name", GetSettingString("device_name").c_str());
 
   delete(config_ini);
 
@@ -1499,9 +1525,7 @@ bool CPeripheralCecAdapter::WriteLogicalAddresses(const cec_logical_addresses& a
 
 CPeripheralCecAdapterUpdateThread::CPeripheralCecAdapterUpdateThread(
     CPeripheralCecAdapter* adapter, libcec_configuration* configuration)
-  : CThread("CECAdapterUpdate"),
-    m_adapter(adapter),
-    m_configuration(*configuration)
+  : CThread("CECAdapterUpdate"), m_adapter(adapter), m_configuration(*configuration)
 {
   m_nextConfiguration.Clear();
   m_event.Reset();
@@ -1521,7 +1545,8 @@ void CPeripheralCecAdapterUpdateThread::Signal(void)
 
 bool CPeripheralCecAdapterUpdateThread::UpdateConfiguration(libcec_configuration* configuration)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   if (!configuration)
     return false;
 
@@ -1561,8 +1586,7 @@ bool CPeripheralCecAdapterUpdateThread::WaitReady(void)
   return powerStatus == CEC_POWER_STATUS_ON;
 }
 
-void CPeripheralCecAdapterUpdateThread::UpdateMenuLanguage(void)
-{
+void CPeripheralCecAdapterUpdateThread::UpdateMenuLanguage(void) const {
   // request the menu language of the TV
   if (m_adapter->m_bUseTVMenuLanguage == 1)
   {
@@ -1576,8 +1600,7 @@ void CPeripheralCecAdapterUpdateThread::UpdateMenuLanguage(void)
   }
 }
 
-std::string CPeripheralCecAdapterUpdateThread::UpdateAudioSystemStatus(void)
-{
+std::string CPeripheralCecAdapterUpdateThread::UpdateAudioSystemStatus(void) const {
   std::string strAmpName;
 
   /* disable the mute setting when an amp is found, because the amp handles the mute setting and
@@ -1631,8 +1654,7 @@ bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
   // request the OSD name of the TV
   std::string strNotification;
   std::string tvName(m_adapter->m_cecAdapter->GetDeviceOSDName(CECDEVICE_TV));
-  strNotification = StringUtils::Format(
-      "{}: {}", CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(36016), tvName);
+  strNotification = StringUtils::Format("{}: {}", g_localizeStrings.Get(36016), tvName);
 
   std::string strAmpName = UpdateAudioSystemStatus();
   if (!strAmpName.empty())
@@ -1640,14 +1662,16 @@ bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
 
   m_adapter->m_bIsReady = true;
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bIsUpdating = false;
   return true;
 }
 
 bool CPeripheralCecAdapter::IsRunning(void) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   return m_bIsRunning;
 }
 
@@ -1669,7 +1693,8 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
       // set the new configuration
       libcec_configuration configuration;
       {
-        std::unique_lock lock(m_critSection);
+        std::lock_guard lock(m_critSection);
+
         configuration = m_configuration;
         m_bIsUpdating = false;
       }
@@ -1686,7 +1711,8 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
       }
 
       {
-        std::unique_lock lock(m_critSection);
+        std::lock_guard lock(m_critSection);
+
         if ((bUpdate = m_bNextConfigurationScheduled) == true)
         {
           // another update is scheduled
@@ -1706,7 +1732,8 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
 
 void CPeripheralCecAdapter::OnDeviceRemoved(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bDeviceRemoved = true;
 }
 
@@ -1738,7 +1765,8 @@ bool CPeripheralCecAdapter::ReopenConnection(bool bAsync /* = false */)
 
   // stop running thread
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     m_iExitCode = EXITCODE_RESTARTAPP;
     CServiceBroker::GetAnnouncementManager()->RemoveAnnouncer(this);
     StopThread(false);
@@ -1754,7 +1782,8 @@ bool CPeripheralCecAdapter::ReopenConnection(bool bAsync /* = false */)
 
 void CPeripheralCecAdapter::ActivateSource(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bActiveSourcePending = true;
 }
 
@@ -1763,7 +1792,8 @@ void CPeripheralCecAdapter::ProcessActivateSource(void)
   bool bActivate(false);
 
   {
-    std::unique_lock lock(m_critSection);
+    std::lock_guard lock(m_critSection);
+
     bActivate = m_bActiveSourcePending;
     m_bActiveSourcePending = false;
   }
@@ -1807,14 +1837,16 @@ void CPeripheralCecAdapter::UnregisterDevice(void)
 
 void CPeripheralCecAdapter::StandbyDevices(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   m_bStandbyPending = true;
   m_ScreensaverStandbySent = CDateTime::GetCurrentDateTime();
 }
 
 void CPeripheralCecAdapter::ProcessStandbyDevices(void)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   if (m_bStandbyPending)
   {
     int iScreensaverDelay = GetSettingInt("screensaver_delay_standby");

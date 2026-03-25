@@ -8,9 +8,7 @@
 
 #include "GUIRenderingControl.h"
 
-#include "ServiceBroker.h"
 #include "guilib/IRenderingCallback.h"
-#include "windowing/WinSystem.h"
 
 #include <mutex>
 #ifdef TARGET_WINDOWS
@@ -25,14 +23,14 @@ CGUIRenderingControl::CGUIRenderingControl(int parentID, int controlID, float po
     : CGUIControl(parentID, controlID, posX, posY, width, height)
 {
   ControlType = GUICONTROL_RENDERADDON;
-  m_callback = NULL;
+  m_callback = nullptr;
 }
 
 CGUIRenderingControl::CGUIRenderingControl(const CGUIRenderingControl &from)
 : CGUIControl(from)
 {
   ControlType = GUICONTROL_RENDERADDON;
-  m_callback = NULL;
+  m_callback = nullptr;
 }
 
 bool CGUIRenderingControl::InitCallback(IRenderingCallback *callback)
@@ -40,7 +38,8 @@ bool CGUIRenderingControl::InitCallback(IRenderingCallback *callback)
   if (!callback)
     return false;
 
-  std::unique_lock lock(m_rendering);
+  std::lock_guard lock(m_rendering);
+
   CServiceBroker::GetWinSystem()->GetGfxContext().CaptureStateBlock();
   float x = CServiceBroker::GetWinSystem()->GetGfxContext().ScaleFinalXCoord(GetXPosition(), GetYPosition());
   float y = CServiceBroker::GetWinSystem()->GetGfxContext().ScaleFinalYCoord(GetXPosition(), GetYPosition());
@@ -51,7 +50,7 @@ bool CGUIRenderingControl::InitCallback(IRenderingCallback *callback)
   if (x + w > CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth()) w = CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth() - x;
   if (y + h > CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight()) h = CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight() - y;
 
-  void *device = NULL;
+  void *device = nullptr;
 #if TARGET_WINDOWS
   device = DX::DeviceResources::Get()->GetD3DDevice();
 #endif
@@ -76,7 +75,8 @@ void CGUIRenderingControl::UpdateVisibility(const CGUIListItem *item)
 void CGUIRenderingControl::Process(unsigned int currentTime, CDirtyRegionList &dirtyregions)
 {
   //! @todo Add processing to the addon so it could mark when actually changing
-  std::unique_lock lock(m_rendering);
+  std::lock_guard lock(m_rendering);
+
   if (m_callback && m_callback->IsDirty())
     MarkDirtyRegion();
 
@@ -85,7 +85,8 @@ void CGUIRenderingControl::Process(unsigned int currentTime, CDirtyRegionList &d
 
 void CGUIRenderingControl::Render()
 {
-  std::unique_lock lock(m_rendering);
+  std::lock_guard lock(m_rendering);
+  
   if (m_callback)
   {
     // set the viewport - note: We currently don't have any control over how
@@ -103,14 +104,14 @@ void CGUIRenderingControl::Render()
 
 void CGUIRenderingControl::FreeResources(bool immediately)
 {
-  std::unique_lock lock(m_rendering);
+  std::lock_guard lock(m_rendering);
 
   if (!m_callback) return;
 
   CServiceBroker::GetWinSystem()->GetGfxContext().CaptureStateBlock(); //! @todo locking
   m_callback->Stop();
   CServiceBroker::GetWinSystem()->GetGfxContext().ApplyStateBlock();
-  m_callback = NULL;
+  m_callback = nullptr;
 }
 
 bool CGUIRenderingControl::CanFocusFromPoint(const CPoint &point) const

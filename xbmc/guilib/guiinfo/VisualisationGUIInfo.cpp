@@ -23,18 +23,14 @@
 
 using namespace KODI::GUILIB::GUIINFO;
 
-bool CVisualisationGUIInfo::InitCurrentItem(CFileItem* item)
+bool CVisualisationGUIInfo::InitCurrentItem(CFileItem *item)
 {
   return false;
 }
 
-bool CVisualisationGUIInfo::GetLabel(std::string& value,
-                                     const CFileItem* item,
-                                     int contextWindow,
-                                     const CGUIInfo& info,
-                                     std::string* fallback) const
+bool CVisualisationGUIInfo::GetLabel(std::string& value, const CFileItem *item, int contextWindow, const CGUIInfo &info, std::string *fallback) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // VISUALISATION_*
@@ -45,18 +41,20 @@ bool CVisualisationGUIInfo::GetLabel(std::string& value,
       CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg);
       if (msg.GetPointer())
       {
-        const auto* viz{static_cast<const CGUIVisualisationControl*>(msg.GetPointer())};
-        value = viz->GetActivePresetName();
-        URIUtils::RemoveExtension(value);
-        return true;
+        auto viz = static_cast<CGUIVisualisationControl*>(msg.GetPointer());
+        if (viz)
+        {
+          value = viz->GetActivePresetName();
+          URIUtils::RemoveExtension(value);
+          return true;
+        }
       }
       break;
     }
     case VISUALISATION_NAME:
     {
       ADDON::AddonPtr addon;
-      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(
-          CSettings::SETTING_MUSICPLAYER_VISUALISATION);
+      value = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION);
       if (CServiceBroker::GetAddonMgr().GetAddon(value, addon, ADDON::OnlyEnabled::CHOICE_YES) &&
           addon)
       {
@@ -65,27 +63,19 @@ bool CVisualisationGUIInfo::GetLabel(std::string& value,
       }
       break;
     }
-    default:
-      break;
   }
 
   return false;
 }
 
-bool CVisualisationGUIInfo::GetInt(int& value,
-                                   const CGUIListItem* gitem,
-                                   int contextWindow,
-                                   const CGUIInfo& info) const
+bool CVisualisationGUIInfo::GetInt(int& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
   return false;
 }
 
-bool CVisualisationGUIInfo::GetBool(bool& value,
-                                    const CGUIListItem* gitem,
-                                    int contextWindow,
-                                    const CGUIInfo& info) const
+bool CVisualisationGUIInfo::GetBool(bool& value, const CGUIListItem *gitem, int contextWindow, const CGUIInfo &info) const
 {
-  switch (info.GetInfo())
+  switch (info.m_info)
   {
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // VISUALISATION_*
@@ -96,18 +86,15 @@ bool CVisualisationGUIInfo::GetBool(bool& value,
       CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg);
       if (msg.GetPointer())
       {
-        const auto* viz{static_cast<const CGUIVisualisationControl*>(msg.GetPointer())};
-        value = viz->IsLocked();
+        auto pVis = static_cast<CGUIVisualisationControl*>(msg.GetPointer());
+        value = pVis->IsLocked();
         return true;
       }
       break;
     }
     case VISUALISATION_ENABLED:
     {
-      value = !CServiceBroker::GetSettingsComponent()
-                   ->GetSettings()
-                   ->GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION)
-                   .empty();
+      value = !CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_MUSICPLAYER_VISUALISATION).empty();
       return true;
     }
     case VISUALISATION_HAS_PRESETS:
@@ -116,14 +103,12 @@ bool CVisualisationGUIInfo::GetBool(bool& value,
       CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg);
       if (msg.GetPointer())
       {
-        const auto* viz{static_cast<const CGUIVisualisationControl*>(msg.GetPointer())};
-        value = viz->HasPresets();
+        auto viz = static_cast<CGUIVisualisationControl*>(msg.GetPointer());
+        value = (viz && viz->HasPresets());
         return true;
       }
       break;
     }
-    default:
-      break;
   }
 
   return false;

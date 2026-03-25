@@ -17,16 +17,15 @@
 #include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "jobs/JobManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
 #include "network/Network.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
+#include "utils/JobManager.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
@@ -69,11 +68,11 @@ static int GetTotalSeconds(const CDateTimeSpan& ts)
 static unsigned long HostToIP(const std::string& host)
 {
   std::string ip;
-  CServiceBroker::GetDNSNameCache()->Lookup(host, ip);
+  CDNSNameCache::Lookup(host, ip);
   return inet_addr(ip.c_str());
 }
 
-#define LOCALIZED(id) CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(id)
+#define LOCALIZED(id) g_localizeStrings.Get(id)
 
 static void ShowDiscoveryMessage(const char* function, const char* server_name, bool new_entry)
 {
@@ -292,12 +291,11 @@ public:
       m_dialog->Close();
   }
 
-  bool HasDialog() const { return m_dialog != 0; }
+  bool HasDialog() const { return m_dialog != nullptr; }
 
   enum wait_result { TimedOut, Canceled, Success };
 
-  wait_result ShowAndWait (const WaitCondition& waitObj, unsigned timeOutSec, const std::string& line1)
-  {
+  wait_result ShowAndWait (const WaitCondition& waitObj, unsigned timeOutSec, const std::string& line1) const {
     auto timeOutMs = std::chrono::milliseconds(timeOutSec * 1000);
 
     if (m_dialog)
@@ -337,7 +335,7 @@ public:
   }
 
 private:
-  CGUIDialogProgress* m_dialog = 0;
+  CGUIDialogProgress* m_dialog = nullptr;
 };
 
 class NetworkStartWaiter : public WaitCondition
@@ -492,8 +490,7 @@ bool CWakeOnAccess::WakeUpHost(const std::string& hostName, const std::string& c
   return true;
 }
 
-bool CWakeOnAccess::WakeUpHost(const WakeUpEntry& server)
-{
+bool CWakeOnAccess::WakeUpHost(const WakeUpEntry& server) const {
   std::string heading = StringUtils::Format(LOCALIZED(13027), server.friendlyName);
 
   ProgressDialogHelper dlg (heading);
@@ -563,7 +560,7 @@ bool CWakeOnAccess::WakeUpHost(const WakeUpEntry& server)
 
 bool CWakeOnAccess::FindOrTouchHostEntry(const std::string& hostName, bool upnpMode, WakeUpEntry& result)
 {
-  std::unique_lock lock(m_entrylist_protect);
+  std::lock_guard lock(m_entrylist_protect);
 
   bool need_wakeup = false;
 
@@ -603,7 +600,7 @@ bool CWakeOnAccess::FindOrTouchHostEntry(const std::string& hostName, bool upnpM
 
 void CWakeOnAccess::TouchHostEntry(const std::string& hostName, bool upnpMode)
 {
-  std::unique_lock lock(m_entrylist_protect);
+  std::lock_guard lock(m_entrylist_protect);
 
   UPnPServer* upnp = upnpMode ? LookupUPnPServer(m_UPnPServers, hostName) : nullptr;
 
@@ -663,15 +660,13 @@ static void AddHostsFromMediaSource(const CMediaSource& source, std::vector<std:
   }
 }
 
-static void AddHostsFromVecSource(const std::vector<CMediaSource>& sources,
-                                  std::vector<std::string>& hosts)
+static void AddHostsFromVecSource(const VECSOURCES& sources, std::vector<std::string>& hosts)
 {
   for (const auto& it : sources)
     AddHostsFromMediaSource(it, hosts);
 }
 
-static void AddHostsFromVecSource(const std::vector<CMediaSource>* sources,
-                                  std::vector<std::string>& hosts)
+static void AddHostsFromVecSource(const VECSOURCES* sources, std::vector<std::string>& hosts)
 {
   if (sources)
     AddHostsFromVecSource(*sources, hosts);
@@ -739,14 +734,14 @@ void CWakeOnAccess::SaveMACDiscoveryResult(const std::string& host, const std::s
 
 void CWakeOnAccess::OnJobComplete(unsigned int jobID, bool success, CJob *job)
 {
-  CMACDiscoveryJob* discoverJob = static_cast<CMACDiscoveryJob*>(job);
+  auto discoverJob = static_cast<CMACDiscoveryJob*>(job);
 
   const std::string& host = discoverJob->GetHost();
   const std::string& mac = discoverJob->GetMAC();
 
   if (success)
   {
-    std::unique_lock lock(m_entrylist_protect);
+    std::lock_guard lock(m_entrylist_protect);
 
     SaveMACDiscoveryResult(host, mac);
   }
@@ -787,7 +782,7 @@ std::string CWakeOnAccess::GetSettingFile()
 
 void CWakeOnAccess::OnSettingsLoaded()
 {
-  std::unique_lock lock(m_entrylist_protect);
+  std::lock_guard lock(m_entrylist_protect);
 
   LoadFromXML();
 }

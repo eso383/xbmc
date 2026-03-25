@@ -9,7 +9,6 @@
 #include "GUIViewStateAddonBrowser.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "filesystem/File.h"
 #include "guilib/WindowIDs.h"
 #include "utils/StringUtils.h"
@@ -25,29 +24,29 @@ CGUIViewStateAddonBrowser::CGUIViewStateAddonBrowser(const CFileItemList& items)
 {
   if (URIUtils::PathEquals(items.GetPath(), "addons://"))
   {
-    AddSortMethod(SortBy::NONE, 551, LABEL_MASKS("%F", "", "%L", ""));
-    SetSortMethod(SortBy::NONE);
+    AddSortMethod(SortByNone, 551, LABEL_MASKS("%F", "", "%L", ""));
+    SetSortMethod(SortByNone);
   }
   else if (URIUtils::PathEquals(items.GetPath(), "addons://recently_updated/", true))
   {
-    AddSortMethod(SortBy::LAST_UPDATED, 12014, LABEL_MASKS("%L", "%v", "%L", "%v"),
-                  SortAttributeIgnoreFolders, SortOrder::DESCENDING);
+    AddSortMethod(SortByLastUpdated, 12014, LABEL_MASKS("%L", "%v", "%L", "%v"),
+                  SortAttributeIgnoreFolders, SortOrderDescending);
   }
   else
   {
-    AddSortMethod(SortBy::LABEL, SortAttributeIgnoreFolders, 551,
+    AddSortMethod(SortByLabel, SortAttributeIgnoreFolders, 551,
                   LABEL_MASKS("%L", "%s", "%L", "%s"));
 
     if (StringUtils::StartsWith(items.GetPath(), "addons://sources/"))
-      AddSortMethod(SortBy::LAST_USED, 12012, LABEL_MASKS("%L", "%u", "%L", "%u"),
-                    SortAttributeIgnoreFolders, SortOrder::DESCENDING); //Label, Last used
+      AddSortMethod(SortByLastUsed, 12012, LABEL_MASKS("%L", "%u", "%L", "%u"),
+                    SortAttributeIgnoreFolders, SortOrderDescending); //Label, Last used
 
     if (StringUtils::StartsWith(items.GetPath(), "addons://user/") &&
         items.GetContent() == "addons")
-      AddSortMethod(SortBy::INSTALL_DATE, 12013, LABEL_MASKS("%L", "%i", "%L", "%i"),
-                    SortAttributeIgnoreFolders, SortOrder::DESCENDING);
+      AddSortMethod(SortByInstallDate, 12013, LABEL_MASKS("%L", "%i", "%L", "%i"),
+                    SortAttributeIgnoreFolders, SortOrderDescending);
 
-    SetSortMethod(SortBy::LABEL);
+    SetSortMethod(SortByLabel);
   }
   SetViewAsControl(DEFAULT_VIEW_AUTO);
 

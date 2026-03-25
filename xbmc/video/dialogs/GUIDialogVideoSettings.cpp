@@ -16,9 +16,8 @@
 #include "dialogs/GUIDialogYesNo.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "profiles/ProfileManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/MediaSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -31,7 +30,6 @@
 #include "utils/log.h"
 #include "video/VideoDatabase.h"
 #include "video/ViewModeSettings.h"
-#include "windowing/WinSystem.h"
 
 #include <utility>
 
@@ -71,7 +69,7 @@ CGUIDialogVideoSettings::~CGUIDialogVideoSettings() = default;
 
 void CGUIDialogVideoSettings::OnSettingChanged(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingChanged(setting);
@@ -212,7 +210,7 @@ void CGUIDialogVideoSettings::OnSettingChanged(const std::shared_ptr<const CSett
 
 void CGUIDialogVideoSettings::OnSettingAction(const std::shared_ptr<const CSetting>& setting)
 {
-  if (setting == NULL)
+  if (setting == nullptr)
     return;
 
   CGUIDialogSettingsManualBase::OnSettingChanged(setting);
@@ -239,7 +237,7 @@ void CGUIDialogVideoSettings::OnSettingAction(const std::shared_ptr<const CSetti
     }
 
     // launch calibration window
-    if (profileManager->GetMasterProfile().getLockMode() != LockMode::EVERYONE &&
+    if (profileManager->GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE &&
         g_passwordManager.CheckSettingLevelLock(calibsetting->GetLevel()))
       return;
 
@@ -254,7 +252,7 @@ bool CGUIDialogVideoSettings::Save()
 {
   const std::shared_ptr<CProfileManager> profileManager = CServiceBroker::GetSettingsComponent()->GetProfileManager();
 
-  if (profileManager->GetMasterProfile().getLockMode() != LockMode::EVERYONE &&
+  if (profileManager->GetMasterProfile().getLockMode() != LOCK_MODE_EVERYONE &&
       !g_passwordManager.CheckSettingLevelLock(::SettingLevel::Expert))
     return true;
 
@@ -294,7 +292,7 @@ void CGUIDialogVideoSettings::InitializeSettings()
   CGUIDialogSettingsManualBase::InitializeSettings();
 
   const std::shared_ptr<CSettingCategory> category = AddCategory("videosettings", -1);
-  if (category == NULL)
+  if (category == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogVideoSettings: unable to setup settings");
     return;
@@ -302,32 +300,31 @@ void CGUIDialogVideoSettings::InitializeSettings()
 
   // get all necessary setting groups
   const std::shared_ptr<CSettingGroup> groupVideoStream = AddGroup(category);
-  if (groupVideoStream == NULL)
+  if (groupVideoStream == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogVideoSettings: unable to setup settings");
     return;
   }
   const std::shared_ptr<CSettingGroup> groupVideo = AddGroup(category);
-  if (groupVideo == NULL)
+  if (groupVideo == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogVideoSettings: unable to setup settings");
     return;
   }
   const std::shared_ptr<CSettingGroup> groupStereoscopic = AddGroup(category);
-  if (groupStereoscopic == NULL)
+  if (groupStereoscopic == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogVideoSettings: unable to setup settings");
     return;
   }
   const std::shared_ptr<CSettingGroup> groupSaveAsDefault = AddGroup(category);
-  if (groupSaveAsDefault == NULL)
+  if (groupSaveAsDefault == nullptr)
   {
     CLog::Log(LOGERROR, "CGUIDialogVideoSettings: unable to setup settings");
     return;
   }
 
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  const bool usePopup = skin && skin->HasSkinFile("DialogSlider.xml");
+  bool usePopup = g_SkinInfo->HasSkinFile("DialogSlider.xml");
 
   const auto& components = CServiceBroker::GetAppComponents();
   const auto appPlayer = components.GetComponent<CApplicationPlayer>();
@@ -355,7 +352,7 @@ void CGUIDialogVideoSettings::InitializeSettings()
   entries.emplace_back(16320, VS_INTERLACEMETHOD_DXVA_AUTO);
 
   /* remove unsupported methods */
-  for (TranslatableIntegerSettingOptions::iterator it = entries.begin(); it != entries.end(); )
+  for (auto it = entries.begin(); it != entries.end(); )
   {
     if (appPlayer->Supports(static_cast<EINTERLACEMETHOD>(it->value)))
       ++it;
@@ -395,7 +392,7 @@ void CGUIDialogVideoSettings::InitializeSettings()
   entries.emplace_back(16316, VS_SCALINGMETHOD_AUTO);
 
   /* remove unsupported methods */
-  for(TranslatableIntegerSettingOptions::iterator it = entries.begin(); it != entries.end(); )
+  for(auto it = entries.begin(); it != entries.end(); )
   {
     if (appPlayer->Supports(static_cast<ESCALINGMETHOD>(it->value)))
       ++it;
@@ -459,9 +456,9 @@ void CGUIDialogVideoSettings::InitializeSettings()
 
   // stereoscopic settings
   entries.clear();
-  entries.emplace_back(16316, static_cast<int>(RenderStereoMode::OFF));
-  entries.emplace_back(36503, static_cast<int>(RenderStereoMode::SPLIT_HORIZONTAL));
-  entries.emplace_back(36504, static_cast<int>(RenderStereoMode::SPLIT_VERTICAL));
+  entries.emplace_back(16316, RENDER_STEREO_MODE_OFF);
+  entries.emplace_back(36503, RENDER_STEREO_MODE_SPLIT_HORIZONTAL);
+  entries.emplace_back(36504, RENDER_STEREO_MODE_SPLIT_VERTICAL);
   AddSpinner(groupStereoscopic, SETTING_VIDEO_STEREOSCOPICMODE, 36535, SettingLevel::Basic, videoSettings.m_StereoMode, entries);
   AddToggle(groupStereoscopic, SETTING_VIDEO_STEREOSCOPICINVERT, 36536, SettingLevel::Basic, videoSettings.m_StereoInvert);
 
@@ -473,7 +470,7 @@ void CGUIDialogVideoSettings::InitializeSettings()
 void CGUIDialogVideoSettings::AddVideoStreams(const std::shared_ptr<CSettingGroup>& group,
                                               const std::string& settingId)
 {
-  if (group == NULL || settingId.empty())
+  if (group == nullptr || settingId.empty())
     return;
 
   auto& components = CServiceBroker::GetAppComponents();
@@ -489,7 +486,8 @@ void CGUIDialogVideoSettings::AddVideoStreams(const std::shared_ptr<CSettingGrou
 void CGUIDialogVideoSettings::VideoStreamsOptionFiller(
     const std::shared_ptr<const CSetting>& setting,
     std::vector<IntegerSettingOption>& list,
-    int& current)
+    int& current,
+    void* data)
 {
   const auto& components = CServiceBroker::GetAppComponents();
   const auto appPlayer = components.GetComponent<CApplicationPlayer>();
@@ -535,37 +533,33 @@ void CGUIDialogVideoSettings::VideoStreamsOptionFiller(
 
   if (list.empty())
   {
-    list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(231), -1);
+    list.emplace_back(g_localizeStrings.Get(231), -1);
     current = -1;
   }
 }
 
-void CGUIDialogVideoSettings::VideoOrientationFiller(
-    const std::shared_ptr<const CSetting>& /*setting*/,
-    std::vector<IntegerSettingOption>& list,
-    int& /*current*/)
+void CGUIDialogVideoSettings::VideoOrientationFiller(const std::shared_ptr<const CSetting>& setting,
+                                                     std::vector<IntegerSettingOption>& list,
+                                                     int& current,
+                                                     void* data)
 {
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(687), 0);
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35229), 90);
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35230), 180);
-  list.emplace_back(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35231), 270);
+  list.emplace_back(g_localizeStrings.Get(687), 0);
+  list.emplace_back(g_localizeStrings.Get(35229), 90);
+  list.emplace_back(g_localizeStrings.Get(35230), 180);
+  list.emplace_back(g_localizeStrings.Get(35231), 270);
 }
 
 std::string CGUIDialogVideoSettings::FormatFlags(StreamFlags flags)
 {
   std::vector<std::string> localizedFlags;
   if (flags & StreamFlags::FLAG_DEFAULT)
-    localizedFlags.emplace_back(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39105));
+    localizedFlags.emplace_back(g_localizeStrings.Get(39105));
   if (flags & StreamFlags::FLAG_FORCED)
-    localizedFlags.emplace_back(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39106));
+    localizedFlags.emplace_back(g_localizeStrings.Get(39106));
   if (flags & StreamFlags::FLAG_HEARING_IMPAIRED)
-    localizedFlags.emplace_back(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39107));
+    localizedFlags.emplace_back(g_localizeStrings.Get(39107));
   if (flags &  StreamFlags::FLAG_VISUAL_IMPAIRED)
-    localizedFlags.emplace_back(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(39108));
+    localizedFlags.emplace_back(g_localizeStrings.Get(39108));
 
   std::string formated = StringUtils::Join(localizedFlags, ", ");
 

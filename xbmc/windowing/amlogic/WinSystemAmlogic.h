@@ -48,7 +48,7 @@ protected:
   EGLDisplay m_nativeDisplay;
   fbdev_window *m_nativeWindow;
 
-  RenderStereoMode m_stereo_mode;
+  RENDER_STEREO_MODE m_stereo_mode;
 
   bool m_delayDispReset;
   XbmcThreads::EndTime<> m_dispResetTimer;

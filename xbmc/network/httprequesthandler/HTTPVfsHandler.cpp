@@ -44,11 +44,11 @@ CHTTPVfsHandler::CHTTPVfsHandler(const HTTPRequest &request)
           realPath = CURL(realPath).GetHostName();
 
         // Check manually configured sources
-        std::vector<CMediaSource>* sources = NULL;
+        VECSOURCES *sources = nullptr;
         for (unsigned int index = 0; index < size && !accessible; index++)
         {
           sources = CMediaSourceSettings::GetInstance().GetSources(sourceTypes[index]);
-          if (sources == NULL)
+          if (sources == nullptr)
             continue;
 
           for (const auto& source : *sources)
@@ -57,7 +57,7 @@ CHTTPVfsHandler::CHTTPVfsHandler(const HTTPRequest &request)
               break;
 
             // don't allow access to locked / disabled sharing sources
-            if (source.GetLockInfo().IsLocked() || !source.m_allowSharing)
+            if (source.m_iHasLock == LOCK_STATE_LOCKED || !source.m_allowSharing)
               continue;
 
             for (const auto& path : source.vecPaths)
@@ -76,11 +76,11 @@ CHTTPVfsHandler::CHTTPVfsHandler(const HTTPRequest &request)
         if (!accessible)
         {
           bool isSource;
-          std::vector<CMediaSource> removableSources;
+          VECSOURCES removableSources;
           CServiceBroker::GetMediaManager().GetRemovableDrives(removableSources);
           int sourceIndex = CUtil::GetMatchingSource(realPath, removableSources, isSource);
           if (sourceIndex >= 0 && sourceIndex < static_cast<int>(removableSources.size()) &&
-              !removableSources.at(sourceIndex).GetLockInfo().IsLocked() &&
+              removableSources.at(sourceIndex).m_iHasLock != LOCK_STATE_LOCKED &&
               removableSources.at(sourceIndex).m_allowSharing)
             accessible = true;
         }

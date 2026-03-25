@@ -33,7 +33,7 @@ public:
   virtual int GetBufferAge() { return 2; }
   bool IsExtSupported(const char* extension) const;
 
-  const std::string& ExtPrefix() const { return m_extPrefix; }
+  std::string ExtPrefix() { return m_extPrefix; }
   std::string m_extPrefix;
   std::string m_extensions;
 

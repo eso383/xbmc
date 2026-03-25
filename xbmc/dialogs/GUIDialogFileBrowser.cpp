@@ -10,7 +10,6 @@
 
 #include "AutoSwitch.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIDialogContextMenu.h"
 #include "GUIDialogMediaSource.h"
 #include "GUIDialogYesNo.h"
@@ -19,21 +18,19 @@
 #include "ServiceBroker.h"
 #include "URL.h"
 #include "Util.h"
-#include "dialogs/GUIDialogBusy.h"
 #include "filesystem/Directory.h"
 #include "filesystem/File.h"
 #include "filesystem/MultiPathDirectory.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIKeyboardFactory.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/actions/Action.h"
 #include "input/actions/ActionIDs.h"
 #include "messaging/helpers/DialogOKHelper.h"
 #include "network/GUIDialogNetworkSetup.h"
 #include "network/Network.h"
 #include "profiles/ProfileManager.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/SettingsComponent.h"
 #include "storage/MediaManager.h"
@@ -61,7 +58,7 @@ CGUIDialogFileBrowser::CGUIDialogFileBrowser()
   m_Directory = new CFileItem;
   m_vecItems = new CFileItemList;
   m_bConfirmed = false;
-  m_Directory->SetFolder(true);
+  m_Directory->m_bIsFolder = true;
   m_browsingForFolders = 0;
   m_browsingForImages = false;
   m_useFileDirectories = false;
@@ -184,14 +181,13 @@ bool CGUIDialogFileBrowser::OnMessage(CGUIMessage& message)
         if (iItem < 0) break;
         CFileItemPtr pItem = (*m_vecItems)[iItem];
         if ((iAction == ACTION_SELECT_ITEM || iAction == ACTION_MOUSE_LEFT_CLICK) &&
-            (!m_multipleSelection || pItem->IsShareOrDrive() || pItem->IsFolder()))
+           (!m_multipleSelection || pItem->m_bIsShareOrDrive || pItem->m_bIsFolder))
         {
           OnClick(iItem);
           return true;
         }
-        else if ((iAction == ACTION_HIGHLIGHT_ITEM || iAction == ACTION_MOUSE_LEFT_CLICK ||
-                  iAction == ACTION_SELECT_ITEM) &&
-                 (m_multipleSelection && !pItem->IsShareOrDrive() && !pItem->IsFolder()))
+        else if ((iAction == ACTION_HIGHLIGHT_ITEM || iAction == ACTION_MOUSE_LEFT_CLICK || iAction == ACTION_SELECT_ITEM) &&
+                (m_multipleSelection && !pItem->m_bIsShareOrDrive && !pItem->m_bIsFolder))
         {
           pItem->Select(!pItem->IsSelected());
           CGUIMessage msg(GUI_MSG_ITEM_SELECT, GetID(), message.GetSenderId(), iItem + 1);
@@ -246,10 +242,7 @@ bool CGUIDialogFileBrowser::OnMessage(CGUIMessage& message)
       else if (message.GetSenderId() == CONTROL_NEWFOLDER)
       {
         std::string strInput;
-        if (CGUIKeyboardFactory::ShowAndGetInput(
-                strInput,
-                CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(119)},
-                false))
+        if (CGUIKeyboardFactory::ShowAndGetInput(strInput, CVariant{g_localizeStrings.Get(119)}, false))
         {
           std::string strPath = URIUtils::AddFileToFolder(m_vecItems->GetPath(), strInput);
           if (CDirectory::Create(strPath))
@@ -325,16 +318,14 @@ bool CGUIDialogFileBrowser::OnMessage(CGUIMessage& message)
   return CGUIDialog::OnMessage(message);
 }
 
-void CGUIDialogFileBrowser::ClearFileItems()
-{
+void CGUIDialogFileBrowser::ClearFileItems() const {
   m_viewControl.Clear();
   m_vecItems->Clear(); // will clean up everything
 }
 
-void CGUIDialogFileBrowser::OnSort()
-{
+void CGUIDialogFileBrowser::OnSort() const {
   if (!m_singleList)
-    m_vecItems->Sort(SortBy::LABEL, SortOrder::ASCENDING);
+    m_vecItems->Sort(SortByLabel, SortOrderAscending);
 }
 
 void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
@@ -364,13 +355,7 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
     CFileItemList items;
     std::string strParentPath;
 
-    CGetDirectoryItems runnable(m_rootDir, pathToUrl, items, m_useFileDirectories, false);
-    if (!CGUIDialogBusy::Wait(&runnable, 100, true))
-    {
-      // cancelled
-      return;
-    }
-    else if (!runnable.GetResult())
+    if (!m_rootDir.GetDirectory(pathToUrl, items, m_useFileDirectories, false))
     {
       CLog::Log(LOGERROR, "CGUIDialogFileBrowser::GetDirectory({}) failed",
                 pathToUrl.GetRedacted());
@@ -390,8 +375,8 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
       {
         CFileItemPtr pItem(new CFileItem(".."));
         pItem->SetPath(strParentPath);
-        pItem->SetFolder(true);
-        pItem->SetIsShareOrDrive(false);
+        pItem->m_bIsFolder = true;
+        pItem->m_bIsShareOrDrive = false;
         items.AddFront(pItem, 0);
       }
     }
@@ -401,8 +386,8 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
       // add parent path to the virtual directory
       CFileItemPtr pItem(new CFileItem(".."));
       pItem->SetPath("");
-      pItem->SetIsShareOrDrive(false);
-      pItem->SetFolder(true);
+      pItem->m_bIsShareOrDrive = false;
+      pItem->m_bIsFolder = true;
       items.AddFront(pItem, 0);
       strParentPath = "";
     }
@@ -422,7 +407,7 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
   if (m_browsingForFolders)
   {
     for (int i=0;i<m_vecItems->Size();++i)
-      if (!(*m_vecItems)[i]->IsFolder())
+      if (!(*m_vecItems)[i]->m_bIsFolder)
       {
         m_vecItems->Remove(i);
         i--;
@@ -436,25 +421,19 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
   OnSort();
 
   if (m_Directory->GetPath().empty() && m_addNetworkShareEnabled &&
-      (CServiceBroker::GetSettingsComponent()
-               ->GetProfileManager()
-               ->GetMasterProfile()
-               .getLockMode() == LockMode::EVERYONE ||
-       CServiceBroker::GetSettingsComponent()->GetProfileManager()->IsMasterProfile() ||
-       g_passwordManager.bMasterUser))
+     (CServiceBroker::GetSettingsComponent()->GetProfileManager()->GetMasterProfile().getLockMode() == LOCK_MODE_EVERYONE ||
+      CServiceBroker::GetSettingsComponent()->GetProfileManager()->IsMasterProfile() || g_passwordManager.bMasterUser))
   { // we are in the virtual directory - add the "Add Network Location" item
-    CFileItemPtr pItem(
-        new CFileItem(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1032)));
+    CFileItemPtr pItem(new CFileItem(g_localizeStrings.Get(1032)));
     pItem->SetPath("net://");
-    pItem->SetFolder(true);
+    pItem->m_bIsFolder = true;
     m_vecItems->Add(pItem);
   }
   if (m_Directory->GetPath().empty() && !m_addSourceType.empty())
   {
-    CFileItemPtr pItem(
-        new CFileItem(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(21359)));
+    CFileItemPtr pItem(new CFileItem(g_localizeStrings.Get(21359)));
     pItem->SetPath("source://");
-    pItem->SetFolder(true);
+    pItem->m_bIsFolder = true;
     m_vecItems->Add(pItem);
   }
 
@@ -463,7 +442,7 @@ void CGUIDialogFileBrowser::Update(const std::string &strDirectory)
 
   std::string strPath2 = m_Directory->GetPath();
   URIUtils::RemoveSlashAtEnd(strPath2);
-  strSelectedItem = m_history.GetSelectedItem(strPath2.empty() ? "empty" : strPath2);
+  strSelectedItem = m_history.GetSelectedItem(strPath2==""?"empty":strPath2);
 
   bool bSelectedFound = false;
   for (int i = 0; i < m_vecItems->Size(); ++i)
@@ -502,9 +481,7 @@ void CGUIDialogFileBrowser::FrameMove()
       m_selectedPath = (*m_vecItems)[item]->GetPath();
     if (m_selectedPath == "net://")
     {
-      SET_CONTROL_LABEL(CONTROL_LABEL_PATH,
-                        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-                            1032)); // "Add Network Location..."
+      SET_CONTROL_LABEL(CONTROL_LABEL_PATH, g_localizeStrings.Get(1032)); // "Add Network Location..."
     }
     else
     {
@@ -513,8 +490,7 @@ void CGUIDialogFileBrowser::FrameMove()
       std::string safePath = url.GetWithoutUserDetails();
       SET_CONTROL_LABEL(CONTROL_LABEL_PATH, safePath);
     }
-    if ((!m_browsingForFolders && (*m_vecItems)[item]->IsFolder()) ||
-        ((*m_vecItems)[item]->GetPath() == "image://Browse"))
+    if ((!m_browsingForFolders && (*m_vecItems)[item]->m_bIsFolder) || ((*m_vecItems)[item]->GetPath() == "image://Browse"))
     {
       CONTROL_DISABLE(CONTROL_OK);
     }
@@ -548,7 +524,7 @@ void CGUIDialogFileBrowser::OnClick(int iItem)
   CFileItemPtr pItem = (*m_vecItems)[iItem];
   std::string strPath = pItem->GetPath();
 
-  if (pItem->IsFolder())
+  if (pItem->m_bIsFolder)
   {
     if (pItem->GetPath() == "net://")
     { // special "Add Network Location" item
@@ -565,9 +541,10 @@ void CGUIDialogFileBrowser::OnClick(int iItem)
       OnEditMediaSource(pItem.get());
       return;
     }
-    if (pItem->IsShareOrDrive() && !HaveDiscOrConnection(pItem->GetDriveType()))
+    if ( pItem->m_bIsShareOrDrive )
     {
-      return;
+      if ( !HaveDiscOrConnection( pItem->m_iDriveType ) )
+        return ;
     }
     Update(strPath);
   }
@@ -579,9 +556,9 @@ void CGUIDialogFileBrowser::OnClick(int iItem)
   }
 }
 
-bool CGUIDialogFileBrowser::HaveDiscOrConnection(SourceType iDriveType)
+bool CGUIDialogFileBrowser::HaveDiscOrConnection( int iDriveType )
 {
-  if (iDriveType == SourceType::OPTICAL_DISC)
+  if ( iDriveType == CMediaSource::SOURCE_TYPE_DVD )
   {
     if (!CServiceBroker::GetMediaManager().IsDiscInDrive())
     {
@@ -589,7 +566,7 @@ bool CGUIDialogFileBrowser::HaveDiscOrConnection(SourceType iDriveType)
       return false;
     }
   }
-  else if (iDriveType == SourceType::REMOTE)
+  else if ( iDriveType == CMediaSource::SOURCE_TYPE_REMOTE )
   {
     //! @todo Handle not connected to a remote share
     if ( !CServiceBroker::GetNetwork().IsConnected() )
@@ -626,30 +603,12 @@ void CGUIDialogFileBrowser::OnWindowUnload()
   m_viewControl.Reset();
 }
 
-namespace
-{
-CGUIDialogFileBrowser* GetUniqueBrowserInstance()
+bool CGUIDialogFileBrowser::ShowAndGetImage(const CFileItemList &items, const VECSOURCES &shares, const std::string &heading, std::string &result, bool* flip, int label)
 {
   auto browser = new CGUIDialogFileBrowser();
-
-  // Register new window with window manager. This hands ownership of browser pointer over
-  // to the window manager! So, no delete of the instance created here is needed.
-  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
-
-  return browser;
-}
-} // unnamed namespace
-
-bool CGUIDialogFileBrowser::ShowAndGetImage(const CFileItemList& items,
-                                            const std::vector<CMediaSource>& shares,
-                                            const std::string& heading,
-                                            std::string& result,
-                                            bool* flip,
-                                            int label)
-{
-  CGUIDialogFileBrowser* const browser{GetUniqueBrowserInstance()};
   if (!browser)
     return false;
+  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
 
   browser->m_browsingForImages = true;
   browser->m_singleList = true;
@@ -658,7 +617,7 @@ bool CGUIDialogFileBrowser::ShowAndGetImage(const CFileItemList& items,
   if (true)
   {
     CFileItemPtr item(new CFileItem("image://Browse", false));
-    item->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20153));
+    item->SetLabel(g_localizeStrings.Get(20153));
     item->SetArt("icon", "DefaultFolder.png");
     browser->m_vecItems->Add(item);
   }
@@ -671,42 +630,37 @@ bool CGUIDialogFileBrowser::ShowAndGetImage(const CFileItemList& items,
     result = browser->m_selectedPath;
     if (result == "image://Browse")
     { // "Browse for thumb"
-      CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
-      return ShowAndGetImage(
-          shares, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(label), result);
+      CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+      delete browser;
+      return ShowAndGetImage(shares, g_localizeStrings.Get(label), result);
     }
   }
 
   if (flip)
     *flip = browser->m_bFlip != 0;
 
-  CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
+  CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+  delete browser;
+
   return confirmed;
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetImage(const std::vector<CMediaSource>& shares,
-                                            const std::string& heading,
-                                            std::string& path)
+bool CGUIDialogFileBrowser::ShowAndGetImage(const VECSOURCES &shares, const std::string &heading, std::string &path)
 {
   return ShowAndGetFile(shares, CServiceBroker::GetFileExtensionProvider().GetPictureExtensions(), heading, path, true); // true for use thumbs
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetImageList(const std::vector<CMediaSource>& shares,
-                                                const std::string& heading,
-                                                std::vector<std::string>& path)
+bool CGUIDialogFileBrowser::ShowAndGetImageList(const VECSOURCES &shares, const std::string &heading, std::vector<std::string> &path)
 {
   return ShowAndGetFileList(shares, CServiceBroker::GetFileExtensionProvider().GetPictureExtensions(), heading, path, true); // true for use thumbs
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetDirectory(const std::vector<CMediaSource>& shares,
-                                                const std::string& heading,
-                                                std::string& path,
-                                                bool bWriteOnly)
+bool CGUIDialogFileBrowser::ShowAndGetDirectory(const VECSOURCES &shares, const std::string &heading, std::string &path, bool bWriteOnly)
 {
   // an extension mask of "/" ensures that no files are shown
   if (bWriteOnly)
   {
-    std::vector<CMediaSource> shareWritable;
+    VECSOURCES shareWritable;
     for (unsigned int i=0;i<shares.size();++i)
     {
       if (shares[i].IsWritable())
@@ -719,16 +673,12 @@ bool CGUIDialogFileBrowser::ShowAndGetDirectory(const std::vector<CMediaSource>&
   return ShowAndGetFile(shares, "/", heading, path);
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetFile(const std::vector<CMediaSource>& shares,
-                                           const std::string& mask,
-                                           const std::string& heading,
-                                           std::string& path,
-                                           bool useThumbs /* = false */,
-                                           bool useFileDirectories /* = false */)
+bool CGUIDialogFileBrowser::ShowAndGetFile(const VECSOURCES &shares, const std::string &mask, const std::string &heading, std::string &path, bool useThumbs /* = false */, bool useFileDirectories /* = false */)
 {
-  CGUIDialogFileBrowser* const browser{GetUniqueBrowserInstance()};
+  auto browser = new CGUIDialogFileBrowser();
   if (!browser)
     return false;
+  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
 
   browser->m_useFileDirectories = useFileDirectories;
 
@@ -754,16 +704,18 @@ bool CGUIDialogFileBrowser::ShowAndGetFile(const std::vector<CMediaSource>& shar
   bool confirmed(browser->IsConfirmed());
   if (confirmed)
     path = browser->m_selectedPath;
-  CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
+  CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+  delete browser;
   return confirmed;
 }
 
 // same as above, starting in a single directory
 bool CGUIDialogFileBrowser::ShowAndGetFile(const std::string &directory, const std::string &mask, const std::string &heading, std::string &path, bool useThumbs /* = false */, bool useFileDirectories /* = false */, bool singleList /* = false */)
 {
-  CGUIDialogFileBrowser* const browser{GetUniqueBrowserInstance()};
+  auto browser = new CGUIDialogFileBrowser();
   if (!browser)
     return false;
+  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
 
   browser->m_useFileDirectories = useFileDirectories;
   browser->m_browsingForImages = useThumbs;
@@ -772,7 +724,7 @@ bool CGUIDialogFileBrowser::ShowAndGetFile(const std::string &directory, const s
   // add a single share for this directory
   if (!singleList)
   {
-    std::vector<CMediaSource> shares;
+    VECSOURCES shares;
     CMediaSource share;
     share.strPath = directory;
     URIUtils::RemoveSlashAtEnd(share.strPath); // this is needed for the dodgy code in WINDOW_INIT
@@ -784,7 +736,7 @@ bool CGUIDialogFileBrowser::ShowAndGetFile(const std::string &directory, const s
     browser->m_vecItems->Clear();
     CDirectory::GetDirectory(directory,*browser->m_vecItems, "", DIR_FLAG_DEFAULTS);
     CFileItemPtr item(new CFileItem("file://Browse", false));
-    item->SetLabel(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(20153));
+    item->SetLabel(g_localizeStrings.Get(20153));
     item->SetArt("icon", "DefaultFolder.png");
     browser->m_vecItems->Add(item);
     browser->m_singleList = true;
@@ -810,26 +762,24 @@ bool CGUIDialogFileBrowser::ShowAndGetFile(const std::string &directory, const s
     path = browser->m_selectedPath;
   if (path == "file://Browse")
   { // "Browse for thumb"
-    CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
-    std::vector<CMediaSource> shares;
+    CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+    delete browser;
+    VECSOURCES shares;
     CServiceBroker::GetMediaManager().GetLocalDrives(shares);
 
     return ShowAndGetFile(shares, mask, heading, path, useThumbs,useFileDirectories);
   }
-  CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
+  CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+  delete browser;
   return confirmed;
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetFileList(const std::vector<CMediaSource>& shares,
-                                               const std::string& mask,
-                                               const std::string& heading,
-                                               std::vector<std::string>& path,
-                                               bool useThumbs /* = false */,
-                                               bool useFileDirectories /* = false */)
+bool CGUIDialogFileBrowser::ShowAndGetFileList(const VECSOURCES &shares, const std::string &mask, const std::string &heading, std::vector<std::string> &path, bool useThumbs /* = false */, bool useFileDirectories /* = false */)
 {
-  CGUIDialogFileBrowser* const browser{GetUniqueBrowserInstance()};
+  auto browser = new CGUIDialogFileBrowser();
   if (!browser)
     return false;
+  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
 
   browser->m_useFileDirectories = useFileDirectories;
   browser->m_multipleSelection = true;
@@ -843,12 +793,13 @@ bool CGUIDialogFileBrowser::ShowAndGetFileList(const std::vector<CMediaSource>& 
   bool confirmed(browser->IsConfirmed());
   if (confirmed)
   {
-    if (!browser->m_markedPath.empty())
+    if (browser->m_markedPath.size())
       path = browser->m_markedPath;
     else
       path.push_back(browser->m_selectedPath);
   }
-  CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
+  CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+  delete browser;
   return confirmed;
 }
 
@@ -858,11 +809,7 @@ void CGUIDialogFileBrowser::SetHeading(const std::string &heading)
   SET_CONTROL_LABEL(CONTROL_HEADING_LABEL, heading);
 }
 
-bool CGUIDialogFileBrowser::ShowAndGetSource(
-    std::string& path,
-    bool allowNetworkShares,
-    std::vector<CMediaSource>* additionalShare /* = NULL */,
-    const std::string& strType /* = "" */)
+bool CGUIDialogFileBrowser::ShowAndGetSource(std::string &path, bool allowNetworkShares, VECSOURCES* additionalShare /* = NULL */, const std::string& strType /* = "" */)
 {
   // Technique is
   // 1.  Show Filebrowser with currently defined local, and optionally the network locations.
@@ -878,11 +825,14 @@ bool CGUIDialogFileBrowser::ShowAndGetSource(
   // 4.  Optionally allow user to browse the local and network locations for their share.
   // 5.  On OK, return.
 
-  CGUIDialogFileBrowser* const browser{GetUniqueBrowserInstance()};
-  if (!browser)
-    return false;
+  // Create a new filebrowser window
+  auto browser = new CGUIDialogFileBrowser();
+  if (!browser) return false;
 
-  std::vector<CMediaSource> shares;
+  // Add it to our window manager
+  CServiceBroker::GetGUI()->GetWindowManager().AddUniqueInstance(browser);
+
+  VECSOURCES shares;
   if (!strType.empty())
   {
     if (additionalShare)
@@ -891,7 +841,7 @@ bool CGUIDialogFileBrowser::ShowAndGetSource(
   }
   else
   {
-    browser->SetHeading(CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(1023));
+    browser->SetHeading(g_localizeStrings.Get(1023));
 
     CServiceBroker::GetMediaManager().GetLocalDrives(shares);
 
@@ -919,14 +869,15 @@ bool CGUIDialogFileBrowser::ShowAndGetSource(
   if (confirmed)
     path = browser->m_selectedPath;
 
-  CServiceBroker::GetGUI()->GetWindowManager().Delete(browser->GetID());
+  CServiceBroker::GetGUI()->GetWindowManager().Remove(browser->GetID());
+  delete browser;
   return confirmed;
 }
 
-void CGUIDialogFileBrowser::SetSources(const std::vector<CMediaSource>& shares)
+void CGUIDialogFileBrowser::SetSources(const VECSOURCES &shares)
 {
   m_shares = shares;
-  if (m_shares.empty() && m_addSourceType.empty())
+  if (!m_shares.size() && m_addSourceType.empty())
     CServiceBroker::GetMediaManager().GetLocalDrives(m_shares);
   m_rootDir.SetSources(m_shares);
 }
@@ -985,7 +936,7 @@ bool CGUIDialogFileBrowser::OnPopupMenu(int iItem)
     if (m_addNetworkShareEnabled)
     {
       std::string strOldPath=m_selectedPath,newPath=m_selectedPath;
-      std::vector<CMediaSource> shares = m_shares;
+      VECSOURCES shares=m_shares;
       if (CGUIDialogNetworkSetup::ShowAndGetNetworkAddress(newPath))
       {
         CServiceBroker::GetMediaManager().SetLocationPath(strOldPath, newPath);

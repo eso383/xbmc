@@ -5,16 +5,26 @@
 #
 # This will define the following target:
 #
-#   ${APP_NAME_LC}::MySqlClient   - The MySqlClient library
+#   MySqlClient::MySqlClient   - The MySqlClient library
 
-if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
+if(NOT TARGET MySqlClient::MySqlClient)
+  # Don't find system wide installed version on Windows
+  if(WIN32)
+    set(EXTRA_FIND_ARGS NO_SYSTEM_ENVIRONMENT_PATH)
+  else()
+    set(EXTRA_FIND_ARGS)
+  endif()
 
   find_path(MYSQLCLIENT_INCLUDE_DIR NAMES mysql/mysql.h mysql/server/mysql.h
-                                    HINTS ${DEPENDS_PATH}/include)
-  find_library(MYSQLCLIENT_LIBRARY NAMES mysqlclient libmysql
-                                   HINTS ${DEPENDS_PATH}/lib
-                                   PATH_SUFFIXES mysql
-                                   ${${CORE_SYSTEM_NAME}_SEARCH_CONFIG})
+                                    NO_CACHE)
+  find_library(MYSQLCLIENT_LIBRARY_RELEASE NAMES mysqlclient libmysql
+                                           PATH_SUFFIXES mysql
+                                           ${EXTRA_FIND_ARGS}
+                                           NO_CACHE)
+  find_library(MYSQLCLIENT_LIBRARY_DEBUG NAMES mysqlclient libmysql
+                                         PATH_SUFFIXES mysql
+                                         ${EXTRA_FIND_ARGS}
+                                         NO_CACHE)
 
   if(MYSQLCLIENT_INCLUDE_DIR AND EXISTS "${MYSQLCLIENT_INCLUDE_DIR}/mysql/mysql_version.h")
     file(STRINGS "${MYSQLCLIENT_INCLUDE_DIR}/mysql/mysql_version.h" mysql_version_str REGEX "^#define[\t ]+LIBMYSQL_VERSION[\t ]+\".*\".*")
@@ -22,9 +32,8 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
     unset(mysql_version_str)
   endif()
 
-  if(NOT VERBOSE_FIND)
-     set(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY TRUE)
-   endif()
+  include(SelectLibraryConfigurations)
+  select_library_configurations(MYSQLCLIENT)
 
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(MySqlClient
@@ -32,10 +41,20 @@ if(NOT TARGET ${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME})
                                     VERSION_VAR MYSQLCLIENT_VERSION_STRING)
 
   if(MYSQLCLIENT_FOUND)
-    add_library(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} UNKNOWN IMPORTED)
-    set_target_properties(${APP_NAME_LC}::${CMAKE_FIND_PACKAGE_NAME} PROPERTIES
-                                                                     IMPORTED_LOCATION "${MYSQLCLIENT_LIBRARY}"
-                                                                     INTERFACE_INCLUDE_DIRECTORIES "${MYSQLCLIENT_INCLUDE_DIR}"
-                                                                     INTERFACE_COMPILE_DEFINITIONS HAS_MYSQL)
+    add_library(MySqlClient::MySqlClient UNKNOWN IMPORTED)
+    if(MYSQLCLIENT_LIBRARY_RELEASE)
+      set_target_properties(MySqlClient::MySqlClient PROPERTIES
+                                                     IMPORTED_CONFIGURATIONS RELEASE
+                                                     IMPORTED_LOCATION_RELEASE "${MYSQLCLIENT_LIBRARY_RELEASE}")
+    endif()
+    if(MYSQLCLIENT_LIBRARY_DEBUG)
+      set_target_properties(MySqlClient::MySqlClient PROPERTIES
+                                                     IMPORTED_CONFIGURATIONS DEBUG
+                                                     IMPORTED_LOCATION_DEBUG "${MYSQLCLIENT_LIBRARY_DEBUG}")
+    endif()
+    set_target_properties(MySqlClient::MySqlClient PROPERTIES
+                                                   INTERFACE_INCLUDE_DIRECTORIES "${MYSQLCLIENT_INCLUDE_DIR}"
+                                                   INTERFACE_COMPILE_DEFINITIONS HAS_MYSQL=1)
+    set_property(GLOBAL APPEND PROPERTY INTERNAL_DEPS_PROP MySqlClient::MySqlClient)
   endif()
 endif()

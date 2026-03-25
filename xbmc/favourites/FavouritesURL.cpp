@@ -13,16 +13,14 @@
 #include "URL.h"
 #include "addons/AddonManager.h"
 #include "addons/IAddon.h"
+#include "guilib/LocalizeStrings.h"
 #include "input/WindowTranslator.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/ExecString.h"
 #include "utils/StringUtils.h"
 #include "utils/SystemInfo.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
 
-#include <string_view>
 #include <vector>
 
 namespace
@@ -31,43 +29,39 @@ std::string GetActionString(CFavouritesURL::Action action)
 {
   switch (action)
   {
-    using enum CFavouritesURL::Action;
-
-    case ACTIVATE_WINDOW:
+    case CFavouritesURL::Action::ACTIVATE_WINDOW:
       return "activatewindow";
-    case PLAY_MEDIA:
+    case CFavouritesURL::Action::PLAY_MEDIA:
       return "playmedia";
-    case SHOW_PICTURE:
+    case CFavouritesURL::Action::SHOW_PICTURE:
       return "showpicture";
-    case RUN_SCRIPT:
+    case CFavouritesURL::Action::RUN_SCRIPT:
       return "runscript";
-    case RUN_ADDON:
+    case CFavouritesURL::Action::RUN_ADDON:
       return "runaddon";
-    case START_ANDROID_ACTIVITY:
+    case CFavouritesURL::Action::START_ANDROID_ACTIVITY:
       return "startandroidactivity";
     default:
       return {};
   }
 }
 
-CFavouritesURL::Action GetActionId(std::string_view actionString)
+CFavouritesURL::Action GetActionId(const std::string& actionString)
 {
-  using enum CFavouritesURL::Action;
-
   if (actionString == "activatewindow")
-    return ACTIVATE_WINDOW;
+    return CFavouritesURL::Action::ACTIVATE_WINDOW;
   else if (actionString == "playmedia")
-    return PLAY_MEDIA;
+    return CFavouritesURL::Action::PLAY_MEDIA;
   else if (actionString == "showpicture")
-    return SHOW_PICTURE;
+    return CFavouritesURL::Action::SHOW_PICTURE;
   else if (actionString == "runscript")
-    return RUN_SCRIPT;
+    return CFavouritesURL::Action::RUN_SCRIPT;
   else if (actionString == "runaddon")
-    return RUN_ADDON;
+    return CFavouritesURL::Action::RUN_ADDON;
   else if (actionString == "startandroidactivity")
-    return START_ANDROID_ACTIVITY;
+    return CFavouritesURL::Action::START_ANDROID_ACTIVITY;
   else
-    return UNKNOWN;
+    return CFavouritesURL::Action::UNKNOWN;
 }
 } // namespace
 
@@ -128,10 +122,9 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         // optional: target url/path
         m_target = StringUtils::DeParamify(params[1]);
       }
-      m_actionLabel = StringUtils::Format(
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-              15220), // Show content in '<windowname>'
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(m_windowId));
+      m_actionLabel =
+          StringUtils::Format(g_localizeStrings.Get(15220), // Show content in '<windowname>'
+                              g_localizeStrings.Get(m_windowId));
       break;
     case Action::PLAY_MEDIA:
       if (params.empty())
@@ -140,8 +133,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         return false;
       }
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15218); // Play media
+      m_actionLabel = g_localizeStrings.Get(15218); // Play media
       break;
     case Action::SHOW_PICTURE:
       if (params.empty())
@@ -150,8 +142,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         return false;
       }
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15219); // Show picture
+      m_actionLabel = g_localizeStrings.Get(15219); // Show picture
       break;
     case Action::RUN_SCRIPT:
       if (params.empty())
@@ -160,8 +151,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         return false;
       }
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15221); // Execute script
+      m_actionLabel = g_localizeStrings.Get(15221); // Execute script
       pathIsAddonID = true;
       break;
     case Action::RUN_ADDON:
@@ -171,8 +161,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         return false;
       }
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(15223); // Execute add-on
+      m_actionLabel = g_localizeStrings.Get(15223); // Execute add-on
       pathIsAddonID = true;
       break;
     case Action::START_ANDROID_ACTIVITY:
@@ -182,8 +171,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
         return false;
       }
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          15222); // Execute Android app
+      m_actionLabel = g_localizeStrings.Get(15222); // Execute Android app
       break;
     default:
       if (params.empty())
@@ -193,8 +181,7 @@ bool CFavouritesURL::Parse(CFavouritesURL::Action action, const std::vector<std:
       }
       m_action = CFavouritesURL::Action::UNKNOWN;
       m_target = StringUtils::DeParamify(params[0]);
-      m_actionLabel = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          15224); // Other / Unknown
+      m_actionLabel = g_localizeStrings.Get(15224); // Other / Unknown
       break;
   }
 

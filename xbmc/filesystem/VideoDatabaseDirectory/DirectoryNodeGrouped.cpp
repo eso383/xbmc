@@ -14,29 +14,27 @@
 
 using namespace XFILE::VIDEODATABASEDIRECTORY;
 
-CDirectoryNodeGrouped::CDirectoryNodeGrouped(NodeType type,
-                                             const std::string& strName,
-                                             CDirectoryNode* pParent)
+CDirectoryNodeGrouped::CDirectoryNodeGrouped(NODE_TYPE type, const std::string& strName, CDirectoryNode* pParent)
   : CDirectoryNode(type, strName, pParent)
 { }
 
-NodeType CDirectoryNodeGrouped::GetChildType() const
+NODE_TYPE CDirectoryNodeGrouped::GetChildType() const
 {
   CQueryParams params;
   CollectQueryParams(params);
 
-  VideoDbContentType type = static_cast<VideoDbContentType>(params.GetContentType());
+  auto type = static_cast<VideoDbContentType>(params.GetContentType());
   if (type == VideoDbContentType::MOVIES)
-    return NodeType::TITLE_MOVIES;
+    return NODE_TYPE_TITLE_MOVIES;
   if (type == VideoDbContentType::MUSICVIDEOS)
   {
-    if (GetType() == NodeType::ACTOR)
-      return NodeType::MUSICVIDEOS_ALBUM;
+    if (GetType() == NODE_TYPE_ACTOR)
+      return NODE_TYPE_MUSICVIDEOS_ALBUM;
     else
-      return NodeType::TITLE_MUSICVIDEOS;
+      return NODE_TYPE_TITLE_MUSICVIDEOS;
   }
 
-  return NodeType::TITLE_TVSHOWS;
+  return NODE_TYPE_TITLE_TVSHOWS;
 }
 
 std::string CDirectoryNodeGrouped::GetLocalizedName() const
@@ -83,46 +81,46 @@ std::string CDirectoryNodeGrouped::GetContentType(const CQueryParams &params) co
 {
   switch (GetType())
   {
-    case NodeType::GENRE:
+    case NODE_TYPE_GENRE:
       return "genres";
-    case NodeType::COUNTRY:
+    case NODE_TYPE_COUNTRY:
       return "countries";
-    case NodeType::SETS:
+    case NODE_TYPE_SETS:
       return "sets";
-    case NodeType::TAGS:
+    case NODE_TYPE_TAGS:
       return "tags";
-    case NodeType::VIDEOVERSIONS:
+    case NODE_TYPE_VIDEOVERSIONS:
       return "videoversions";
-    case NodeType::YEAR:
+    case NODE_TYPE_YEAR:
       return "years";
-    case NodeType::ACTOR:
+    case NODE_TYPE_ACTOR:
       if (static_cast<VideoDbContentType>(params.GetContentType()) ==
           VideoDbContentType::MUSICVIDEOS)
         return "artists";
       else
         return "actors";
-    case NodeType::DIRECTOR:
+    case NODE_TYPE_DIRECTOR:
       return "directors";
-    case NodeType::STUDIO:
+    case NODE_TYPE_STUDIO:
       return "studios";
-    case NodeType::MUSICVIDEOS_ALBUM:
+    case NODE_TYPE_MUSICVIDEOS_ALBUM:
       return "albums";
 
-    case NodeType::EPISODES:
-    case NodeType::MOVIES_OVERVIEW:
-    case NodeType::MUSICVIDEOS_OVERVIEW:
-    case NodeType::NONE:
-    case NodeType::OVERVIEW:
-    case NodeType::RECENTLY_ADDED_EPISODES:
-    case NodeType::RECENTLY_ADDED_MOVIES:
-    case NodeType::RECENTLY_ADDED_MUSICVIDEOS:
-    case NodeType::INPROGRESS_TVSHOWS:
-    case NodeType::ROOT:
-    case NodeType::SEASONS:
-    case NodeType::TITLE_MOVIES:
-    case NodeType::TITLE_MUSICVIDEOS:
-    case NodeType::TITLE_TVSHOWS:
-    case NodeType::TVSHOWS_OVERVIEW:
+    case NODE_TYPE_EPISODES:
+    case NODE_TYPE_MOVIES_OVERVIEW:
+    case NODE_TYPE_MUSICVIDEOS_OVERVIEW:
+    case NODE_TYPE_NONE:
+    case NODE_TYPE_OVERVIEW:
+    case NODE_TYPE_RECENTLY_ADDED_EPISODES:
+    case NODE_TYPE_RECENTLY_ADDED_MOVIES:
+    case NODE_TYPE_RECENTLY_ADDED_MUSICVIDEOS:
+    case NODE_TYPE_INPROGRESS_TVSHOWS:
+    case NODE_TYPE_ROOT:
+    case NODE_TYPE_SEASONS:
+    case NODE_TYPE_TITLE_MOVIES:
+    case NODE_TYPE_TITLE_MUSICVIDEOS:
+    case NODE_TYPE_TITLE_TVSHOWS:
+    case NODE_TYPE_TVSHOWS_OVERVIEW:
     default:
       break;
   }

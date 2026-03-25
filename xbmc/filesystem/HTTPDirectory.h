@@ -19,7 +19,7 @@ namespace XFILE
       ~CHTTPDirectory(void) override;
       bool GetDirectory(const CURL& url, CFileItemList &items) override;
       bool Exists(const CURL& url) override;
-      CacheType GetCacheType(const CURL& url) const override { return CacheType::ONCE; }
+      DIR_CACHE_TYPE GetCacheType(const CURL& url) const override { return DIR_CACHE_ONCE; }
 
     private:
   };

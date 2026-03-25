@@ -8,9 +8,7 @@
 
 #include "GUIThrottleButton.h"
 
-#include "ServiceBroker.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
+#include "guilib/LocalizeStrings.h"
 
 #include <string>
 
@@ -38,16 +36,12 @@ bool CGUIThrottleButton::PromptForInput(CEvent& waitEvent)
   switch (m_state)
   {
     case STATE::THROTTLE_UP:
-      strPrompt =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35092); // "Move %s up"
-      strWarn = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          35093); // "Move %s up (%d)"
+      strPrompt = g_localizeStrings.Get(35092); // "Move %s up"
+      strWarn = g_localizeStrings.Get(35093); // "Move %s up (%d)"
       break;
     case STATE::THROTTLE_DOWN:
-      strPrompt =
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(35094); // "Move %s down"
-      strWarn = CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          35095); // "Move %s down (%d)"
+      strPrompt = g_localizeStrings.Get(35094); // "Move %s down"
+      strWarn = g_localizeStrings.Get(35095); // "Move %s down (%d)"
       break;
     default:
       break;

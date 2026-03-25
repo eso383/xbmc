@@ -9,7 +9,9 @@
 #pragma once
 
 #include "cores/GameSettings.h"
-#include "cores/RetroPlayer/RetroPlayerTypes.h"
+#include "utils/Geometry.h"
+
+#include <array>
 
 namespace KODI
 {
@@ -43,8 +45,8 @@ public:
                          float destWidth,
                          float destHeight);
 
-  static ViewportCoordinates ReorderDrawPoints(const CRect& destRect,
-                                               unsigned int orientationDegCCW);
+  static std::array<CPoint, 4> ReorderDrawPoints(const CRect& destRect,
+                                                 unsigned int orientationDegCCW);
 };
 } // namespace RETRO
 } // namespace KODI

@@ -602,7 +602,7 @@ static void set_transform(
     memcpy(dest->params, params, nparams * sizeof(XFixed));
   }
   else
-    dest->params = NULL;
+    dest->params = NULL;  
 }
 
 static void copy_transform(transform_t* dest, transform_t* src)

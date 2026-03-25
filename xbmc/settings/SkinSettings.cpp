@@ -22,10 +22,7 @@
 #include <mutex>
 #include <string>
 
-namespace
-{
-constexpr const char* XML_SKINSETTINGS = "skinsettings";
-} // unnamed namespace
+#define XML_SKINSETTINGS  "skinsettings"
 
 CSkinSettings::CSkinSettings()
 {
@@ -40,103 +37,65 @@ CSkinSettings& CSkinSettings::GetInstance()
   return sSkinSettings;
 }
 
-int CSkinSettings::TranslateString(const std::string& setting) const
+int CSkinSettings::TranslateString(const std::string &setting)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return -1;
-  return skin->TranslateString(setting);
+  return g_SkinInfo->TranslateString(setting);
 }
 
 const std::string& CSkinSettings::GetString(int setting) const
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  static const std::string empty;
-  if (!skin)
-    return empty;
-  return skin->GetString(setting);
+  return g_SkinInfo->GetString(setting);
 }
 
-void CSkinSettings::SetString(int setting, const std::string& label) const
+void CSkinSettings::SetString(int setting, const std::string &label)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-  skin->SetString(setting, label);
+  g_SkinInfo->SetString(setting, label);
 }
 
-int CSkinSettings::TranslateBool(const std::string& setting) const
+int CSkinSettings::TranslateBool(const std::string &setting)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return -1;
-  return skin->TranslateBool(setting);
+  return g_SkinInfo->TranslateBool(setting);
 }
 
 bool CSkinSettings::GetBool(int setting) const
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return false;
-  return skin->GetBool(setting);
+  return g_SkinInfo->GetBool(setting);
 }
 
 int CSkinSettings::GetInt(int setting) const
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return 0;
-  return skin->GetInt(setting);
+  return g_SkinInfo->GetInt(setting);
 }
 
-void CSkinSettings::SetBool(int setting, bool set) const
+void CSkinSettings::SetBool(int setting, bool set)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-  skin->SetBool(setting, set);
+  g_SkinInfo->SetBool(setting, set);
 }
 
-void CSkinSettings::Reset(const std::string& setting) const
+void CSkinSettings::Reset(const std::string &setting)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-  skin->Reset(setting);
+  g_SkinInfo->Reset(setting);
 }
 
 std::set<ADDON::CSkinSettingPtr> CSkinSettings::GetSettings() const
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return {};
-  return skin->GetSkinSettings();
+  return g_SkinInfo->GetSkinSettings();
 }
 
 ADDON::CSkinSettingPtr CSkinSettings::GetSetting(const std::string& settingId)
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return nullptr;
-  return skin->GetSkinSetting(settingId);
+  return g_SkinInfo->GetSkinSetting(settingId);
 }
 
 std::shared_ptr<const ADDON::CSkinSetting> CSkinSettings::GetSetting(
     const std::string& settingId) const
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return nullptr;
-  return skin->GetSkinSetting(settingId);
+  return g_SkinInfo->GetSkinSetting(settingId);
 }
 
-void CSkinSettings::Reset() const
+void CSkinSettings::Reset()
 {
-  auto skin = CServiceBroker::GetGUI()->GetSkinInfo();
-  if (!skin)
-    return;
-
-  skin->Reset();
+  g_SkinInfo->Reset();
 
   CGUIInfoManager& infoMgr = CServiceBroker::GetGUI()->GetInfoManager();
   infoMgr.ResetCache();
@@ -145,20 +104,21 @@ void CSkinSettings::Reset() const
 
 bool CSkinSettings::Load(const TiXmlNode *settings)
 {
-  if (!settings)
+  if (settings == nullptr)
     return false;
 
   const TiXmlElement *rootElement = settings->FirstChildElement(XML_SKINSETTINGS);
 
   // return true in the case skinsettings is missing. It just means that
   // it's been migrated and it's not an error
-  if (!rootElement)
+  if (rootElement == nullptr)
   {
     CLog::Log(LOGDEBUG, "CSkinSettings: no <skinsettings> tag found");
     return true;
   }
 
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
+
   m_settings.clear();
   m_settings = ADDON::CSkinInfo::ParseSettings(rootElement);
 
@@ -167,7 +127,7 @@ bool CSkinSettings::Load(const TiXmlNode *settings)
 
 bool CSkinSettings::Save(TiXmlNode *settings) const
 {
-  if (!settings)
+  if (settings == nullptr)
     return false;
 
   // nothing to do here because skin settings saving has been migrated to CSkinInfo
@@ -177,16 +137,17 @@ bool CSkinSettings::Save(TiXmlNode *settings) const
 
 void CSkinSettings::Clear()
 {
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
+
   m_settings.clear();
 }
 
 void CSkinSettings::MigrateSettings(const std::shared_ptr<ADDON::CSkinInfo>& skin)
 {
-  if (!skin)
+  if (skin == nullptr)
     return;
 
-  std::unique_lock lock(m_critical);
+  std::lock_guard lock(m_critical);
 
   bool settingsMigrated = false;
   const std::string& skinId = skin->ID();

@@ -18,8 +18,6 @@
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
 
-#include "platform/win32/WIN32Util.h"
-
 #include <mutex>
 
 #ifdef TARGET_WINDOWS_STORE
@@ -50,7 +48,9 @@ void CVideoSyncD3D::RefreshChanged()
 bool CVideoSyncD3D::Setup()
 {
   CLog::Log(LOGDEBUG, "CVideoSyncD3D: Setting up Direct3d");
-  std::unique_lock lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
+  std::lock_guard lock(CServiceBroker::GetWinSystem()->GetGfxContext());
+
   DX::Windowing()->Register(this);
   m_displayLost = false;
   m_displayReset = false;
@@ -99,7 +99,7 @@ void CVideoSyncD3D::Run(CEvent& stopEvent)
         CLog::LogF(LOGWARNING, "failed to detect vblank - screen asleep?");
 
       if (!SUCCEEDED(hr))
-        CLog::LogF(LOGERROR, "error waiting for vblank, {}", CWIN32Util::FormatHRESULT(hr));
+        CLog::LogF(LOGERROR, "error waiting for vblank, {}", DX::GetErrorDescription(hr));
 
       validVBlank = false;
 

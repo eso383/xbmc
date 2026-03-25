@@ -23,6 +23,9 @@ public:
   static bool Show(CLibExportSettings& settings);
 
 protected:
+  // specializations of CGUIWindow
+  void OnInitWindow() override;
+
   // implementations of ISettingCallback
   void OnSettingChanged(const std::shared_ptr<const CSetting>& setting) override;
   void OnSettingAction(const std::shared_ptr<const CSetting>& setting) override;

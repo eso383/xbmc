@@ -35,13 +35,11 @@ CGameClientJoystick::CGameClientJoystick(CGameClient& gameClient,
 
 CGameClientJoystick::~CGameClientJoystick() = default;
 
-void CGameClientJoystick::RegisterInput(JOYSTICK::IInputProvider* inputProvider)
-{
+void CGameClientJoystick::RegisterInput(JOYSTICK::IInputProvider* inputProvider) const {
   m_portInput->RegisterInput(inputProvider);
 }
 
-void CGameClientJoystick::UnregisterInput(JOYSTICK::IInputProvider* inputProvider)
-{
+void CGameClientJoystick::UnregisterInput(JOYSTICK::IInputProvider* inputProvider) const {
   m_portInput->UnregisterInput(inputProvider);
 }
 
@@ -179,7 +177,7 @@ std::string CGameClientJoystick::GetControllerAddress() const
 std::string CGameClientJoystick::GetSourceLocation() const
 {
   if (m_sourcePeripheral)
-    return m_sourcePeripheral->FileLocation();
+    return m_sourcePeripheral->Location();
 
   return "";
 }
@@ -199,8 +197,7 @@ void CGameClientJoystick::ClearSource()
   m_sourcePeripheral.reset();
 }
 
-bool CGameClientJoystick::SetRumble(const std::string& feature, float magnitude)
-{
+bool CGameClientJoystick::SetRumble(const std::string& feature, float magnitude) const {
   bool bHandled = false;
 
   if (InputReceiver())

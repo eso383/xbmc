@@ -10,7 +10,6 @@
 
 #include "CDDARipJob.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
 #include "Util.h"
 #include "addons/AddonManager.h"
@@ -18,6 +17,7 @@
 #include "addons/addoninfo/AddonType.h"
 #include "filesystem/CDDADirectory.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/helpers/DialogOKHelper.h"
 #include "music/MusicDatabase.h"
 #include "music/MusicDbUrl.h"
@@ -25,8 +25,6 @@
 #include "music/infoscanner/MusicInfoScanner.h"
 #include "music/tags/MusicInfoTag.h"
 #include "music/tags/MusicInfoTagLoaderFactory.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/SettingPath.h"
@@ -64,13 +62,14 @@ bool CCDDARipper::RipTrack(CFileItem* pItem)
   // don't rip non cdda items
   if (!URIUtils::HasExtension(pItem->GetPath(), ".cdda"))
   {
-    CLog::LogF(LOGDEBUG, "File '{}' is not a cdda track", pItem->GetPath());
+    CLog::Log(LOGDEBUG, "CCDDARipper::{} - File '{}' is not a cdda track", __func__,
+              pItem->GetPath());
     return false;
   }
 
   // construct directory where the track is stored
   std::string strDirectory;
-  LegalPath legalType;
+  int legalType;
   if (!CreateAlbumDir(*pItem->GetMusicInfoTag(), strDirectory, legalType))
     return false;
 
@@ -90,7 +89,7 @@ bool CCDDARipper::RipCD()
   MEDIA_DETECT::CCdInfo* pInfo = CServiceBroker::GetMediaManager().GetCdInfo();
   if (pInfo == nullptr || !pInfo->IsAudio(1))
   {
-    CLog::LogF(LOGDEBUG, "CD is not an audio cd");
+    CLog::Log(LOGDEBUG, "CCDDARipper::{} - CD is not an audio cd", __func__);
     return false;
   }
 
@@ -115,7 +114,7 @@ bool CCDDARipper::RipCD()
 
   // construct directory where the tracks are stored
   std::string strDirectory;
-  LegalPath legalType;
+  int legalType;
   if (!CreateAlbumDir(*vecItems[0]->GetMusicInfoTag(), strDirectory, legalType))
     return false;
 
@@ -144,7 +143,7 @@ bool CCDDARipper::RipCD()
 
 bool CCDDARipper::CreateAlbumDir(const MUSIC_INFO::CMusicInfoTag& infoTag,
                                  std::string& strDirectory,
-                                 LegalPath& legalType)
+                                 int& legalType)
 {
   std::shared_ptr<CSettingPath> recordingpathSetting = std::static_pointer_cast<CSettingPath>(
       CServiceBroker::GetSettingsComponent()->GetSettings()->GetSetting(
@@ -154,8 +153,7 @@ bool CCDDARipper::CreateAlbumDir(const MUSIC_INFO::CMusicInfoTag& infoTag,
     strDirectory = recordingpathSetting->GetValue();
     if (strDirectory.empty())
     {
-      if (CGUIControlButtonSetting::GetPath(
-              recordingpathSetting, &CServiceBroker::GetResourcesComponent().GetLocalizeStrings()))
+      if (CGUIControlButtonSetting::GetPath(recordingpathSetting, &g_localizeStrings))
         strDirectory = recordingpathSetting->GetValue();
     }
   }
@@ -164,18 +162,18 @@ bool CCDDARipper::CreateAlbumDir(const MUSIC_INFO::CMusicInfoTag& infoTag,
   if (strDirectory.size() < 3)
   {
     // no rip path has been set, show error
-    CLog::LogF(LOGERROR, "Required path has not been set");
+    CLog::Log(LOGERROR, "CCDDARipper::{} - Required path has not been set", __func__);
     HELPERS::ShowOKDialogText(CVariant{257}, CVariant{608});
     return false;
   }
 
-  legalType = LegalPath::NONE;
+  legalType = LEGAL_NONE;
   CFileItem ripPath(strDirectory, true);
   if (ripPath.IsSmb())
-    legalType = LegalPath::WIN32_COMPAT;
+    legalType = LEGAL_WIN32_COMPAT;
 #ifdef TARGET_WINDOWS
   if (ripPath.IsHD())
-    legalType = LegalPath::WIN32_COMPAT;
+    legalType = LEGAL_WIN32_COMPAT;
 #endif
 
   std::string strAlbumDir = GetAlbumDirName(infoTag);
@@ -186,12 +184,13 @@ bool CCDDARipper::CreateAlbumDir(const MUSIC_INFO::CMusicInfoTag& infoTag,
     URIUtils::AddSlashAtEnd(strDirectory);
   }
 
-  strDirectory = CUtil::MakeLegalPath(strDirectory, legalType);
+  strDirectory = CUtil::MakeLegalPath(std::move(strDirectory), legalType);
 
   // Create directory if it doesn't exist
   if (!CUtil::CreateDirectoryEx(strDirectory))
   {
-    CLog::LogF(LOGERROR, "Unable to create directory '{}'", strDirectory);
+    CLog::Log(LOGERROR, "CCDDARipper::{} - Unable to create directory '{}'", __func__,
+              strDirectory);
     return false;
   }
 

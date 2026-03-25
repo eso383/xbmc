@@ -86,16 +86,16 @@ public:
 
   CCacheStrategy *CreateNew() override;
 
-  int64_t  GetAvailableRead();
+  int64_t  GetAvailableRead() const;
 
 protected:
   std::string m_filename;
   IFile*   m_cacheFileRead;
   IFile*   m_cacheFileWrite;
   CEvent*  m_hDataAvailEvent;
-  int64_t m_nStartPosition = 0;
-  int64_t m_nWritePosition = 0;
-  int64_t m_nReadPosition = 0;
+  volatile int64_t m_nStartPosition = 0;
+  volatile int64_t m_nWritePosition = 0;
+  volatile int64_t m_nReadPosition = 0;
 };
 
 class CDoubleCache : public CCacheStrategy{

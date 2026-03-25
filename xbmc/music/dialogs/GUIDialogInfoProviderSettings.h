@@ -86,7 +86,7 @@ private:
 
   std::string m_strArtistInfoPath;
   bool m_showSingleScraper = false;
-  ADDON::ContentType m_singleScraperType = ADDON::ContentType::NONE;
+  CONTENT_TYPE m_singleScraperType = CONTENT_NONE;
   bool m_fetchInfo;
   unsigned int m_applyToItems = INFOPROVIDER_THISITEM;
 };

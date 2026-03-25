@@ -17,7 +17,6 @@
 
 #include <assert.h>
 #include <math.h>
-#include <span>
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -113,8 +112,8 @@ class CGUIFont
 public:
   CGUIFont(const std::string& strFontName,
            uint32_t style,
-           KODI::UTILS::COLOR::Color textColor,
-           KODI::UTILS::COLOR::Color shadowColor,
+           UTILS::COLOR::Color textColor,
+           UTILS::COLOR::Color shadowColor,
            float lineSpacing,
            float origHeight,
            CGUIFontTTF* font);
@@ -124,36 +123,37 @@ public:
 
   void DrawText(float x,
                 float y,
-                KODI::UTILS::COLOR::Color color,
-                KODI::UTILS::COLOR::Color shadowColor,
-                std::span<const character_t> text,
+                UTILS::COLOR::Color color,
+                UTILS::COLOR::Color shadowColor,
+                const vecText& text,
                 uint32_t alignment,
-                float maxPixelWidth)
-  {
-    DrawText(x, y, std::span(&color, 1), shadowColor, text, alignment, maxPixelWidth);
+                float maxPixelWidth) const {
+    std::vector<UTILS::COLOR::Color> colors;
+    colors.push_back(color);
+    DrawText(x, y, colors, shadowColor, text, alignment, maxPixelWidth);
   };
 
   void DrawText(float x,
                 float y,
-                std::span<const KODI::UTILS::COLOR::Color> colors,
-                KODI::UTILS::COLOR::Color shadowColor,
-                std::span<const character_t> text,
+                const std::vector<UTILS::COLOR::Color>& colors,
+                UTILS::COLOR::Color shadowColor,
+                const vecText& text,
                 uint32_t alignment,
-                float maxPixelWidth);
+                float maxPixelWidth) const;
 
   void DrawScrollingText(float x,
                          float y,
-                         std::span<const KODI::UTILS::COLOR::Color> colors,
-                         KODI::UTILS::COLOR::Color shadowColor,
-                         std::span<const character_t> text,
+                         const std::vector<UTILS::COLOR::Color>& colors,
+                         UTILS::COLOR::Color shadowColor,
+                         const vecText& text,
                          uint32_t alignment,
                          float maxPixelWidth,
                          const CScrollInfo& scrollInfo);
 
-  bool UpdateScrollInfo(std::span<const character_t> text, CScrollInfo& scrollInfo);
+  bool UpdateScrollInfo(const vecText& text, CScrollInfo& scrollInfo);
 
-  float GetTextWidth(std::span<const character_t> text);
-  float GetCharWidth(character_t ch);
+  float GetTextWidth(const vecText& text) const;
+  float GetCharWidth(character_t ch) const;
   float GetTextHeight(int numLines) const;
   float GetTextBaseLine() const;
   float GetLineHeight() const;
@@ -161,8 +161,8 @@ public:
   //! get font scale factor (rendered height / original height)
   float GetScaleFactor() const;
 
-  void Begin();
-  void End();
+  void Begin() const;
+  void End() const;
 
   uint32_t GetStyle() const { return m_style; }
 
@@ -173,8 +173,8 @@ public:
 protected:
   std::string m_strFontName;
   uint32_t m_style;
-  KODI::UTILS::COLOR::Color m_shadowColor;
-  KODI::UTILS::COLOR::Color m_textColor;
+  UTILS::COLOR::Color m_shadowColor;
+  UTILS::COLOR::Color m_textColor;
   float m_lineSpacing;
   float m_origHeight;
   CGUIFontTTF* m_font; // the font object has the size information

@@ -10,8 +10,6 @@
 
 #include <string>
 
-class CFileItem;
-
 namespace UTILS
 {
 namespace DISCS
@@ -40,7 +38,7 @@ struct DiscInfo
   /*! \brief Check if the info is empty (e.g. after probing)
     \return true if the info is empty, false otherwise
   */
-  bool empty() { return (type == DiscType::UNKNOWN && name.empty() && serial.empty()); }
+  bool empty() const { return (type == DiscType::UNKNOWN && name.empty() && serial.empty()); }
 
   /*! \brief Clears all the DiscInfo members
   */
@@ -55,7 +53,7 @@ struct DiscInfo
 /*! \brief Try to obtain the disc info (type, name, serial) of a given media path
     \param[in, out] info The disc info struct
     \param mediaPath The disc mediapath (e.g. /dev/cdrom, D\://, etc)
-    \return true if getting the disc info was successful
+    \return true if getting the disc info was successfull
 */
 bool GetDiscInfo(DiscInfo& info, const std::string& mediaPath);
 
@@ -70,18 +68,6 @@ DiscInfo ProbeDVDDiscInfo(const std::string& mediaPath);
     \return the DiscInfo for the given media path (might be an empty struct)
 */
 DiscInfo ProbeBlurayDiscInfo(const std::string& mediaPath);
-
-/*! \brief Probe a FileItem to see it is a bluray disc image
-    \param item The FileItem to probe
-    \return true if the item is a bluray disc image, false otherwise
-*/
-bool IsBlurayDiscImage(const CFileItem& item);
-
-/*! \brief Probe a FileItem to see it is a bluray disc image
-    \param path The path to probe
-    \return true if the item is a bluray disc image, false otherwise
-*/
-bool IsBlurayDiscImage(const std::string& path);
 
 } // namespace DISCS
 } // namespace UTILS

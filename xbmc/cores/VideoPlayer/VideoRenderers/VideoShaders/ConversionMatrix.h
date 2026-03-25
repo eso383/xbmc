@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -209,12 +208,12 @@ public:
   /**
    * @brief Get the gamma source value. Used for color primary conversion..
    */
-  float GetGammaSrc();
+  float GetGammaSrc() const;
 
   /**
    * @brief Get the gamma destination value. Used for color primary conversion.
    */
-  float GetGammaDst();
+  float GetGammaDst() const;
 
   /**
    * @brief Get the YUV coeffecients used for tonemapping.

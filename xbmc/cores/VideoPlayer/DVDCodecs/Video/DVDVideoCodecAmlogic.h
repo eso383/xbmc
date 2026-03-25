@@ -90,8 +90,6 @@ protected:
   void Close(void);
   void FrameRateTracking(uint8_t *pData, int iSize, double dts, double pts);
 
-  CDataCacheCore& m_dataCacheCore;
-
   std::shared_ptr<CAMLCodec> m_Codec;
 
   const char     *m_pFormatName;
@@ -106,14 +104,12 @@ protected:
   double          m_h264_sequence_pts;
   bool            m_has_keyframe;
 
-  mpeg2_sequence* m_mpeg2_sequence = nullptr;
-  h264_sequence* m_h264_sequence = nullptr;
+  std::unique_ptr<mpeg2_sequence> m_mpeg2_sequence;
+  std::unique_ptr<h264_sequence>  m_h264_sequence;
 
-  CBitstreamParser* m_bitparser = nullptr;
-  CBitstreamConverter* m_bitstream = nullptr;
-
+  std::unique_ptr<CBitstreamParser>    m_bitparser;
+  std::unique_ptr<CBitstreamConverter> m_bitstream;
 private:
-  bool CanStartDecode() const;
   bool DualLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet);
   bool SingleLayerConvert(uint8_t *pData, uint32_t iSize, const DemuxPacket &packet) const;
   void ClearBitstreamCommon(void);

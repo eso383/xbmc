@@ -20,8 +20,7 @@ using namespace KODI;
 using namespace GAME;
 
 CDefaultButtonMap::CDefaultButtonMap(PERIPHERALS::CPeripheral* device, std::string strControllerId)
-  : m_device(device),
-    m_strControllerId(std::move(strControllerId))
+  : m_device(device), m_strControllerId(std::move(strControllerId))
 {
 }
 
@@ -29,7 +28,7 @@ CDefaultButtonMap::~CDefaultButtonMap() = default;
 
 std::string CDefaultButtonMap::Location() const
 {
-  return m_device->FileLocation();
+  return m_device->Location();
 }
 
 bool CDefaultButtonMap::Load()
@@ -54,7 +53,7 @@ bool CDefaultButtonMap::Load()
   }
 
   CLog::Log(LOGDEBUG, "Failed to load default button map for \"{}\" with profile {}",
-            m_device->FileLocation(), m_strControllerId);
+            m_device->Location(), m_strControllerId);
   return false;
 }
 

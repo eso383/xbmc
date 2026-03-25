@@ -25,11 +25,6 @@ public:
   explicit IListProvider(const IListProvider& other) = default;
   virtual ~IListProvider() = default;
 
-  /*! \brief Get the parent id for the container.
-   \return the id.
-   */
-  int GetParentId() const { return m_parentID; }
-
   /*! \brief Factory to create list providers.
    \param parent a parent TiXmlNode for the container.
    \param parentID id of parent window for context.
@@ -51,7 +46,7 @@ public:
   /*! \brief Update the list content
    \return true if the content has changed, false otherwise.
    */
-  virtual bool Update(bool forceRefresh) = 0;
+  virtual bool Update(bool forceRefresh)=0;
 
   /*! \brief Fetch the current list of items.
    \param items [out] the list to be filled.
@@ -115,7 +110,6 @@ public:
    \sa GetDefaultItem, SetDefaultItem
    */
   virtual bool AlwaysFocusDefaultItem() const { return false; }
-
-private:
-  const int m_parentID{-1};
+protected:
+  int m_parentID;
 };

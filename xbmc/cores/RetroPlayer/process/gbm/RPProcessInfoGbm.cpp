@@ -11,7 +11,7 @@
 using namespace KODI;
 using namespace RETRO;
 
-CRPProcessInfoGbm::CRPProcessInfoGbm() : CRPProcessInfoEGL("GBM")
+CRPProcessInfoGbm::CRPProcessInfoGbm() : CRPProcessInfo("GBM")
 {
 }
 

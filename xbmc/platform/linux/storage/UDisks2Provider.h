@@ -51,7 +51,7 @@ class CUDisks2Provider : public IStorageProvider
     explicit Block(const char *object);
     ~Block() = default;
 
-    bool IsReady();
+    bool IsReady() const;
 
     /*! \brief Get a representation of the block as a readable string
       * @return block as a string
@@ -67,8 +67,8 @@ class CUDisks2Provider : public IStorageProvider
     explicit Filesystem(const char *object);
     ~Filesystem() = default;
 
-    bool Mount();
-    bool Unmount();
+    bool Mount() const;
+    bool Unmount() const;
 
     /*! \brief Get the device display name/label
      * @return the device display name/label
@@ -104,7 +104,7 @@ class CUDisks2Provider : public IStorageProvider
     /*! \brief Get the device mount point
      * @return the device mount point
     */
-    const std::string& GetMountPoint() const { return m_mountPoint; }
+    std::string GetMountPoint() const;
 
     /*! \brief Reset the device mount point
     */
@@ -118,7 +118,7 @@ class CUDisks2Provider : public IStorageProvider
     /*! \brief Get the device dbus object
      * @return the device dbus object
     */
-    const std::string& GetObject() const { return m_object; }
+    std::string GetObject() const;
 
     /*! \brief Get a representation of the device as a readable string
      * @return device as a string
@@ -159,10 +159,10 @@ public:
 
   std::vector<std::string> GetDiskUsage() override;
 
-  void GetLocalDrives(std::vector<CMediaSource>& localDrives) override
+  void GetLocalDrives(VECSOURCES &localDrives) override
   { GetDisks(localDrives, false); }
 
-  void GetRemovableDrives(std::vector<CMediaSource>& removableDrives) override
+  void GetRemovableDrives(VECSOURCES &removableDrives) override
   { GetDisks(removableDrives, true); }
 
   void Stop() override
@@ -177,7 +177,7 @@ private:
 
   std::string m_daemonVersion;
 
-  void GetDisks(std::vector<CMediaSource>& devices, bool enumerateRemovable);
+  void GetDisks(VECSOURCES &devices, bool enumerateRemovable) const;
 
   void DriveAdded(Drive *drive);
   bool DriveRemoved(const std::string& object);

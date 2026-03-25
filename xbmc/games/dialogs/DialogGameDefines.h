@@ -12,10 +12,6 @@
 constexpr auto SAVESTATE_LABEL = "savestate.label";
 constexpr auto SAVESTATE_CAPTION = "savestate.caption";
 constexpr auto SAVESTATE_GAME_CLIENT = "savestate.gameclient";
-constexpr auto SAVESTATE_GAME_CLIENT_VERSION = "savestate.gameclientversion";
-
-// String of list item property "game.videofilter" when no filter is set
-constexpr auto PROPERTY_NO_VIDEO_FILTER = "";
 
 // Control IDs for game dialogs
 constexpr unsigned int CONTROL_VIDEO_HEADING = 10810;
@@ -29,4 +25,3 @@ constexpr unsigned int CONTROL_SAVES_EMULATOR_ICON = 10824;
 constexpr unsigned int CONTROL_SAVES_NEW_BUTTON = 10825;
 constexpr unsigned int CONTROL_SAVES_CANCEL_BUTTON = 10826;
 constexpr unsigned int CONTROL_NUMBER_OF_ITEMS = 10827;
-constexpr unsigned int CONTROL_SAVES_EMULATOR_VERSION = 10828;

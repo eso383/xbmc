@@ -19,20 +19,20 @@
 #include <xmmintrin.h>
 #endif
 
-void AEDelayStatus::SetDelay(double d)
+void AEDelayStatus::SetDelay(double d) 
 {
   delay = d;
   maxcorrection = d;
   startTime = std::chrono::steady_clock::now();
 }
 
-double AEDelayStatus::GetDelay() const
+double AEDelayStatus::GetDelay() const 
 {
   auto elapsed = std::chrono::steady_clock::now() - startTime;
   double d = std::chrono::duration<double>(elapsed).count();
   d = std::min(d, maxcorrection);
 
-  return delay - d;
+  return (delay - d);
 }
 
 CAEChannelInfo CAEUtil::GuessChLayout(const unsigned int channels)
@@ -613,26 +613,4 @@ int CAEUtil::GetAVChannelIndex(enum AEChannel aechannel, uint64_t layout)
   int idx = av_channel_layout_index_from_channel(&ch_layout, GetAVChannel(aechannel));
   av_channel_layout_uninit(&ch_layout);
   return idx;
-}
-
-void CAEUtil::GenerateSilence(AEDataFormat format,
-                              unsigned int frameSize,
-                              void* buffer,
-                              unsigned int frames)
-
-{
-  const unsigned int dataLength{frames * frameSize};
-
-  switch (format)
-  {
-    case AE_FMT_U8:
-    case AE_FMT_U8P:
-      memset(buffer, 0x80, dataLength);
-      break;
-
-    default:
-      // binary representation of 0 in all other formats regardless of number of bits per sample
-      // is a concatenation of 0 bytes.
-      memset(buffer, 0, dataLength);
-  }
 }

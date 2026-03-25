@@ -21,6 +21,7 @@ namespace ADDON
 {
 
 class CBinaryAddonBase;
+using BinaryAddonBasePtr = std::shared_ptr<CBinaryAddonBase>;
 
 /*!
  * Addon instance handler, used as identify for std::map to find related
@@ -50,7 +51,7 @@ public:
 class CAddonDll : public CAddon
 {
 public:
-  CAddonDll(const AddonInfoPtr& addonInfo, std::shared_ptr<CBinaryAddonBase> addonBase);
+  CAddonDll(const AddonInfoPtr& addonInfo, BinaryAddonBasePtr addonBase);
   CAddonDll(const AddonInfoPtr& addonInfo, AddonType addonType);
   ~CAddonDll() override;
 
@@ -97,7 +98,7 @@ public:
    *
    * @param[in] instance The for addon used data structure for active instance
    */
-  void DestroyInstance(const KODI_ADDON_INSTANCE_STRUCT* instance);
+  void DestroyInstance(KODI_ADDON_INSTANCE_STRUCT* instance);
 
   bool IsInUse() const override;
   void RegisterInformer(CAddonDllInformer* informer);
@@ -113,10 +114,9 @@ public:
 protected:
   static std::string GetDllPath(const std::string& strFileName);
 
-private:
-  CAddonDll(const CAddonDll&) = delete;
-  CAddonDll& operator=(const CAddonDll&) = delete;
+  std::string m_parentLib;
 
+private:
   /*!
    * @brief Main addon creation call function
    *
@@ -140,13 +140,16 @@ private:
    */
   void Destroy();
 
-  bool CheckAPIVersion(int type);
+  bool CheckAPIVersion(int type) const;
 
+  BinaryAddonBasePtr m_binaryAddonBase = nullptr;
+  DllAddon* m_pDll = nullptr;
+  bool m_initialized = false;
   bool LoadDll();
+  std::map<ADDON_INSTANCE_HANDLER, KODI_ADDON_INSTANCE_STRUCT*> m_usedInstances;
+  CAddonDllInformer* m_informer = nullptr;
 
   virtual ADDON_STATUS TransferSettings(AddonInstanceId instanceId);
-
-  std::string m_parentLib;
 
   /*!
    * This structure, which is fixed to the addon headers, makes use of the at
@@ -155,12 +158,6 @@ private:
    * /xbmc/addons/kodi-dev-kit/include/kodi/AddonBase.h
    */
   AddonGlobalInterface m_interface = {};
-
-  std::shared_ptr<CBinaryAddonBase> m_binaryAddonBase;
-  std::unique_ptr<DllAddon> m_pDll;
-  bool m_initialized{false};
-  std::map<ADDON_INSTANCE_HANDLER, KODI_ADDON_INSTANCE_STRUCT*> m_usedInstances;
-  CAddonDllInformer* m_informer = nullptr;
 };
 
 } /* namespace ADDON */

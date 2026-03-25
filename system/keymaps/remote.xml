@@ -75,7 +75,6 @@
       <eight>JumpSMS8</eight>
       <nine>JumpSMS9</nine>
       <print>Screenshot</print>
-      <favorites>ActivateWindow(FavouritesBrowser)</favorites>
     </remote>
   </global>
   <Home>
@@ -199,9 +198,9 @@
       <info>Info</info>
       <guide>ActivateWindow(TVGuide)</guide>
       <teletext>ActivateWindow(Teletext)</teletext>
-      <subtitle>DialogSelectSubtitle</subtitle>
+      <subtitle>NextSubtitle</subtitle>
       <star>NextSubtitle</star>
-      <language>DialogSelectAudio</language>
+      <language>AudioNextLanguage</language>
       <playlist>Playlist</playlist>
       <hash>AudioNextLanguage</hash>
       <pageplus>SkipNext</pageplus>
@@ -713,9 +712,4 @@
       <title>PlayerProcessInfo</title>
     </remote>
   </PlayerProcessInfo>
-  <FullScreenLiveTV>
-    <remote>
-      <last>Number0</last>
-    </remote>
-  </FullScreenLiveTV>
 </keymap>

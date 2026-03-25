@@ -51,11 +51,7 @@ public:
 
   // implementation of IMouseInputHandler
   std::string ControllerID() const override;
-  bool OnPosition(const std::string& relpointer, int positionX, int positionY) override
-  {
-    return false;
-  }
-  bool OnMotion(const std::string& relpointer, int differenceX, int differenceY) override;
+  bool OnMotion(const std::string& relpointer, int dx, int dy) override;
   bool OnButtonPress(const std::string& button) override;
   void OnButtonRelease(const std::string& button) override;
   void OnInputFrame() override;

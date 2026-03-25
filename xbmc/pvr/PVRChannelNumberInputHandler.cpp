@@ -21,17 +21,17 @@
 using namespace PVR;
 using namespace std::chrono_literals;
 
-namespace
-{
-constexpr size_t CHANNEL_NUMBER_INPUT_MAX_DIGITS = 5;
-
-} // unnamed namespace
-
 CPVRChannelNumberInputHandler::CPVRChannelNumberInputHandler()
-  : m_delay(CServiceBroker::GetSettingsComponent()
-                ->GetAdvancedSettings()
-                ->m_iPVRNumericChannelSwitchTimeout),
-    m_timer(this)
+  : CPVRChannelNumberInputHandler(CServiceBroker::GetSettingsComponent()
+                                      ->GetAdvancedSettings()
+                                      ->m_iPVRNumericChannelSwitchTimeout,
+                                  CHANNEL_NUMBER_INPUT_MAX_DIGITS)
+{
+}
+
+CPVRChannelNumberInputHandler::CPVRChannelNumberInputHandler(
+    int iDelay, int iMaxDigits /* = CHANNEL_NUMBER_INPUT_MAX_DIGITS */)
+  : m_iDelay(iDelay), m_iMaxDigits(iMaxDigits), m_timer(this)
 {
 }
 
@@ -39,7 +39,8 @@ void CPVRChannelNumberInputHandler::OnTimeout()
 {
   if (m_inputBuffer.empty())
   {
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
+
     SetLabel("");
   }
   else
@@ -47,7 +48,7 @@ void CPVRChannelNumberInputHandler::OnTimeout()
     // call the overridden worker method
     OnInputDone();
 
-    std::unique_lock lock(m_mutex);
+    std::lock_guard lock(m_mutex);
 
     // erase input buffer immediately , but...
     m_inputBuffer.erase();
@@ -83,7 +84,7 @@ void CPVRChannelNumberInputHandler::AppendChannelNumberCharacter(char cCharacter
   if (cCharacter != CPVRChannelNumber::SEPARATOR && (cCharacter < '0' || cCharacter > '9'))
     return;
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   if (cCharacter == CPVRChannelNumber::SEPARATOR)
   {
@@ -96,7 +97,7 @@ void CPVRChannelNumberInputHandler::AppendChannelNumberCharacter(char cCharacter
       return;
   }
 
-  if (m_inputBuffer.size() == CHANNEL_NUMBER_INPUT_MAX_DIGITS)
+  if (m_inputBuffer.size() == static_cast<size_t>(m_iMaxDigits))
   {
     m_inputBuffer.erase(m_inputBuffer.begin());
     SetLabel(m_inputBuffer);
@@ -106,7 +107,7 @@ void CPVRChannelNumberInputHandler::AppendChannelNumberCharacter(char cCharacter
     m_sortedChannelNumbers.clear();
     GetChannelNumbers(m_sortedChannelNumbers);
 
-    std::ranges::sort(m_sortedChannelNumbers);
+    std::sort(m_sortedChannelNumbers.begin(), m_sortedChannelNumbers.end());
   }
 
   m_inputBuffer.append(&cCharacter, 1);
@@ -134,7 +135,7 @@ void CPVRChannelNumberInputHandler::AppendChannelNumberCharacter(char cCharacter
   }
 
   if (!m_timer.IsRunning())
-    m_timer.Start(std::chrono::milliseconds(m_delay));
+    m_timer.Start(std::chrono::milliseconds(m_iDelay));
   else
     m_timer.Restart();
 }
@@ -144,7 +145,7 @@ CPVRChannelNumber CPVRChannelNumberInputHandler::GetChannelNumber() const
   int iChannelNumber = 0;
   int iSubChannelNumber = 0;
 
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
 
   size_t pos = m_inputBuffer.find(CPVRChannelNumber::SEPARATOR);
   if (pos != std::string::npos)
@@ -173,13 +174,15 @@ bool CPVRChannelNumberInputHandler::HasChannelNumber() const
 
 std::string CPVRChannelNumberInputHandler::GetChannelNumberLabel() const
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
+
   return m_label;
 }
 
-void CPVRChannelNumberInputHandler::SetLabel(std::string_view label)
+void CPVRChannelNumberInputHandler::SetLabel(const std::string& label)
 {
-  std::unique_lock lock(m_mutex);
+  std::lock_guard lock(m_mutex);
+  
   if (label != m_label)
   {
     m_label = label;

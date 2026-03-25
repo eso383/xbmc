@@ -93,12 +93,11 @@ private:
   std::shared_ptr<CSettingGroup> ParseOldSettingElement(
       const TiXmlElement* categoryElement,
       const std::shared_ptr<CSettingCategory>& category,
-      std::set<std::string, std::less<>>& settingIds);
+      std::set<std::string>& settingIds);
 
-  std::shared_ptr<CSettingCategory> ParseOldCategoryElement(
-      uint32_t& categoryId,
-      const TiXmlElement* categoryElement,
-      std::set<std::string, std::less<>>& settingIds);
+  std::shared_ptr<CSettingCategory> ParseOldCategoryElement(uint32_t& categoryId,
+                                                            const TiXmlElement* categoryElement,
+                                                            std::set<std::string>& settingIds);
 
   bool InitializeFromOldSettingDefinitions(const CXBMCTinyXML& doc);
   std::shared_ptr<CSetting> InitializeFromOldSettingAction(const std::string& settingId,
@@ -107,30 +106,30 @@ private:
   std::shared_ptr<CSetting> InitializeFromOldSettingLabel();
   std::shared_ptr<CSetting> InitializeFromOldSettingBool(const std::string& settingId,
                                                          const TiXmlElement* settingElement,
-                                                         const std::string& defaultValue);
+                                                         const std::string& defaultValue) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingTextIpAddress(
       const std::string& settingId,
       const std::string& settingType,
       const TiXmlElement* settingElement,
       const std::string& defaultValue,
-      const int settingLabel);
+      const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingNumber(const std::string& settingId,
                                                            const TiXmlElement* settingElement,
                                                            const std::string& defaultValue,
-                                                           const int settingLabel);
+                                                           const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingPath(const std::string& settingId,
                                                          const std::string& settingType,
                                                          const TiXmlElement* settingElement,
                                                          const std::string& defaultValue,
-                                                         const int settingLabel);
+                                                         const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingDate(const std::string& settingId,
                                                          const TiXmlElement* settingElement,
                                                          const std::string& defaultValue,
-                                                         const int settingLabel);
+                                                         const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingTime(const std::string& settingId,
                                                          const TiXmlElement* settingElement,
                                                          const std::string& defaultValue,
-                                                         const int settingLabel);
+                                                         const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingSelect(
       const std::string& settingId,
       const TiXmlElement* settingElement,
@@ -141,32 +140,32 @@ private:
   std::shared_ptr<CSetting> InitializeFromOldSettingAddon(const std::string& settingId,
                                                           const TiXmlElement* settingElement,
                                                           const std::string& defaultValue,
-                                                          const int settingLabel);
+                                                          const int settingLabel) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingEnums(
       const std::string& settingId,
       const std::string& settingType,
       const TiXmlElement* settingElement,
       const std::string& defaultValue,
       const std::string& settingValues,
-      const std::vector<std::string>& settingLValues);
+      const std::vector<std::string>& settingLValues) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingFileEnum(const std::string& settingId,
                                                              const TiXmlElement* settingElement,
                                                              const std::string& defaultValue,
                                                              const std::string& settingValues);
   std::shared_ptr<CSetting> InitializeFromOldSettingRangeOfNum(const std::string& settingId,
                                                                const TiXmlElement* settingElement,
-                                                               const std::string& defaultValue);
+                                                               const std::string& defaultValue) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingSlider(const std::string& settingId,
                                                            const TiXmlElement* settingElement,
-                                                           const std::string& defaultValue);
+                                                           const std::string& defaultValue) const;
   std::shared_ptr<CSetting> InitializeFromOldSettingFileWithSource(
       const std::string& settingId,
       const TiXmlElement* settingElement,
       const std::string& defaultValue,
-      std::string source);
+      std::string source) const;
 
   bool LoadOldSettingValues(const CXBMCTinyXML& doc,
-                            std::map<std::string, std::string, std::less<>>& settings) const;
+                            std::map<std::string, std::string>& settings) const;
 
   struct ConditionExpression
   {
@@ -185,7 +184,8 @@ private:
 
   static void FileEnumSettingOptionsFiller(const std::shared_ptr<const CSetting>& setting,
                                            std::vector<StringSettingOption>& list,
-                                           std::string& current);
+                                           std::string& current,
+                                           void* data);
 
   // store these values so that we don't always have to access the weak pointer
   const std::string m_addonId;

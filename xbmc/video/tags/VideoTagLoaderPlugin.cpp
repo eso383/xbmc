@@ -9,7 +9,6 @@
 #include "VideoTagLoaderPlugin.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "URL.h"
 #include "filesystem/PluginDirectory.h"
 
@@ -27,7 +26,7 @@ CVideoTagLoaderPlugin::CVideoTagLoaderPlugin(const CFileItem& item, bool forceRe
     m_tag = std::make_unique<CVideoInfoTag>(*m_item.GetVideoInfoTag());
   auto& art = item.GetArt();
   if (!art.empty())
-    m_art = std::make_unique<KODI::ART::Artwork>(art);
+    m_art = std::make_unique<CGUIListItem::ArtMap>(art);
 }
 
 bool CVideoTagLoaderPlugin::HasInfo() const
@@ -35,9 +34,7 @@ bool CVideoTagLoaderPlugin::HasInfo() const
   return m_tag || m_force_refresh;
 }
 
-CInfoScanner::InfoType CVideoTagLoaderPlugin::Load(CVideoInfoTag& tag,
-                                                   bool,
-                                                   std::vector<EmbeddedArt>*)
+CInfoScanner::INFO_TYPE CVideoTagLoaderPlugin::Load(CVideoInfoTag& tag, bool, std::vector<EmbeddedArt>*)
 {
   if (m_force_refresh)
   {
@@ -49,15 +46,15 @@ CInfoScanner::InfoType CVideoTagLoaderPlugin::Load(CVideoInfoTag& tag,
     CPluginDirectory plugin;
     CFileItemList items;
     if (!plugin.GetDirectory(url, items))
-      return CInfoScanner::InfoType::ERROR_NFO;
+      return CInfoScanner::ERROR_NFO;
     if (!items.IsEmpty())
     {
       const CFileItemPtr &item = items[0];
-      m_art = std::make_unique<KODI::ART::Artwork>(item->GetArt());
+      m_art = std::make_unique<CGUIListItem::ArtMap>(item->GetArt());
       if (item->HasVideoInfoTag())
       {
         tag = *item->GetVideoInfoTag();
-        return CInfoScanner::InfoType::FULL;
+        return CInfoScanner::FULL_NFO;
       }
     }
   }
@@ -65,7 +62,7 @@ CInfoScanner::InfoType CVideoTagLoaderPlugin::Load(CVideoInfoTag& tag,
   {
     // Otherwise just copy CFileItem video info to tag
     tag = *m_tag;
-    return CInfoScanner::InfoType::FULL;
+    return CInfoScanner::FULL_NFO;
   }
-  return CInfoScanner::InfoType::NONE;
+  return CInfoScanner::NO_NFO;
 }

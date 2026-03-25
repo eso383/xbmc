@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -13,18 +13,16 @@
 #include "utils/log.h"
 
 // shaders bytecode includes
-#include "guishader_checkerboard_left.h"
+#include "guishader_vert.h"
 #include "guishader_checkerboard_right.h"
+#include "guishader_checkerboard_left.h"
 #include "guishader_default.h"
 #include "guishader_fonts.h"
-#include "guishader_interlaced_left.h"
 #include "guishader_interlaced_right.h"
+#include "guishader_interlaced_left.h"
 #include "guishader_multi_texture_blend.h"
-#include "guishader_multi_texture_blend_nearest.h"
 #include "guishader_texture.h"
-#include "guishader_texture_nearest.h"
 #include "guishader_texture_noblend.h"
-#include "guishader_vert.h"
 
 #include <d3dcompiler.h>
 
@@ -39,9 +37,7 @@ static const D3D_SHADER_DATA cbPSShaderCode[SHADER_METHOD_RENDER_COUNT] =
   { guishader_texture_noblend, sizeof(guishader_texture_noblend) }, // SHADER_METHOD_RENDER_TEXTURE_NOBLEND
   { guishader_fonts, sizeof(guishader_fonts) }, // SHADER_METHOD_RENDER_FONT
   { guishader_texture, sizeof(guishader_texture) }, // SHADER_METHOD_RENDER_TEXTURE_BLEND
-  { guishader_texture_nearest, sizeof(guishader_texture_nearest) }, // SHADER_METHOD_RENDER_TEXTURE_BLEND_NEAREST
   { guishader_multi_texture_blend, sizeof(guishader_multi_texture_blend) }, // SHADER_METHOD_RENDER_MULTI_TEXTURE_BLEND
-  { guishader_multi_texture_blend_nearest, sizeof(guishader_multi_texture_blend_nearest) }, // SHADER_METHOD_RENDER_MULTI_TEXTURE_BLEND_NEAREST
   { guishader_interlaced_left, sizeof(guishader_interlaced_left) }, // SHADER_METHOD_RENDER_STEREO_INTERLACED_LEFT
   { guishader_interlaced_right, sizeof(guishader_interlaced_right) }, // SHADER_METHOD_RENDER_STEREO_INTERLACED_RIGHT
   { guishader_checkerboard_left, sizeof(guishader_checkerboard_left) }, // SHADER_METHOD_RENDER_STEREO_CHECKERBOARD_LEFT
@@ -49,9 +45,8 @@ static const D3D_SHADER_DATA cbPSShaderCode[SHADER_METHOD_RENDER_COUNT] =
 };
 // clang-format on
 
-CGUIShaderDX::CGUIShaderDX()
-  : m_pSampLinear{nullptr},
-    m_pSampNearestNeighbor{nullptr},
+CGUIShaderDX::CGUIShaderDX() :
+    m_pSampLinear(nullptr),
     m_pVPBuffer(nullptr),
     m_pWVPBuffer(nullptr),
     m_pVertexBuffer(nullptr),
@@ -153,7 +148,7 @@ bool CGUIShaderDX::CreateBuffers()
 
 bool CGUIShaderDX::CreateSamplers()
 {
-  // Linear sampler
+  // Describe the Sampler State
   D3D11_SAMPLER_DESC sampDesc = {};
   sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
   sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -166,24 +161,9 @@ bool CGUIShaderDX::CreateSamplers()
   if (FAILED(DX::DeviceResources::Get()->GetD3DDevice()->CreateSamplerState(&sampDesc, m_pSampLinear.ReleaseAndGetAddressOf())))
     return false;
 
-  // Nearest neighbor sampler
-  sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-
-  if (FAILED(DX::DeviceResources::Get()->GetD3DDevice()->CreateSamplerState(
-          &sampDesc, m_pSampNearestNeighbor.ReleaseAndGetAddressOf())))
-    return false;
-
-  SetSamplers();
+  DX::DeviceResources::Get()->GetD3DContext()->PSSetSamplers(0, 1, m_pSampLinear.GetAddressOf());
 
   return true;
-}
-
-void CGUIShaderDX::SetSamplers()
-{
-  // Slot 0: linear sampler
-  // Slot 1: nearest neighbor sampler
-  ID3D11SamplerState* samplers[] = {m_pSampLinear.Get(), m_pSampNearestNeighbor.Get()};
-  DX::DeviceResources::Get()->GetD3DContext()->PSSetSamplers(0, 2, samplers);
 }
 
 void CGUIShaderDX::ApplyStateBlock(void)
@@ -200,7 +180,7 @@ void CGUIShaderDX::ApplyStateBlock(void)
   pContext->PSSetConstantBuffers(0, 1, m_pWVPBuffer.GetAddressOf());
   pContext->PSSetConstantBuffers(1, 1, m_pVPBuffer.GetAddressOf());
 
-  SetSamplers();
+  pContext->PSSetSamplers(0, 1, m_pSampLinear.GetAddressOf());
 
   RestoreBuffers();
 }
@@ -278,7 +258,6 @@ void CGUIShaderDX::Release()
   m_pWVPBuffer = nullptr;
   m_pVPBuffer = nullptr;
   m_pSampLinear = nullptr;
-  m_pSampNearestNeighbor = nullptr;
   m_bCreated = false;
 }
 
@@ -300,17 +279,19 @@ void CGUIShaderDX::SetViewPort(D3D11_VIEWPORT viewPort)
   }
 }
 
-void CGUIShaderDX::Project(float& x, float& y, float& z) const
+void CGUIShaderDX::Project(float &x, float &y, float &z)
 {
-  const XMVECTOR V = XMVectorSet(x, y, z, .0f);
-
-  const XMVECTOR screenCoord = XMVector3Project(
-      V, m_cbViewPort.TopLeftX, m_cbViewPort.TopLeftY, m_cbViewPort.Width, m_cbViewPort.Height,
-      0.0f, 1.0f, m_cbWorldViewProj.projection, m_cbWorldViewProj.view, m_cbWorldViewProj.world);
-
-  x = XMVectorGetX(screenCoord);
-  y = XMVectorGetY(screenCoord);
-  z = .0f;
+#if defined(_XM_SSE_INTRINSICS_) && !defined(_XM_NO_INTRINSICS_)
+  XMVECTOR vLocation = { x, y, z };
+#elif defined(_XM_ARM_NEON_INTRINSICS_) && !defined(_XM_NO_INTRINSICS_)
+  XMVECTOR vLocation = { x, y };
+#endif
+  XMVECTOR vScreenCoord = XMVector3Project(vLocation, m_cbViewPort.TopLeftX, m_cbViewPort.TopLeftY,
+                                           m_cbViewPort.Width, m_cbViewPort.Height, 0, 1,
+                                           m_cbWorldViewProj.projection, m_cbWorldViewProj.view, m_cbWorldViewProj.world);
+  x = XMVectorGetX(vScreenCoord);
+  y = XMVectorGetY(vScreenCoord);
+  z = 0;
 }
 
 void XM_CALLCONV CGUIShaderDX::SetWVP(const XMMATRIX &w, const XMMATRIX &v, const XMMATRIX &p)
@@ -339,12 +320,6 @@ void CGUIShaderDX::SetProjection(const XMMATRIX &value)
   m_cbWorldViewProj.projection = value;
 }
 
-void CGUIShaderDX::SetDepth(const float depth)
-{
-  m_bIsWVPDirty = true;
-  m_depth = depth;
-}
-
 void CGUIShaderDX::ApplyChanges(void)
 {
   ComPtr<ID3D11DeviceContext> pContext = DX::DeviceResources::Get()->GetD3DContext();
@@ -365,8 +340,6 @@ void CGUIShaderDX::ApplyChanges(void)
         buffer->sdrPeakLum = 10000.0f / DX::Windowing()->GetGuiSdrPeakLuminance();
       buffer->PQ = (DX::Windowing()->IsTransferPQ() ? 1 : 0);
 
-      // Translate from GL convention (-1 far 1 near) to D3D (0 far 1 near)
-      buffer->depth = m_depth / 2.f + 0.5f;
       pContext->Unmap(m_pWVPBuffer.Get(), 0);
       m_bIsWVPDirty = false;
     }

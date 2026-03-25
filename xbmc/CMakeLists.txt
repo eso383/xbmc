@@ -8,7 +8,6 @@ set(SOURCES AutoSwitch.cpp
             DbUrl.cpp
             DynamicDll.cpp
             FileItem.cpp
-            FileItemList.cpp
             FileItemListModification.cpp
             GUIInfoManager.cpp
             GUILargeTextureManager.cpp
@@ -46,7 +45,6 @@ set(HEADERS AutoSwitch.h
             DllPaths_win32.h
             DynamicDll.h
             FileItem.h
-            FileItemList.h
             FileItemListModification.h
             GUIInfoManager.h
             GUILargeTextureManager.h
@@ -57,7 +55,7 @@ set(HEADERS AutoSwitch.h
             IProgressCallback.h
             InfoScanner.h
             LangInfo.h
-            LockMode.h
+            LockType.h
             MediaSource.h
             NfoFile.h
             PartyModeManager.h
@@ -68,7 +66,6 @@ set(HEADERS AutoSwitch.h
             ServiceBroker.h
             ServiceManager.h
             SortFileItem.h
-            SourceType.h
             TextureCache.h
             TextureCacheJob.h
             TextureDatabase.h

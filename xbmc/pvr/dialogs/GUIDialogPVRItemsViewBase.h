@@ -32,6 +32,7 @@ public:
 protected:
   void Init();
 
+  void OnInitWindow() override;
   void OnDeinitWindow(int nextWindowID) override;
   CGUIControl* GetFirstFocusableControl(int id) override;
 

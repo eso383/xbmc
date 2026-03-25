@@ -33,6 +33,7 @@ std::string MasteringDisplayColourVolumeText(const MasteringDisplayColourVolume&
     size_t R = 4;
     size_t G = 4;
     size_t B = 4;
+    size_t W = 3;
 
     for (size_t c = 0; c < 3; c++)
     {

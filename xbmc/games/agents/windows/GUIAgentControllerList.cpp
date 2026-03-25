@@ -9,7 +9,6 @@
 #include "GUIAgentControllerList.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIAgentDefines.h"
 #include "GUIAgentWindow.h"
 #include "ServiceBroker.h"
@@ -27,13 +26,12 @@
 #include "guilib/GUIMessage.h"
 #include "guilib/GUIWindow.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
 #include "messaging/helpers/DialogOKHelper.h"
 #include "peripherals/Peripherals.h"
 #include "peripherals/devices/Peripheral.h"
 #include "peripherals/dialogs/GUIDialogPeripheralSettings.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "utils/log.h"
 #include "view/GUIViewControl.h"
 #include "view/ViewState.h"
@@ -82,20 +80,7 @@ bool CGUIAgentControllerList::Initialize(GameClientPtr gameClient)
   // Register observers
   if (m_gameClient)
     m_gameClient->Input().RegisterObserver(this);
-  CServiceBroker::GetAddonMgr().Events().Subscribe(
-      this,
-      [this](const ADDON::AddonEvent& event)
-      {
-        if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
-            typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
-            typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
-            typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
-        {
-          CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), CONTROL_AGENT_CONTROLLER_LIST);
-          msg.SetStringParam(event.addonId);
-          CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
-        }
-      });
+  CServiceBroker::GetAddonMgr().Events().Subscribe(this, &CGUIAgentControllerList::OnEvent);
   if (CServiceBroker::IsServiceManagerUp())
     CServiceBroker::GetGameServices().AgentInput().RegisterObserver(this);
 
@@ -130,7 +115,7 @@ int CGUIAgentControllerList::GetCurrentControl() const
 
 void CGUIAgentControllerList::FrameMove()
 {
-  CGUIBaseContainer* thumbs =
+  auto thumbs =
       dynamic_cast<CGUIBaseContainer*>(m_guiWindow.GetControl(CONTROL_AGENT_CONTROLLER_LIST));
   if (thumbs != nullptr)
   {
@@ -161,9 +146,8 @@ void CGUIAgentControllerList::Refresh()
   // Add a "No controllers connected" item if no agents are available
   if (m_vecItems->IsEmpty())
   {
-    CFileItemPtr item = std::make_shared<CFileItem>(
-        CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-            35173)); // "No controllers connected"
+    auto item =
+        std::make_shared<CFileItem>(g_localizeStrings.Get(35173)); // "No controllers connected"
     m_vecItems->Add(std::move(item));
   }
 
@@ -211,14 +195,25 @@ void CGUIAgentControllerList::Notify(const Observable& obs, const ObservableMess
   }
 }
 
-void CGUIAgentControllerList::AddItem(const CAgentController& agentController)
-{
+void CGUIAgentControllerList::OnEvent(const ADDON::AddonEvent& event) {
+  if (typeid(event) == typeid(ADDON::AddonEvents::Enabled) || // Also called on install
+      typeid(event) == typeid(ADDON::AddonEvents::Disabled) || // Not called on uninstall
+      typeid(event) == typeid(ADDON::AddonEvents::ReInstalled) ||
+      typeid(event) == typeid(ADDON::AddonEvents::UnInstalled))
+  {
+    CGUIMessage msg(GUI_MSG_REFRESH_LIST, m_guiWindow.GetID(), CONTROL_AGENT_CONTROLLER_LIST);
+    msg.SetStringParam(event.addonId);
+    CServiceBroker::GetAppMessenger()->SendGUIMessage(msg, m_guiWindow.GetID());
+  }
+}
+
+void CGUIAgentControllerList::AddItem(const CAgentController& agentController) const {
   // Create the list item from agent properties
   const std::string label = agentController.GetPeripheralName();
   const ControllerPtr controller = agentController.GetController();
   const std::string& path = agentController.GetPeripheralLocation();
 
-  CFileItemPtr item = std::make_shared<CFileItem>(label);
+  auto item = std::make_shared<CFileItem>(label);
   item->SetPath(path);
   if (controller)
   {
@@ -228,8 +223,7 @@ void CGUIAgentControllerList::AddItem(const CAgentController& agentController)
   m_vecItems->Add(std::move(item));
 }
 
-void CGUIAgentControllerList::CleanupItems()
-{
+void CGUIAgentControllerList::CleanupItems() const {
   m_vecItems->Clear();
 }
 
@@ -270,7 +264,7 @@ void CGUIAgentControllerList::OnControllerSelect(const CFileItem& selectedAgentI
   for (const std::shared_ptr<const CAgentController>& agentController : agentControllers)
   {
     PERIPHERALS::PeripheralPtr peripheral = agentController->GetPeripheral();
-    if (peripheral && peripheral->FileLocation() == selectedAgentItem.GetPath())
+    if (peripheral && peripheral->Location() == selectedAgentItem.GetPath())
     {
       if (!peripheral->HasConfigurableSettings())
       {
@@ -309,7 +303,7 @@ void CGUIAgentControllerList::ShowControllerDialog(const CAgentController& agent
   CServiceBroker::GetPeripherals().GetDirectory("peripherals://all/", peripherals);
   for (int i = 0; i < peripherals.Size(); ++i)
   {
-    if (peripherals[i]->GetPath() == peripheral->FileLocation())
+    if (peripherals[i]->GetProperty("location").asString() == peripheral->Location())
     {
       peripheralItem = peripherals[i];
       break;
@@ -318,14 +312,15 @@ void CGUIAgentControllerList::ShowControllerDialog(const CAgentController& agent
 
   if (!peripheralItem)
   {
-    CLog::Log(LOGERROR, "Failed to get peripheral for location {}", peripheral->FileLocation());
+    CLog::Log(LOGERROR, "Failed to get peripheral for location {}", peripheral->Location());
     if (peripherals.IsEmpty())
       CLog::Log(LOGERROR, "No peripherals available");
     else
     {
       CLog::Log(LOGERROR, "Available peripherals are:");
       for (int i = 0; i < peripherals.Size(); ++i)
-        CLog::Log(LOGERROR, "  - \"{}\"", peripherals[i]->GetPath());
+        CLog::Log(LOGERROR, "  - \"{}\" ({})", peripherals[i]->GetProperty("location").asString(),
+                  peripherals[i]->GetPath());
     }
     return;
   }

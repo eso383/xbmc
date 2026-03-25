@@ -19,15 +19,17 @@
 
 using namespace PVR;
 
-CPVRChannelGroupsContainer::CPVRChannelGroupsContainer()
-  : m_groupsRadio(std::make_shared<CPVRChannelGroups>(true)),
-    m_groupsTV(std::make_shared<CPVRChannelGroups>(false))
+CPVRChannelGroupsContainer::CPVRChannelGroupsContainer() :
+    m_groupsRadio(new CPVRChannelGroups(true)),
+    m_groupsTV(new CPVRChannelGroups(false))
 {
 }
 
 CPVRChannelGroupsContainer::~CPVRChannelGroupsContainer()
 {
   Unload();
+  delete m_groupsRadio;
+  delete m_groupsTV;
 }
 
 bool CPVRChannelGroupsContainer::Update(const std::vector<std::shared_ptr<CPVRClient>>& clients)
@@ -36,8 +38,7 @@ bool CPVRChannelGroupsContainer::Update(const std::vector<std::shared_ptr<CPVRCl
 }
 
 bool CPVRChannelGroupsContainer::LoadFromDatabase(
-    const std::vector<std::shared_ptr<CPVRClient>>& clients) const
-{
+    const std::vector<std::shared_ptr<CPVRClient>>& clients) const {
   return m_groupsTV->LoadFromDatabase(clients) && m_groupsRadio->LoadFromDatabase(clients);
 }
 
@@ -45,6 +46,7 @@ bool CPVRChannelGroupsContainer::UpdateFromClients(
     const std::vector<std::shared_ptr<CPVRClient>>& clients, bool bChannelsOnly /* = false */)
 {
   std::unique_lock lock(m_critSection);
+
   if (m_bIsUpdating)
     return false;
   m_bIsUpdating = true;
@@ -61,13 +63,12 @@ bool CPVRChannelGroupsContainer::UpdateFromClients(
   return bReturn;
 }
 
-void CPVRChannelGroupsContainer::Unload() const
-{
+void CPVRChannelGroupsContainer::Unload() const {
   m_groupsRadio->Unload();
   m_groupsTV->Unload();
 }
 
-std::shared_ptr<CPVRChannelGroups> CPVRChannelGroupsContainer::Get(bool bRadio) const
+CPVRChannelGroups* CPVRChannelGroupsContainer::Get(bool bRadio) const
 {
   return bRadio ? m_groupsRadio : m_groupsTV;
 }
@@ -75,18 +76,6 @@ std::shared_ptr<CPVRChannelGroups> CPVRChannelGroupsContainer::Get(bool bRadio) 
 std::shared_ptr<CPVRChannelGroup> CPVRChannelGroupsContainer::GetGroupAll(bool bRadio) const
 {
   return Get(bRadio)->GetGroupAll();
-}
-
-std::shared_ptr<CPVRChannelGroup> CPVRChannelGroupsContainer::GetGroupByPath(
-    const std::string& path) const
-{
-  const CPVRChannelsPath channelsPath{path};
-  if (channelsPath.IsValid() && channelsPath.IsChannelGroup())
-    return Get(channelsPath.IsRadio())->GetGroupByPath(path);
-  else
-    CLog::LogFC(LOGERROR, LOGPVR, "Invalid path '{}'", path);
-
-  return {};
 }
 
 std::shared_ptr<CPVRChannelGroup> CPVRChannelGroupsContainer::GetByIdFromAll(int iGroupId) const
@@ -113,9 +102,7 @@ std::shared_ptr<CPVRChannel> CPVRChannelGroupsContainer::GetChannelForEpgTag(
   if (!epgTag)
     return {};
 
-  return Get(epgTag->IsRadio())
-      ->GetGroupAll()
-      ->GetByUniqueID(epgTag->UniqueChannelID(), epgTag->ClientID());
+  return Get(epgTag->IsRadio())->GetGroupAll()->GetByUniqueID(epgTag->UniqueChannelID(), epgTag->ClientID());
 }
 
 std::shared_ptr<CPVRChannelGroupMember> CPVRChannelGroupsContainer::GetChannelGroupMemberByPath(
@@ -138,8 +125,7 @@ std::shared_ptr<CPVRChannel> CPVRChannelGroupsContainer::GetByPath(const std::st
   return {};
 }
 
-std::shared_ptr<CPVRChannel> CPVRChannelGroupsContainer::GetByUniqueID(int iUniqueChannelId,
-                                                                       int iClientID) const
+std::shared_ptr<CPVRChannel> CPVRChannelGroupsContainer::GetByUniqueID(int iUniqueChannelId, int iClientID) const
 {
   std::shared_ptr<CPVRChannel> channel;
   std::shared_ptr<CPVRChannelGroup> channelgroup = GetGroupAllTV();
@@ -169,27 +155,6 @@ std::shared_ptr<CPVRChannelGroupMember> CPVRChannelGroupsContainer::
   return channelTV;
 }
 
-bool CPVRChannelGroupsContainer::HasChannelForProvider(bool isRadio,
-                                                       int clientId,
-                                                       int providerId) const
-{
-  if (isRadio)
-    return m_groupsRadio->GetGroupAll()->HasChannelForProvider(clientId, providerId);
-  else
-    return m_groupsTV->GetGroupAll()->HasChannelForProvider(clientId, providerId);
-}
-
-unsigned int CPVRChannelGroupsContainer::GetChannelCountByProvider(bool isRadio,
-                                                                   int clientId,
-                                                                   int providerId) const
-{
-  if (isRadio)
-    return m_groupsRadio->GetGroupAll()->GetChannelCountByProvider(clientId, providerId);
-  else
-    return m_groupsTV->GetGroupAll()->GetChannelCountByProvider(clientId, providerId);
-}
-
-int CPVRChannelGroupsContainer::CleanupCachedImages() const
-{
+int CPVRChannelGroupsContainer::CleanupCachedImages() const {
   return m_groupsTV->CleanupCachedImages() + m_groupsRadio->CleanupCachedImages();
 }

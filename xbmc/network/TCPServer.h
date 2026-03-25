@@ -71,7 +71,7 @@ namespace JSONRPC
       virtual bool IsNew() const { return m_new; }
       virtual bool Closing() const { return false; }
 
-      SOCKET m_socket{INVALID_SOCKET};
+      SOCKET m_socket;
       sockaddr_storage m_cliaddr;
       socklen_t m_addrlen;
       CCriticalSection m_critSection;
@@ -99,8 +99,8 @@ namespace JSONRPC
       void PushBuffer(CTCPServer *host, const char *buffer, int length) override;
       void Disconnect() override;
 
-      bool IsNew() const override { return m_websocket == NULL; }
-      bool Closing() const override { return m_websocket != NULL && m_websocket->GetState() == WebSocketStateClosed; }
+      bool IsNew() const override { return m_websocket == nullptr; }
+      bool Closing() const override { return m_websocket != nullptr && m_websocket->GetState() == WebSocketStateClosed; }
 
     private:
       CWebSocket *m_websocket;

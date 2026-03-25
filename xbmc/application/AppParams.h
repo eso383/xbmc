@@ -17,18 +17,11 @@
 
 class CFileItemList;
 
-enum class UserDirectoriesLocation
-{
-  PLATFORM, //!< Standard platform location for application preferences
-  PORTABLE, //!< portable_data directory, next to the application executable
-  TEST, //!< test_data directory, next to the application executable
-};
-
 class CAppParams
 {
 public:
   CAppParams();
-  virtual ~CAppParams();
+  virtual ~CAppParams() = default;
 
   int GetLogLevel() const { return m_logLevel; }
   void SetLogLevel(int logLevel) { m_logLevel = logLevel; }
@@ -39,8 +32,11 @@ public:
   bool IsStandAlone() const { return m_standAlone; }
   void SetStandAlone(bool standAlone) { m_standAlone = standAlone; }
 
-  UserDirectoriesLocation GetUserDirectoriesLocation() const { return m_userDirectoriesLocation; }
-  void SetUserDirectoriesLocation(UserDirectoriesLocation loc) { m_userDirectoriesLocation = loc; }
+  bool HasPlatformDirectories() const { return m_platformDirectories; }
+  void SetPlatformDirectories(bool platformDirectories)
+  {
+    m_platformDirectories = platformDirectories;
+  }
 
   bool IsTestMode() const { return m_testmode; }
   void SetTestMode(bool testMode) { m_testmode = testMode; }
@@ -54,10 +50,10 @@ public:
   const std::string& GetLogTarget() const { return m_logTarget; }
   void SetLogTarget(const std::string& logTarget) { m_logTarget = logTarget; }
 
-  const std::string& GetAudioBackend() const { return m_audioBackend; }
+  std::string_view GetAudioBackend() const { return m_audioBackend; }
   void SetAudioBackend(std::string_view audioBackend) { m_audioBackend = audioBackend; }
 
-  const std::string& GetGlInterface() const { return m_glInterface; }
+  std::string_view GetGlInterface() const { return m_glInterface; }
   void SetGlInterface(const std::string& glInterface) { m_glInterface = glInterface; }
 
   CFileItemList& GetPlaylist() const { return *m_playlist; }
@@ -86,6 +82,7 @@ private:
 
   bool m_startFullScreen{false};
   bool m_standAlone{false};
+  bool m_platformDirectories{true};
   bool m_testmode{false};
 
   std::string m_settingsFile;
@@ -95,7 +92,6 @@ private:
   std::string m_glInterface;
 
   std::unique_ptr<CFileItemList> m_playlist;
-  UserDirectoriesLocation m_userDirectoriesLocation{UserDirectoriesLocation::PLATFORM};
 
   // The raw command-line arguments
   std::vector<std::string> m_rawArgs;

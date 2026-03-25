@@ -10,7 +10,6 @@
 
 #include "APKFile.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "utils/CharsetConverter.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -70,9 +69,9 @@ bool CAPKDirectory::GetDirectory(const CURL& url, CFileItemList &items)
     {
       g_charsetConverter.unknownToUTF8(test_name);
       CFileItemPtr pItem(new CFileItem(test_name));
-      pItem->SetSize(sb.size);
-      pItem->SetDateTime(sb.mtime);
-      pItem->SetFolder(dir_marker > 0);
+      pItem->m_dwSize    = sb.size;
+      pItem->m_dateTime  = sb.mtime;
+      pItem->m_bIsFolder = dir_marker > 0 ;
       pItem->SetPath(host + "/" + test_name);
       pItem->SetLabel(test_name.substr(path.size()));
       items.Add(pItem);
@@ -89,9 +88,9 @@ bool CAPKDirectory::ContainsFiles(const CURL& url)
   return false;
 }
 
-CacheType CAPKDirectory::GetCacheType(const CURL& url) const
+DIR_CACHE_TYPE CAPKDirectory::GetCacheType(const CURL& url) const
 {
-  return CacheType::ALWAYS;
+  return DIR_CACHE_ALWAYS;
 }
 
 bool CAPKDirectory::Exists(const CURL& url)

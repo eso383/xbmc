@@ -17,14 +17,13 @@
 
 using namespace ADDON;
 
-std::shared_ptr<CBinaryAddonBase> CBinaryAddonManager::GetAddonBase(
-    const AddonInfoPtr& addonInfo,
-    IAddonInstanceHandler* handler,
-    std::shared_ptr<CAddonDll>& addon)
+BinaryAddonBasePtr CBinaryAddonManager::GetAddonBase(const AddonInfoPtr& addonInfo,
+                                                     IAddonInstanceHandler* handler,
+                                                     AddonDllPtr& addon)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
-  std::shared_ptr<CBinaryAddonBase> addonBase;
+  BinaryAddonBasePtr addonBase;
 
   const auto& addonInstances = m_runningAddons.find(addonInfo->ID());
   if (addonInstances != m_runningAddons.end())
@@ -44,13 +43,14 @@ std::shared_ptr<CBinaryAddonBase> CBinaryAddonManager::GetAddonBase(
   }
   if (!addon)
   {
-    CLog::LogF(LOGFATAL, "Unable to get add-on '{}'!", addonInfo->ID());
+    CLog::Log(LOGFATAL, "CBinaryAddonManager::{}: Tried to get add-on '{}' who not available!",
+              __func__, addonInfo->ID());
   }
 
   return addonBase;
 }
 
-void CBinaryAddonManager::ReleaseAddonBase(const std::shared_ptr<CBinaryAddonBase>& addonBase,
+void CBinaryAddonManager::ReleaseAddonBase(const BinaryAddonBasePtr& addonBase,
                                            IAddonInstanceHandler* handler)
 {
   const auto& addon = m_runningAddons.find(addonBase->ID());
@@ -65,10 +65,9 @@ void CBinaryAddonManager::ReleaseAddonBase(const std::shared_ptr<CBinaryAddonBas
   m_runningAddons.erase(addon);
 }
 
-std::shared_ptr<CBinaryAddonBase> CBinaryAddonManager::GetRunningAddonBase(
-    const std::string& addonId) const
+BinaryAddonBasePtr CBinaryAddonManager::GetRunningAddonBase(const std::string& addonId) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   const auto& addonInstances = m_runningAddons.find(addonId);
   if (addonInstances != m_runningAddons.end())
@@ -79,9 +78,9 @@ std::shared_ptr<CBinaryAddonBase> CBinaryAddonManager::GetRunningAddonBase(
 
 AddonPtr CBinaryAddonManager::GetRunningAddon(const std::string& addonId) const
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
-  const std::shared_ptr<CBinaryAddonBase> base = GetRunningAddonBase(addonId);
+  const BinaryAddonBasePtr base = GetRunningAddonBase(addonId);
   if (base)
     return base->GetActiveAddon();
 

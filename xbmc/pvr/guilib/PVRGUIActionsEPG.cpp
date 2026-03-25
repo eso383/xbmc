@@ -9,29 +9,21 @@
 #include "PVRGUIActionsEPG.h"
 
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "ServiceBroker.h"
-#include "dialogs/GUIDialogFileBrowser.h"
 #include "dialogs/GUIDialogYesNo.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIKeyboardFactory.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "guilib/WindowIDs.h"
 #include "pvr/PVRItem.h"
 #include "pvr/PVRManager.h"
 #include "pvr/dialogs/GUIDialogPVRChannelGuide.h"
 #include "pvr/dialogs/GUIDialogPVRGuideInfo.h"
 #include "pvr/epg/EpgContainer.h"
-#include "pvr/epg/EpgInfoTag.h"
 #include "pvr/epg/EpgSearchFilter.h"
 #include "pvr/guilib/PVRGUIActionsParentalControl.h"
 #include "pvr/windows/GUIWindowPVRSearch.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
-#include "settings/Settings.h"
-#include "settings/SettingsComponent.h"
-#include "storage/MediaManager.h"
-#include "utils/StringUtils.h"
 #include "utils/Variant.h"
 #include "utils/log.h"
 
@@ -48,7 +40,7 @@ PVR::CGUIWindowPVRSearchBase* GetSearchWindow(bool bRadio)
 
   PVR::CGUIWindowPVRSearchBase* windowSearch;
 
-  const CGUIWindowManager& windowMgr = CServiceBroker::GetGUI()->GetWindowManager();
+  CGUIWindowManager& windowMgr = CServiceBroker::GetGUI()->GetWindowManager();
   if (bRadio)
     windowSearch = windowMgr.GetWindow<PVR::CGUIWindowPVRRadioSearch>(windowSearchId);
   else
@@ -144,7 +136,7 @@ bool CPVRGUIActionsEPG::FindSimilar(const CFileItem& item) const
   return true;
 };
 
-bool CPVRGUIActionsEPG::ExecuteSavedSearch(const CFileItem& item) const
+bool CPVRGUIActionsEPG::ExecuteSavedSearch(const CFileItem& item)
 {
   const auto searchFilter = item.GetEPGSearchFilter();
 
@@ -163,7 +155,7 @@ bool CPVRGUIActionsEPG::ExecuteSavedSearch(const CFileItem& item) const
   return true;
 }
 
-bool CPVRGUIActionsEPG::EditSavedSearch(const CFileItem& item) const
+bool CPVRGUIActionsEPG::EditSavedSearch(const CFileItem& item)
 {
   const auto searchFilter = item.GetEPGSearchFilter();
 
@@ -183,7 +175,7 @@ bool CPVRGUIActionsEPG::EditSavedSearch(const CFileItem& item) const
   return true;
 }
 
-bool CPVRGUIActionsEPG::RenameSavedSearch(const CFileItem& item) const
+bool CPVRGUIActionsEPG::RenameSavedSearch(const CFileItem& item)
 {
   const auto searchFilter = item.GetEPGSearchFilter();
 
@@ -194,11 +186,9 @@ bool CPVRGUIActionsEPG::RenameSavedSearch(const CFileItem& item) const
   }
 
   std::string title = searchFilter->GetTitle();
-  if (CGUIKeyboardFactory::ShowAndGetInput(
-          title,
-          CVariant{CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-              528)}, // "Enter title"
-          false))
+  if (CGUIKeyboardFactory::ShowAndGetInput(title,
+                                           CVariant{g_localizeStrings.Get(528)}, // "Enter title"
+                                           false))
   {
     searchFilter->SetTitle(title);
     CServiceBroker::GetPVRManager().EpgContainer().PersistSavedSearch(*searchFilter);
@@ -207,75 +197,7 @@ bool CPVRGUIActionsEPG::RenameSavedSearch(const CFileItem& item) const
   return false;
 }
 
-bool CPVRGUIActionsEPG::ChooseIconForSavedSearch(const CFileItem& item) const
-{
-  const auto searchFilter{item.GetEPGSearchFilter()};
-
-  if (!searchFilter)
-  {
-    CLog::LogF(LOGERROR, "Wrong item type. No EPG search filter present.");
-    return false;
-  }
-
-  // setup our icon list
-  CFileItemList items;
-
-  // Add the current icon, if available.
-  const std::string iconPath{searchFilter->GetIconPath()};
-  auto current{std::make_shared<CFileItem>("icon://Current", false)};
-  current->SetArt("icon", iconPath.empty() ? "DefaultPVRSearch.png" : iconPath);
-  current->SetLabel(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19282)); // Current icon
-  items.Add(std::move(current));
-
-  // And add a "No icon" entry as well.
-  auto nothumb{std::make_shared<CFileItem>("icon://None", false)};
-  nothumb->SetArt("icon", "DefaultPVRSearch.png");
-  nothumb->SetLabel(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19283)); // No icon
-  items.Add(std::move(nothumb));
-
-  std::string icon;
-  std::vector<CMediaSource> sources;
-  CServiceBroker::GetMediaManager().GetLocalDrives(sources);
-  if (!CGUIDialogFileBrowser::ShowAndGetImage(
-          items, sources,
-          CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-              19285), // Browse for icon
-          icon))
-    return false;
-
-  if (icon == "icon://Current")
-    return true;
-
-  if (icon == "icon://None")
-    icon.clear();
-
-  searchFilter->SetIconPath(icon);
-  CServiceBroker::GetPVRManager().EpgContainer().PersistSavedSearch(*searchFilter);
-  return true;
-}
-
-bool CPVRGUIActionsEPG::DuplicateSavedSearch(const CFileItem& item) const
-{
-  const auto searchFilter{item.GetEPGSearchFilter()};
-
-  if (!searchFilter)
-  {
-    CLog::LogF(LOGERROR, "Wrong item type. No EPG search filter present.");
-    return false;
-  }
-
-  const auto dupedSearchFilter{std::make_shared<CPVREpgSearchFilter>(*searchFilter)};
-  dupedSearchFilter->SetDatabaseId(PVR_EPG_SEARCH_INVALID_DATABASE_ID); // force new db entry
-  dupedSearchFilter->SetTitle(StringUtils::Format(
-      CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(19356), // Copy of '<title>'
-      searchFilter->GetTitle()));
-  CServiceBroker::GetPVRManager().EpgContainer().PersistSavedSearch(*dupedSearchFilter);
-  return true;
-}
-
-bool CPVRGUIActionsEPG::DeleteSavedSearch(const CFileItem& item) const
+bool CPVRGUIActionsEPG::DeleteSavedSearch(const CFileItem& item)
 {
   const auto searchFilter = item.GetEPGSearchFilter();
 
@@ -292,24 +214,4 @@ bool CPVRGUIActionsEPG::DeleteSavedSearch(const CFileItem& item) const
     return CServiceBroker::GetPVRManager().EpgContainer().DeleteSavedSearch(*searchFilter);
   }
   return false;
-}
-
-std::string CPVRGUIActionsEPG::GetTitleForEpgTag(
-    const std::shared_ptr<const CPVREpgInfoTag>& tag) const
-{
-  if (tag)
-  {
-    if (CServiceBroker::GetPVRManager().IsParentalLocked(tag))
-      return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-          19266); // Parental locked
-    else if (!tag->Title().empty())
-      return tag->Title();
-  }
-
-  if (!CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
-          CSettings::SETTING_EPG_HIDENOINFOAVAILABLE))
-    return CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(
-        19055); // no information available
-
-  return {};
 }

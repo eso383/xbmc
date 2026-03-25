@@ -24,9 +24,7 @@ CGUIFeatureButton::CGUIFeatureButton(const CGUIButtonControl& buttonTemplate,
                                      IConfigurationWizard* wizard,
                                      const CPhysicalFeature& feature,
                                      unsigned int index)
-  : CGUIButtonControl(buttonTemplate),
-    m_feature(feature),
-    m_wizard(wizard)
+  : CGUIButtonControl(buttonTemplate), m_feature(feature), m_wizard(wizard)
 {
   // Initialize CGUIButtonControl
   SetLabel(m_feature.Label());
@@ -44,8 +42,7 @@ void CGUIFeatureButton::OnUnFocus(void)
 bool CGUIFeatureButton::DoPrompt(const std::string& strPrompt,
                                  const std::string& strWarn,
                                  const std::string& strFeature,
-                                 CEvent& waitEvent)
-{
+                                 CEvent& waitEvent) const {
   bool bInterrupted = false;
 
   if (!HasFocus())

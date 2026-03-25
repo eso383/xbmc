@@ -13,6 +13,8 @@
 #include "cores/AudioEngine/AEResampleFactory.h"
 #include "cores/AudioEngine/Utils/AEUtil.h"
 
+#include "utils/log.h"
+
 #include <memory>
 
 using namespace ActiveAE;
@@ -68,7 +70,7 @@ CActiveAEBufferPool::~CActiveAEBufferPool()
 
 CSampleBuffer* CActiveAEBufferPool::GetFreeBuffer()
 {
-  CSampleBuffer* buf = NULL;
+  CSampleBuffer* buf = nullptr;
 
   if (!m_freeSamples.empty())
   {
@@ -266,7 +268,7 @@ bool CActiveAEBufferPoolResample::ResampleBuffers(int64_t timestamp)
 
       int out_samples = m_resampler->Resample(m_planes,
                                               m_procSample->pkt->max_nb_samples - m_procSample->pkt->nb_samples,
-                                              in ? in->pkt->data : NULL,
+                                              in ? in->pkt->data : nullptr,
                                               in ? in->pkt->nb_samples : 0,
                                               m_resampleRatio);
       // in case of error, trigger re-create of resampler
@@ -329,7 +331,7 @@ bool CActiveAEBufferPoolResample::ResampleBuffers(int64_t timestamp)
         else
           m_outputSamples.push_back(m_procSample);
 
-        m_procSample = NULL;
+        m_procSample = nullptr;
         if (m_changeResampler)
           ChangeResampler();
       }
@@ -337,7 +339,7 @@ bool CActiveAEBufferPoolResample::ResampleBuffers(int64_t timestamp)
       else if (!m_fillPackets || (m_procSample->pkt->nb_samples == m_procSample->pkt->max_nb_samples))
       {
         m_outputSamples.push_back(m_procSample);
-        m_procSample = NULL;
+        m_procSample = nullptr;
       }
 
       if (in)
@@ -399,7 +401,7 @@ void CActiveAEBufferPoolResample::Flush()
   if (m_procSample)
   {
     m_procSample->Return();
-    m_procSample = NULL;
+    m_procSample = nullptr;
   }
   while (!m_inputSamples.empty())
   {
@@ -644,8 +646,7 @@ void CActiveAEBufferPoolAtempo::Flush()
     ChangeFilter();
 }
 
-float CActiveAEBufferPoolAtempo::GetDelay()
-{
+float CActiveAEBufferPoolAtempo::GetDelay() const {
   float delay = 0;
 
   if (m_procSample)

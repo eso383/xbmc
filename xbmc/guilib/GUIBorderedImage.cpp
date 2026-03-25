@@ -8,9 +8,6 @@
 
 #include "GUIBorderedImage.h"
 
-#include "ServiceBroker.h"
-#include "windowing/WinSystem.h"
-
 CGUIBorderedImage::CGUIBorderedImage(int parentID,
                                      int controlID,
                                      float posX,
@@ -42,12 +39,12 @@ CGUIBorderedImage::CGUIBorderedImage(const CGUIBorderedImage& right)
 void CGUIBorderedImage::Process(unsigned int currentTime, CDirtyRegionList &dirtyregions)
 {
   CGUIImage::Process(currentTime, dirtyregions);
-  if (!m_borderImage->GetFileName().empty() && m_textureCurrent->ReadyToRender())
+  if (!m_borderImage->GetFileName().empty() && m_texture->ReadyToRender())
   {
-    CRect rect = CRect(m_textureCurrent->GetXPosition(), m_textureCurrent->GetYPosition(),
-                       m_textureCurrent->GetXPosition() + m_textureCurrent->GetWidth(),
-                       m_textureCurrent->GetYPosition() + m_textureCurrent->GetHeight());
-    rect.Intersect(m_textureCurrent->GetRenderRect());
+    auto rect = CRect(m_texture->GetXPosition(), m_texture->GetYPosition(),
+                       m_texture->GetXPosition() + m_texture->GetWidth(),
+                       m_texture->GetYPosition() + m_texture->GetHeight());
+    rect.Intersect(m_texture->GetRenderRect());
 
     if (m_lastBorderRect != rect)
     {
@@ -71,7 +68,7 @@ void CGUIBorderedImage::Render()
   if (renderFrontToBack)
     CGUIImage::Render();
 
-  if (!m_borderImage->GetFileName().empty() && m_textureCurrent->ReadyToRender())
+  if (!m_borderImage->GetFileName().empty() && m_texture->ReadyToRender())
     m_borderImage->Render(-1);
 
   if (!renderFrontToBack)

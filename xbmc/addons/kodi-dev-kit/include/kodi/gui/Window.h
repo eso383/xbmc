@@ -166,8 +166,7 @@ public:
   ///
   /// @return True on success, false otherwise.
   ///
-  bool Show()
-  {
+  bool Show() const {
     return m_interface->kodi_gui->window->show(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -179,15 +178,14 @@ public:
   /// Closes this window by activating the old window.
   /// @note The window is not deleted with this method.
   ///
-  void Close() { m_interface->kodi_gui->window->close(m_interface->kodiBase, m_controlHandle); }
+  void Close() const { m_interface->kodi_gui->window->close(m_interface->kodiBase, m_controlHandle); }
   //----------------------------------------------------------------------------
 
   //============================================================================
   /// @ingroup cpp_kodi_gui_windows_window
   /// @brief Display this window until close() is called.
   ///
-  void DoModal()
-  {
+  void DoModal() const {
     m_interface->kodi_gui->window->do_modal(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -199,8 +197,7 @@ public:
   /// @param[in] controlId On skin defined id of control
   /// @return True on success, false otherwise.
   ///
-  bool SetFocusId(int controlId)
-  {
+  bool SetFocusId(int controlId) const {
     return m_interface->kodi_gui->window->set_focus_id(m_interface->kodiBase, m_controlHandle,
                                                        controlId);
   }
@@ -212,8 +209,7 @@ public:
   ///
   /// @return Focused control id
   ///
-  int GetFocusId()
-  {
+  int GetFocusId() const {
     return m_interface->kodi_gui->window->get_focus_id(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -225,8 +221,7 @@ public:
   /// @param[in] controlId Control id where label need to set
   /// @param[in] label Label to use
   ///
-  void SetControlLabel(int controlId, const std::string& label)
-  {
+  void SetControlLabel(int controlId, const std::string& label) const {
     m_interface->kodi_gui->window->set_control_label(m_interface->kodiBase, m_controlHandle,
                                                      controlId, label.c_str());
   }
@@ -239,8 +234,7 @@ public:
   /// @param[in] controlId Control id where visibility is changed
   /// @param[in] visible Boolean value with `true` for visible, `false` for hidden
   ///
-  void SetControlVisible(int controlId, bool visible)
-  {
+  void SetControlVisible(int controlId, bool visible) const {
     m_interface->kodi_gui->window->set_control_visible(m_interface->kodiBase, m_controlHandle,
                                                        controlId, visible);
   }
@@ -253,8 +247,7 @@ public:
   /// @param[in] controlId Control id where selection is changed
   /// @param[in] selected Boolean value with `true` for selected, `false` for not
   ///
-  void SetControlSelected(int controlId, bool selected)
-  {
+  void SetControlSelected(int controlId, bool selected) const {
     m_interface->kodi_gui->window->set_control_selected(m_interface->kodiBase, m_controlHandle,
                                                         controlId, selected);
   }
@@ -273,8 +266,7 @@ public:
   ///        optional arguments.\n
   ///        Once you use a keyword, all following arguments require the keyword.
   ///
-  void SetProperty(const std::string& key, const std::string& value)
-  {
+  void SetProperty(const std::string& key, const std::string& value) const {
     m_interface->kodi_gui->window->set_property(m_interface->kodiBase, m_controlHandle, key.c_str(),
                                                 value.c_str());
   }
@@ -315,8 +307,7 @@ public:
   /// @param[in] key string - property name.
   /// @param[in] value integer value to set
   ///
-  void SetPropertyInt(const std::string& key, int value)
-  {
+  void SetPropertyInt(const std::string& key, int value) const {
     m_interface->kodi_gui->window->set_property_int(m_interface->kodiBase, m_controlHandle,
                                                     key.c_str(), value);
   }
@@ -343,8 +334,7 @@ public:
   /// @param[in] key string - property name.
   /// @param[in] value boolean value to set
   ///
-  void SetPropertyBool(const std::string& key, bool value)
-  {
+  void SetPropertyBool(const std::string& key, bool value) const {
     m_interface->kodi_gui->window->set_property_bool(m_interface->kodiBase, m_controlHandle,
                                                      key.c_str(), value);
   }
@@ -371,8 +361,7 @@ public:
   /// @param[in] key string - property name.
   /// @param[in] value double value to set
   ///
-  void SetPropertyDouble(const std::string& key, double value)
-  {
+  void SetPropertyDouble(const std::string& key, double value) const {
     m_interface->kodi_gui->window->set_property_double(m_interface->kodiBase, m_controlHandle,
                                                        key.c_str(), value);
   }
@@ -396,8 +385,7 @@ public:
   /// @ingroup cpp_kodi_gui_windows_window
   /// @brief Remove all present properties from window
   ///
-  void ClearProperties()
-  {
+  void ClearProperties() const {
     m_interface->kodi_gui->window->clear_properties(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -424,8 +412,7 @@ public:
   /// ..
   /// ~~~~~~~~~~~~~
   ///
-  void ClearProperty(const std::string& key)
-  {
+  void ClearProperty(const std::string& key) const {
     m_interface->kodi_gui->window->clear_property(m_interface->kodiBase, m_controlHandle,
                                                   key.c_str());
   }
@@ -436,8 +423,7 @@ public:
   /// @ingroup cpp_kodi_gui_windows_window
   /// @brief Function delete all entries in integrated list.
   ///
-  void ClearList()
-  {
+  void ClearList() const {
     m_interface->kodi_gui->window->clear_item_list(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -449,8 +435,7 @@ public:
   /// @param[in] item List item to add
   /// @param[in] itemPosition [opt] The position for item, default is on end
   ///
-  void AddListItem(const std::shared_ptr<CListItem>& item, int itemPosition = -1)
-  {
+  void AddListItem(const std::shared_ptr<CListItem>& item, int itemPosition = -1) const {
     m_interface->kodi_gui->window->add_list_item(m_interface->kodiBase, m_controlHandle,
                                                  item->m_controlHandle, itemPosition);
   }
@@ -463,8 +448,7 @@ public:
   /// @param[in] item List item to add
   /// @param[in] itemPosition [opt] The position for item, default is on end
   ///
-  void AddListItem(const std::string& item, int itemPosition = -1)
-  {
+  void AddListItem(const std::string& item, int itemPosition = -1) const {
     m_interface->kodi_gui->window->add_list_item(
         m_interface->kodiBase, m_controlHandle,
         std::make_shared<kodi::gui::CListItem>(item)->m_controlHandle, itemPosition);
@@ -477,8 +461,7 @@ public:
   ///
   /// @param[in] itemPosition List position to remove
   ///
-  void RemoveListItem(int itemPosition)
-  {
+  void RemoveListItem(int itemPosition) const {
     m_interface->kodi_gui->window->remove_list_item_from_position(m_interface->kodiBase,
                                                                   m_controlHandle, itemPosition);
   }
@@ -490,8 +473,7 @@ public:
   ///
   /// @param[in] item List item control class to remove
   ///
-  void RemoveListItem(const std::shared_ptr<CListItem>& item)
-  {
+  void RemoveListItem(const std::shared_ptr<CListItem>& item) const {
     m_interface->kodi_gui->window->remove_list_item(m_interface->kodiBase, m_controlHandle,
                                                     item->m_controlHandle);
   }
@@ -506,8 +488,7 @@ public:
   ///
   /// @warning Function returns a new generated **CListItem** class!
   ///
-  std::shared_ptr<CListItem> GetListItem(int listPos)
-  {
+  std::shared_ptr<CListItem> GetListItem(int listPos) const {
     KODI_GUI_LISTITEM_HANDLE handle = m_interface->kodi_gui->window->get_list_item(
         m_interface->kodiBase, m_controlHandle, listPos);
     if (!handle)
@@ -523,8 +504,7 @@ public:
   ///
   /// @param[in] listPos Position to use
   ///
-  void SetCurrentListPosition(int listPos)
-  {
+  void SetCurrentListPosition(int listPos) const {
     m_interface->kodi_gui->window->set_current_list_position(m_interface->kodiBase, m_controlHandle,
                                                              listPos);
   }
@@ -536,8 +516,7 @@ public:
   ///
   /// @return Current list position
   ///
-  int GetCurrentListPosition()
-  {
+  int GetCurrentListPosition() const {
     return m_interface->kodi_gui->window->get_current_list_position(m_interface->kodiBase,
                                                                     m_controlHandle);
   }
@@ -549,8 +528,7 @@ public:
   ///
   /// @return Size of in window integrated control class
   ///
-  int GetListSize()
-  {
+  int GetListSize() const {
     return m_interface->kodi_gui->window->get_list_size(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -567,8 +545,7 @@ public:
   /// optional arguments.\n
   /// Once you use a keyword, all following arguments require the keyword.
   ///
-  void SetContainerProperty(const std::string& key, const std::string& value)
-  {
+  void SetContainerProperty(const std::string& key, const std::string& value) const {
     m_interface->kodi_gui->window->set_container_property(m_interface->kodiBase, m_controlHandle,
                                                           key.c_str(), value.c_str());
   }
@@ -606,8 +583,7 @@ public:
   /// | videos      | Videos
   /// | years       | Music, Videos
   ///
-  void SetContainerContent(const std::string& value)
-  {
+  void SetContainerContent(const std::string& value) const {
     m_interface->kodi_gui->window->set_container_content(m_interface->kodiBase, m_controlHandle,
                                                          value.c_str());
   }
@@ -619,8 +595,7 @@ public:
   ///
   /// @return currently visible container id
   ///
-  int GetCurrentContainerId()
-  {
+  int GetCurrentContainerId() const {
     return m_interface->kodi_gui->window->get_current_container_id(m_interface->kodiBase,
                                                                    m_controlHandle);
   }
@@ -631,8 +606,7 @@ public:
   /// @ingroup cpp_kodi_gui_windows_window
   /// @brief To inform Kodi that it need to render region new.
   ///
-  void MarkDirtyRegion()
-  {
+  void MarkDirtyRegion() const {
     return m_interface->kodi_gui->window->mark_dirty_region(m_interface->kodiBase, m_controlHandle);
   }
   //----------------------------------------------------------------------------
@@ -842,8 +816,7 @@ public:
                                                            unsigned int* size) = nullptr,
                                bool (*CBOnContextButton)(kodi::gui::ClientHandle cbhdl,
                                                          int itemNumber,
-                                                         unsigned int button) = nullptr)
-  {
+                                                         unsigned int button) = nullptr) const {
     if (!cbhdl || !CBOnInit || !CBOnFocus || !CBOnClick || !CBOnAction)
     {
       kodi::Log(ADDON_LOG_FATAL, "kodi::gui::CWindow::%s called with nullptr !!!", __FUNCTION__);

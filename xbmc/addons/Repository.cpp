@@ -27,6 +27,7 @@
 #include "utils/Mime.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
+#include "utils/XBMCTinyXML.h"
 #include "utils/log.h"
 
 #include <algorithm>
@@ -45,9 +46,9 @@ CRepository::ResolveResult CRepository::ResolvePathAndHash(const AddonPtr& addon
 {
   std::string const& path = addon->Path();
 
-  const auto dirIt =
-      std::ranges::find_if(m_dirs, [&path](RepositoryDirInfo const& dir)
-                           { return URIUtils::PathHasParent(path, dir.datadir, true); });
+  auto dirIt = std::find_if(m_dirs.begin(), m_dirs.end(), [&path](RepositoryDirInfo const& dir) {
+    return URIUtils::PathHasParent(path, dir.datadir, true);
+  });
   if (dirIt == m_dirs.end())
   {
     CLog::Log(LOGERROR, "Requested path {} not found in known repository directories", path);
@@ -108,12 +109,12 @@ CRepository::CRepository(const AddonInfoPtr& addonInfo) : CAddon(addonInfo, Addo
   if (addonver)
     version = addonver->Version();
 
-  for (const auto& [_, addonExtensions] : Type(AddonType::REPOSITORY)->GetElements("dir"))
+  for (const auto& element : Type(AddonType::REPOSITORY)->GetElements("dir"))
   {
-    RepositoryDirInfo dir = ParseDirConfiguration(addonExtensions);
+    RepositoryDirInfo dir = ParseDirConfiguration(element.second);
     if ((dir.minversion.empty() || version >= dir.minversion) &&
         (dir.maxversion.empty() || version <= dir.maxversion))
-      m_dirs.emplace_back(std::move(dir));
+      m_dirs.push_back(std::move(dir));
   }
 
   // old (dharma compatible) way of defining the addon repository structure, is no longer supported
@@ -168,12 +169,12 @@ bool CRepository::FetchChecksum(const std::string& url,
   // Transfer-Encoding: chunked servers.
   std::stringstream ss;
   char temp[1024];
-  ssize_t read;
+  int read;
   while ((read = file.Read(temp, sizeof(temp))) > 0)
     ss.write(temp, read);
   if (read <= -1)
     return false;
-  checksum = std::move(ss).str();
+  checksum = ss.str();
   std::size_t pos = checksum.find_first_of(" \n");
   if (pos != std::string::npos)
   {
@@ -186,7 +187,7 @@ bool CRepository::FetchChecksum(const std::string& url,
   // This special header is set by the Kodi mirror redirector to control client update frequency
   // depending on the load on the mirrors
   const std::string recheckAfterHeader{
-      file.GetProperty(FileProperty::RESPONSE_HEADER, "X-Kodi-Recheck-After")};
+      file.GetProperty(FILE_PROPERTY_RESPONSE_HEADER, "X-Kodi-Recheck-After")};
   if (!recheckAfterHeader.empty())
   {
     try
@@ -228,9 +229,8 @@ bool CRepository::FetchIndex(const RepositoryDirInfo& repo,
     }
   }
 
-  if (URIUtils::HasExtension(repo.info, ".gz") ||
-      CMime::GetFileTypeFromMime(http.GetProperty(XFILE::FileProperty::MIME_TYPE)) ==
-          CMime::EFileType::FileTypeGZip)
+  if (URIUtils::HasExtension(repo.info, ".gz")
+      || CMime::GetFileTypeFromMime(http.GetProperty(XFILE::FILE_PROPERTY_MIME_TYPE)) == CMime::EFileType::FileTypeGZip)
   {
     CLog::Log(LOGDEBUG, "CRepository '{}' is gzip. decompressing", repo.info);
     std::string buffer;
@@ -245,7 +245,7 @@ bool CRepository::FetchIndex(const RepositoryDirInfo& repo,
   return CServiceBroker::GetAddonMgr().AddonsFromRepoXML(repo, response, addons);
 }
 
-CRepository::FetchStatus CRepository::FetchIfChanged(std::string_view oldChecksum,
+CRepository::FetchStatus CRepository::FetchIfChanged(const std::string& oldChecksum,
                                                      std::string& checksum,
                                                      std::vector<AddonInfoPtr>& addons,
                                                      int& recheckAfter) const
@@ -264,7 +264,7 @@ CRepository::FetchStatus CRepository::FetchIfChanged(std::string_view oldChecksu
       {
         recheckAfter = 1 * 60 * 60; // retry after 1 hour
         CLog::Log(LOGERROR, "CRepository: failed read '{}'", dir.checksum);
-        return FetchStatus::FETCH_ERROR;
+        return STATUS_ERROR;
       }
       dirChecksums.emplace_back(dir, part);
       recheckAfterTimes.push_back(recheckAfterThisDir);
@@ -278,20 +278,20 @@ CRepository::FetchStatus CRepository::FetchIfChanged(std::string_view oldChecksu
   {
     // Use smallest update interval out of all received (individual intervals per directory are
     // not possible)
-    recheckAfter = *std::ranges::min_element(recheckAfterTimes);
+    recheckAfter = *std::min_element(recheckAfterTimes.begin(), recheckAfterTimes.end());
     // If all directories have checksums and they match the last one, nothing has changed
     if (dirChecksums.size() == m_dirs.size() && oldChecksum == checksum)
-      return FetchStatus::NOT_MODIFIED;
+      return STATUS_NOT_MODIFIED;
   }
 
-  for (const auto& [repoInfo, digest] : dirChecksums)
+  for (const auto& dirTuple : dirChecksums)
   {
     std::vector<AddonInfoPtr> tmp;
-    if (!FetchIndex(repoInfo, digest, tmp))
-      return FetchStatus::FETCH_ERROR;
+    if (!FetchIndex(std::get<0>(dirTuple), std::get<1>(dirTuple), tmp))
+      return STATUS_ERROR;
     addons.insert(addons.end(), tmp.begin(), tmp.end());
   }
-  return FetchStatus::OK;
+  return STATUS_OK;
 }
 
 RepositoryDirInfo CRepository::ParseDirConfiguration(const CAddonExtensions& configuration)
@@ -323,8 +323,7 @@ RepositoryDirInfo CRepository::ParseDirConfiguration(const CAddonExtensions& con
     dir.hashType = CDigest::TypeFromString(hashStr);
     if (dir.hashType == CDigest::Type::MD5)
     {
-      CLog::LogF(LOGWARNING, "Repository has MD5 hashes enabled - this hash function is broken and "
-                             "will only guard against unintentional data corruption");
+      CLog::Log(LOGWARNING, "CRepository::{}: Repository has MD5 hashes enabled - this hash function is broken and will only guard against unintentional data corruption", __FUNCTION__);
     }
   }
 

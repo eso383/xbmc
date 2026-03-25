@@ -12,10 +12,10 @@
 
 #include <utility>
 
-CLanguageInvokerThread::CLanguageInvokerThread(std::shared_ptr<ILanguageInvoker> invoker,
+CLanguageInvokerThread::CLanguageInvokerThread(LanguageInvokerPtr invoker,
                                                CScriptInvocationManager* invocationManager,
                                                bool reuseable)
-  : ILanguageInvoker(NULL),
+  : ILanguageInvoker(nullptr),
     CThread("LanguageInvoker"),
     m_invoker(std::move(invoker)),
     m_invocationManager(invocationManager),
@@ -29,7 +29,7 @@ CLanguageInvokerThread::~CLanguageInvokerThread()
 
 InvokerState CLanguageInvokerThread::GetState() const
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return InvokerStateFailed;
 
   return m_invoker->GetState();
@@ -43,7 +43,7 @@ void CLanguageInvokerThread::Release()
 
 bool CLanguageInvokerThread::execute(const std::string &script, const std::vector<std::string> &arguments)
 {
-  if (m_invoker == NULL || script.empty())
+  if (m_invoker == nullptr || script.empty())
     return false;
 
   m_script = script;
@@ -51,7 +51,8 @@ bool CLanguageInvokerThread::execute(const std::string &script, const std::vecto
 
   if (CThread::IsRunning())
   {
-    std::unique_lock<std::mutex> lck(m_mutex);
+    std::lock_guard lck(m_mutex);
+
     m_restart = true;
     m_condition.notify_one();
   }
@@ -69,7 +70,7 @@ bool CLanguageInvokerThread::execute(const std::string &script, const std::vecto
 
 bool CLanguageInvokerThread::stop(bool wait)
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return false;
 
   if (!CThread::IsRunning())
@@ -91,20 +92,21 @@ bool CLanguageInvokerThread::stop(bool wait)
 
 void CLanguageInvokerThread::OnStartup()
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return;
 
   m_invoker->SetId(GetId());
-  if (m_addon != NULL)
+  if (m_addon != nullptr)
     m_invoker->SetAddon(m_addon);
 }
 
 void CLanguageInvokerThread::Process()
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return;
 
-  std::unique_lock<std::mutex> lckdl(m_mutex);
+  std::unique_lock lckdl(m_mutex);
+  
   do
   {
     m_restart = false;
@@ -120,7 +122,7 @@ void CLanguageInvokerThread::Process()
 
 void CLanguageInvokerThread::OnExit()
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return;
 
   m_invoker->onExecutionDone();
@@ -129,7 +131,7 @@ void CLanguageInvokerThread::OnExit()
 
 void CLanguageInvokerThread::OnException()
 {
-  if (m_invoker == NULL)
+  if (m_invoker == nullptr)
     return;
 
   m_invoker->onExecutionFailed();

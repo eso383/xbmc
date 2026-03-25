@@ -16,15 +16,13 @@ using namespace KODI;
 using namespace GAME;
 
 CGameClientCheevos::CGameClientCheevos(CGameClient& gameClient, AddonInstance_Game& addonStruct)
-  : m_gameClient(gameClient),
-    m_struct(addonStruct)
+  : m_gameClient(gameClient), m_struct(addonStruct)
 {
 }
 
 bool CGameClientCheevos::RCGenerateHashFromFile(std::string& hash,
                                                 RETRO::RConsoleID consoleID,
-                                                const std::string& filePath)
-{
+                                                const std::string& filePath) const {
   char* _hash = nullptr;
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
@@ -49,8 +47,7 @@ bool CGameClientCheevos::RCGenerateHashFromFile(std::string& hash,
   return error == GAME_ERROR_NO_ERROR;
 }
 
-bool CGameClientCheevos::RCGetGameIDUrl(std::string& url, const std::string& hash)
-{
+bool CGameClientCheevos::RCGetGameIDUrl(std::string& url, const std::string& hash) const {
   char* _url = nullptr;
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
@@ -76,8 +73,7 @@ bool CGameClientCheevos::RCGetGameIDUrl(std::string& url, const std::string& has
 bool CGameClientCheevos::RCGetPatchFileUrl(std::string& url,
                                            const std::string& username,
                                            const std::string& token,
-                                           unsigned int gameID)
-{
+                                           unsigned int gameID) const {
   char* _url = nullptr;
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
@@ -106,8 +102,7 @@ bool CGameClientCheevos::RCPostRichPresenceUrl(std::string& url,
                                                const std::string& username,
                                                const std::string& token,
                                                unsigned gameID,
-                                               const std::string& richPresence)
-{
+                                               const std::string& richPresence) const {
   char* _url = nullptr;
   char* _postData = nullptr;
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
@@ -138,8 +133,7 @@ bool CGameClientCheevos::RCPostRichPresenceUrl(std::string& url,
   return error == GAME_ERROR_NO_ERROR;
 }
 
-void CGameClientCheevos::RCEnableRichPresence(const std::string& script)
-{
+void CGameClientCheevos::RCEnableRichPresence(const std::string& script) const {
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
   try
@@ -154,8 +148,7 @@ void CGameClientCheevos::RCEnableRichPresence(const std::string& script)
 }
 
 void CGameClientCheevos::RCGetRichPresenceEvaluation(std::string& evaluation,
-                                                     RETRO::RConsoleID consoleID)
-{
+                                                     RETRO::RConsoleID consoleID) const {
   char* _evaluation = nullptr;
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
@@ -177,8 +170,7 @@ void CGameClientCheevos::RCGetRichPresenceEvaluation(std::string& evaluation,
   }
 }
 
-void CGameClientCheevos::RCResetRuntime()
-{
+void CGameClientCheevos::RCResetRuntime() const {
   GAME_ERROR error = GAME_ERROR_NO_ERROR;
 
   try

@@ -24,17 +24,17 @@ namespace XFILE
   class CCurlFile : public IFile
   {
     private:
-    public:
-      enum class ProxyType
+      typedef enum
       {
-        HTTP = 0,
-        SOCKS4,
-        SOCKS4A,
-        SOCKS5,
-        SOCKS5_REMOTE,
-        HTTPS,
-      };
+        PROXY_HTTP = 0,
+        PROXY_SOCKS4,
+        PROXY_SOCKS4A,
+        PROXY_SOCKS5,
+        PROXY_SOCKS5_REMOTE,
+        PROXY_HTTPS,
+      } ProxyType;
 
+    public:
       CCurlFile();
       ~CCurlFile() override;
       bool Open(const CURL& url) override;
@@ -46,24 +46,21 @@ namespace XFILE
       int64_t GetLength() override;
       int Stat(const CURL& url, struct __stat64* buffer) override;
       void Close() override;
-      ReadLineResult ReadLine(char* buffer, std::size_t bufferSize) override
-      {
-        return m_state->ReadLine(buffer, bufferSize);
-      }
+      bool ReadString(char *szLine, int iLineLength) override { return m_state->ReadString(szLine, iLineLength); }
       ssize_t Read(void* lpBuf, size_t uiBufSize) override { return m_state->Read(lpBuf, uiBufSize); }
       ssize_t Write(const void* lpBuf, size_t uiBufSize) override;
       const std::string GetProperty(XFILE::FileProperty type, const std::string &name = "") const override;
       const std::vector<std::string> GetPropertyValues(XFILE::FileProperty type, const std::string &name = "") const override;
-      int IoControl(IOControl request, void* param) override;
+      int IoControl(EIoControl request, void* param) override;
       double GetDownloadSpeed() override;
 
       bool Post(const std::string& strURL, const std::string& strPostData, std::string& strHTML);
       bool Get(const std::string& strURL, std::string& strHTML);
       bool ReadData(std::string& strHTML);
-      bool Download(const std::string& strURL, const std::string& strFileName, unsigned int* pdwSize = NULL);
+      bool Download(const std::string& strURL, const std::string& strFileName, unsigned int* pdwSize = nullptr);
       bool IsInternet();
-      void Cancel();
-      void Reset();
+      void Cancel() const;
+      void Reset() const;
       void SetUserAgent(const std::string& sUserAgent) { m_userAgent = sUserAgent; }
       void SetProxy(const std::string &type, const std::string &host, uint16_t port,
                     const std::string &user, const std::string &password);
@@ -83,7 +80,7 @@ namespace XFILE
       void SetBufferSize(unsigned int size);
 
       const CHttpHeader& GetHttpHeader() const { return m_state->m_httpheader; }
-      const std::string& GetURL() const { return m_url; }
+      std::string GetURL(void);
       std::string GetRedirectURL();
 
       /* static function that will get content type of a file */
@@ -124,7 +121,7 @@ namespace XFILE
 
           /* returned http header */
           CHttpHeader m_httpheader;
-          bool IsHeaderDone(void) { return m_httpheader.IsHeaderDone(); }
+          bool IsHeaderDone(void) const { return m_httpheader.IsHeaderDone(); }
 
           curl_slist* m_curlHeaderList;
           curl_slist* m_curlAliasList;
@@ -135,7 +132,7 @@ namespace XFILE
 
           bool Seek(int64_t pos);
           ssize_t Read(void* lpBuf, size_t uiBufSize);
-          ReadLineResult ReadLine(char* buffer, std::size_t bufferSize);
+          bool ReadString(char *szLine, int iLineLength);
           int8_t FillBuffer(unsigned int want);
           void SetReadBuffer(const void* lpBuf, int64_t uiBufSize);
 
@@ -147,10 +144,10 @@ namespace XFILE
     protected:
       void ParseAndCorrectUrl(CURL &url);
       void SetCommonOptions(CReadState* state, bool failOnError = true);
-      void SetRequestHeaders(CReadState* state);
+      void SetRequestHeaders(CReadState* state) const;
       void SetCorrectHeaders(CReadState* state);
       bool Service(const std::string& strURL, std::string& strHTML);
-      std::string GetInfoString(int infoType);
+      std::string GetInfoString(int infoType) const;
 
     protected:
       CReadState* m_state;
@@ -160,7 +157,7 @@ namespace XFILE
 
       std::string m_url;
       std::string m_userAgent;
-      ProxyType m_proxytype = ProxyType::HTTP;
+      ProxyType m_proxytype = PROXY_HTTP;
       std::string m_proxyhost;
       uint16_t m_proxyport = 3128;
       std::string m_proxyuser;

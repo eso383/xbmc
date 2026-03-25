@@ -13,7 +13,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "InfoScanner.h"
-#include "URL.h"
 #include "addons/Scraper.h"
 #include "utils/XBMCTinyXML.h"
 
@@ -31,10 +30,11 @@ class CNfoFile
 public:
   virtual ~CNfoFile() { Close(); }
 
-  CInfoScanner::InfoType Create(const std::string&, const ADDON::ScraperPtr&, int index = 1);
-
+  CInfoScanner::INFO_TYPE Create(const std::string&,
+                                 const ADDON::ScraperPtr&, int episode=-1);
   template<class T>
-  bool GetDetails(T& details, const char* document = nullptr, bool prioritise = false) const
+    bool GetDetails(T& details, const char* document= nullptr,
+                    bool prioritise=false)
   {
     CXBMCTinyXML doc;
     if (document)
@@ -52,19 +52,18 @@ public:
   ADDON::ScraperPtr GetScraperInfo() { return m_info; }
   const CScraperUrl &ScraperUrl() const { return m_scurl; }
 
-private:
-  CInfoScanner::InfoType TryParsing(ADDON::AddonType addonType) const;
-  CInfoScanner::InfoType TryParsing(const CURL& nfoPath,
-                                    ADDON::ContentType contentType,
-                                    int index = 1);
-  CInfoScanner::InfoType SearchNfoForScraperUrls(CInfoScanner::InfoType parseResult,
-                                                 const ADDON::ScraperPtr& info);
-  bool SeekToMovieIndex(int index);
+  static int Scrape(ADDON::ScraperPtr& scraper, CScraperUrl& url,
+                    const std::string& content);
 
+  static std::vector<ADDON::ScraperPtr> GetScrapers(ADDON::AddonType type,
+                                                    const ADDON::ScraperPtr& selectedScraper);
+
+private:
   std::string m_doc;
   size_t m_headPos = 0;
   ADDON::ScraperPtr m_info;
+  ADDON::AddonType m_type{};
   CScraperUrl m_scurl;
 
-  int Load(const CURL&);
+  int Load(const std::string&);
 };

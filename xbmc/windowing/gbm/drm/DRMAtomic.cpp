@@ -12,10 +12,11 @@
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
+#include "settings/lib/Setting.h"
 #include "utils/log.h"
 
 #include <errno.h>
-#include <poll.h>
 #include <string.h>
 
 #include <drm_fourcc.h>
@@ -24,55 +25,45 @@
 
 using namespace KODI::WINDOWING::GBM;
 
-CDRMAtomic::~CDRMAtomic()
+namespace
 {
-  ResetVideoGuiCommitFence();
+
+const auto SETTING_VIDEOSCREEN_HW_SCALING_FILTER = "videoscreen.hwscalingfilter";
+
+uint32_t GetScalingFactor(uint32_t srcWidth,
+                          uint32_t srcHeight,
+                          uint32_t destWidth,
+                          uint32_t destHeight)
+{
+  uint32_t factor_W = destWidth / srcWidth;
+  uint32_t factor_H = destHeight / srcHeight;
+  if (factor_W != factor_H)
+    return (factor_W < factor_H) ? factor_W : factor_H;
+  return factor_W;
 }
 
-bool CDRMAtomic::IsVideoGuiCommitPending()
+} // namespace
+
+bool CDRMAtomic::SetScalingFilter(CDRMObject* object, const char* name, const char* type)
 {
-  if (!m_videoGuiCommitPending)
+  std::optional<uint64_t> scalingFilter = m_gui_plane->GetPropertyValue(name, type);
+  if (!scalingFilter)
     return false;
 
-  if (m_videoGuiOutFenceFd == -1)
-  {
-    m_videoGuiCommitPending = false;
+  if (!AddProperty(object, name, scalingFilter.value()))
     return false;
-  }
 
-  pollfd pfd{m_videoGuiOutFenceFd, POLLIN, 0};
-  const int ret = poll(&pfd, 1, 0);
-  if (ret > 0 && (pfd.revents & (POLLIN | POLLHUP | POLLERR)))
-  {
-    ResetVideoGuiCommitFence();
-    return false;
-  }
-
-  if (ret < 0)
-  {
-    logM(LOGWARNING, "poll on out fence failed: {}", strerror(errno));
-    ResetVideoGuiCommitFence();
-    return false;
-  }
+  uint32_t mar_scale_factor =
+      GetScalingFactor(m_width, m_height, m_mode->hdisplay, m_mode->vdisplay);
+  AddProperty(object, "CRTC_W", (mar_scale_factor * m_width));
+  AddProperty(object, "CRTC_H", (mar_scale_factor * m_height));
 
   return true;
 }
 
-void CDRMAtomic::ResetVideoGuiCommitFence()
-{
-  if (m_videoGuiOutFenceFd != -1)
-  {
-    close(m_videoGuiOutFenceFd);
-    m_videoGuiOutFenceFd = -1;
-  }
-
-  m_videoGuiCommitPending = false;
-}
-
-void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer, bool updateGuiPlane)
+void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer)
 {
   uint32_t blob_id;
-  const bool trackVideoGuiCommit = rendered && videoLayer && updateGuiPlane;
 
   if (flags & DRM_MODE_ATOMIC_ALLOW_MODESET)
   {
@@ -99,13 +90,7 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
       return;
   }
 
-  if (trackVideoGuiCommit)
-  {
-    ResetVideoGuiCommitFence();
-    AddProperty(m_crtc, "OUT_FENCE_PTR", reinterpret_cast<uint64_t>(&m_videoGuiOutFenceFd));
-  }
-
-  if (updateGuiPlane)
+  if (rendered)
   {
     AddProperty(m_gui_plane, "FB_ID", fb_id);
     AddProperty(m_gui_plane, "CRTC_ID", m_crtc->GetCrtcId());
@@ -115,11 +100,17 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
     AddProperty(m_gui_plane, "SRC_H", m_height << 16);
     AddProperty(m_gui_plane, "CRTC_X", 0);
     AddProperty(m_gui_plane, "CRTC_Y", 0);
-    AddProperty(m_gui_plane, "CRTC_W", m_mode->hdisplay);
-    AddProperty(m_gui_plane, "CRTC_H", m_mode->vdisplay);
+    //! @todo: disabled until upstream kernel changes are merged
+    // if (DisplayHardwareScalingEnabled())
+    // {
+    //   SetScalingFilter(m_gui_plane, "SCALING_FILTER", "Nearest Neighbor");
+    // }
+    // else
+    {
+      AddProperty(m_gui_plane, "CRTC_W", m_mode->hdisplay);
+      AddProperty(m_gui_plane, "CRTC_H", m_mode->vdisplay);
+    }
 
-    if (m_inFenceFd != -1)
-      AddProperty(m_gui_plane, "IN_FENCE_FD", m_inFenceFd);
   }
   else if (videoLayer && !CServiceBroker::GetGUI()->GetWindowManager().HasVisibleControls())
   {
@@ -144,33 +135,20 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
     m_req = oldRequest;
 
     // update the old atomic request with the new fb id to avoid tearing
-    if (updateGuiPlane)
+    if (rendered)
       AddProperty(m_gui_plane, "FB_ID", fb_id);
   }
 
   ret = drmModeAtomicCommit(m_fd, m_req->Get(), flags, nullptr);
   if (ret < 0)
   {
-    CLog::Log(LOGERROR, "CDRMAtomic::{} - atomic commit failed: {}", __FUNCTION__, strerror(errno));
+    CLog::Log(LOGERROR, "CDRMAtomic::{} - atomic commit failed: {}", __FUNCTION__,
+              strerror(errno));
     m_atomicRequestQueue.pop_back();
   }
   else if (m_atomicRequestQueue.size() > 1)
   {
     m_atomicRequestQueue.pop_front();
-  }
-
-  if (ret >= 0 && trackVideoGuiCommit)
-  {
-    if (flags & DRM_MODE_ATOMIC_NONBLOCK)
-      m_videoGuiCommitPending = (m_videoGuiOutFenceFd != -1);
-    else
-      ResetVideoGuiCommitFence();
-  }
-
-  if (m_inFenceFd != -1)
-  {
-    close(m_inFenceFd);
-    m_inFenceFd = -1;
   }
 
   if (flags & DRM_MODE_ATOMIC_ALLOW_MODESET)
@@ -184,12 +162,9 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
   m_req = m_atomicRequestQueue.back().get();
 }
 
-void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, bool async)
+void CDRMAtomic::FlipPage(struct gbm_bo *bo, bool rendered, bool videoLayer)
 {
-  struct drm_fb* drm_fb = nullptr;
-  uint32_t flags = 0;
-  const bool trackVideoGuiCommit = rendered && videoLayer;
-  const bool deferGuiPlaneUpdate = trackVideoGuiCommit && IsVideoGuiCommitPending();
+  struct drm_fb *drm_fb = nullptr;
 
   if (rendered)
   {
@@ -204,17 +179,9 @@ void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, boo
       CLog::Log(LOGERROR, "CDRMAtomic::{} - Failed to get a new FBO", __FUNCTION__);
       return;
     }
-
-    if ((async || trackVideoGuiCommit) && !m_need_modeset)
-      flags |= DRM_MODE_ATOMIC_NONBLOCK;
   }
 
-  if (deferGuiPlaneUpdate)
-  {
-    CLog::Log(LOGDEBUG,
-              "CDRMAtomic::{} - deferring GUI plane update until previous video/gui commit completes",
-              __FUNCTION__);
-  }
+  uint32_t flags = 0;
 
   if (m_need_modeset)
   {
@@ -223,8 +190,7 @@ void CDRMAtomic::FlipPage(struct gbm_bo* bo, bool rendered, bool videoLayer, boo
     CLog::Log(LOGDEBUG, "CDRMAtomic::{} - Execute modeset at next commit", __FUNCTION__);
   }
 
-  DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer,
-                  rendered && !deferGuiPlaneUpdate);
+  DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer);
 }
 
 bool CDRMAtomic::InitDrm()
@@ -254,16 +220,23 @@ bool CDRMAtomic::InitDrm()
 
   CLog::Log(LOGDEBUG, "CDRMAtomic::{} - initialized atomic DRM", __FUNCTION__);
 
+  //! @todo: disabled until upstream kernel changes are merged
+  // if (m_gui_plane->SupportsProperty("SCALING_FILTER"))
+  // {
+  //   const std::shared_ptr<CSettings> settings =
+  //       CServiceBroker::GetSettingsComponent()->GetSettings();
+  //   settings->GetSetting(SETTING_VIDEOSCREEN_HW_SCALING_FILTER)->SetVisible(true);
+  // }
+
   return true;
 }
 
 void CDRMAtomic::DestroyDrm()
 {
-  ResetVideoGuiCommitFence();
   CDRMUtils::DestroyDrm();
 }
 
-bool CDRMAtomic::SetVideoMode(const RESOLUTION_INFO& res, struct gbm_bo* bo)
+bool CDRMAtomic::SetVideoMode(const RESOLUTION_INFO& res, struct gbm_bo *bo)
 {
   m_need_modeset = true;
 
@@ -283,13 +256,21 @@ bool CDRMAtomic::AddProperty(CDRMObject* object, const char* name, uint64_t valu
   return m_req->AddProperty(object, name, value);
 }
 
+bool CDRMAtomic::DisplayHardwareScalingEnabled()
+{
+  auto settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+
+  if (settings && settings->GetBool(SETTING_VIDEOSCREEN_HW_SCALING_FILTER))
+    return true;
+
+  return false;
+}
+
 CDRMAtomic::CDRMAtomicRequest::CDRMAtomicRequest() : m_atomicRequest(drmModeAtomicAlloc())
 {
 }
 
-bool CDRMAtomic::CDRMAtomicRequest::AddProperty(CDRMObject* object,
-                                                const char* name,
-                                                uint64_t value)
+bool CDRMAtomic::CDRMAtomicRequest::AddProperty(CDRMObject* object, const char* name, uint64_t value)
 {
   uint32_t propertyId = object->GetPropertyId(name);
   if (propertyId == 0)
@@ -315,9 +296,11 @@ void CDRMAtomic::CDRMAtomicRequest::LogAtomicDiff(CDRMAtomicRequest* current,
     {
       std::map<uint32_t, uint64_t> propertyDiff;
 
-      std::ranges::set_difference(current->m_atomicRequestItems[object.first],
-                                  old->m_atomicRequestItems[object.first],
-                                  std::inserter(propertyDiff, propertyDiff.begin()));
+      std::set_difference(current->m_atomicRequestItems[object.first].begin(),
+                          current->m_atomicRequestItems[object.first].end(),
+                          old->m_atomicRequestItems[object.first].begin(),
+                          old->m_atomicRequestItems[object.first].end(),
+                          std::inserter(propertyDiff, propertyDiff.begin()));
 
       atomicDiff[object.first] = propertyDiff;
     }

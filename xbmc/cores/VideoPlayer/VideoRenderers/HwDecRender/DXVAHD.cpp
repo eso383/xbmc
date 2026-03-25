@@ -21,8 +21,6 @@
 #include "utils/StringUtils.h"
 #include "utils/log.h"
 
-#include "platform/win32/WIN32Util.h"
-
 #include <mutex>
 
 #include <Windows.h>
@@ -72,14 +70,16 @@ CProcessorHD::~CProcessorHD()
 
 void CProcessorHD::UnInit()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_enumerator = nullptr;
   Close();
 }
 
 void CProcessorHD::Close()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+
   m_pVideoProcessor = nullptr;
   m_pVideoContext = nullptr;
   m_pVideoDevice = nullptr;
@@ -99,13 +99,13 @@ bool CProcessorHD::InitProcessor()
   if (FAILED(hr = pD3DDeviceContext.As(&m_pVideoContext)))
   {
     CLog::LogF(LOGWARNING, "video context initialization is failed. Error {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return false;
   }
   if (FAILED(hr = pD3DDevice.As(&m_pVideoDevice)))
   {
     CLog::LogF(LOGWARNING, "video device initialization is failed. Error {}",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return false;
   }
 
@@ -133,7 +133,7 @@ bool CProcessorHD::Open(const VideoPicture& picture,
 {
   Close();
 
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   m_color_primaries = picture.color_primaries;
   m_color_transfer = picture.color_transfer;
@@ -147,7 +147,8 @@ bool CProcessorHD::Open(const VideoPicture& picture,
 
 bool CProcessorHD::ReInit()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
+  
   Close();
 
   if (!InitProcessor())
@@ -161,7 +162,7 @@ bool CProcessorHD::ReInit()
 
 bool CProcessorHD::OpenProcessor()
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if ((!m_pVideoDevice || !m_pVideoContext || !m_enumerator || !m_procCaps.m_valid) && !ReInit())
   {
@@ -388,7 +389,7 @@ bool CProcessorHD::CheckVideoParameters(const CRect& src,
 
 bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderBuffer** views, DWORD flags, UINT frameIdx, UINT rotation, float contrast, float brightness)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   // restore processor if it was lost
   if (!m_pVideoProcessor && !OpenProcessor())
@@ -517,7 +518,7 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
     {
       CLog::LogF(FAILED(hr) ? LOGERROR : LOGWARNING,
                  "VideoProcessorBlt returned {} while VideoProcessorBlt execution.",
-                 CWIN32Util::FormatHRESULT(hr));
+                 DX::GetErrorDescription(hr));
     }
   }
 
@@ -529,8 +530,7 @@ bool CProcessorHD::Render(CRect src, CRect dst, ID3D11Resource* target, CRenderB
 
 bool CProcessorHD::IsSuperResolutionSuitable(const VideoPicture& picture)
 {
-  // both Intel and NVIDIA support VSR in videos up to 1440p
-  if (picture.iWidth > 2560)
+  if (picture.iWidth > 1920)
     return false;
 
   const UINT outputWidth = DX::Windowing()->GetBackBuffer().GetWidth();
@@ -538,11 +538,9 @@ bool CProcessorHD::IsSuperResolutionSuitable(const VideoPicture& picture)
   if (outputWidth <= picture.iWidth)
     return false;
 
-  // At this time, Intel GPUs do not support VSR on HDR video
-  if ((picture.color_primaries == AVCOL_PRI_BT2020 ||
-       picture.color_transfer == AVCOL_TRC_SMPTE2084 ||
-       picture.color_transfer == AVCOL_TRC_ARIB_STD_B67) &&
-      DX::DeviceResources::Get()->GetAdapterDesc().VendorId == PCIV_Intel)
+  if (picture.color_primaries == AVCOL_PRI_BT2020 ||
+      picture.color_transfer == AVCOL_TRC_SMPTE2084 ||
+      picture.color_transfer == AVCOL_TRC_ARIB_STD_B67)
     return false;
 
   return true;
@@ -585,7 +583,7 @@ void CProcessorHD::EnableIntelVideoSuperResolution()
   if (FAILED(hr))
   {
     CLog::LogF(LOGWARNING, "Failed to set the Intel VPE version with error {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return;
   }
 
@@ -597,7 +595,7 @@ void CProcessorHD::EnableIntelVideoSuperResolution()
   if (FAILED(hr))
   {
     CLog::LogF(LOGWARNING, "Failed to set the Intel VPE mode with error {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return;
   }
 
@@ -609,7 +607,7 @@ void CProcessorHD::EnableIntelVideoSuperResolution()
   if (FAILED(hr))
   {
     CLog::LogF(LOGWARNING, "Failed to set the Intel VPE scaling type with error {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return;
   }
 
@@ -633,7 +631,7 @@ void CProcessorHD::EnableNvidiaRTXVideoSuperResolution()
   if (FAILED(hr))
   {
     CLog::LogF(LOGWARNING, "Failed to set the NVIDIA video process stream extension with error {}.",
-               CWIN32Util::FormatHRESULT(hr));
+               DX::GetErrorDescription(hr));
     return;
   }
 
@@ -643,7 +641,7 @@ void CProcessorHD::EnableNvidiaRTXVideoSuperResolution()
 
 bool CProcessorHD::SetConversion(const ProcessorConversion& conversion)
 {
-  std::unique_lock lock(m_section);
+  std::lock_guard lock(m_section);
 
   if (!m_enumerator)
     return false;

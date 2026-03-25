@@ -129,7 +129,7 @@ std::string CAddon::Icon() const
   return m_addonInfo->Icon();
 }
 
-KODI::ART::Artwork CAddon::Art() const
+ArtMap CAddon::Art() const
 {
   return m_addonInfo->Art();
 }
@@ -494,7 +494,7 @@ template<class TSetting>
 bool UpdateSettingValue(CAddon& addon,
                         AddonInstanceId instanceId,
                         const std::string& key,
-                        const typename TSetting::Value& value)
+                        typename TSetting::Value value)
 {
   if (key.empty() || !addon.HasSettings(instanceId))
     return false;
@@ -555,10 +555,13 @@ bool CAddon::SettingsFromXML(const CXBMCTinyXML& doc,
     return false;
 
   // if the settings haven't been initialized yet, try it from the given XML
-  if (!SettingsInitialized(id) && !GetSettings(id)->Initialize(doc))
+  if (!SettingsInitialized(id))
   {
-    CLog::Log(LOGERROR, "CAddon[{}]: failed to initialize addon settings", ID());
-    return false;
+    if (!GetSettings(id)->Initialize(doc))
+    {
+      CLog::Log(LOGERROR, "CAddon[{}]: failed to initialize addon settings", ID());
+      return false;
+    }
   }
 
   // reset all setting values to their default value
@@ -706,9 +709,9 @@ void OnPostInstall(const AddonPtr& addon, bool update, bool modal)
   int statRet;
 
   addonDirPath = "/storage/.kodi/addons/" + addon->ID() + "/bin/";
-  if ((addonsDir = opendir(addonDirPath.c_str())) != NULL)
+  if ((addonsDir = opendir(addonDirPath.c_str())) != nullptr)
   {
-    while ((fileDirent = readdir(addonsDir)) != NULL)
+    while ((fileDirent = readdir(addonsDir)) != nullptr)
     {
       chmodFilePath = addonDirPath + fileDirent->d_name;
       statRet = stat(chmodFilePath.c_str(), &fileStat);

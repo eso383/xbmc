@@ -113,7 +113,7 @@ public:
    * @brief Update the currently active event.
    * @return True if the active event was updated, false otherwise.
    */
-  bool UpdateActiveTag();
+  bool UpdateActiveTag() const;
 
   /*!
    * @brief Get the event that is occurring now
@@ -153,10 +153,10 @@ public:
   std::vector<std::shared_ptr<CPVREpgInfoTag>> GetAllTags() const;
 
   /*!
-   * @brief Get the start and end time of the last not yet committed entry in this EPG.
+   * @brief Get the start and end time of the last not yet commited entry in this EPG.
    * @return The times; first: start time, second: end time.
    */
-  std::pair<CDateTime, CDateTime> GetFirstAndLastUncommittedEPGDate() const;
+  std::pair<CDateTime, CDateTime> GetFirstAndLastUncommitedEPGDate() const;
 
   /*!
    * @brief Check whether this container has unsaved data.

@@ -13,6 +13,7 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
+using namespace PLAYLIST;
 using namespace XFILE;
 
 // example url file
@@ -21,17 +22,14 @@ using namespace XFILE;
 //[InternetShortcut]
 //URL=http://msdn2.microsoft.com/en-us/library/ms812698.aspx
 
-namespace KODI::PLAYLIST
-{
-
 CPlayListURL::CPlayListURL(void) = default;
 
 CPlayListURL::~CPlayListURL(void) = default;
 
 bool CPlayListURL::Load(const std::string& strFileName)
 {
+  char szLine[4096];
   std::string strLine;
-  strLine.reserve(1024);
 
   Clear();
 
@@ -45,17 +43,22 @@ bool CPlayListURL::Load(const std::string& strFileName)
     return false;
   }
 
-  while (file.ReadLine(strLine))
+  while (file.ReadString(szLine, 1024))
   {
+    strLine = szLine;
     StringUtils::RemoveCRLF(strLine);
 
     if (StringUtils::StartsWith(strLine, "[InternetShortcut]"))
     {
-      if (file.ReadLine(strLine))
+      if (file.ReadString(szLine,1024))
       {
+        strLine  = szLine;
         StringUtils::RemoveCRLF(strLine);
         if (StringUtils::StartsWith(strLine, "URL="))
-          Add(std::make_shared<CFileItem>(strLine.substr(4), false));
+        {
+          CFileItemPtr newItem(new CFileItem(strLine.substr(4), false));
+          Add(newItem);
+        }
       }
     }
   }
@@ -64,4 +67,3 @@ bool CPlayListURL::Load(const std::string& strFileName)
   return true;
 }
 
-} // namespace KODI::PLAYLIST

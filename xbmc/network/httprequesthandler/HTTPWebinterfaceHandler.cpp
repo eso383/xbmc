@@ -53,7 +53,7 @@ int CHTTPWebinterfaceHandler::ResolveUrl(const std::string &url, std::string &pa
     if (URIUtils::GetFileName(path).empty())
     {
       // determine the actual file path using the default entry point
-      if (addon != NULL && addon->Type() == ADDON::AddonType::WEB_INTERFACE)
+      if (addon != nullptr && addon->Type() == ADDON::AddonType::WEB_INTERFACE)
         path = std::dynamic_pointer_cast<ADDON::CWebinterface>(addon)->GetEntryPoint(path);
     }
     else
@@ -83,7 +83,7 @@ bool CHTTPWebinterfaceHandler::ResolveAddon(const std::string &url, ADDON::Addon
   std::string path = url;
 
   // check if the URL references a specific addon
-  if (url.starts_with("/addons/") && url.size() > 8)
+  if (url.find("/addons/") == 0 && url.size() > 8)
   {
     std::vector<std::string> components;
     StringUtils::Tokenize(path, components, WEBSERVER_DIRECTORY_SEPARATOR);
@@ -92,7 +92,7 @@ bool CHTTPWebinterfaceHandler::ResolveAddon(const std::string &url, ADDON::Addon
 
     if (!CServiceBroker::GetAddonMgr().GetAddon(components.at(1), addon,
                                                 ADDON::OnlyEnabled::CHOICE_YES) ||
-        addon == NULL)
+        addon == nullptr)
       return false;
 
     addonPath = addon->Path();
@@ -108,7 +108,7 @@ bool CHTTPWebinterfaceHandler::ResolveAddon(const std::string &url, ADDON::Addon
   }
   else if (!ADDON::CAddonSystemSettings::GetInstance().GetActive(ADDON::AddonType::WEB_INTERFACE,
                                                                  addon) ||
-           addon == NULL)
+           addon == nullptr)
     return false;
 
   // get the path of the addon

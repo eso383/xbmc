@@ -20,5 +20,4 @@ public:
   static std::unique_ptr<IScreenshotSurface> CreateSurface();
 
   bool Capture() override;
-  void CaptureVideo(bool blendToBuffer) override;
 };

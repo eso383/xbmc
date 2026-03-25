@@ -147,10 +147,6 @@ protected:
     float width, height;
   } m_fbo;
 
-  GLint m_intermediateFormat{GL_RGBA8};
-  GLint m_intermediateType{GL_UNSIGNED_BYTE};
-  bool m_intermediateGammaCorrection{false};
-
   int m_iYV12RenderBuffer = 0;
   int m_NumYV12Buffers = 0;
 
@@ -219,7 +215,6 @@ protected:
   AVColorPrimaries m_srcPrimaries;
   bool m_toneMap = false;
   ETONEMAPMETHOD m_toneMapMethod = VS_TONEMAPMETHOD_OFF;
-  bool m_passthroughHDR = false;
   float m_clearColour = 0.0f;
   bool m_pboSupported = true;
   bool m_pboUsed = false;

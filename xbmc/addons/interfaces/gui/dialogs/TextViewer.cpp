@@ -36,10 +36,10 @@ void Interface_GUIDialogTextViewer::open(KODI_HANDLE kodiBase,
                                          const char* heading,
                                          const char* text)
 {
-  const auto* addon = static_cast<const CAddonDll*>(kodiBase);
+  auto addon = static_cast<CAddonDll*>(kodiBase);
   if (!addon)
   {
-    CLog::LogF(LOGERROR, "Invalid data");
+    CLog::Log(LOGERROR, "Interface_GUIDialogTextViewer::{} - invalid data", __func__);
     return;
   }
 
@@ -48,11 +48,11 @@ void Interface_GUIDialogTextViewer::open(KODI_HANDLE kodiBase,
           WINDOW_DIALOG_TEXT_VIEWER);
   if (!heading || !text || !dialog)
   {
-    CLog::LogF(LOGERROR,
-               "Invalid handler data (heading='{}', text='{}', "
-               "dialog='{}') on addon '{}'",
-               static_cast<const void*>(heading), static_cast<const void*>(text),
-               static_cast<void*>(dialog), addon->ID());
+    CLog::Log(LOGERROR,
+              "Interface_GUIDialogTextViewer::{} - invalid handler data (heading='{}', text='{}', "
+              "dialog='{}') on addon '{}'",
+              __func__, static_cast<const void*>(heading), static_cast<const void*>(text),
+              static_cast<void*>(dialog), addon->ID());
     return;
   }
 

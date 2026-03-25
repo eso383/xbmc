@@ -8,13 +8,11 @@
 
 #include "ApplicationMessenger.h"
 
-#include "ServiceBroker.h"
 #include "guilib/GUIMessage.h"
 #include "messaging/IMessageTarget.h"
 #include "threads/SingleLock.h"
 #include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "windowing/WinSystem.h"
 
 #include <memory>
 #include <mutex>
@@ -60,7 +58,7 @@ CApplicationMessenger::~CApplicationMessenger()
 
 void CApplicationMessenger::Cleanup()
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
 
   while (!m_vecMessages.empty())
   {
@@ -115,7 +113,7 @@ int CApplicationMessenger::SendMsg(ThreadMessage&& message, bool wait)
   if (m_bStop)
     return -1;
 
-  ThreadMessage* msg = new ThreadMessage(std::move(message));
+  auto msg = new ThreadMessage(std::move(message));
 
   std::unique_lock lock(m_critSection);
 
@@ -204,6 +202,7 @@ void CApplicationMessenger::ProcessMessages()
 {
   // process threadmessages
   std::unique_lock lock(m_critSection);
+
   while (!m_vecMessages.empty())
   {
     ThreadMessage* pMsg = m_vecMessages.front();
@@ -231,12 +230,13 @@ void CApplicationMessenger::ProcessMessage(ThreadMessage *pMsg)
   //special case for this that we handle ourselves
   if (pMsg->dwMessage == TMSG_CALLBACK)
   {
-    ThreadMessageCallback *callback = static_cast<ThreadMessageCallback*>(pMsg->lpVoid);
+    auto callback = static_cast<ThreadMessageCallback*>(pMsg->lpVoid);
     callback->callback(callback->userptr);
     return;
   }
 
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+
   int mask = pMsg->dwMessage & TMSG_MASK_MESSAGE;
 
   const auto it = m_mapTargets.find(mask);
@@ -252,6 +252,7 @@ void CApplicationMessenger::ProcessMessage(ThreadMessage *pMsg)
 void CApplicationMessenger::ProcessWindowMessages()
 {
   std::unique_lock lock(m_critSection);
+
   //message type is window, process window messages
   while (!m_vecWindowMessages.empty())
   {
@@ -283,7 +284,8 @@ void CApplicationMessenger::SendGUIMessage(const CGUIMessage &message, int windo
 
 void CApplicationMessenger::RegisterReceiver(IMessageTarget* target)
 {
-  std::unique_lock lock(m_critSection);
+  std::lock_guard lock(m_critSection);
+  
   m_mapTargets.insert(std::make_pair(target->GetMessageMask(), target));
 }
 

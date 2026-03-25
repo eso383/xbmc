@@ -166,16 +166,6 @@ public:
   bool CheckSignature(const std::string& data);
 
   /*!
-   * \brief To be used when packages dont have the CUE timing string.
-   *        Initialize the decoder with following CUE timing,
-   *        after this call the decoder is prepared to read the
-   *        CUE text area by using DecodeLine method.
-   * \param startTime The start time
-   * \param endTime The end time
-   */
-  void InitDecoderCue(double startTime, double endTime);
-
-  /*!
   * \brief Decode a line of the WebVTT text data
   * \param line The line to decode
   * \param subList The list to be filled with decoded subtitles
@@ -241,6 +231,6 @@ private:
   std::map<WebvttSelector, std::map<std::string, webvttCssStyle>> m_cssSelectors;
 
   bool m_CSSColorsLoaded{false};
-  std::vector<std::pair<std::string, KODI::UTILS::COLOR::ColorInfo>> m_CSSColors;
+  std::vector<std::pair<std::string, UTILS::COLOR::ColorInfo>> m_CSSColors;
   double m_offset{0.0};
 };

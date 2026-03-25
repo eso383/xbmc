@@ -100,16 +100,14 @@ bool CSkinTimer::ResetsOnStart() const
   return m_resetOnStart;
 }
 
-void CSkinTimer::OnStart() const
-{
+void CSkinTimer::OnStart() const {
   if (m_startActions.HasAnyActions())
   {
     m_startActions.ExecuteActions();
   }
 }
 
-void CSkinTimer::OnStop() const
-{
+void CSkinTimer::OnStop() const {
   if (m_stopActions.HasAnyActions())
   {
     m_stopActions.ExecuteActions();

@@ -15,13 +15,11 @@
 #include "dialogs/GUIDialogYesNo.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
 #include "messaging/helpers/DialogHelper.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "music/MusicDbUrl.h"
 #include "music/MusicLibraryQueue.h"
 #include "music/infoscanner/MusicInfoScanner.h"
-#include "resources/LocalizeStrings.h"
-#include "resources/ResourcesComponent.h"
 #include "settings/LibExportSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
@@ -42,10 +40,10 @@ static int CleanLibrary(const std::vector<std::string>& params)
   bool userInitiated = true;
   if (params.size() > 1)
     userInitiated = StringUtils::EqualsNoCase(params[1], "true");
-  if (params.empty() || StringUtils::EqualsNoCase(params[0], "video") ||
-      StringUtils::EqualsNoCase(params[0], "movies") ||
-      StringUtils::EqualsNoCase(params[0], "tvshows") ||
-      StringUtils::EqualsNoCase(params[0], "musicvideos"))
+  if (!params.size() || StringUtils::EqualsNoCase(params[0], "video")
+                     || StringUtils::EqualsNoCase(params[0], "movies")
+                     || StringUtils::EqualsNoCase(params[0], "tvshows")
+                     || StringUtils::EqualsNoCase(params[0], "musicvideos"))
   {
     if (!CVideoLibraryQueue::GetInstance().IsScanningLibrary())
     {
@@ -60,7 +58,7 @@ static int CleanLibrary(const std::vector<std::string>& params)
         if (!content.empty() || !directory.empty())
         {
           CVideoDatabase db;
-          std::set<std::string, std::less<>> contentPaths;
+          std::set<std::string> contentPaths;
           if (db.Open())
           {
             if (!directory.empty())
@@ -124,7 +122,7 @@ static int ExportLibrary(const std::vector<std::string>& params)
   if (StringUtils::EqualsNoCase(params[0], "music"))
     iHeading = 20196;
   std::string path;
-  std::vector<CMediaSource> shares;
+  VECSOURCES shares;
   CServiceBroker::GetMediaManager().GetLocalDrives(shares);
   CServiceBroker::GetMediaManager().GetNetworkLocations(shares);
   CServiceBroker::GetMediaManager().GetRemovableDrives(shares);
@@ -208,9 +206,8 @@ static int ExportLibrary(const std::vector<std::string>& params)
   if (params.size() > 2)
     path=params[2];
   if (!singleFile || !path.empty() ||
-      CGUIDialogFileBrowser::ShowAndGetDirectory(
-          shares, CServiceBroker::GetResourcesComponent().GetLocalizeStrings().Get(661), path,
-          true))
+      CGUIDialogFileBrowser::ShowAndGetDirectory(shares, g_localizeStrings.Get(661),
+                                                 path, true))
   {
     if (StringUtils::EqualsNoCase(params[0], "video"))
     {
@@ -223,11 +220,11 @@ static int ExportLibrary(const std::vector<std::string>& params)
     {
       CLibExportSettings settings;
       // ELIBEXPORT_SINGLEFILE, ELIBEXPORT_ALBUMS + ELIBEXPORT_ALBUMARTISTS by default
-      settings.SetPath(path);
+      settings.m_strPath = path;
       if (!singleFile)
         settings.SetExportType(ELIBEXPORT_TOLIBRARYFOLDER);
-      settings.SetArtwork(thumbs);
-      settings.SetOverwrite(overwrite);
+      settings.m_artwork = thumbs;
+      settings.m_overwrite = overwrite;
       // Export music library (not showing progress dialog)
       CMusicLibraryQueue::GetInstance().ExportLibrary(settings, false);
     }
@@ -256,27 +253,27 @@ static int ExportLibrary2(const std::vector<std::string>& params)
   CLibExportSettings settings;
   if (params.size() < 3)
     return -1;
-  settings.SetPath(params[2]);
+  settings.m_strPath = params[2];
   settings.SetExportType(ELIBEXPORT_SINGLEFILE);
   if (StringUtils::EqualsNoCase(params[1], "separate"))
     settings.SetExportType(ELIBEXPORT_SEPARATEFILES);
   else if (StringUtils::EqualsNoCase(params[1], "library"))
   {
     settings.SetExportType(ELIBEXPORT_TOLIBRARYFOLDER);
-    settings.SetPath("");
+    settings.m_strPath.clear();
   }
   settings.ClearItems();
 
   for (unsigned int i = 2; i < params.size(); i++)
   {
     if (StringUtils::EqualsNoCase(params[i], "artwork"))
-      settings.SetArtwork(true);
+      settings.m_artwork = true;
     else if (StringUtils::EqualsNoCase(params[i], "overwrite"))
-      settings.SetOverwrite(true);
+      settings.m_overwrite = true;
     else if (StringUtils::EqualsNoCase(params[i], "unscraped"))
-      settings.SetUnscraped(true);
+      settings.m_unscraped = true;
     else if (StringUtils::EqualsNoCase(params[i], "skipnfo"))
-      settings.SetSkipNfo(true);
+      settings.m_skipnfo = true;
     else if (StringUtils::EqualsNoCase(params[i], "albums"))
       settings.AddItem(ELIBEXPORT_ALBUMS);
     else if (StringUtils::EqualsNoCase(params[i], "albumartists"))
@@ -297,9 +294,8 @@ static int ExportLibrary2(const std::vector<std::string>& params)
   {
     CVideoDatabase videodatabase;
     videodatabase.Open();
-    videodatabase.ExportToXML(settings.GetPath(), settings.IsSingleFile(), settings.IsArtwork(),
-                              settings.IsItemExported(ELIBEXPORT_ACTORTHUMBS),
-                              settings.IsOverwrite());
+    videodatabase.ExportToXML(settings.m_strPath, settings.IsSingleFile(),
+      settings.m_artwork, settings.IsItemExported(ELIBEXPORT_ACTORTHUMBS), settings.m_overwrite);
     videodatabase.Close();
   }
   return 0;
@@ -345,48 +341,6 @@ static int SearchVideoLibrary(const std::vector<std::string>& params)
   CGUIMessage msg(GUI_MSG_SEARCH, 0, 0, 0);
   CServiceBroker::GetGUI()->GetWindowManager().SendMessage(msg, WINDOW_VIDEO_NAV);
 
-  return 0;
-}
-
-/*! \brief Rescrapes additional information for a given artist
- *  \params params The parameters.
- *  \details params[0] = "artist id"
- */
-static int RefreshArtist(const std::vector<std::string>& params)
-{
-  // Checking if the artist id is passed
-  if (params.empty())
-    return -1;
-
-  // Set the artist id on the musicdb url
-  CMusicDbUrl musicUrl;
-  if (!musicUrl.FromString("musicdb://artists/"))
-    return -1;
-  musicUrl.AddOption("artistid", params.front());
-
-  // Start rescraping additional information for the given artist
-  CMusicLibraryQueue::GetInstance().StartArtistScan(musicUrl.ToString(), true);
-  return 0;
-}
-
-/*! \brief Rescrapes additional information for a given album
- *  \params params The parameters.
- *  \details params[0] = "album id"
- */
-static int RefreshAlbum(const std::vector<std::string>& params)
-{
-  // Checking if the album id is passed
-  if (params.empty())
-    return -1;
-
-  // Set the album id on the musicdb url
-  CMusicDbUrl musicUrl;
-  if (!musicUrl.FromString("musicdb://albums/"))
-    return -1;
-  musicUrl.AddOption("albumid", params.front());
-
-  // Start rescraping additional information for the given album
-  CMusicLibraryQueue::GetInstance().StartAlbumScan(musicUrl.ToString(), true);
   return 0;
 }
 
@@ -447,31 +401,16 @@ static int RefreshAlbum(const std::vector<std::string>& params)
 ///     ,
 ///     Brings up a search dialog which will search the library
 ///   }
-///   \table_row2_l{
-///     <b>`musiclibrary.refreshartist([artistId\])`</b>
-///     ,
-///     Rescrapes additional information for a given artist
-///     @param[in] artistId             Artist Id.
-///   }
-///   \table_row2_l{
-///     <b>`musiclibrary.refreshalbum([albumId\])`</b>
-///     ,
-///     Rescrapes additional information for a given album
-///     @param[in] albumId             Album Id.
-///   }
 ///  \table_end
 ///
 
 CBuiltins::CommandMap CLibraryBuiltins::GetOperations() const
 {
-  return {{"cleanlibrary", {"Clean the video/music library", 1, CleanLibrary}},
-          {"exportlibrary", {"Export the video/music library", 1, ExportLibrary}},
-          {"exportlibrary2", {"Export the video/music library", 1, ExportLibrary2}},
-          {"updatelibrary", {"Update the selected library (music or video)", 1, UpdateLibrary}},
-          {"videolibrary.search",
-           {"Brings up a search dialog which will search the library", 0, SearchVideoLibrary}},
-          {"musiclibrary.refreshartist",
-           {"Rescrapes additional information for a given artist", 1, RefreshArtist}},
-          {"musiclibrary.refreshalbum",
-           {"Rescrapes additional information for a given album", 1, RefreshAlbum}}};
+  return {
+          {"cleanlibrary",        {"Clean the video/music library", 1, CleanLibrary}},
+          {"exportlibrary",       {"Export the video/music library", 1, ExportLibrary}},
+          {"exportlibrary2",      {"Export the video/music library", 1, ExportLibrary2}},
+          {"updatelibrary",       {"Update the selected library (music or video)", 1, UpdateLibrary}},
+          {"videolibrary.search", {"Brings up a search dialog which will search the library", 0, SearchVideoLibrary}}
+         };
 }

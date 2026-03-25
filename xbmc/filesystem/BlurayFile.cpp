@@ -13,29 +13,32 @@
 
 #include <assert.h>
 
-using namespace XFILE;
-
-CBlurayFile::CBlurayFile(void) : COverrideFile(false)
+namespace XFILE
 {
-}
 
-CBlurayFile::~CBlurayFile(void) = default;
+  CBlurayFile::CBlurayFile(void)
+    : COverrideFile(false)
+  { }
 
-std::string CBlurayFile::TranslatePath(const CURL& url)
-{
-  assert(url.IsProtocol("bluray"));
+  CBlurayFile::~CBlurayFile(void) = default;
 
-  std::string host = url.GetHostName();
-  const std::string& filename = url.GetFileName();
-  if (host.empty() || filename.empty())
-    return "";
+  std::string CBlurayFile::TranslatePath(const CURL& url)
+  {
+    assert(url.IsProtocol("bluray"));
 
-  return host.append(filename);
-}
+    std::string host = url.GetHostName();
+    const std::string& filename = url.GetFileName();
+    if (host.empty() || filename.empty())
+      return "";
 
-bool CBlurayFile::Exists(const CURL& url)
-{
-  if (url.GetFileName() == "menu")
-    return CFile::Exists(URIUtils::GetDiscFile(url.Get()));
-  return CFile::Exists(TranslatePath(url));
-}
+    return host.append(filename);
+  }
+
+  bool CBlurayFile::Exists(const CURL& url)
+  {
+    if (url.GetFileName() == "menu")
+      return CFile::Exists(URIUtils::GetDiscFile(url.Get()));
+    return CFile::Exists(TranslatePath(url));
+  }
+
+} /* namespace XFILE */

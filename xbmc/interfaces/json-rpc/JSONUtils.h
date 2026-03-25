@@ -95,7 +95,7 @@ namespace JSONRPC
 
       // parse the sort order
       sortOrder = SortUtils::SortOrderFromString(order);
-      if (sortOrder == SortOrder::NONE)
+      if (sortOrder == SortOrderNone)
         return false;
 
       // parse the sort method
@@ -258,7 +258,7 @@ namespace JSONRPC
      */
     static inline std::string SchemaValueTypeToString(JSONSchemaType valueType)
     {
-      std::vector<JSONSchemaType> types = std::vector<JSONSchemaType>();
+      auto types = std::vector<JSONSchemaType>();
       for (unsigned int value = 0x01; value <= (unsigned int)AnyValue; value *= 2)
       {
         if (HasType(valueType, (JSONSchemaType)value))
@@ -483,7 +483,7 @@ namespace JSONRPC
       else
         xspObj["rules"] = filter;
 
-      KODI::PLAYLIST::CSmartPlaylist playlist;
+      CSmartPlaylist playlist;
       return playlist.Load(xspObj) && playlist.SaveAsJson(xsp, false);
     }
   };

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "jobs/Job.h"
+#include "utils/Job.h"
 
 #include <string>
 

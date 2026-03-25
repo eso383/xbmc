@@ -32,7 +32,7 @@ using namespace ADDON;
 
 JSONRPC_STATUS CGUIOperations::GetProperties(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
-  CVariant properties = CVariant(CVariant::VariantTypeObject);
+  auto properties = CVariant(CVariant::VariantTypeObject);
   for (unsigned int index = 0; index < parameterObject["properties"].size(); index++)
   {
     std::string propertyName = parameterObject["properties"][index].asString();
@@ -119,10 +119,9 @@ JSONRPC_STATUS CGUIOperations::SetStereoscopicMode(const std::string &method, IT
 
 JSONRPC_STATUS CGUIOperations::GetStereoscopicModes(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
 {
-  for (int i = static_cast<int>(RenderStereoMode::OFF);
-       i < static_cast<int>(RenderStereoMode::COUNT); i++)
+  for (int i = RENDER_STEREO_MODE_OFF; i < RENDER_STEREO_MODE_COUNT; i++)
   {
-    RenderStereoMode mode = static_cast<RenderStereoMode>(i);
+    auto mode = (RENDER_STEREO_MODE) i;
     if (CServiceBroker::GetRenderSystem()->SupportsStereo(mode))
       result["stereoscopicmodes"].push_back(GetStereoModeObjectFromGuiMode(mode));
   }
@@ -179,7 +178,7 @@ JSONRPC_STATUS CGUIOperations::GetPropertyValue(const std::string &property, CVa
   return OK;
 }
 
-CVariant CGUIOperations::GetStereoModeObjectFromGuiMode(const RenderStereoMode mode)
+CVariant CGUIOperations::GetStereoModeObjectFromGuiMode(const RENDER_STEREO_MODE &mode)
 {
   const CStereoscopicsManager &stereoscopicsManager = CServiceBroker::GetGUI()->GetStereoscopicsManager();
 

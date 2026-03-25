@@ -14,7 +14,9 @@
 
 class CPictureInfoTag;
 
-namespace KODI::ADDONS
+namespace KODI
+{
+namespace ADDONS
 {
 
 class CImageDecoder : public ADDON::IAddonInstanceHandler,
@@ -53,7 +55,7 @@ public:
 
   /*! From @ref CPictureInfoTag used function to get information from addon */
   ///@{
-  bool LoadInfoTag(const std::string& fileName, CPictureInfoTag* tag);
+  bool LoadInfoTag(const std::string& fileName, CPictureInfoTag* tag) const;
   ///@}
 
   /*! @ref KODI::ADDONS::IAddonSupportCheck related function */
@@ -67,4 +69,5 @@ private:
   bool m_created{false};
 };
 
-} // namespace KODI::ADDONS
+} /* namespace ADDONS */
+} /* namespace KODI */

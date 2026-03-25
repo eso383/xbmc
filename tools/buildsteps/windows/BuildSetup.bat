@@ -19,7 +19,6 @@ rem noclean to force a build without clean
 rem noprompt to avoid all prompts
 rem nobinaryaddons to skip building binary addons
 rem sh to use sh shell instead rxvt
-rem prerelease to use pre-release/insider versions of visual studio to build
 CLS
 TITLE %APP_NAME% for Windows Build Script
 rem ----PURPOSE----
@@ -40,29 +39,12 @@ FOR %%b in (%*) DO (
   IF %%b==noprompt SET promptlevel=noprompt
   IF %%b==nobinaryaddons SET buildbinaryaddons=false
   IF %%b==sh SET useshell=sh
-  IF %%b==prerelease SET prerelease=true
 )
 
-IF DEFINED PreferredToolArchitecture (
-  echo Build Tool Arch: %PreferredToolArchitecture%
-) else (
-  echo Setting Default Tool Arch: %PROCESSOR_ARCHITECTURE%
-  SET PreferredToolArchitecture=%PROCESSOR_ARCHITECTURE%
-)
+SET PreferredToolArchitecture=x64
+SET buildconfig=Release
+set WORKSPACE=%base_dir%\kodi-build.%TARGET_PLATFORM%
 
-IF DEFINED buildconfig (
-  echo Build Configuration: %buildconfig%
-) else (
-  echo Setting Default Build Configuration: Release
-  SET buildconfig=Release
-)
-
-IF DEFINED BUILDDIR (
-  echo BuildDir: %BUILDDIR%
-) else (
-  echo Setting Default BuildDir: %base_dir%\kodi-build.%TARGET_PLATFORM%
-  SET BUILDDIR=%base_dir%\kodi-build.%TARGET_PLATFORM%
-)
 
   :: sets the BRANCH env var
   FOR /f %%a IN ('getbranch.bat') DO SET BRANCH=%%a
@@ -77,10 +59,10 @@ IF DEFINED BUILDDIR (
   ECHO Compiling %APP_NAME% branch %BRANCH%...
 
   IF %buildmode%==clean (
-    RMDIR /S /Q %BUILDDIR%
+    RMDIR /S /Q %WORKSPACE%
   )
-  MKDIR %BUILDDIR%
-  PUSHD %BUILDDIR%
+  MKDIR %WORKSPACE%
+  PUSHD %WORKSPACE%
 
   cmake.exe -G "%cmakeGenerator%" -A %cmakeArch% -T host=x64 %cmakeProps% %base_dir%
   IF %errorlevel%==1 (
@@ -88,14 +70,14 @@ IF DEFINED BUILDDIR (
     goto DIE
   )
 
-  cmake.exe --build . --config "%buildconfig%" --parallel
+  cmake.exe --build . --config "%buildconfig%"
   IF %errorlevel%==1 (
     set DIETEXT="%APP_NAME%.EXE failed to build!"
     goto DIE
   )
 
-  set EXE="%BUILDDIR%\%buildconfig%\%APP_NAME%.exe"
-  set PDB="%BUILDDIR%\%buildconfig%\%APP_NAME%.pdb"
+  set EXE="%WORKSPACE%\%buildconfig%\%APP_NAME%.exe"
+  set PDB="%WORKSPACE%\%buildconfig%\%APP_NAME%.pdb"
 
   POPD
   ECHO Done!
@@ -150,11 +132,11 @@ IF DEFINED BUILDDIR (
   copy %base_dir%\privacy-policy.txt BUILD_WIN32\application > NUL
   copy %base_dir%\known_issues.txt BUILD_WIN32\application > NUL
 
-  xcopy %BUILDDIR%\%buildconfig%\addons BUILD_WIN32\application\addons /E /Q /I /Y /EXCLUDE:exclude.txt > NUL
-  xcopy %BUILDDIR%\%buildconfig%\*.dll BUILD_WIN32\application /Q /I /Y > NUL
-  xcopy %BUILDDIR%\%buildconfig%\libbluray-*.jar BUILD_WIN32\application /Q /I /Y > NUL
-  xcopy %BUILDDIR%\%buildconfig%\system BUILD_WIN32\application\system /E /Q /I /Y /EXCLUDE:exclude.txt+exclude_dll.txt  > NUL
-  xcopy %BUILDDIR%\%buildconfig%\media BUILD_WIN32\application\media /E /Q /I /Y /EXCLUDE:exclude.txt  > NUL
+  xcopy %WORKSPACE%\%buildconfig%\addons BUILD_WIN32\application\addons /E /Q /I /Y /EXCLUDE:exclude.txt > NUL
+  xcopy %WORKSPACE%\%buildconfig%\*.dll BUILD_WIN32\application /Q /I /Y > NUL
+  xcopy %WORKSPACE%\%buildconfig%\libbluray-*.jar BUILD_WIN32\application /Q /I /Y > NUL
+  xcopy %WORKSPACE%\%buildconfig%\system BUILD_WIN32\application\system /E /Q /I /Y /EXCLUDE:exclude.txt+exclude_dll.txt  > NUL
+  xcopy %WORKSPACE%\%buildconfig%\media BUILD_WIN32\application\media /E /Q /I /Y /EXCLUDE:exclude.txt  > NUL
 
   REM create AppxManifest.xml
   @PowerShell "(GC .\AppxManifest.xml.in)|%%{$_" ^
@@ -230,7 +212,7 @@ IF DEFINED BUILDDIR (
   )
 
   IF NOT EXIST "%NSISExePath%" (
-    rem fails on localized windows (Default) becomes (Par D faut)
+    rem fails on localized windows (Default) becomes (Par D�faut)
     FOR /F "tokens=3* delims=  " %%A IN ('REG QUERY "%NSIS_REG_KEY%" /ve') DO SET NSISExePath=%%B
   )
 
@@ -258,14 +240,14 @@ IF DEFINED BUILDDIR (
   set app_path=%base_dir%\project\UWPBuildSetup
   if not exist "%app_path%" mkdir %app_path%
   call %base_dir%\project\Win32BuildSetup\extract_git_rev.bat > NUL
-  for /F %%a IN ('dir /B /S %BUILDDIR%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_%TARGET_ARCHITECTURE%_%buildconfig%\.%app_ext%$"') DO (
+  for /F %%a IN ('dir /B /S %WORKSPACE%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_%TARGET_ARCHITECTURE%_%buildconfig%\.%app_ext%$"') DO (
     copy /Y %%a %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.%app_ext%
     copy /Y %%~dpna.cer %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.cer
     copy /Y %%~dpna.appxsym %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.appxsym
     goto END_APPX
   )
   rem Release builds don't have Release in it's name
-  for /F %%a IN ('dir /B /S %BUILDDIR%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_%TARGET_ARCHITECTURE%\.%app_ext%$"') DO (
+  for /F %%a IN ('dir /B /S %WORKSPACE%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_%TARGET_ARCHITECTURE%\.%app_ext%$"') DO (
     copy /Y %%a %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.%app_ext%
     copy /Y %%~dpna.cer %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.cer
     copy /Y %%~dpna.appxsym %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.appxsym
@@ -274,7 +256,7 @@ IF DEFINED BUILDDIR (
 
   rem apxx file has win32 instead of x86 in it's name
   if %TARGET_ARCHITECTURE%==x86 (
-    for /F %%a IN ('dir /B /S %BUILDDIR%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_win32_%buildconfig%\.%app_ext%$"') DO (
+    for /F %%a IN ('dir /B /S %WORKSPACE%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_win32_%buildconfig%\.%app_ext%$"') DO (
       copy /Y %%a %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.%app_ext%
       copy /Y %%~dpna.cer %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.cer
       copy /Y %%~dpna.appxsym %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.appxsym
@@ -282,7 +264,7 @@ IF DEFINED BUILDDIR (
     )
 
     rem Release builds don't have Release in it's name
-    for /F %%a IN ('dir /B /S %BUILDDIR%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_win32\.%app_ext%$"') DO (
+    for /F %%a IN ('dir /B /S %WORKSPACE%\AppPackages ^| findstr /I /R "%APP_NAME%_.*_win32\.%app_ext%$"') DO (
       copy /Y %%a %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.%app_ext%
       copy /Y %%~dpna.cer %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.cer
       copy /Y %%~dpna.appxsym %app_path%\%APP_NAME%-%GIT_REV%-%BRANCH%-%TARGET_ARCHITECTURE%.appxsym

@@ -12,8 +12,6 @@
 #include "settings/lib/ISettingCallback.h"
 #include "settings/lib/ISettingsHandler.h"
 
-class TiXmlNode;
-
 /*!
  * \brief Class handling application support for settings.
  */

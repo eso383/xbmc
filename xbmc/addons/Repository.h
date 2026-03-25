@@ -14,7 +14,6 @@
 
 #include <memory>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace ADDON
@@ -33,21 +32,21 @@ struct RepositoryDirInfo
   KODI::UTILITY::CDigest::Type hashType{KODI::UTILITY::CDigest::Type::INVALID};
 };
 
-using RepositoryDirList = std::vector<RepositoryDirInfo>;
+typedef std::vector<RepositoryDirInfo> RepositoryDirList;
 
 class CRepository : public CAddon
 {
 public:
   explicit CRepository(const AddonInfoPtr& addonInfo);
 
-  enum class FetchStatus
+  enum FetchStatus
   {
-    OK,
-    NOT_MODIFIED,
-    FETCH_ERROR
+    STATUS_OK,
+    STATUS_NOT_MODIFIED,
+    STATUS_ERROR
   };
 
-  FetchStatus FetchIfChanged(std::string_view oldChecksum,
+  FetchStatus FetchIfChanged(const std::string& oldChecksum,
                              std::string& checksum,
                              std::vector<AddonInfoPtr>& addons,
                              int& recheckAfter) const;
@@ -75,6 +74,6 @@ private:
   RepositoryDirList m_dirs;
 };
 
-using RepositoryPtr = std::shared_ptr<CRepository>;
+typedef std::shared_ptr<CRepository> RepositoryPtr;
 }
 

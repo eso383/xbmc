@@ -43,7 +43,7 @@ CVideoPlayerAudioID3::~CVideoPlayerAudioID3()
 
 bool CVideoPlayerAudioID3::CheckStream(const CDVDStreamInfo& hints)
 {
-  return hints.type == StreamType::AUDIO_ID3;
+  return hints.type == STREAM_AUDIO_ID3;
 }
 
 void CVideoPlayerAudioID3::Flush()
@@ -65,7 +65,7 @@ bool CVideoPlayerAudioID3::OpenStream(CDVDStreamInfo hints)
   CloseStream(true);
   m_messageQueue.Init();
 
-  if (hints.type == StreamType::AUDIO_ID3)
+  if (hints.type == STREAM_AUDIO_ID3)
   {
     Flush();
     CLog::Log(LOGINFO, "Creating Audio ID3 tag processor data thread");
@@ -141,7 +141,8 @@ void CVideoPlayerAudioID3::Process()
 
     if (pMsg->IsType(CDVDMsg::DEMUXER_PACKET))
     {
-      std::unique_lock lock(m_critSection);
+      std::lock_guard lock(m_critSection);
+
       DemuxPacket* pPacket = std::static_pointer_cast<CDVDMsgDemuxerPacket>(pMsg)->GetPacket();
       if (pPacket)
         ProcessID3(pPacket->pData, pPacket->iSize);
@@ -160,11 +161,7 @@ void CVideoPlayerAudioID3::ProcessID3(const unsigned char* data, unsigned int le
     ByteVectorStream tagStream(ByteVector(reinterpret_cast<const char*>(data), length));
     if (tagStream.isOpen())
     {
-#if (TAGLIB_MAJOR_VERSION >= 2)
-      MPEG::File tagFile = MPEG::File(&tagStream);
-#else
-      MPEG::File tagFile = MPEG::File(&tagStream, ID3v2::FrameFactory::instance());
-#endif
+      auto tagFile = MPEG::File(&tagStream, ID3v2::FrameFactory::instance());
       if (tagFile.isOpen())
       {
         if (tagFile.hasID3v1Tag())

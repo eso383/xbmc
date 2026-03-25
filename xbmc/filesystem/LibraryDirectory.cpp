@@ -10,9 +10,7 @@
 
 #include "Directory.h"
 #include "FileItem.h"
-#include "FileItemList.h"
 #include "GUIInfoManager.h"
-#include "ServiceBroker.h"
 #include "SmartPlaylistDirectory.h"
 #include "URL.h"
 #include "guilib/GUIControlFactory.h" // for label parsing
@@ -25,7 +23,6 @@
 #include "utils/XMLUtils.h"
 #include "utils/log.h"
 
-using namespace KODI;
 using namespace XFILE;
 
 CLibraryDirectory::CLibraryDirectory(void) = default;
@@ -46,7 +43,7 @@ bool CLibraryDirectory::GetDirectory(const CURL& url, CFileItemList &items)
       std::string type = XMLUtils::GetAttribute(node, "type");
       if (type == "filter")
       {
-        PLAYLIST::CSmartPlaylist playlist;
+        CSmartPlaylist playlist;
         std::string type, label;
         XMLUtils::GetString(node, "content", type);
         if (type.empty())
@@ -94,9 +91,9 @@ bool CLibraryDirectory::GetDirectory(const CURL& url, CFileItemList &items)
   std::string basePath = url.Get();
   for (int i = 0; i < nodes.Size(); i++)
   {
-    const TiXmlElement *node = NULL;
+    const TiXmlElement *node = nullptr;
     std::string xml = nodes[i]->GetPath();
-    if (nodes[i]->IsFolder())
+    if (nodes[i]->m_bIsFolder)
       node = LoadXML(URIUtils::AddFileToFolder(xml, "index.xml"));
     else
     {
@@ -127,11 +124,11 @@ bool CLibraryDirectory::GetDirectory(const CURL& url, CFileItemList &items)
       item->SetLabel(label);
       if (!icon.empty() && CServiceBroker::GetGUI()->GetTextureManager().HasTexture(icon))
         item->SetArt("icon", icon);
-      item->SetProgramCount(order);
+      item->m_iprogramCount = order;
       items.Add(item);
     }
   }
-  items.Sort(SortBy::PLAYLIST_ORDER, SortOrder::ASCENDING);
+  items.Sort(SortByPlaylistOrder, SortOrderAscending);
   return true;
 }
 

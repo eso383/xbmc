@@ -81,7 +81,7 @@ namespace XBMCAddon
      */
     virtual void deallocating()
     {
-      std::unique_lock lock(*this);
+      std::unique_lock<CCriticalSection> lock(*this);
       m_isDeallocating = true;
     }
 
@@ -96,14 +96,14 @@ namespace XBMCAddon
     virtual ~AddonClass();
 
     inline const char* GetClassname() const { return typeid(*this).name(); }
-    inline LanguageHook* GetLanguageHook() { return languageHook; }
+    inline LanguageHook* GetLanguageHook() const { return languageHook; }
 
     /**
      * This method should be called while holding a Synchronize
      *  on the object. It will prevent the deallocation during
      *  the time it's held.
      */
-    bool isDeallocating() { XBMC_TRACE; return m_isDeallocating; }
+    bool isDeallocating() const { XBMC_TRACE; return m_isDeallocating; }
 
     static short getNumAddonClasses();
 
@@ -155,7 +155,7 @@ namespace XBMCAddon
     {
       T * ac;
     public:
-      inline Ref() : ac(NULL) {}
+      inline Ref() : ac(nullptr) {}
       inline Ref(const T* _ac) : ac(const_cast<T*>(_ac)) { if (ac) ac->Acquire(); refcheck; }
 
       // copy semantics
@@ -192,10 +192,10 @@ namespace XBMCAddon
       inline T& getRef() const { refcheck; return *ac; }
 
       inline ~Ref() { refcheck; if (ac) ac->Release(); }
-      inline bool isNull() const { refcheck; return ac == NULL; }
-      inline bool isNotNull() const { refcheck; return ac != NULL; }
-      inline bool isSet() const { refcheck; return ac != NULL; }
-      inline bool operator!() const { refcheck; return ac == NULL; }
+      inline bool isNull() const { refcheck; return ac == nullptr; }
+      inline bool isNotNull() const { refcheck; return ac != nullptr; }
+      inline bool isSet() const { refcheck; return ac != nullptr; }
+      inline bool operator!() const { refcheck; return ac == nullptr; }
       inline bool operator==(const AddonClass::Ref<T>& oref) const { refcheck; return ac == oref.ac; }
       inline bool operator<(const AddonClass::Ref<T>& oref) const { refcheck; return ac < oref.ac; } // std::set semantics
 

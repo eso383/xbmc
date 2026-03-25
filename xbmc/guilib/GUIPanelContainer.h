@@ -15,6 +15,8 @@
 
 #include "GUIBaseContainer.h"
 
+#include <optional>
+
 /*!
  \ingroup controls
  \brief
@@ -48,7 +50,7 @@ protected:
   unsigned int GetRows() const override;
   int  CorrectOffset(int offset, int cursor) const override;
   bool SelectItemFromPoint(const CPoint &point) override;
-  int GetCursorFromPoint(const CPoint &point, CPoint *itemPoint = NULL) const override;
+  int GetCursorFromPoint(const CPoint &point, CPoint *itemPoint = nullptr) const override;
   void SetCursor(int cursor) override;
   void SelectItem(int item) override;
   bool HasPreviousPage() const override;
@@ -59,5 +61,8 @@ protected:
   int GetCurrentColumn() const;
 
   int m_itemsPerRow;
+
+  // Cached offset calculated in Process() and reused in Render()
+  std::optional<int> m_cachedScrollOffset;
 };
 

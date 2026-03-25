@@ -7,7 +7,6 @@ DEPS= ../../Makefile.include Makefile SAMBA-GPLV3-VERSION ../../download-files.i
                               samba_android.patch \
                               no_fork_and_exec.patch \
                               crt_extensions.patch \
-                              backport-23ddfd3.patch
 
 # vfs_snapper requires dbus, so disable.
 CONFIGURE=./configure --prefix=$(PREFIX) \
@@ -34,10 +33,6 @@ CONFIGURE=./configure --prefix=$(PREFIX) \
           --without-libarchive \
           --without-regedit \
           --without-lttng
-
-ifeq ($(NEED_LIBICONV), 1)
-  CONFIGURE += --with-libiconv=$(PREFIX)/lib
-endif
 
 LIBDYLIB=$(PLATFORM)/bin/default/source3/libsmb/libsmbclient.a
 
@@ -67,7 +62,6 @@ export CC CXX CPP AR RANLIB LD AS NM STRIP TOOLCHAIN
 export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
 export HOST
 export PKG_CONFIG_LIBDIR=$(PREFIX)/lib/pkgconfig
-export PKG_CONFIG_PATH=$(PREFIX)/lib/pkgconfig
 
 # samba doesn't build with distcc
 export DISTCC_HOSTS=
@@ -97,10 +91,9 @@ ifeq ($(TARGET_PLATFORM),webos)
 	cd $(PLATFORM); patch -p1 -i ../webos-no-readline.patch
 endif
 	cd $(PLATFORM); patch -p1 -i ../08-py312-distutils.patch
-	cd $(PLATFORM); patch -p1 -i ../backport-23ddfd3.patch
+	cd $(PLATFORM); $(CONFIGURE)
 
 $(LIBDYLIB): $(PLATFORM)
-	cd $(PLATFORM); $(CONFIGURE)
 	cd $(PLATFORM); WAF_MAKE=1 ./buildtools/bin/waf --targets=smbclient
 
 .installed-$(PLATFORM): $(LIBDYLIB)

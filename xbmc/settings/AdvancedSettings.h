@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2005-2026 Team Kodi
+ *  Copyright (C) 2005-2018 Team Kodi
  *  This file is part of Kodi - https://kodi.tv
  *
  *  SPDX-License-Identifier: GPL-2.0-or-later
@@ -8,19 +8,14 @@
 
 #pragma once
 
-#include "LangInfo.h"
 #include "pictures/PictureScalingAlgorithm.h"
 #include "settings/lib/ISettingCallback.h"
 #include "settings/lib/ISettingsHandler.h"
-#include "threads/CriticalSection.h"
-#include "utils/RegExp.h"
 #include "utils/SortUtils.h"
 #include "cores/AudioEngine/Utils/AEStreamInfo.h"
 
 #include <cstdint>
 #include <set>
-#include <functional>
-#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,8 +34,6 @@ namespace ADDON
 class DatabaseSettings
 {
 public:
-  static constexpr unsigned int DEFAULT_CONNECT_TIMEOUT = 5; // secs
-
   DatabaseSettings() { Reset(); }
   void Reset()
   {
@@ -55,7 +48,6 @@ public:
     ca.clear();
     capath.clear();
     ciphers.clear();
-    connecttimeout = DEFAULT_CONNECT_TIMEOUT;
     compression = false;
   };
   std::string type;
@@ -69,7 +61,6 @@ public:
   std::string ca;
   std::string capath;
   std::string ciphers;
-  unsigned int connecttimeout{DEFAULT_CONNECT_TIMEOUT};
   bool compression;
 };
 
@@ -79,10 +70,11 @@ struct TVShowRegexp
   bool byTitle;
   std::string regexp;
   int defaultSeason;
-
-  TVShowRegexp(bool d, const std::string& r, int s = 1, bool t = false)
-    : byDate(d), byTitle(t), regexp(r), defaultSeason(s)
+  TVShowRegexp(bool d, const std::string& r, int s = 1, bool t = false) : regexp(r)
   {
+    byDate = d;
+    defaultSeason = s;
+    byTitle = t;
   }
 };
 
@@ -115,14 +107,12 @@ struct PassthroughAudioLatency
   int delay;
 };
 
-using SETTINGS_TVSHOWLIST = std::vector<TVShowRegexp>;
-
-using AdvancedSettingsCallback = std::function<void()>;
+typedef std::vector<TVShowRegexp> SETTINGS_TVSHOWLIST;
 
 class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
 {
   public:
-    CAdvancedSettings() = default;
+    CAdvancedSettings();
 
     void OnSettingsLoaded() override;
     void OnSettingsUnloaded() override;
@@ -135,30 +125,9 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     void AddSettingsFile(const std::string &filename);
     bool Load(const CProfileManager &profileManager);
 
-    /*!
-     * \brief Register a callback to receive notifications when the advanced settings are loaded.
-     *        Note: the callback functions are invoked on the thread that loads the settings.
-     * \param[in] callback
-     * \return opaque callback handle
-     */
-    int RegisterSettingsLoadedCallback(AdvancedSettingsCallback callback);
-
-    /*!
-     * \brief Unregister a callback for notifications of advanced settings load.
-     * \param[in] handle of the callback
-     */
-    void UnregisterSettingsLoadedCallback(int handle);
-
-    static void GetCustomTVRegexps(const TiXmlElement* pRootElement, SETTINGS_TVSHOWLIST& settings);
-    static void GetCustomRegexps(const TiXmlElement* pRootElement,
-                                 std::vector<std::string>& settings);
-    static void GetCustomExtensions(const TiXmlElement* pRootElement, std::string& extensions);
-
-    unsigned int m_threadApplicationCore;
-    unsigned int m_threadVideoPlayerVideoCore;
-    unsigned int m_threadActiveAECore;
-
-    unsigned int m_threadApplicationMaxOtherTaskTime;
+    static void GetCustomTVRegexps(TiXmlElement *pRootElement, SETTINGS_TVSHOWLIST& settings);
+    static void GetCustomRegexps(TiXmlElement *pRootElement, std::vector<std::string> &settings);
+    static void GetCustomExtensions(TiXmlElement *pRootElement, std::string& extensions);
 
     std::string m_audioDefaultPlayer;
     float m_audioPlayCountMinimumPercent;
@@ -168,9 +137,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool  m_omlSync = true;
 
     float m_videoSubsDelayRange;
-    float m_videoSubsDelayStep;
     float m_videoAudioDelayRange;
-    float m_videoAudioDelayStep;
     bool m_videoUseTimeSeeking;
     int m_videoTimeSeekForward;
     int m_videoTimeSeekBackward;
@@ -180,7 +147,6 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int m_videoPercentSeekBackward;
     int m_videoPercentSeekForwardBig;
     int m_videoPercentSeekBackwardBig;
-    int m_videoSeekMinimumDistanceBeforeEof;
     std::vector<int> m_seekSteps;
     std::string m_videoPPFFmpegPostProc;
     bool m_videoVDPAUtelecine;
@@ -197,7 +163,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int m_videoIgnoreSecondsAtStart;
     float m_videoIgnorePercentAtEnd;
     float m_audioApplyDrc;
-    unsigned int m_maxPassthroughOffSyncDuration = 10; // when off by this value then adjust
+    unsigned int m_maxPassthroughOffSyncDuration = 20; // when off by this value then adjust
     unsigned int m_audioAddPacketUnlockTime = 1000;
     bool m_AllowMultiChannelFloat = false; // Android only switch to be removed in v22
     bool m_superviseAudioDelay = false; // Android only to correct broken audio firmwares
@@ -219,7 +185,6 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
 
     std::string m_videoDefaultPlayer;
     float m_videoPlayCountMinimumPercent;
-    bool m_videoBypassCodecProfile = false; // Android only to bypass reported codec capabilities
 
     float m_slideshowBlackBarCompensation;
     float m_slideshowZoomAmount;
@@ -258,14 +223,12 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     std::vector<std::string> m_audioExcludeFromListingRegExps;
     std::vector<std::string> m_audioExcludeFromScanRegExps;
     std::vector<std::string> m_pictureExcludeFromListingRegExps;
-    std::vector<CRegExp> m_videoStackRegExps;
-    std::vector<CRegExp> m_folderStackRegExps;
+    std::vector<std::string> m_videoStackRegExps;
+    std::vector<std::string> m_folderStackRegExps;
     std::vector<std::string> m_trailerMatchRegExps;
-    std::string m_titleTrailingPartNumberRegExp;
-    std::string m_trailingPartNumberRegExp;
     SETTINGS_TVSHOWLIST m_tvshowEnumRegExps;
     std::string m_tvshowMultiPartEnumRegExp;
-    using StringMapping = std::vector<std::pair<std::string, std::string>>;
+    typedef std::vector< std::pair<std::string, std::string> > StringMapping;
     StringMapping m_pathSubstitutions;
     int m_remoteDelay; ///< \brief number of remote messages to ignore before repeating
     bool m_bScanIRServer;
@@ -314,12 +277,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool m_bVideoScannerIgnoreErrors;
     int m_iVideoLibraryDateAdded;
 
-    bool m_caseSensitiveLocalArtMatch{true};
-    int m_minimumEpisodePlaylistDuration; // seconds
-    bool m_disableEpisodeRanges{false};
-    bool m_bNoRemoteArtWithLocalScraper{false};
-
-    CLangInfo::Tokens m_vecTokens;
+    std::set<std::string> m_vecTokens;
 
     int m_iEpgUpdateCheckInterval;  // seconds
     int m_iEpgCleanupInterval;      // seconds
@@ -350,7 +308,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     std::string m_caTrustFile;
 
     bool m_minimizeToTray; /* win32 only */
-    bool m_fullScreen{false};
+    bool m_fullScreen;
     bool m_startFullScreen;
     bool m_showExitButton; /* Ideal for appliances to hide a 'useless' button */
     bool m_canWindowed;
@@ -366,19 +324,12 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     std::string m_cpuTempCmd;
     std::string m_gpuTempCmd;
 
-    /* Power management command overrides */
-    std::string m_powerdownCommand;
-    std::string m_rebootCommand;
-    std::string m_suspendCommand;
-    std::string m_hibernateCommand;
-
     /* PVR/TV related advanced settings */
     int m_iPVRTimeCorrection;     /*!< @brief correct all times (epg tags, timer tags, recording tags) by this amount of minutes. defaults to 0. */
     int m_iPVRInfoToggleInterval; /*!< @brief if there are more than 1 pvr gui info item available (e.g. multiple recordings active at the same time), use this toggle delay in milliseconds. defaults to 3000. */
     bool m_bPVRChannelIconsAutoScan; /*!< @brief automatically scan user defined folder for channel icons when loading internal channel groups */
     bool m_bPVRAutoScanIconsUserSet; /*!< @brief mark channel icons populated by auto scan as "user set" */
-    uint32_t
-        m_iPVRNumericChannelSwitchTimeout; /*!< @brief time in msecs after that a channel switch occurs after entering a channel number, if confirmchannelswitch is disabled */
+    int m_iPVRNumericChannelSwitchTimeout; /*!< @brief time in msecs after that a channel switch occurs after entering a channel number, if confirmchannelswitch is disabled */
     int m_iPVRTimeshiftThreshold; /*!< @brief time diff between current playing time and timeshift buffer end, in seconds, before a playing stream is displayed as timeshifting. */
     bool m_bPVRTimeshiftSimpleOSD; /*!< @brief use simple timeshift OSD (with progress only for the playing event instead of progress for the whole ts buffer). */
     SortDescription m_PVRDefaultSortOrder; /*!< @brief SortDecription used to store default recording sort type and sort order */
@@ -407,12 +358,14 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool m_enableMultimediaKeys;
     std::vector<std::string> m_settingsFiles;
     void ParseSettingsFile(const std::string &file);
-    void ParseAudioLatencySettings(const TiXmlElement* pAudioElement);
+
+    void DefaultAudioLatency();
+    void DefaultVideoLatency();
 
     int GetVideoLatencyTweak(float refreshrate, unsigned int resolution);
     int GetAudioLatencyTweak(CAEStreamInfo::DataType type);
 
-    bool m_initialized{false};
+    bool m_initialized;
 
     void SetDebugMode(bool debug);
 
@@ -424,8 +377,6 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
 
     // runtime settings which cannot be set from advancedsettings.xml
     std::string m_videoExtensions;
-    std::string m_archiveExtensions;
-    std::string m_compoundArchiveExtensions;
     std::string m_discStubExtensions;
     std::string m_subtitlesExtensions;
     std::string m_musicExtensions;
@@ -443,17 +394,62 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     int m_nfsRetries;
 
     int m_videoDecoderTimeout;
+    bool m_videoDecoderBypassBufferReady;
     float m_videoDecoderBuffer;
     float m_videoDecoderStreamBuffer;
     float m_videoDecoderMinimumBuffer;
     float m_videoDecoderMinimumStreamBuffer;
-    int m_videoDecoderH264Offset;
+
+    void SetAlgoForReset(int num_resets);
+    int GetAlgoForReset() const;
+    int m_algoForReset;
+
+    void SetLastResetTime(double reset_time);
+    double GetLastResetTime() const;
+    double m_lastResetTime;
+
+    void SetResetSync(bool reset_sync);
+    bool GetResetSync() const;
+    bool m_resetSync;
+
+    void SetResetSeek(bool reset_seek);
+    bool GetResetSeek() const;
+    bool m_resetSeek;
+
+    void SetAlgoForResetSub(int num_resets);
+    int GetAlgoForResetSub() const;
+    int m_algoForResetSub;
+
+    void SetLastResetTimeSub(double reset_time);
+    double GetLastResetTimeSub() const;
+    double m_lastResetTimeSub;
+
+    void SetResetSyncSub(bool reset_sync);
+    bool GetResetSyncSub() const;
+    bool m_resetSyncSub;
+
+    void SetResetSeekSub(bool reset_seek);
+    bool GetResetSeekSub() const;
+    bool m_resetSeekSub;
+
+    void SetLimitCD(bool limit_cd);
+    bool GetLimitCD() const;
+    bool m_limitCD;
+
+    void SetLimitCDPrevVal(int cd_prev_val);
+    int GetLimitCDPrevVal() const;
+    int m_limitCDPrevVal;
+
+    void SetForceCS(bool force_cs);
+    bool GetForceCS() const;
+    bool m_forceCS;
+
+    void SetForceCSPrevVal(int cs_prev_val);
+    int GetForceCSPrevVal() const;
+    int m_forceCSPrevVal;
 
   private:
     void Initialize();
     void Clear();
-    void SetExtraArtwork(const TiXmlElement* arttypes, std::vector<std::string>& artworkMap) const;
-
-    mutable CCriticalSection m_listCritSection;
-    std::map<int, AdvancedSettingsCallback> m_settingsLoadedCallbacks;
+    void SetExtraArtwork(const TiXmlElement* arttypes, std::vector<std::string>& artworkMap);
 };
